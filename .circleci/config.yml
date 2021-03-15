@@ -72,6 +72,9 @@ jobs:
           name: Install Clippy
           command: rustup component add clippy
       - run:
+          name: Install prerequisites
+          command: apt-get install libasound2-dev libudev-dev pkg-config -y
+      - run:
           name: Linting
           command: cargo clippy -- -D warnings
 
