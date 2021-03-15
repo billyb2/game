@@ -10,3 +10,4 @@ codegen-units = 1
 
 [dependencies]
 ggez = "0.5"
+rand = "0.8"
