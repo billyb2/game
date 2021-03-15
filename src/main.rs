@@ -1,7 +1,5 @@
 use ggez;
-use ggez::event;
-use ggez::graphics;
-use ggez::nalgebra as na;
+use ggez::{event, graphics, input, nalgebra as na};
 
 struct MainState {
     x: f32,
@@ -16,8 +14,7 @@ impl MainState {
 }
 
 impl event::EventHandler for MainState {
-    fn update(&mut self, _ctx: &mut ggez::Context) -> ggez::GameResult {
-    
+    fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         if self.x < 500.0 && self.going_right {
             self.x += 1.0;
             
@@ -32,8 +29,10 @@ impl event::EventHandler for MainState {
             
         }
         
-        println!("{}", self.x);
-        
+        if input::mouse::button_pressed(&ctx, input::mouse::MouseButton::Left) {
+            println!("Hello mouse!");
+            
+        }
         
         Ok(())
     }
@@ -47,7 +46,7 @@ impl event::EventHandler for MainState {
             ctx,
             graphics::DrawMode::fill(),
             rect,
-            graphics::WHITE,
+            graphics::Color::from_rgb(255, 0, 0),
         )?;
         
         graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
