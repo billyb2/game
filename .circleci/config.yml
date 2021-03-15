@@ -22,6 +22,7 @@ jobs:
       - run:
           name: Build all targets
           command: cargo build
+
       - save_cache:
           paths:
             - /usr/local/cargo/registry
@@ -59,21 +60,6 @@ jobs:
           name: Check for known security issues in dependencies
           command: cargo audit
 
-  format:
-    docker:
-      - image: circleci/rust
-    steps:
-      - checkout
-      - run:
-          name: Version information
-          command: rustc --version; cargo --version; rustup --version
-      - run:
-          name: Install formatter
-          command: rustup component add rustfmt
-      - run:
-          name: Formatting
-          command: cargo fmt --all -- --check
-
   lint:
     docker:
       - image: circleci/rust
@@ -89,14 +75,6 @@ jobs:
           name: Linting
           command: cargo clippy -- -D warnings
 
-  coverage:
-    machine: true
-    steps:
-      - checkout
-      - run:
-          name: Coverage with docker
-          command: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
-
 workflows:
   version: 2
   build-test:
@@ -109,15 +87,8 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - format:
-          filters:
-            tags:
-              only: /.*/
       - lint:
           filters:
             tags:
               only: /.*/
-      - coverage:
-          filters:
-            tags:
-              only: /.*/
+
