@@ -33,9 +33,6 @@ jobs:
             - target/debug/build
             - target/debug/deps
           key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-      - run:
-          name: Run all tests
-          command: cargo test
 
   security:
     docker:

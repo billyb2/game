@@ -2,12 +2,15 @@ mod game;
 
 use ggez::{event, graphics, nalgebra as na};
 use ggez::conf::WindowSetup;
+use ggez::conf::NumSamples;
 use ggez::timer::check_update_time;
 
-use game::{update_game, Player};
+use game::{update_game, Player, Projectile};
 
 struct MainState {
     players: [Player; 8],
+    projectiles: Vec<Projectile>,
+    
 }
 
 impl MainState {
@@ -21,16 +24,21 @@ impl MainState {
                     *player = Player::new(None, 0, true);
                     
                 } else {
-                    *player = Player::new(None, 0, false);
+                    break;
+                    
                 }
             }
+            
+            players[1].direction = 3;
             
             players
             
         };
     
         let s = MainState {
-           players, 
+           players,
+           projectiles: Vec::new(),
+           
         };
         
         Ok(s)
@@ -39,11 +47,11 @@ impl MainState {
 
 impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        // Please see https://docs.rs/ggez/0.5.1/ggez/timer/fn.check_update_time.html for why I'm doing
-        // updates like this
+        // Please see https://docs.rs/ggez/0.5.1/ggez/timer/fn.check_update_time.html for why I'm doing updates like this
         // Basically, the game will run 60 frames every second on average
+        
         while check_update_time(ctx, 60) {
-            self.players = update_game(self.players, ctx);
+            self.players = update_game(self.players, &mut self.projectiles, ctx);
         
         }
             
@@ -53,9 +61,9 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, [255.0, 255.0, 255.0, 255.0].into());
         
-        
         for player in &self.players {
             if player.online {
+                // Draw each player as a filled rectangle
                 let rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
 
                 let rect_to_draw = graphics::Mesh::new_rectangle(
@@ -70,6 +78,20 @@ impl event::EventHandler for MainState {
             }
         
         }
+        
+        for projectile in &self.projectiles {
+            // Draw each player as a filled rectangle
+            let rect = graphics::Rect::new(projectile.x, projectile.y, 5.0, 5.0);
+
+            let rect_to_draw = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::fill(),
+                rect,
+                graphics::BLACK,
+            )?;
+            
+            graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
+        }
 
         graphics::present(ctx)?;
         Ok(())
@@ -78,7 +100,17 @@ impl event::EventHandler for MainState {
 
 pub fn main() -> ggez::GameResult { 
     let cb = ggez::ContextBuilder::new("super_simple", "ggez");
-    let cb = cb.window_setup(WindowSetup::default());
+    let cb = cb.window_setup(
+        WindowSetup {
+        title: "A game by the beacon boys".to_string(),
+        // 8x antialiasing for a block game lol
+        samples: NumSamples::Eight,
+        // Vsync to make the framerate look pretty
+        vsync: true,
+        icon: "".to_string(),
+        srgb: true,
+    });
+    
     let (ctx, event_loop) = &mut cb.build()?;
     let state = &mut MainState::new(2)?;
     event::run(ctx, event_loop, state)
