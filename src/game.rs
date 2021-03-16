@@ -81,7 +81,7 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
     }
         
     //TODO: Multithreaded bots
-    players[1].direction = bots::move_right(players);
+    players[1].direction = bots::bounce(players);
     
     // At the end of processing player movement, return the new player array
     players
