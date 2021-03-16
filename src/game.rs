@@ -89,22 +89,14 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
 }
 
 fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
-    if x + w >= 500.0 {
-        true
-        
-    } else if x <= 0.0 {
-        true
-        
-    } else if y + h >= 500.0 {
-        true
-        
-    } else if y <= 0.0 {
-        true
-        
-    } else {
-        false
-        
+    //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
+    {
+        x + w >= 500.0 || 
+        x <= 0.0 || 
+        y +h >= 500.0 || 
+        y <= 0.0
     }
+
 }
 
 pub struct Projectile {
