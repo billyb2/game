@@ -1,6 +1,6 @@
 use crate::Player;
 
-pub fn bounce(players: [Player;8]) -> u8 {
+pub fn bounce(players: &[Player; 8]) -> u8 {
 
     if players[1].x >= 500.0  && players[1].direction ==3 {
         4

@@ -4,7 +4,7 @@ use ggez::input::keyboard::{is_key_pressed, KeyCode};
 use ggez::input::mouse;
 use ggez::graphics;
 use rand::{Rng, thread_rng};
-use std::time::{Duration, SystemTime};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> [Player; 8] {
 
@@ -21,7 +21,13 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
             8 => {player.y += player.speed; player.x -= player.speed;},
             _ => {},
             
-        }        
+        }
+        
+        // If a player started reloading in a previous tick, then it continues in this tick
+        
+        if player.gun.reloading {
+            player.gun.reload()
+        }
     }
     
     // Move every projectile
@@ -81,7 +87,7 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
     }
         
     //TODO: Multithreaded bots
-    players[1].direction = bots::bounce(players);
+    players[1].direction = bots::bounce(&players);
     
     // At the end of processing player movement, return the new player array
     players
@@ -107,11 +113,76 @@ pub struct Projectile {
     
 }
 
-/*struct Weapon {
-    shoot_cooldown
-    reload_time
-    projectile_speed
-}*/
+#[derive(Copy, Clone)]
+pub struct Gun {
+    // Once again, storing the gun model as an int since it makes it fast and easy to deal with
+    // 0 is the pistol
+    model: u8,
+    // This time is stored so that the bullets per second of guns can be limited dynamically
+    time_since_last_shot: u128,
+    time_since_start_reload: u128,
+    reloading: bool,
+    ammo_count: u8,
+}
+
+impl Gun {
+    pub fn new(model: u8) -> Gun {
+        Gun {
+            model: model,
+            // The time since the last shot is set as 0 so that you can start shooting as the start of the game
+            time_since_last_shot: 0,
+            time_since_start_reload: 0,
+            reloading: false,
+            ammo_count: match model {
+                0 => 16,
+                _ => 30,
+            },
+        }
+    
+    }
+
+    pub fn reload (&mut self) {
+        if !self.reloading {
+            // Start reloading
+            self.time_since_start_reload = current_time();
+            self.reloading = true;
+            
+        } else {
+            // Pistol has a reload time of 2 seconds
+            if self.model == 0  && self.time_since_start_reload + 2000 <= current_time() {
+                self.ammo_count = 16;
+                self.reloading = false;
+                
+            }
+            
+        }
+       
+        
+    }
+    
+    pub fn shoot (&mut self, x: f32, y: f32, direction: u8, projectiles: &mut Vec<Projectile>) {        
+        if self.ammo_count > 0 {
+            //Pistol
+            //println!("Current time: {}\n Time since last shot: {}", current_time(), self.time_since_last_shot);
+            if self.model == 0 && current_time() >= self.time_since_last_shot + 250 {
+                self.time_since_last_shot = current_time();
+                projectiles.push( Projectile {
+                    x,
+                    y,
+                    direction, 
+                    speed: 8.0,
+                });
+                
+                self.ammo_count -= 1;
+                
+            }
+            
+        } else {
+            self.reload();
+            
+        }
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct Player {
@@ -136,8 +207,11 @@ pub struct Player {
     // 1 is stim
     
     pub ability: u8,
-    pub cooldown_finished_time: SystemTime,
+    pub cooldown_finished_time: u128,
     pub speed: f32,
+    
+    pub gun: Gun,
+    
     pub online: bool,
 }
 
@@ -156,13 +230,14 @@ impl Player {
             },
             ability,
             speed: 10.0,
-            cooldown_finished_time: SystemTime::now(),
+            cooldown_finished_time: current_time(),
             online,
+            gun: Gun::new(0),
         }
     }
     
     fn use_ability(&mut self) {
-        if self.ability == 0 && self.cooldown_finished_time.elapsed().unwrap() >= Duration::from_secs(2) {
+        if self.ability == 0 && current_time() >= self.cooldown_finished_time + 2000 {
         
             let teleport_distance = 250.0;
         
@@ -178,7 +253,7 @@ impl Player {
                 _ => {},
             }
             
-            self.cooldown_finished_time = SystemTime::now();
+            self.cooldown_finished_time = current_time();
         
         } else if self.ability == 1  {
             self.speed = 30.0;
@@ -187,8 +262,17 @@ impl Player {
 
     }
     
-    fn shoot(&self, projectiles: &mut Vec<Projectile>) {
-        projectiles.push(Projectile { x: self.x + 5.0, y: self.y + 5.0, direction: self.direction, speed: 8.0 });
-    
+    fn shoot(&mut self, projectiles: &mut Vec<Projectile>) {
+        self.gun.shoot(self.x, self.y, self.direction, projectiles);
+        
     }
+    
+}
+
+fn current_time() -> u128 {
+    // Returns the time in Unix Time (the number of seconds since 1970)
+    let time: u128 = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_millis();
+    
+    //Return the current time
+    time
 }
