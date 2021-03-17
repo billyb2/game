@@ -6,7 +6,7 @@ use ggez::graphics;
 use rand::{Rng, thread_rng};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> [Player; 8] {
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> [Player; 8] {
 
     // Move every player 
     for player in players.iter_mut() {
@@ -52,13 +52,15 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
         // Check for a collision
         let mut collided = false;
         
-        for player in players.iter() {
+        for player in players.iter_mut() {
             let player_rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
             let projectile_rect = graphics::Rect::new(projectiles[i].x, projectiles[i].y, 5.0, 5.0);
             
             // Projectiles can only hit living players
             if collision(player_rect, projectile_rect) && player.health > 0{
-                println!("Collision!");
+                player.health -= projectiles[i].damage;
+                println!("Player health: {} ", player.health);
+                
                 collided = true;
                 break;
                 
@@ -92,6 +94,7 @@ pub struct Projectile {
     pub y: f32, 
     pub direction: u8,
     pub speed: f32,
+    pub damage: u8,
     
 }
 
@@ -105,6 +108,8 @@ pub struct Gun {
     time_since_start_reload: u128,
     reloading: bool,
     ammo_in_mag: u8,
+    damage: u8,
+    
 }
 
 impl Gun {
@@ -118,6 +123,10 @@ impl Gun {
             ammo_in_mag: match model {
                 0 => 16,
                 _ => 30,
+            },
+            damage: match model {
+                0 => 25,
+                _ => 100,
             },
         }
     
@@ -152,6 +161,8 @@ impl Gun {
                     y,
                     direction, 
                     speed: 12.0,
+                    damage: self.damage,
+                    
                 });
                 
                 self.ammo_in_mag -= 1;

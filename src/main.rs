@@ -5,7 +5,7 @@ use ggez::conf::WindowSetup;
 use ggez::conf::NumSamples;
 use ggez::timer::check_update_time;
 
-use game::{update_game, Player, Projectile};
+use game::{tick, Player, Projectile};
 
 struct MainState {
     players: [Player; 8],
@@ -51,7 +51,7 @@ impl event::EventHandler for MainState {
         // Basically, the game will run 60 frames every second on average
         
         while check_update_time(ctx, 60) {
-            self.players = update_game(self.players, &mut self.projectiles, ctx);
+            self.players = tick(self.players, &mut self.projectiles, ctx);
         
         }
             
