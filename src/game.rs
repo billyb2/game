@@ -30,94 +30,60 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
         
     }
     
-    // Move every projectile
-    for projectile in projectiles.iter_mut(){
-        match projectile.direction {
-            1 => {projectile.y -= projectile.speed;},
-            2 => {projectile.y += projectile.speed;},
-            3=> {projectile.x += projectile.speed;},
-            4 => {projectile.x -= projectile.speed;},
-            5 => {projectile.y -= projectile.speed; projectile.x += projectile.speed;},
-            6 => {projectile.y -= projectile.speed; projectile.x -= projectile.speed;},
-            7 => {projectile.y += projectile.speed; projectile.x += projectile.speed;},
-            8 => {projectile.y += projectile.speed; projectile.x -= projectile.speed;},
-            0 => {projectile.y -= projectile.speed;},
+    //vec drain_filter isn't stable, so Ima just use a while loop
+    // Why not use a for loop? Well because of how Rust borrow checking works, I can't remove an element while using a mutable iterator
+    let mut i = 0;
+    while i != projectiles.len() {
+        // Move every projectile
+        match projectiles[i].direction {
+            1 => {projectiles[i].y -= projectiles[i].speed;},
+            2 => {projectiles[i].y += projectiles[i].speed;},
+            3=> {projectiles[i].x += projectiles[i].speed;},
+            4 => {projectiles[i].x -= projectiles[i].speed;},
+            5 => {projectiles[i].y -= projectiles[i].speed; projectiles[i].x += projectiles[i].speed;},
+            6 => {projectiles[i].y -= projectiles[i].speed; projectiles[i].x -= projectiles[i].speed;},
+            7 => {projectiles[i].y += projectiles[i].speed; projectiles[i].x += projectiles[i].speed;},
+            8 => {projectiles[i].y += projectiles[i].speed; projectiles[i].x -= projectiles[i].speed;},
+            0 => {projectiles[i].y -= projectiles[i].speed;},
             _ => {},
             
         }
+    
+        // Check for a collision
+        let mut collided = false;
         
-        //Check for collision with any players
         for player in players.iter() {
             let player_rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
-            let projectile_rect = graphics::Rect::new(projectile.x, projectile.y, 5.0, 5.0);
+            let projectile_rect = graphics::Rect::new(projectiles[i].x, projectiles[i].y, 5.0, 5.0);
             
-            if collision(player_rect, projectile_rect) {
+            // Projectiles can only hit living players
+            if collision(player_rect, projectile_rect) && player.health > 0{
                 println!("Collision!");
+                collided = true;
+                break;
+                
             }
             
         }
         
-    }
-        
-    // Remove all out of bounds projectiles
-    projectiles.retain(|projectile| !out_of_bounds(projectile.x, projectile.y, 5.0, 5.0));
-
-    
-    if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
-        if is_key_pressed(ctx, KeyCode::D) {
-            players[0].direction = 5;
-        } else if is_key_pressed(ctx, KeyCode::A) {
-            players[0].direction = 6;
+        // Remove all out of bounds projectiles + projectiles colliding w living players
+        if out_of_bounds(projectiles[i].x, projectiles[i].y, 5.0, 5.0) || collided {
+            projectiles.remove(i);
+            
         } else {
-            players[0].direction = 1;
+            i += 1;
+            
         }
-    } else if is_key_pressed(ctx, KeyCode::S) && !is_key_pressed(ctx, KeyCode::W) {
-        if is_key_pressed(ctx, KeyCode::D) {
-            players[0].direction = 7;
-        } else if is_key_pressed(ctx, KeyCode::A) {
-            players[0].direction = 8;
-        } else {
-            players[0].direction = 2;
-        }
-    } else if is_key_pressed(ctx, KeyCode::D) && !is_key_pressed(ctx, KeyCode::A) {
-        players[0].direction = 3;
-    } else if is_key_pressed(ctx, KeyCode::A) && !is_key_pressed(ctx, KeyCode::D) {
-        players[0].direction = 4;
-    } else {
-        players[0].direction = 0;
-    }
     
-    if is_key_pressed(ctx, KeyCode::E) {
-        players[0].use_ability();
-        
     }
-    
-    if is_key_pressed(ctx, KeyCode::R) {
-        players[0].gun.reload();
-        
-    }
-        
-    if mouse::button_pressed(&ctx, mouse::MouseButton::Left) {
-        players[0].shoot(&mut projectiles);
-        
-    }
+              
+    check_user_input(&ctx, &mut players, &mut projectiles);
         
     //TODO: Multithreaded bots
     players[1].direction = bots::bounce(&players);
     
     // At the end of processing player movement, return the new player array
     players
-
-}
-
-fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
-    //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
-    {
-        x + w >= 500.0 || 
-        x <= 0.0 || 
-        y +h >= 500.0 || 
-        y <= 0.0
-    }
 
 }
 
@@ -319,5 +285,58 @@ fn collision (rect1: graphics::Rect, rect2: graphics::Rect) -> bool {
         rect1.x + rect1.w > rect2.x &&
         rect1.y < rect2.y + rect2.h &&
         rect1.y + rect1.h > rect2.y
+    }
+}
+
+fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
+    //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
+    {
+        x + w >= 500.0 || 
+        x <= 0.0 || 
+        y +h >= 500.0 || 
+        y <= 0.0
+    }
+
+}
+
+// All the user input code is in here, instead of update_game, for readability purposes
+fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>) {
+    if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
+        if is_key_pressed(ctx, KeyCode::D) {
+            players[0].direction = 5;
+        } else if is_key_pressed(ctx, KeyCode::A) {
+            players[0].direction = 6;
+        } else {
+            players[0].direction = 1;
+        }
+    } else if is_key_pressed(ctx, KeyCode::S) && !is_key_pressed(ctx, KeyCode::W) {
+        if is_key_pressed(ctx, KeyCode::D) {
+            players[0].direction = 7;
+        } else if is_key_pressed(ctx, KeyCode::A) {
+            players[0].direction = 8;
+        } else {
+            players[0].direction = 2;
+        }
+    } else if is_key_pressed(ctx, KeyCode::D) && !is_key_pressed(ctx, KeyCode::A) {
+        players[0].direction = 3;
+    } else if is_key_pressed(ctx, KeyCode::A) && !is_key_pressed(ctx, KeyCode::D) {
+        players[0].direction = 4;
+    } else {
+        players[0].direction = 0;
+    }
+    
+    if is_key_pressed(ctx, KeyCode::E) {
+        players[0].use_ability();
+        
+    }
+    
+    if is_key_pressed(ctx, KeyCode::R) {
+        players[0].gun.reload();
+        
+    }
+        
+    if mouse::button_pressed(&ctx, mouse::MouseButton::Left) {
+        players[0].shoot(&mut projectiles);
+        
     }
 }
