@@ -82,7 +82,19 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
     check_user_input(&ctx, &mut players, &mut projectiles);
         
     //TODO: Multithreaded bots
-    players[1].direction = bots::bounce(&players);
+    let player2_info = bots::bounce(&players, &projectiles);
+    
+    players[1].direction = player2_info[0];
+    
+    if player2_info[1] == 1 {
+        players[1].use_ability();
+        
+    }
+    
+    if player2_info[2] == 1 {
+        players[1].shoot(&mut projectiles);
+        
+    }
     
     // At the end of processing player movement, return the new player array
     players
