@@ -128,7 +128,7 @@ pub struct Gun {
 impl Gun {
     pub fn new(model: u8) -> Gun {
         Gun {
-            model: model,
+            model,
             // The time since the last shot is set as 0 so that you can start shooting as the start of the game
             time_since_last_shot: 0,
             time_since_start_reload: 0,
