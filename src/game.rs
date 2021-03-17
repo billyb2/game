@@ -10,17 +10,19 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
 
     // Move every player 
     for player in players.iter_mut() {
-        match player.direction {
-            1 => {player.y -= player.speed;},
-            2 => {player.y += player.speed;},
-            3=> {player.x += player.speed;},
-            4 => {player.x -= player.speed;},
-            5 => {player.y -= player.speed; player.x += player.speed;},
-            6 => {player.y -= player.speed; player.x -= player.speed;},
-            7 => {player.y += player.speed; player.x += player.speed;},
-            8 => {player.y += player.speed; player.x -= player.speed;},
-            _ => {},
-            
+        if player.health > 0 {
+            match player.direction {
+                1 => {player.y -= player.speed;},
+                2 => {player.y += player.speed;},
+                3=> {player.x += player.speed;},
+                4 => {player.x -= player.speed;},
+                5 => {player.y -= player.speed; player.x += player.speed;},
+                6 => {player.y -= player.speed; player.x -= player.speed;},
+                7 => {player.y += player.speed; player.x += player.speed;},
+                8 => {player.y += player.speed; player.x -= player.speed;},
+                _ => {},
+                
+            }
         }
         
         // If a player started reloading in a previous tick, then it continues in this tick
@@ -241,27 +243,29 @@ impl Player {
     }
     
     fn use_ability(&mut self) {
-        if self.ability == 0 && current_time() >= self.cooldown_finished_time + 2000 {
-        
-            let teleport_distance = 250.0;
-        
-            match self.direction {
-                1 => {self.y -= teleport_distance;},
-                2 => {self.y += teleport_distance;},
-                3=> {self.x += teleport_distance;},
-                4 => {self.x -= teleport_distance;},
-                5 => {self.y -= teleport_distance; self.x += teleport_distance;},
-                6 => {self.y -= teleport_distance; self.x -= teleport_distance;},
-                7 => {self.y += teleport_distance; self.x += teleport_distance;},
-                8 => {self.y += teleport_distance; self.x -= teleport_distance;},
-                _ => {},
+        if self.health > 0 {
+            if self.ability == 0 && current_time() >= self.cooldown_finished_time + 2000 {
+            
+                let teleport_distance = 250.0;
+            
+                match self.direction {
+                    1 => {self.y -= teleport_distance;},
+                    2 => {self.y += teleport_distance;},
+                    3=> {self.x += teleport_distance;},
+                    4 => {self.x -= teleport_distance;},
+                    5 => {self.y -= teleport_distance; self.x += teleport_distance;},
+                    6 => {self.y -= teleport_distance; self.x -= teleport_distance;},
+                    7 => {self.y += teleport_distance; self.x += teleport_distance;},
+                    8 => {self.y += teleport_distance; self.x -= teleport_distance;},
+                    _ => {},
+                }
+                
+                self.cooldown_finished_time = current_time();
+            
+            } else if self.ability == 1  {
+                self.speed = 30.0;
+                
             }
-            
-            self.cooldown_finished_time = current_time();
-        
-        } else if self.ability == 1  {
-            self.speed = 30.0;
-            
         }
 
     }
@@ -286,8 +290,10 @@ impl Player {
             2 | 7 | 8 => self.y + 25.0,
             _ => self.y + 5.0,
         };
-            
-        self.gun.shoot(x, y, direction, projectiles);
+        
+        if self.health > 0 {
+            self.gun.shoot(x, y, direction, projectiles);
+        }
         
     }
     

@@ -59,7 +59,7 @@ impl event::EventHandler for MainState {
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        graphics::clear(ctx, [255.0, 255.0, 255.0, 255.0].into());
+        graphics::clear(ctx, graphics::BLACK);
         
         for player in &self.players {
             if player.health > 0 {
@@ -87,7 +87,7 @@ impl event::EventHandler for MainState {
                 ctx,
                 graphics::DrawMode::fill(),
                 rect,
-                graphics::BLACK,
+                graphics::WHITE,
             )?;
             
             graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
