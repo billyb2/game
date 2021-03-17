@@ -24,10 +24,10 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
         }
         
         // If a player started reloading in a previous tick, then it continues in this tick
-        
         if player.gun.reloading {
             player.gun.reload()
         }
+        
     }
     
     // Move every projectile
@@ -43,6 +43,17 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
             8 => {projectile.y += projectile.speed; projectile.x -= projectile.speed;},
             0 => {projectile.y -= projectile.speed;},
             _ => {},
+            
+        }
+        
+        //Check for collision with any players
+        for player in players.iter() {
+            let player_rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
+            let projectile_rect = graphics::Rect::new(projectile.x, projectile.y, 5.0, 5.0);
+            
+            if collision(player_rect, projectile_rect) {
+                println!("Collision!");
+            }
             
         }
         
@@ -77,8 +88,13 @@ pub fn update_game (mut players: [Player; 8], mut projectiles: &mut Vec<Projecti
     }
     
     if is_key_pressed(ctx, KeyCode::E) {
-    
         players[0].use_ability();
+        
+    }
+    
+    if is_key_pressed(ctx, KeyCode::R) {
+        players[0].gun.reload();
+        
     }
         
     if mouse::button_pressed(&ctx, mouse::MouseButton::Left) {
@@ -122,7 +138,7 @@ pub struct Gun {
     time_since_last_shot: u128,
     time_since_start_reload: u128,
     reloading: bool,
-    ammo_count: u8,
+    ammo_in_mag: u8,
 }
 
 impl Gun {
@@ -133,7 +149,7 @@ impl Gun {
             time_since_last_shot: 0,
             time_since_start_reload: 0,
             reloading: false,
-            ammo_count: match model {
+            ammo_in_mag: match model {
                 0 => 16,
                 _ => 30,
             },
@@ -150,7 +166,7 @@ impl Gun {
         } else {
             // Pistol has a reload time of 2 seconds
             if self.model == 0  && self.time_since_start_reload + 2000 <= current_time() {
-                self.ammo_count = 16;
+                self.ammo_in_mag = 16;
                 self.reloading = false;
                 
             }
@@ -161,19 +177,18 @@ impl Gun {
     }
     
     pub fn shoot (&mut self, x: f32, y: f32, direction: u8, projectiles: &mut Vec<Projectile>) {        
-        if self.ammo_count > 0 {
+        if self.ammo_in_mag > 0 && !self.reloading {
             //Pistol
-            //println!("Current time: {}\n Time since last shot: {}", current_time(), self.time_since_last_shot);
             if self.model == 0 && current_time() >= self.time_since_last_shot + 250 {
                 self.time_since_last_shot = current_time();
                 projectiles.push( Projectile {
                     x,
                     y,
                     direction, 
-                    speed: 8.0,
+                    speed: 12.0,
                 });
                 
-                self.ammo_count -= 1;
+                self.ammo_in_mag -= 1;
                 
             }
             
@@ -212,11 +227,11 @@ pub struct Player {
     
     pub gun: Gun,
     
-    pub online: bool,
+    pub health: u8,
 }
 
 impl Player {
-    pub fn new(color: Option<graphics::Color>, ability: u8, online: bool) -> Player {
+    pub fn new(color: Option<graphics::Color>, ability: u8, health: u8, gun: u8) -> Player {
         let mut rng = thread_rng();
     
         Player {
@@ -231,8 +246,8 @@ impl Player {
             ability,
             speed: 10.0,
             cooldown_finished_time: current_time(),
-            online,
-            gun: Gun::new(0),
+            health,
+            gun: Gun::new(gun),
         }
     }
     
@@ -263,7 +278,27 @@ impl Player {
     }
     
     fn shoot(&mut self, projectiles: &mut Vec<Projectile>) {
-        self.gun.shoot(self.x, self.y, self.direction, projectiles);
+        let direction = match self.direction {
+            // If the player is staying still, it will shoot north (1)
+            0 => 1,
+            _ => self.direction,
+        };
+    
+        let x = match self.direction {
+            // If the player is looking east or west, it moves where the bullet will spawn so the player doesn't hit it
+            3 | 5 => self.x + 30.0,
+            4 | 6=> self.x - 15.0,
+            _ => self.x + 5.0,
+        };
+        
+        let y = match direction {
+            // Same for if it's looking north or south
+            1 | 5 | 6 => self.y - 15.0,
+            2 | 7 | 8 => self.y + 25.0,
+            _ => self.y + 5.0,
+        };
+            
+        self.gun.shoot(x, y, direction, projectiles);
         
     }
     
@@ -275,4 +310,14 @@ fn current_time() -> u128 {
     
     //Return the current time
     time
+}
+
+fn collision (rect1: graphics::Rect, rect2: graphics::Rect) -> bool {
+    // A bounding box collision test between two rectangles
+    {
+        rect1.x < rect2.x + rect2.w &&
+        rect1.x + rect1.w > rect2.x &&
+        rect1.y < rect2.y + rect2.h &&
+        rect1.y + rect1.h > rect2.y
+    }
 }

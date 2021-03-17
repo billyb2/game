@@ -16,12 +16,12 @@ struct MainState {
 impl MainState {
     fn new(mut num_of_players: u8) -> ggez::GameResult<MainState> {
         let players: [Player; 8] ={
-            let mut players: [Player; 8] = [Player::new(None, 0, false); 8];
+            let mut players: [Player; 8] = [Player::new(None, 0, 0, 0); 8];
             
             for player in players.iter_mut() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 0, true);
+                    *player = Player::new(None, 0, 100, 0);
                     
                 } else {
                     break;
@@ -62,7 +62,7 @@ impl event::EventHandler for MainState {
         graphics::clear(ctx, [255.0, 255.0, 255.0, 255.0].into());
         
         for player in &self.players {
-            if player.online {
+            if player.health > 0 {
                 // Draw each player as a filled rectangle
                 let rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
 
