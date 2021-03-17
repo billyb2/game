@@ -63,6 +63,15 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
                 player.health -= projectiles[i].damage;
                 println!("Player health: {} ", player.health);
                 
+                //The player's color slowly fades as they take more damage
+                let mut color_tuple = player.color.to_rgba();
+                color_tuple.3 = ((player.health as f64 / 100.0) * 255.0) as u8;
+                
+                println!("{:?}", color_tuple);
+                println!("player.color");
+                
+                player.color = color_tuple.into();
+                
                 collided = true;
                 break;
                 
@@ -232,7 +241,7 @@ impl Player {
             color:match color {
                 Some(color) => color,
                 //Random color
-                None => graphics::Color::from_rgb(rng.gen_range(0..255), rng.gen_range(0..255), rng.gen_range(0..255)),
+                None => graphics::Color::from_rgba(rng.gen_range(0..255), rng.gen_range(0..255), rng.gen_range(0..255), 255),
             },
             ability,
             speed: 10.0,
