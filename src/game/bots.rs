@@ -1,10 +1,12 @@
+#![allow(unused_assignments)]
+
 use crate::{Player, Projectile};
 
 // The first item of the array is the direction the player's going to move in
 // The second is whether the player is shooting or not (0 or 1)
 // The third is whether or not the player is using its ability (0 or 1)
 
-pub fn bounce(players: &[Player; 8], projectiles: &Vec<Projectile>) -> [u8; 3] {
+pub fn bounce(players: &[Player; 8], projectiles: &[Projectile]) -> [u8; 3] {
     let mut direction: u8 = 0;
     
     // Why use an int instead of a bool you may be asking? Well if I ever add more complex functionality to shooting or using your ability, it's less code to refactor. It's also just as efficient as using a bool, since they both use a byte
@@ -26,6 +28,8 @@ pub fn bounce(players: &[Player; 8], projectiles: &Vec<Projectile>) -> [u8; 3] {
         if projectile.x + 20.0 >= players[1].x || projectile.x - 20.0 <= players[1].x{
             use_ability = 1;
             shooting = 1;
+            
+            break;
             
         }
     }
