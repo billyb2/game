@@ -4,6 +4,7 @@ use ggez::input::keyboard::{is_key_pressed, KeyCode};
 use ggez::input::mouse;
 use ggez::graphics;
 use rand::{Rng, thread_rng};
+use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> [Player; 8] {
@@ -12,14 +13,14 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
     for player in players.iter_mut() {
         if player.health > 0 {
             match player.direction {
-                1 => {player.y -= player.speed;},
-                2 => {player.y += player.speed;},
-                3=> {player.x += player.speed;},
-                4 => {player.x -= player.speed;},
-                5 => {player.y -= player.speed; player.x += player.speed;},
-                6 => {player.y -= player.speed; player.x -= player.speed;},
-                7 => {player.y += player.speed; player.x += player.speed;},
-                8 => {player.y += player.speed; player.x -= player.speed;},
+                1 => {if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0){ player.y -= player.speed; }},
+                2 => {if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0){ player.y += player.speed; }},
+                3=> {if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0){ player.x += player.speed; }},
+                4 => {if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0){player.x -= player.speed; }},
+                5 => {if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0){ player.y -= player.speed; player.x += player.speed; }},
+                6 => {if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0){ player.y -= player.speed; player.x -= player.speed; }},
+                7 => {if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0){ player.y += player.speed; player.x += player.speed;}},
+                8 => {if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0){ player.y += player.speed; player.x -= player.speed; }},
                 _ => {},
                 
             }
@@ -37,17 +38,13 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
     let mut i = 0;
     while i != projectiles.len() {
         // Move every projectile
-        match projectiles[i].direction {
-            1 => {projectiles[i].y -= projectiles[i].speed;},
-            2 => {projectiles[i].y += projectiles[i].speed;},
-            3=> {projectiles[i].x += projectiles[i].speed;},
-            4 => {projectiles[i].x -= projectiles[i].speed;},
-            5 => {projectiles[i].y -= projectiles[i].speed; projectiles[i].x += projectiles[i].speed;},
-            6 => {projectiles[i].y -= projectiles[i].speed; projectiles[i].x -= projectiles[i].speed;},
-            7 => {projectiles[i].y += projectiles[i].speed; projectiles[i].x += projectiles[i].speed;},
-            8 => {projectiles[i].y += projectiles[i].speed; projectiles[i].x -= projectiles[i].speed;},
-            0 => {projectiles[i].y -= projectiles[i].speed;},
-            _ => {},
+        if projectiles[i].right {
+            projectiles[i].x += projectiles[i].angle.cos() * projectiles[i].speed;
+            projectiles[i].y += projectiles[i].angle.sin() * projectiles[i].speed;
+        
+        } else {
+            projectiles[i].x -= projectiles[i].angle.cos() * projectiles[i].speed;
+            projectiles[i].y -= projectiles[i].angle.sin() * projectiles[i].speed;
             
         }
     
@@ -66,9 +63,6 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
                 //The player's color slowly fades as they take more damage
                 let mut color_tuple = player.color.to_rgba();
                 color_tuple.3 = ((player.health as f64 / 100.0) * 255.0) as u8;
-                
-                println!("{:?}", color_tuple);
-                println!("player.color");
                 
                 player.color = color_tuple.into();
                 
@@ -95,15 +89,15 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
     //TODO: Multithreaded bots
     let player2_info = bots::bounce(&players, &projectiles);
     
-    players[1].direction = player2_info[0];
+    players[1].direction = player2_info.0;
     
-    if player2_info[1] == 1 {
-        players[1].use_ability();
+    if player2_info.2 != 0.0000 {
+        players[1].shoot(player2_info.1, (player2_info.2).into(), &mut projectiles);
         
     }
     
-    if player2_info[2] == 1 {
-        players[1].shoot(&mut projectiles);
+    if player2_info.3 == 1 {
+        players[1].use_ability();
         
     }
     
@@ -115,7 +109,8 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
 pub struct Projectile {
     pub x: f32,
     pub y: f32, 
-    pub direction: u8,
+    pub right: bool,
+    pub angle: f32,
     pub speed: f32,
     pub damage: u8,
     
@@ -174,15 +169,22 @@ impl Gun {
         
     }
     
-    pub fn shoot (&mut self, x: f32, y: f32, direction: u8, projectiles: &mut Vec<Projectile>) {        
+    pub fn shoot (&mut self, x: f32, y: f32, right: bool, angle: f32, projectiles: &mut Vec<Projectile>) {        
         if self.ammo_in_mag > 0 && !self.reloading {
             //Pistol
-            if self.model == 0 && current_time() >= self.time_since_last_shot + 250 {
+            if self.model == 0 && current_time() >= self.time_since_last_shot + 500 {
                 self.time_since_last_shot = current_time();
                 projectiles.push( Projectile {
-                    x,
-                    y,
-                    direction, 
+                    x: match right {
+                        true => x + (angle.cos() * 25.0) as f32,
+                        false => x - (angle.cos() * 15.0) as f32,
+                    },
+                    y: match right {
+                        true => y + (angle.sin() * 25.0) as f32,
+                        false => y - (angle.sin() * 15.0) as f32,
+                    },
+                    right,
+                    angle, 
                     speed: 12.0,
                     damage: self.damage,
                     
@@ -258,14 +260,14 @@ impl Player {
                 let teleport_distance = 250.0;
             
                 match self.direction {
-                    1 => {self.y -= teleport_distance;},
-                    2 => {self.y += teleport_distance;},
-                    3=> {self.x += teleport_distance;},
-                    4 => {self.x -= teleport_distance;},
-                    5 => {self.y -= teleport_distance; self.x += teleport_distance;},
-                    6 => {self.y -= teleport_distance; self.x -= teleport_distance;},
-                    7 => {self.y += teleport_distance; self.x += teleport_distance;},
-                    8 => {self.y += teleport_distance; self.x -= teleport_distance;},
+                    1 => {if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0) {self.y -= teleport_distance;}},
+                    2 => {if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0) {self.y += teleport_distance;}},
+                    3=> {if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0) {self.x += teleport_distance;}},
+                    4 => {if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0) {self.x -= teleport_distance;}},
+                    5 => {if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0) {self.y -= teleport_distance; self.x += teleport_distance;}},
+                    6 => {if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0) {self.y -= teleport_distance; self.x -= teleport_distance;}},
+                    7 => {if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0) {self.y += teleport_distance; self.x += teleport_distance;}},
+                    8 => {if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0) {self.y += teleport_distance; self.x -= teleport_distance;}},
                     _ => {},
                 }
                 
@@ -279,29 +281,11 @@ impl Player {
 
     }
     
-    fn shoot(&mut self, projectiles: &mut Vec<Projectile>) {
-        let direction = match self.direction {
-            // If the player is staying still, it will shoot north (1)
-            0 => 1,
-            _ => self.direction,
-        };
-    
-        let x = match self.direction {
-            // If the player is looking east or west, it moves where the bullet will spawn so the player doesn't hit it
-            3 | 5 => self.x + 30.0,
-            4 | 6=> self.x - 15.0,
-            _ => self.x + 5.0,
-        };
-        
-        let y = match direction {
-            // Same for if it's looking north or south
-            1 | 5 | 6 => self.y - 15.0,
-            2 | 7 | 8 => self.y + 25.0,
-            _ => self.y + 5.0,
-        };
+    fn shoot(&mut self, right: bool, angle: f32, projectiles: &mut Vec<Projectile>) {
         
         if self.health > 0 {
-            self.gun.shoot(x, y, direction, projectiles);
+            self.gun.shoot(self.x, self.y, right, angle, projectiles);
+            
         }
         
     }
@@ -329,9 +313,9 @@ fn collision (rect1: graphics::Rect, rect2: graphics::Rect) -> bool {
 fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
     //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
     {
-        x + w >= 500.0 || 
+        x + w >= 800.0 || 
         x <= 0.0 || 
-        y +h >= 500.0 || 
+        y +h >= 600.0 || 
         y <= 0.0
     }
 
@@ -374,7 +358,35 @@ fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut proj
     }
         
     if mouse::button_pressed(&ctx, mouse::MouseButton::Left) {
-        players[0].shoot(&mut projectiles);
+        // Because of trig stuff, you need to know whether the bullet is going to move right or left as well as what angle
+        let rad = get_angle(players[0].x, players[0].y,  mouse::position(&ctx).x,  mouse::position(&ctx).y);
+        let right = { mouse::position(&ctx).x > players[0].x };
+    
+        players[0].shoot(right, rad, &mut projectiles);
+        
+    }
+    
+}
+
+fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
+    let dy = ey - cy;
+    let dx = ex - cx;
+
+    if dx != 0.0 {
+        let d = dy / dx;
+
+        let theta = d.atan();
+
+        // Returns the angle in radians
+        theta
+
+    } else {
+        if dy > 0.0 {
+            PI / 2.0
+        } else {
+            PI
+            
+        }
         
     }
 }
