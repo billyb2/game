@@ -92,7 +92,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
     players[1].direction = player2_info.0;
     
     if player2_info.2 != 0.0000 {
-        players[1].shoot(player2_info.1, (player2_info.2).into(), &mut projectiles);
+        players[1].shoot(player2_info.1, player2_info.2, &mut projectiles);
         
     }
     
@@ -375,18 +375,14 @@ fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     if dx != 0.0 {
         let d = dy / dx;
 
-        let theta = d.atan();
-
         // Returns the angle in radians
-        theta
+        d.atan()
 
-    } else {
-        if dy > 0.0 {
+    } else if dy > 0.0 {
             PI / 2.0
-        } else {
-            PI
-            
-        }
         
+    }  else {
+            PI
+    
     }
 }
