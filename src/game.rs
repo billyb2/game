@@ -57,7 +57,13 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
             
             // Projectiles can only hit living players
             if collision(player_rect, projectile_rect) && player.health > 0{
-                player.health -= projectiles[i].damage;
+                if player.health as i8 - projectiles[i].damage as i8 > 0 {
+                    player.health -= projectiles[i].damage;
+                    
+                } else {
+                    player.health = 0;
+                    
+                }
                 println!("Player health: {} ", player.health);
                 
                 //The player's color slowly fades as they take more damage
@@ -139,11 +145,11 @@ impl Gun {
             time_since_start_reload: 0,
             reloading: false,
             ammo_in_mag: match model {
-                0 => 16,
+                0 => 7,
                 _ => 30,
             },
             damage: match model {
-                0 => 25,
+                0 => 45,
                 _ => 100,
             },
         }
@@ -293,7 +299,7 @@ impl Player {
 }
 
 fn current_time() -> u128 {
-    // Returns the time in Unix Time (the number of seconds since 1970)
+    // Returns the time in Unix Time (the number of milliseconds since 1970)
     let time: u128 = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_millis();
     
     //Return the current time
