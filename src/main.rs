@@ -21,7 +21,7 @@ impl MainState {
             for player in players.iter_mut() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 0, 100, 0);
+                    *player = Player::new(None, 0, 100, 1);
                     
                 } else {
                     break;

@@ -126,6 +126,7 @@ pub struct Projectile {
 pub struct Gun {
     // Once again, storing the gun model as an int since it makes it fast and easy to deal with
     // 0 is the pistol
+    // 1 is the shotgun
     model: u8,
     // This time is stored so that the bullets per second of guns can be limited dynamically
     time_since_last_shot: u128,
@@ -137,7 +138,7 @@ pub struct Gun {
 }
 
 impl Gun {
-    pub fn new(model: u8) -> Gun {
+    pub fn new(model: u8) -> Gun {    
         Gun {
             model,
             // The time since the last shot is set as 0 so that you can start shooting as the start of the game
@@ -146,10 +147,12 @@ impl Gun {
             reloading: false,
             ammo_in_mag: match model {
                 0 => 7,
+                1 => 8,
                 _ => 30,
             },
             damage: match model {
                 0 => 45,
+                1 => 25,
                 _ => 100,
             },
         }
@@ -168,6 +171,9 @@ impl Gun {
                 self.ammo_in_mag = 16;
                 self.reloading = false;
                 
+            } else if self.model == 1  && self.time_since_start_reload + 5000 <= current_time() {
+                self.ammo_in_mag = 8;
+                self.reloading = false;
             }
             
         }
@@ -175,11 +181,13 @@ impl Gun {
         
     }
     
-    pub fn shoot (&mut self, x: f32, y: f32, right: bool, angle: f32, projectiles: &mut Vec<Projectile>) {        
+    pub fn shoot (&mut self, x: f32, y: f32, right: bool, angle: f32, projectiles: &mut Vec<Projectile>) {    
         if self.ammo_in_mag > 0 && !self.reloading {
             //Pistol
             if self.model == 0 && current_time() >= self.time_since_last_shot + 500 {
+                println!("Pistol");
                 self.time_since_last_shot = current_time();
+                
                 projectiles.push( Projectile {
                     x: match right {
                         true => x + (angle.cos() * 25.0) as f32,
@@ -198,9 +206,43 @@ impl Gun {
                 
                 self.ammo_in_mag -= 1;
                 
+            } else if self.model == 1 && current_time() >= self.time_since_last_shot + 600 {
+                let mut rng = thread_rng();
+                let recoil_range: f32 = 0.2;
+                            
+                self.time_since_last_shot = current_time();
+                
+                let mut shoot_several_bullets = |mut num_of_bullets: u8| {
+                    while num_of_bullets > 0 {
+                        num_of_bullets -= 1;
+                    
+                        projectiles.push( 
+                            Projectile {
+                                x: match right {
+                                    true => x + (angle.cos() * 25.0 ) as f32,
+                                    false => x - (angle.cos() * 15.0) as f32,
+                                },
+                                y: match right {
+                                    true => y + (angle.sin() * 25.0) as f32,
+                                    false => y - (angle.sin() * 15.0) as f32,
+                                },
+                                right,
+                                angle: angle + rng.gen_range(-recoil_range..recoil_range), 
+                                speed: 11.0,
+                                damage: self.damage,
+                                
+                            }
+                        );
+                    
+                    }
+                };
+                
+                shoot_several_bullets(12);
+                
             }
             
         } else {
+            // Reload if no ammo is available
             self.reload();
             
         }
@@ -239,9 +281,9 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(color: Option<graphics::Color>, ability: u8, health: u8, gun: u8) -> Player {
+    pub fn new(color: Option<graphics::Color>, ability: u8, health: u8, gun: u8) -> Player {    
         let mut rng = thread_rng();
-    
+            
         Player {
             x: 100.0,
             y: 100.0,
@@ -265,6 +307,7 @@ impl Player {
             
                 let teleport_distance = 250.0;
             
+                //I know this is ugly, it just lets a player move if it's movement wouldn't put it out of bounds
                 match self.direction {
                     1 => {if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0) {self.y -= teleport_distance;}},
                     2 => {if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0) {self.y += teleport_distance;}},
