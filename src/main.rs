@@ -1,15 +1,23 @@
 mod game;
 
 use ggez::{event, graphics, nalgebra as na};
-use ggez::conf::WindowSetup;
-use ggez::conf::NumSamples;
+use ggez::conf::{NumSamples, WindowSetup};
 use ggez::timer::check_update_time;
 
 use game::{tick, Player, Projectile};
 
+pub const WORLD_WIDTH: f32 = 10_000.0;
+pub const WORLD_HEIGHT: f32 = 10_000.0;
+
+struct Point {
+    x: f32,
+    y: f32,
+}
+
 struct MainState {
     players: [Player; 8],
     projectiles: Vec<Projectile>,
+    origin: Point,
     
 }
 
@@ -38,6 +46,7 @@ impl MainState {
         let s = MainState {
            players,
            projectiles: Vec::new(),
+           origin: Point {x: 0.0, y: 0.0},
            
         };
         
@@ -51,7 +60,26 @@ impl event::EventHandler for MainState {
         // Basically, the game will run 60 frames every second on average
         
         while check_update_time(ctx, 60) {
-            self.players = tick(self.players, &mut self.projectiles, ctx);
+            let data = tick(self.players, &mut self.projectiles, ctx);
+            self.players = data.0;
+            
+            self.origin.x += data.1[0];
+            self.origin.y += data.1[1];
+            
+            /*if self.origin.x < 0.0 {
+                self.origin.x = 0.0;
+                
+            } else if self.origin.x > WORLD_WIDTH {
+                self.origin.x = WORLD_WIDTH;
+                
+            }
+            if self.origin.y < 0.0 {
+                self.origin.y = 0.0;
+                
+            } else if self.origin.y > WORLD_HEIGHT {
+                self.origin.y = WORLD_HEIGHT;
+                
+            }*/
         
         }
             
@@ -64,7 +92,7 @@ impl event::EventHandler for MainState {
         for player in &self.players {
             if player.health > 0 {
                 // Draw each player as a filled rectangle
-                let rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
+                let rect = graphics::Rect::new(player.x - self.origin.x, player.y - self.origin.y, 15.0, 15.0);
 
                 let rect_to_draw = graphics::Mesh::new_rectangle(
                     ctx,
@@ -81,7 +109,7 @@ impl event::EventHandler for MainState {
         
         for projectile in &self.projectiles {
             // Draw each player as a filled rectangle
-            let rect = graphics::Rect::new(projectile.x, projectile.y, 5.0, 5.0);
+            let rect = graphics::Rect::new(projectile.x - self.origin.x, projectile.y - self.origin.y, 5.0, 5.0);
 
             let rect_to_draw = graphics::Mesh::new_rectangle(
                 ctx,
@@ -112,7 +140,9 @@ pub fn main() -> ggez::GameResult {
     });
     
     let (ctx, event_loop) = &mut cb.build()?;
+    
     let state = &mut MainState::new(2)?;
     event::run(ctx, event_loop, state)
+    
 }
     
