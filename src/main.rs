@@ -47,7 +47,7 @@ impl MainState {
         let s = MainState {
            players,
            projectiles: Vec::new(),
-           origin: Point {x: 0.0, y: 0.0},
+           origin: Point {x: 400.0, y: 300.0},
            zoom: 1.0,
            
         };
@@ -62,13 +62,12 @@ impl event::EventHandler for MainState {
         // Basically, the game will run 60 frames every second on average
         
         while check_update_time(ctx, 60) {
-            let data = tick(self.players, &mut self.projectiles, ctx);
-            self.players = data.0;
+            self.players = tick(self.players, &mut self.projectiles, ctx);
             
-            self.origin.x += data.1[0];
-            self.origin.y += data.1[1];
+            self.origin.x = self.players[0].x - 400.0;
+            self.origin.y = self.players[0].y - 300.0;
             
-            /*if self.origin.x < 0.0 {
+            if self.origin.x < 0.0 {
                 self.origin.x = 0.0;
                 
             } else if self.origin.x > WORLD_WIDTH {
@@ -81,7 +80,7 @@ impl event::EventHandler for MainState {
             } else if self.origin.y > WORLD_HEIGHT {
                 self.origin.y = WORLD_HEIGHT;
                 
-            }*/
+            }
         
         }
             
@@ -95,9 +94,11 @@ impl event::EventHandler for MainState {
         
         for player in &self.players {
             if player.health > 0 {
+            
                 // Only draw players that are in the screen
                 if player.x >= self.origin.x && player.x <= self.origin.x + screen_coords.w &&
                 player.y >= self.origin.y && player.y <= self.origin.y + screen_coords.h {
+                
                     // Draw each player as a filled rectangle
                     let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
 
@@ -119,7 +120,7 @@ impl event::EventHandler for MainState {
         for projectile in &self.projectiles {
             if projectile.x >= self.origin.x && projectile.x <= self.origin.x + screen_coords.w &&
             projectile.y >= self.origin.y && projectile.y <= self.origin.y + screen_coords.h {
-                // Draw each projectile as a filled rectangle
+
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, 5.0 * self.zoom, 5.0 * self.zoom);
 
                 let rect_to_draw = graphics::Mesh::new_rectangle(

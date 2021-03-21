@@ -1,5 +1,6 @@
 mod bots;
 
+use crate::{WORLD_WIDTH, WORLD_HEIGHT};
 use ggez::input::keyboard::{is_key_pressed, KeyCode};
 use ggez::input::mouse;
 use ggez::graphics;
@@ -7,35 +8,10 @@ use rand::{Rng, thread_rng};
 use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> ([Player; 8], [f32; 2]) {
-
-    let mut cam_movement_x: f32 = 0.0;
-    let mut cam_movement_y: f32 = 0.0;
-
-
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
-    let mut index = 0;
     for player in players.iter_mut() {
         if player.health > 0 {
-            if index == 0 {
-                index += 1;
-                
-                // The camera should only follow the player at index 0.
-                match player.direction {
-                    1 => {cam_movement_y = -player.speed;},
-                    2 => {cam_movement_y = player.speed;},
-                    3 => {cam_movement_x = player.speed;},
-                    4 => {cam_movement_x = -player.speed;},
-                    5 => {cam_movement_y = -player.speed; cam_movement_x = player.speed;},
-                    6 => {cam_movement_y = -player.speed; cam_movement_x = -player.speed;},
-                    7 => {cam_movement_y = player.speed; cam_movement_x = player.speed;},
-                    8 => {cam_movement_y = player.speed; cam_movement_x = -player.speed;},
-                    _ => {},
-                    
-                };
-                
-            }
-        
             match player.direction {
                 1 => {if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0){ player.y -= player.speed; }},
                 2 => {if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0){ player.y += player.speed; }},
@@ -121,7 +97,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
     
     players[1].direction = player2_info.0;
     
-    if player2_info.2 != 0.0000 {
+    if player2_info.2 != 0.0 {
         players[1].shoot(player2_info.1, player2_info.2, &mut projectiles);
         
     }
@@ -132,7 +108,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
     }
     
     // At the end of processing player movement, return the new player array
-    (players, [cam_movement_x, cam_movement_y])
+    players
 
 }
 
@@ -309,8 +285,8 @@ impl Player {
         let mut rng = thread_rng();
             
         Player {
-            x: 415.0,
-            y: 315.0,
+            x: 400.0,
+            y: 300.0,
             direction: 0,
             color:match color {
                 Some(color) => color,
@@ -387,9 +363,9 @@ fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
     //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
     //TODO: make bullets have actual travel time
     {
-        x + w >= 800.0 || 
+        x + w >= WORLD_WIDTH || 
         x <= 0.0 || 
-        y +h >= 600.0 || 
+        y +h >= WORLD_HEIGHT || 
         y <= 0.0
     }
 
