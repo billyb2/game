@@ -19,6 +19,8 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
         if player.health > 0 {
             if index == 0 {
                 index += 1;
+                
+                // The camera should only follow the player at index 0.
                 match player.direction {
                     1 => {cam_movement_y = -player.speed;},
                     2 => {cam_movement_y = player.speed;},
@@ -307,8 +309,8 @@ impl Player {
         let mut rng = thread_rng();
             
         Player {
-            x: 400.0,
-            y: 300.0,
+            x: 415.0,
+            y: 315.0,
             direction: 0,
             color:match color {
                 Some(color) => color,

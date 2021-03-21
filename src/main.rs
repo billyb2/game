@@ -18,6 +18,7 @@ struct MainState {
     players: [Player; 8],
     projectiles: Vec<Projectile>,
     origin: Point,
+    zoom: f32,
     
 }
 
@@ -47,6 +48,7 @@ impl MainState {
            players,
            projectiles: Vec::new(),
            origin: Point {x: 0.0, y: 0.0},
+           zoom: 1.0,
            
         };
         
@@ -89,36 +91,46 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, graphics::BLACK);
         
+        let screen_coords = graphics::screen_coordinates(&ctx);
+        
         for player in &self.players {
             if player.health > 0 {
-                // Draw each player as a filled rectangle
-                let rect = graphics::Rect::new(player.x - self.origin.x, player.y - self.origin.y, 15.0, 15.0);
+                // Only draw players that are in the screen
+                if player.x >= self.origin.x && player.x <= self.origin.x + screen_coords.w &&
+                player.y >= self.origin.y && player.y <= self.origin.y + screen_coords.h {
+                    // Draw each player as a filled rectangle
+                    let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
 
-                let rect_to_draw = graphics::Mesh::new_rectangle(
-                    ctx,
-                    graphics::DrawMode::fill(),
-                    rect,
-                    player.color,
-                )?;
+                    let rect_to_draw = graphics::Mesh::new_rectangle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        rect,
+                        player.color,
+                    )?;
+                    
+                    graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
                 
-                graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
+                }
             
             }
         
         }
         
         for projectile in &self.projectiles {
-            // Draw each player as a filled rectangle
-            let rect = graphics::Rect::new(projectile.x - self.origin.x, projectile.y - self.origin.y, 5.0, 5.0);
+            if projectile.x >= self.origin.x && projectile.x <= self.origin.x + screen_coords.w &&
+            projectile.y >= self.origin.y && projectile.y <= self.origin.y + screen_coords.h {
+                // Draw each projectile as a filled rectangle
+                let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, 5.0 * self.zoom, 5.0 * self.zoom);
 
-            let rect_to_draw = graphics::Mesh::new_rectangle(
-                ctx,
-                graphics::DrawMode::fill(),
-                rect,
-                graphics::WHITE,
-            )?;
-            
-            graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
+                let rect_to_draw = graphics::Mesh::new_rectangle(
+                    ctx,
+                    graphics::DrawMode::fill(),
+                    rect,
+                    graphics::WHITE,
+                )?;
+                
+                graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
+            }
         }
 
         graphics::present(ctx)?;
