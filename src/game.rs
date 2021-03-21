@@ -47,9 +47,19 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
             projectiles[i].y -= projectiles[i].angle.sin() * projectiles[i].speed;
             
         }
+        
+        projectiles[i].distance_traveled += projectiles[i].speed;
+        
     
         // Check for a collision
         let mut collided = false;
+        // Bullet has reached its maximum distance
+        let mut max_distance_reached = false;
+        
+        if projectiles[i].distance_traveled > projectiles[i].max_distance {
+            max_distance_reached = true;
+            
+        }
         
         for player in players.iter_mut() {
             let player_rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
@@ -80,7 +90,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
         }
         
         // Remove all out of bounds projectiles + projectiles colliding w living players
-        if out_of_bounds(projectiles[i].x, projectiles[i].y, 5.0, 5.0) || collided {
+        if out_of_bounds(projectiles[i].x, projectiles[i].y, 5.0, 5.0) || collided || max_distance_reached {
             projectiles.remove(i);
             
         } else {
@@ -119,6 +129,8 @@ pub struct Projectile {
     pub angle: f32,
     pub speed: f32,
     pub damage: u8,
+    pub distance_traveled: f32,
+    max_distance: f32,
     
 }
 
@@ -134,6 +146,7 @@ pub struct Gun {
     reloading: bool,
     ammo_in_mag: u8,
     damage: u8,
+    max_distance: f32,
     
 }
 
@@ -155,6 +168,11 @@ impl Gun {
                 1 => 25,
                 _ => 100,
             },
+            max_distance: match model {
+                0 => 900.0,
+                1 => 300.0,
+                _ => 900.0,
+            }
         }
     
     }
@@ -201,12 +219,14 @@ impl Gun {
                     angle, 
                     speed: 12.0,
                     damage: self.damage,
+                    distance_traveled: 0.0,
+                    max_distance: self.max_distance,
                     
                 });
                 
                 self.ammo_in_mag -= 1;
                 
-            } else if self.model == 1 && current_time() >= self.time_since_last_shot + 600 {
+            } else if self.model == 1 && current_time() >= self.time_since_last_shot + 1500 {
                 let mut rng = thread_rng();
                 let recoil_range: f32 = 0.2;
                             
@@ -230,6 +250,8 @@ impl Gun {
                                 angle: angle + rng.gen_range(-recoil_range..recoil_range), 
                                 speed: 11.0,
                                 damage: self.damage,
+                                distance_traveled: 0.0,
+                                max_distance: self.max_distance,
                                 
                             }
                         );
