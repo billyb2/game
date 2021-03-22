@@ -8,6 +8,7 @@ use rand::{Rng, thread_rng};
 use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+
 pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
@@ -29,6 +30,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
         // If a player started reloading in a previous tick, then it continues in this tick
         if player.gun.reloading {
             player.gun.reload()
+            
         }
         
     }
@@ -48,11 +50,21 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
             
         }
         
+        // The speedball projectile starts off slow, but increases its size and speed exponentially
+        if projectiles[i].projectile_type == 1 {
+            projectiles[i].speed *= 1.15;
+            projectiles[i].w *= 1.05;
+            projectiles[i].h *= 1.05;
+        }
+        
+        // Each projectile keeps track of how far its traveled, so that it will delete itself after a certain distance
         projectiles[i].distance_traveled += projectiles[i].speed;
         
+        let projectile_rect = graphics::Rect::new(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h);
+        
     
-        // Check for a collision
-        let mut collided = false;
+        // Check for a player-projectile collision
+        let mut player_collision = false;
         // Bullet has reached its maximum distance
         let mut max_distance_reached = false;
         
@@ -61,9 +73,9 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
             
         }
         
+        // Projectile collisions with player
         for player in players.iter_mut() {
             let player_rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
-            let projectile_rect = graphics::Rect::new(projectiles[i].x, projectiles[i].y, 5.0, 5.0);
             
             // Projectiles can only hit living players
             if collision(player_rect, projectile_rect) && player.health > 0{
@@ -82,15 +94,16 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
                 
                 player.color = color_tuple.into();
                 
-                collided = true;
+                player_collision = true;
                 break;
                 
             }
             
         }
         
-        // Remove all out of bounds projectiles + projectiles colliding w living players
-        if out_of_bounds(projectiles[i].x, projectiles[i].y, 5.0, 5.0) || collided || max_distance_reached {
+        
+        // Remove all out of bounds projectiles + projectiles colliding w living players/ other projectiles
+        if out_of_bounds(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h) || player_collision || max_distance_reached {
             projectiles.remove(i);
             
         } else {
@@ -125,11 +138,16 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
 pub struct Projectile {
     pub x: f32,
     pub y: f32, 
-    pub right: bool,
-    pub angle: f32,
-    pub speed: f32,
-    pub damage: u8,
-    pub distance_traveled: f32,
+    pub w: f32,
+    pub h: f32,
+    right: bool,
+    angle: f32,
+    speed: f32,
+    damage: u8,
+    // 0 is just a regular bullet
+    // 1 is a bullet that speeds up over time
+    projectile_type: u8,
+    distance_traveled: f32,
     max_distance: f32,
     
 }
@@ -139,7 +157,8 @@ pub struct Gun {
     // Once again, storing the gun model as an int since it makes it fast and easy to deal with
     // 0 is the pistol
     // 1 is the shotgun
-    model: u8,
+    // 2 is the speedball
+    pub model: u8,
     // This time is stored so that the bullets per second of guns can be limited dynamically
     time_since_last_shot: u128,
     time_since_start_reload: u128,
@@ -161,16 +180,19 @@ impl Gun {
             ammo_in_mag: match model {
                 0 => 7,
                 1 => 8,
+                2 => 5,
                 _ => 30,
             },
             damage: match model {
                 0 => 45,
                 1 => 25,
+                2 => 50,
                 _ => 100,
             },
             max_distance: match model {
                 0 => 900.0,
                 1 => 300.0,
+                2 => 3000.0,
                 _ => 900.0,
             }
         }
@@ -192,6 +214,11 @@ impl Gun {
             } else if self.model == 1  && self.time_since_start_reload + 5000 <= current_time() {
                 self.ammo_in_mag = 8;
                 self.reloading = false;
+                
+            } else if self.model == 2  && self.time_since_start_reload + 3000 <= current_time() {
+                self.ammo_in_mag = 6;
+                self.reloading = false;
+                
             }
             
         }
@@ -203,7 +230,6 @@ impl Gun {
         if self.ammo_in_mag > 0 && !self.reloading {
             //Pistol
             if self.model == 0 && current_time() >= self.time_since_last_shot + 500 {
-                println!("Pistol");
                 self.time_since_last_shot = current_time();
                 
                 projectiles.push( Projectile {
@@ -213,12 +239,15 @@ impl Gun {
                     },
                     y: match right {
                         true => y + (angle.sin() * 25.0) as f32,
-                        false => y - (angle.sin() * 15.0) as f32,
+                        false => y - (angle.sin() * 5.0) as f32,
                     },
+                    w: 5.0,
+                    h: 5.0,
                     right,
                     angle, 
                     speed: 12.0,
                     damage: self.damage,
+                    projectile_type: 0,
                     distance_traveled: 0.0,
                     max_distance: self.max_distance,
                     
@@ -246,9 +275,12 @@ impl Gun {
                                     true => y + (angle.sin() * 25.0) as f32,
                                     false => y - (angle.sin() * 15.0) as f32,
                                 },
+                                w: 5.0,
+                                h: 5.0,
                                 right,
                                 angle: angle + rng.gen_range(-recoil_range..recoil_range), 
                                 speed: 11.0,
+                                projectile_type: 0,
                                 damage: self.damage,
                                 distance_traveled: 0.0,
                                 max_distance: self.max_distance,
@@ -261,6 +293,33 @@ impl Gun {
                 
                 shoot_several_bullets(12);
                 
+                self.ammo_in_mag -= 1;
+                
+            } else if self.model == 2 && current_time() >= self.time_since_last_shot + 1500 {
+                self.time_since_last_shot = current_time();
+                
+                projectiles.push( Projectile {
+                    x: match right {
+                        true => x + (angle.cos() * 25.0) as f32,
+                        false => x - (angle.cos() * 15.0) as f32,
+                    },
+                    y: match right {
+                        true => y + (angle.sin() * 25.0) as f32,
+                        false => y - (angle.sin() * 15.0) as f32,
+                    },
+                    w: 5.0,
+                    h: 5.0,
+                    right,
+                    angle, 
+                    speed: 0.25,
+                    projectile_type: 1,
+                    damage: self.damage,
+                    distance_traveled: 0.0,
+                    max_distance: self.max_distance,
+                    
+                });
+                
+                self.ammo_in_mag -= 1;
             }
             
         } else {
@@ -293,9 +352,9 @@ pub struct Player {
     // 0 is phase
     // 1 is stim
     
-    pub ability: u8,
-    pub cooldown_finished_time: u128,
-    pub speed: f32,
+    ability: u8,
+    cooldown_finished_time: u128,
+    speed: f32,
     
     pub gun: Gun,
     
@@ -393,7 +452,7 @@ fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
 
 }
 
-// All the user input code is in here, instead of update_game, for readability purposes
+// All the user input code is in here, instead of the tick fn, for readability purposes
 fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>) {
     if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
         if is_key_pressed(ctx, KeyCode::D) {

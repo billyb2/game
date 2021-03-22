@@ -1,7 +1,9 @@
 mod game;
 
-use ggez::{event, graphics, nalgebra as na};
+use ggez::{event, graphics};
 use ggez::conf::{NumSamples, WindowSetup};
+use ggez::graphics::DrawParam;
+use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
 use game::{tick, Player, Projectile};
@@ -9,28 +11,23 @@ use game::{tick, Player, Projectile};
 pub const WORLD_WIDTH: f32 = 10_000.0;
 pub const WORLD_HEIGHT: f32 = 10_000.0;
 
-struct Point {
-    x: f32,
-    y: f32,
-}
-
 struct MainState {
     players: [Player; 8],
     projectiles: Vec<Projectile>,
-    origin: Point,
+    origin: Point2<f32>,
     zoom: f32,
     
 }
 
 impl MainState {
-    fn new(mut num_of_players: u8) -> ggez::GameResult<MainState> {
+    fn new(mut num_of_players: u8) -> MainState {
         let players: [Player; 8] ={
             let mut players: [Player; 8] = [Player::new(None, 0, 0, 0); 8];
             
             for player in players.iter_mut() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 0, 100, 1);
+                    *player = Player::new(None, 0, 100, 2);
                     
                 } else {
                     break;
@@ -44,15 +41,13 @@ impl MainState {
             
         };
     
-        let s = MainState {
+        MainState {
            players,
            projectiles: Vec::new(),
-           origin: Point {x: 400.0, y: 300.0},
+           origin: Point2 {x: 400.0, y: 300.0},
            zoom: 1.0,
            
-        };
-        
-        Ok(s)
+        }
     }
 }
 
@@ -88,7 +83,7 @@ impl event::EventHandler for MainState {
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        graphics::clear(ctx, graphics::BLACK);
+        graphics::clear(ctx, (0, 0, 0).into());
         
         let screen_coords = graphics::screen_coordinates(&ctx);
         
@@ -109,7 +104,7 @@ impl event::EventHandler for MainState {
                         player.color,
                     )?;
                     
-                    graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
+                    graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
                 
                 }
             
@@ -121,16 +116,16 @@ impl event::EventHandler for MainState {
             if projectile.x >= self.origin.x && projectile.x <= self.origin.x + screen_coords.w &&
             projectile.y >= self.origin.y && projectile.y <= self.origin.y + screen_coords.h {
 
-                let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, 5.0 * self.zoom, 5.0 * self.zoom);
+                let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
 
                 let rect_to_draw = graphics::Mesh::new_rectangle(
                     ctx,
                     graphics::DrawMode::fill(),
                     rect,
-                    graphics::WHITE,
+                    (255, 255, 255).into(),
                 )?;
                 
-                graphics::draw(ctx, &rect_to_draw, (na::Point2::new(0.0, 0.0),))?;
+                graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
             }
         }
 
@@ -152,9 +147,9 @@ pub fn main() -> ggez::GameResult {
         srgb: true,
     });
     
-    let (ctx, event_loop) = &mut cb.build()?;
+    let (ctx, event_loop) = cb.build()?;
     
-    let state = &mut MainState::new(2)?;
+    let state = MainState::new(2);
     event::run(ctx, event_loop, state)
     
 }

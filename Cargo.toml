@@ -9,5 +9,6 @@ lto = "fat"
 codegen-units = 1
 
 [dependencies]
-ggez = "0.5"
+# Grabbing the the latest 0.6 release canidate, since 0.6 isn't fully released yet
+ggez = "0.6.0-rc"
 rand = "0.8"
