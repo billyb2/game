@@ -52,9 +52,16 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
         
         // The speedball projectile starts off slow, but increases its size and speed exponentially
         if projectiles[i].projectile_type == 1 {
-            projectiles[i].speed *= 1.15;
-            projectiles[i].w *= 1.05;
-            projectiles[i].h *= 1.05;
+            projectiles[i].speed *= 1.1;
+            projectiles[i].w *= 1.03;
+            projectiles[i].h *= 1.03;
+            
+            // The speedball's damage increases over the distance traveled 
+            if projectiles[i].damage <= 75 {
+                projectiles[i].damage += (projectiles[i].distance_traveled / 60.0 ) as u8;
+                
+            }
+            
         }
         
         // Each projectile keeps track of how far its traveled, so that it will delete itself after a certain distance
@@ -186,7 +193,7 @@ impl Gun {
             damage: match model {
                 0 => 45,
                 1 => 25,
-                2 => 50,
+                2 => 1,
                 _ => 100,
             },
             max_distance: match model {
