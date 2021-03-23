@@ -10,7 +10,7 @@ use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Vec<Rect>, ctx: &mut ggez::Context) -> [Player; 8] {
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &[Rect], ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -503,7 +503,7 @@ pub fn collision (rect1: &Rect, rect2: &Rect) -> bool {
     }
 }
 
-fn collision_with_map(rect: Rect, map: &Vec<Rect>) -> bool {
+fn collision_with_map(rect: Rect, map: &[Rect]) -> bool {
     let mut collided = false; 
     
     for object in map {
