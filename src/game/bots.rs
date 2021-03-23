@@ -26,13 +26,13 @@ pub fn bounce(players: &[Player; 8], projectiles: &[Projectile]) -> (u8, bool, f
         right = true;
     
     } else {
-        //direction = players[1].direction;
+        direction = players[1].direction;
         
     }
     
     for projectile in projectiles {
         if projectile.x + 20.0 >= players[1].x && projectile.x - 20.0 <= players[1].x || projectile.y + 20.0 >= players[1].y && projectile.y - 20.0 <= players[1].y{
-            //use_ability = 1;
+            use_ability = 1;
             shooting = match direction {
                 3 => 0.00001,
                 4 => PI,

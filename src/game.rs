@@ -1,27 +1,81 @@
 mod bots;
 
 use crate::{WORLD_WIDTH, WORLD_HEIGHT};
+
 use ggez::input::keyboard::{is_key_pressed, KeyCode};
 use ggez::input::mouse;
-use ggez::graphics;
+use ggez::graphics::{Color, Rect};
 use rand::{Rng, thread_rng};
 use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ctx: &mut ggez::Context) -> [Player; 8] {
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Vec<Rect>, ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
             match player.direction {
-                1 => {if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0){ player.y -= player.speed; }},
-                2 => {if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0){ player.y += player.speed; }},
-                3=> {if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0){ player.x += player.speed; }},
-                4 => {if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0){player.x -= player.speed; }},
-                5 => {if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0){ player.y -= player.speed; player.x += player.speed; }},
-                6 => {if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0){ player.y -= player.speed; player.x -= player.speed; }},
-                7 => {if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0){ player.y += player.speed; player.x += player.speed;}},
-                8 => {if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0){ player.y += player.speed; player.x -= player.speed; }},
+                1 => {
+                        if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0) && 
+                            !collision_with_map(Rect::new(player.x, player.y - player.speed, 15.0, 15.0), map) {   
+                            player.y -= player.speed; 
+                            
+                        }
+                    },
+                
+                2 => {
+                        if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0) && !collision_with_map(Rect::new(player.x, player.y + player.speed, 15.0, 15.0), map) {
+                            player.y += player.speed; 
+                        
+                        }
+                    },
+                
+                3=> {
+                        if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0) && !collision_with_map(Rect::new(player.x + player.speed, player.y, 15.0, 15.0), map) { 
+                            player.x += player.speed; 
+                            
+                        }
+                    },
+                
+                4 => {
+                        if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0) &&  !collision_with_map(Rect::new(player.x - player.speed, player.y, 15.0, 15.0), map){
+                            player.x -= player.speed; 
+                            
+                            
+                        }
+                    },
+                
+                5 => {
+                        if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0) &&  !collision_with_map(Rect::new(player.x + player.speed, player.y - player.speed, 15.0, 15.0), map){ 
+                            player.y -= player.speed; player.x += player.speed; 
+                            
+                        }
+                    },
+                
+                6 => {
+                        if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0)  &&  !collision_with_map(Rect::new(player.x - player.speed, player.y - player.speed, 15.0, 15.0), map) { 
+                            player.x -= player.speed; 
+                            player.y -= player.speed; 
+                            
+                        }
+                    },
+                
+                7 => {
+                        if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0) && !collision_with_map(Rect::new(player.x + player.speed, player.y + player.speed, 15.0, 15.0), map) { 
+                            player.x += player.speed;
+                            player.y += player.speed; 
+                            
+                        }
+                    },
+                
+                8 => {
+                        if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0) && !collision_with_map(Rect::new(player.x - player.speed, player.y + player.speed, 15.0, 15.0), map) { 
+                            player.x -= player.speed; 
+                            player.y += player.speed; 
+                    
+                    }
+                },
+                
                 _ => {},
                 
             }
@@ -56,7 +110,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
             projectiles[i].w *= 1.03;
             projectiles[i].h *= 1.03;
             
-            // The speedball's damage increases over the distance traveled 
+            // The speedball's damage increases over the distance traveled (up to 75)
             if projectiles[i].damage <= 75 {
                 projectiles[i].damage += (projectiles[i].distance_traveled / 60.0 ) as u8;
                 
@@ -67,7 +121,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
         // Each projectile keeps track of how far its traveled, so that it will delete itself after a certain distance
         projectiles[i].distance_traveled += projectiles[i].speed;
         
-        let projectile_rect = graphics::Rect::new(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h);
+        let projectile_rect = Rect::new(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h);
         
     
         // Check for a player-projectile collision
@@ -82,10 +136,10 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
         
         // Projectile collisions with player
         for player in players.iter_mut() {
-            let player_rect = graphics::Rect::new(player.x, player.y, 15.0, 15.0);
+            let player_rect = Rect::new(player.x, player.y, 15.0, 15.0);
             
             // Projectiles can only hit living players
-            if collision(player_rect, projectile_rect) && player.health > 0{
+            if collision(&player_rect, &projectile_rect) && player.health > 0{
                 if player.health as i8 - projectiles[i].damage as i8 > 0 {
                     player.health -= projectiles[i].damage;
                     
@@ -110,7 +164,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ct
         
         
         // Remove all out of bounds projectiles + projectiles colliding w living players/ other projectiles
-        if out_of_bounds(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h) || player_collision || max_distance_reached {
+        if out_of_bounds(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h) || player_collision || collision_with_map(projectile_rect, map) || max_distance_reached {
             projectiles.remove(i);
             
         } else {
@@ -277,10 +331,12 @@ impl Gun {
                                 x: match right {
                                     true => x + (angle.cos() * 25.0 ) as f32,
                                     false => x - (angle.cos() * 15.0) as f32,
+                                    
                                 },
                                 y: match right {
                                     true => y + (angle.sin() * 25.0) as f32,
                                     false => y - (angle.sin() * 15.0) as f32,
+                                    
                                 },
                                 w: 5.0,
                                 h: 5.0,
@@ -352,7 +408,7 @@ pub struct Player {
     // 8 SW
     
     pub direction: u8,
-    pub color: graphics::Color,
+    pub color: Color,
     
     // The ability is stored as an int in order to allow for faster code
     // If it was stored as a string, then the players couldn't be stored in an array, causing more variable memory usage
@@ -369,7 +425,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(color: Option<graphics::Color>, ability: u8, health: u8, gun: u8) -> Player {    
+    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8) -> Player {    
         let mut rng = thread_rng();
             
         Player {
@@ -379,7 +435,7 @@ impl Player {
             color:match color {
                 Some(color) => color,
                 //Random color
-                None => graphics::Color::from_rgba(rng.gen_range(0..255), rng.gen_range(0..255), rng.gen_range(0..255), 255),
+                None => Color::from_rgba(rng.gen_range(0..255), rng.gen_range(0..255), rng.gen_range(0..255), 255),
             },
             ability,
             speed: 10.0,
@@ -437,7 +493,7 @@ fn current_time() -> u128 {
     time
 }
 
-fn collision (rect1: graphics::Rect, rect2: graphics::Rect) -> bool {
+pub fn collision (rect1: &Rect, rect2: &Rect) -> bool {
     // A bounding box collision test between two rectangles
     {
         rect1.x < rect2.x + rect2.w &&
@@ -445,6 +501,21 @@ fn collision (rect1: graphics::Rect, rect2: graphics::Rect) -> bool {
         rect1.y < rect2.y + rect2.h &&
         rect1.y + rect1.h > rect2.y
     }
+}
+
+fn collision_with_map(rect: Rect, map: &Vec<Rect>) -> bool {
+    let mut collided = false; 
+    
+    for object in map {
+        if collision(&rect, object) {
+            collided = true;
+            break;
+            
+        }
+    }
+    
+    collided
+    
 }
 
 fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {

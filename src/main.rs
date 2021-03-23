@@ -6,7 +6,7 @@ use ggez::graphics::{DrawParam, Rect};
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
-use game::{tick, Player, Projectile};
+use game::{collision, tick, Player, Projectile};
 
 pub const WORLD_WIDTH: f32 = 10_000.0;
 pub const WORLD_HEIGHT: f32 = 10_000.0;
@@ -21,7 +21,7 @@ struct MainState {
 }
 
 impl MainState {
-    fn new(mut num_of_players: u8) -> MainState {
+    fn new(mut num_of_players: u8, map: Vec<Rect>) -> MainState {
         let players: [Player; 8] ={
             let mut players: [Player; 8] = [Player::new(None, 0, 0, 0); 8];
             
@@ -45,7 +45,7 @@ impl MainState {
         MainState {
            players,
            projectiles: Vec::new(),
-           map: vec![Rect::new(0.0, 0.0, 700.0, 50.0)],
+           map,
            origin: Point2 {x: 400.0, y: 300.0},
            zoom: 1.0,
            
@@ -59,7 +59,7 @@ impl event::EventHandler for MainState {
         // Basically, the game will run 60 frames every second on average
         
         while check_update_time(ctx, 60) {
-            self.players = tick(self.players, &mut self.projectiles, ctx);
+            self.players = tick(self.players, &mut self.projectiles, &self.map, ctx);
             
             self.origin.x = self.players[0].x - 400.0;
             self.origin.y = self.players[0].y - 300.0;
@@ -93,8 +93,8 @@ impl event::EventHandler for MainState {
             if player.health > 0 {
             
                 // Only draw players that are in the screen
-                if player.x >= self.origin.x && player.x <= self.origin.x + screen_coords.w ||
-                player.y >= self.origin.y && player.y <= self.origin.y + screen_coords.h {
+                // Recycling the collision function since I am basically just seeing if the two rectangles intersect
+                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
                 
                     // Draw each player as a filled rectangle
                     let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
@@ -115,8 +115,7 @@ impl event::EventHandler for MainState {
         }
         
         for projectile in &self.projectiles {
-            if projectile.x >= self.origin.x && projectile.x <= self.origin.x + screen_coords.w ||
-            projectile.y >= self.origin.y && projectile.y <= self.origin.y + screen_coords.h {
+            if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
 
@@ -132,7 +131,7 @@ impl event::EventHandler for MainState {
         }
         
         for object in &self.map {
-           if object.x >= self.origin.x && object.x <= self.origin.x + screen_coords.w || object.y >= self.origin.y && object.y <= self.origin.y + screen_coords.h {
+           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
             
                 let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
             
@@ -167,7 +166,7 @@ pub fn main() -> ggez::GameResult {
     
     let (ctx, event_loop) = cb.build()?;
     
-    let state = MainState::new(2);
+    let state = MainState::new(2, vec![Rect::new(0.0, 0.0, 700.0, 300.0)]);
     event::run(ctx, event_loop, state)
     
 }
