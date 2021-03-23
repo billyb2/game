@@ -2,7 +2,7 @@ mod game;
 
 use ggez::{event, graphics};
 use ggez::conf::{NumSamples, WindowSetup};
-use ggez::graphics::DrawParam;
+use ggez::graphics::{DrawParam, Rect};
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
@@ -14,6 +14,7 @@ pub const WORLD_HEIGHT: f32 = 10_000.0;
 struct MainState {
     players: [Player; 8],
     projectiles: Vec<Projectile>,
+    map: Vec<Rect>,
     origin: Point2<f32>,
     zoom: f32,
     
@@ -44,6 +45,7 @@ impl MainState {
         MainState {
            players,
            projectiles: Vec::new(),
+           map: vec![Rect::new(0.0, 0.0, 700.0, 50.0)],
            origin: Point2 {x: 400.0, y: 300.0},
            zoom: 1.0,
            
@@ -91,7 +93,7 @@ impl event::EventHandler for MainState {
             if player.health > 0 {
             
                 // Only draw players that are in the screen
-                if player.x >= self.origin.x && player.x <= self.origin.x + screen_coords.w &&
+                if player.x >= self.origin.x && player.x <= self.origin.x + screen_coords.w ||
                 player.y >= self.origin.y && player.y <= self.origin.y + screen_coords.h {
                 
                     // Draw each player as a filled rectangle
@@ -113,11 +115,27 @@ impl event::EventHandler for MainState {
         }
         
         for projectile in &self.projectiles {
-            if projectile.x >= self.origin.x && projectile.x <= self.origin.x + screen_coords.w &&
+            if projectile.x >= self.origin.x && projectile.x <= self.origin.x + screen_coords.w ||
             projectile.y >= self.origin.y && projectile.y <= self.origin.y + screen_coords.h {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
 
+                let rect_to_draw = graphics::Mesh::new_rectangle(
+                    ctx,
+                    graphics::DrawMode::fill(),
+                    rect,
+                    (255, 255, 255).into(),
+                )?;
+                
+                graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+            }
+        }
+        
+        for object in &self.map {
+           if object.x >= self.origin.x && object.x <= self.origin.x + screen_coords.w || object.y >= self.origin.y && object.y <= self.origin.y + screen_coords.h {
+            
+                let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
+            
                 let rect_to_draw = graphics::Mesh::new_rectangle(
                     ctx,
                     graphics::DrawMode::fill(),
