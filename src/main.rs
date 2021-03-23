@@ -8,8 +8,8 @@ use ggez::timer::check_update_time;
 
 use game::{collision, tick, Player, Projectile};
 
-pub const WORLD_WIDTH: f32 = 10_000.0;
-pub const WORLD_HEIGHT: f32 = 10_000.0;
+pub const WORLD_WIDTH: f32 = 1_000.0;
+pub const WORLD_HEIGHT: f32 = 1_000.0;
 
 struct MainState {
     players: [Player; 8],
@@ -28,7 +28,7 @@ impl MainState {
             for player in players.iter_mut() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 0, 100, 2);
+                    *player = Player::new(None, 0, 100, 0);
                     
                 } else {
                     break;
@@ -166,7 +166,7 @@ pub fn main() -> ggez::GameResult {
     
     let (ctx, event_loop) = cb.build()?;
     
-    let state = MainState::new(2, vec![Rect::new(0.0, 0.0, 700.0, 300.0)]);
+    let state = MainState::new(2, vec![Rect::new(0.0, 0.0, 50.0, 50.0)]);
     event::run(ctx, event_loop, state)
     
 }

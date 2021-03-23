@@ -568,8 +568,24 @@ fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut proj
         
     if mouse::button_pressed(&ctx, mouse::MouseButton::Left) {
         // Because of trig stuff, you need to know whether the bullet is going to move right or left as well as what angle
-        let rad = get_angle(players[0].x, players[0].y,  mouse::position(&ctx).x,  mouse::position(&ctx).y);
-        let right = { mouse::position(&ctx).x > players[0].x };
+        let player_x = if players[0].x - 400.0 < 0.0 {
+            players[0].x
+            
+        } else {
+            400.0 
+            
+        };
+        
+        let player_y = if players[0].y - 300.0 < 0.0 {
+            players[0].y
+            
+        } else {
+            300.0 
+            
+        };
+        
+        let rad = get_angle(player_x, player_y, mouse::position(&ctx).x,  mouse::position(&ctx).y);
+        let right = { mouse::position(&ctx).x > player_x };
     
         players[0].shoot(right, rad, &mut projectiles);
         
