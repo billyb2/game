@@ -21,6 +21,8 @@ struct MainState {
     origin: Point2<f32>,
     zoom: f32,
     
+    projectile_spritebatch: HashMap<u8, SpriteBatch>,
+    
 }
 
 impl MainState {
@@ -51,6 +53,7 @@ impl MainState {
            map,
            origin: Point2 {x: 596.0, y: 342.0},
            zoom: 1.0,
+           projectile_spritebatch: HashMap::new(),
            
         }
     }
@@ -120,21 +123,20 @@ impl event::EventHandler for MainState {
         }
         
         let mut projectiles: Vec<(Point2<f32>, u8)> = Vec::new();
-        let mut rect_spritebatch: HashMap<u8, SpriteBatch> = HashMap::new();
         
         for projectile in &self.projectiles {
             if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
                 
-                if rect_spritebatch.contains_key(&(projectile.w as u8)) {
+                if self.projectile_spritebatch.contains_key(&(projectile.w as u8)) {
                     projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8));
                     
                 } else {
                     let size = projectile.w as u16;
                     let vec_size = ((size as usize) *  (size as usize)) * 4;
                 
-                    rect_spritebatch.insert(projectile.w as u8, SpriteBatch::new( 
+                    self.projectile_spritebatch.insert(projectile.w as u8, SpriteBatch::new( 
                         Image::from_rgba8(
                             ctx,
                             size,
@@ -166,12 +168,13 @@ impl event::EventHandler for MainState {
         }
         
         for (pos, size) in projectiles.iter() {
-            rect_spritebatch.get_mut(size).unwrap().add(DrawParam::default().dest(*pos));
+            self.projectile_spritebatch.get_mut(size).unwrap().add(DrawParam::default().dest(*pos));
             
         }
-        
-        for spritebatch in rect_spritebatch.values() {
+                
+        for (_, spritebatch) in self.projectile_spritebatch.iter_mut() {
             graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+            spritebatch.clear();
             
         }
 
