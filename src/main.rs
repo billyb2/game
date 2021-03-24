@@ -2,11 +2,14 @@ mod game;
 
 use ggez::{event, graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
-use ggez::graphics::{DrawParam, Rect, screen_coordinates};
+use ggez::graphics::{DrawParam, Image, Rect, screen_coordinates};
+use ggez::graphics::spritebatch::SpriteBatch;
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
 use game::{collision, tick, Player, Projectile};
+
+use std::collections::HashMap;
 
 pub const WORLD_WIDTH: f32 = 10_000.0;
 pub const WORLD_HEIGHT: f32 = 10_000.0;
@@ -116,19 +119,33 @@ impl event::EventHandler for MainState {
         
         }
         
+        let mut projectiles: Vec<(Point2<f32>, u8)> = Vec::new();
+        let mut rect_spritebatch: HashMap<u8, SpriteBatch> = HashMap::new();
+        
         for projectile in &self.projectiles {
             if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
-
-                let rect_to_draw = graphics::Mesh::new_rectangle(
-                    ctx,
-                    graphics::DrawMode::fill(),
-                    rect,
-                    (255, 255, 255).into(),
-                )?;
                 
-                graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+                if rect_spritebatch.contains_key(&(projectile.w as u8)) {
+                    projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8));
+                    
+                } else {
+                    let size = projectile.w as u16;
+                    let vec_size = ((size as usize) *  (size as usize)) * 4;
+                
+                    rect_spritebatch.insert(projectile.w as u8, SpriteBatch::new( 
+                        Image::from_rgba8(
+                            ctx,
+                            size,
+                            size,
+                            &vec![255; vec_size],
+                        ).unwrap()) 
+                    );
+                
+                    projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8));
+                    
+                }
             }
         }
         
@@ -146,6 +163,16 @@ impl event::EventHandler for MainState {
                 
                 graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
             }
+        }
+        
+        for (pos, size) in projectiles.iter() {
+            rect_spritebatch.get_mut(size).unwrap().add(DrawParam::default().dest(*pos));
+            
+        }
+        
+        for spritebatch in rect_spritebatch.values() {
+            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+            
         }
 
         graphics::present(ctx)?;
