@@ -31,7 +31,7 @@ pub fn bounce(players: &[Player; 8], projectiles: &[Projectile]) -> (u8, bool, f
     }
     
     for projectile in projectiles {
-        if projectile.x + 20.0 >= players[1].x && projectile.x - 20.0 <= players[1].x || projectile.y + 20.0 >= players[1].y && projectile.y - 20.0 <= players[1].y{
+        if projectile.x + 50.0 >= players[1].x && projectile.x - 50.0 <= players[1].x || projectile.y + 50.0 >= players[1].y && projectile.y - 50.0 <= players[1].y{
             use_ability = 1;
             shooting = match direction {
                 3 => 0.00001,

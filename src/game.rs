@@ -4,7 +4,7 @@ use crate::{WORLD_WIDTH, WORLD_HEIGHT};
 
 use ggez::input::keyboard::{is_key_pressed, KeyCode};
 use ggez::input::mouse;
-use ggez::graphics::{Color, Rect};
+use ggez::graphics::{Color, Rect, screen_coordinates};
 use rand::{Rng, thread_rng};
 use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -295,12 +295,12 @@ impl Gun {
                 
                 projectiles.push( Projectile {
                     x: match right {
-                        true => x + (angle.cos() * 25.0) as f32,
-                        false => x - (angle.cos() * 15.0) as f32,
+                        true => x + (angle.cos() * 25.0),
+                        false => x - (angle.cos() * 15.0),
                     },
                     y: match right {
-                        true => y + (angle.sin() * 25.0) as f32,
-                        false => y - (angle.sin() * 5.0) as f32,
+                        true => y + (angle.sin() * 25.0),
+                        false => y - (angle.sin() * 5.0),
                     },
                     w: 5.0,
                     h: 5.0,
@@ -429,8 +429,8 @@ impl Player {
         let mut rng = thread_rng();
             
         Player {
-            x: 400.0,
-            y: 300.0,
+            x: 596.0,
+            y: 342.0,
             direction: 0,
             color:match color {
                 Some(color) => color,
@@ -567,24 +567,25 @@ fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut proj
     }
         
     if mouse::button_pressed(&ctx, mouse::MouseButton::Left) {
+        let screen_coords = screen_coordinates(&ctx);
         // Because of trig stuff, you need to know whether the bullet is going to move right or left as well as what angle
-        let player_x = if players[0].x - 400.0 < 0.0 {
+        let player_x = if players[0].x - screen_coords.w / 2.0 < 0.0 {
             players[0].x
             
         } else {
-            400.0 
+            screen_coords.w / 2.0
             
         };
         
-        let player_y = if players[0].y - 300.0 < 0.0 {
+        let player_y = if players[0].y - screen_coords.h / 2.0 < 0.0 {
             players[0].y
             
         } else {
-            300.0 
+            screen_coords.h / 2.0
             
         };
         
-        let rad = get_angle(player_x, player_y, mouse::position(&ctx).x,  mouse::position(&ctx).y);
+        let rad = get_angle(player_x + 7.5, player_y + 7.5, mouse::position(&ctx).x,  mouse::position(&ctx).y);
         let right = { mouse::position(&ctx).x > player_x };
     
         players[0].shoot(right, rad, &mut projectiles);

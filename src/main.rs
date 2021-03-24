@@ -1,15 +1,15 @@
 mod game;
 
 use ggez::{event, graphics};
-use ggez::conf::{NumSamples, WindowSetup};
-use ggez::graphics::{DrawParam, Rect};
+use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
+use ggez::graphics::{DrawParam, Rect, screen_coordinates};
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
 use game::{collision, tick, Player, Projectile};
 
-pub const WORLD_WIDTH: f32 = 1_000.0;
-pub const WORLD_HEIGHT: f32 = 1_000.0;
+pub const WORLD_WIDTH: f32 = 10_000.0;
+pub const WORLD_HEIGHT: f32 = 10_000.0;
 
 struct MainState {
     players: [Player; 8],
@@ -46,7 +46,7 @@ impl MainState {
            players,
            projectiles: Vec::new(),
            map,
-           origin: Point2 {x: 400.0, y: 300.0},
+           origin: Point2 {x: 596.0, y: 342.0},
            zoom: 1.0,
            
         }
@@ -61,8 +61,10 @@ impl event::EventHandler for MainState {
         while check_update_time(ctx, 60) {
             self.players = tick(self.players, &mut self.projectiles, &self.map, ctx);
             
-            self.origin.x = self.players[0].x - 400.0;
-            self.origin.y = self.players[0].y - 300.0;
+            let screen_coords = screen_coordinates(ctx);
+            
+            self.origin.x = self.players[0].x - screen_coords.w / 2.0;
+            self.origin.y = self.players[0].y - screen_coords.h / 2.0;
             
             if self.origin.x < 0.0 {
                 self.origin.x = 0.0;
@@ -87,7 +89,7 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, (0, 0, 0).into());
         
-        let screen_coords = graphics::screen_coordinates(&ctx);
+        let screen_coords = screen_coordinates(&ctx);
         
         for player in &self.players {
             if player.health > 0 {
@@ -152,7 +154,37 @@ impl event::EventHandler for MainState {
 }
 
 pub fn main() -> ggez::GameResult { 
-    let cb = ggez::ContextBuilder::new("super_simple", "ggez");
+    let cb = ggez::ContextBuilder::new("game", "William Batista + Luke Gaston")
+    .window_mode (
+        WindowMode {
+            // Resolution is always 1080p
+            width: 1152.0,
+            height: 648.0,
+            maximized: false,
+            fullscreen_type: FullscreenType::Windowed,
+            borderless: false,
+            min_width: 768.0,
+            max_width: 1920.0,
+            min_height: 432.0,
+            max_height: 1080.0,
+            resizable: true,
+            visible: true,
+    })
+    .backend (
+        // MacOS doesn't support OpenGL 4.5
+        if std::env::consts::OS != "macos" {
+            Backend::OpenGL {
+                major: 4,
+                minor: 5,
+            }
+        } else {
+            Backend::OpenGL {
+                major: 3,
+                minor: 2,
+            }
+        }
+    );
+    
     let cb = cb.window_setup(
         WindowSetup {
         title: "A game by the beacon boys".to_string(),
@@ -160,7 +192,7 @@ pub fn main() -> ggez::GameResult {
         samples: NumSamples::Eight,
         // Vsync to make the framerate look pretty
         vsync: true,
-        icon: "".to_string(),
+        icon: String::new(),
         srgb: true,
     });
     
