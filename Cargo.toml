@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgaston@myhoosierneighbors.com>"]
 edition = "2018"
 
+# Sprite batching will actually slow down the program without some minor optimizations, but is much much faster than drawing normally in optimized programs (especially release builds). Using some minor optimization just so the game runs smoothly
+
+# Check out https://docs.rs/ggez/0.6.0-rc1/ggez/graphics/spritebatch/struct.SpriteBatch.html for more info
+[profile.dev]
+opt-level = 1
+
 [profile.release]
 lto = "fat"
 codegen-units = 1
