@@ -2,7 +2,7 @@ mod game;
 
 use ggez::{event, graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
-use ggez::graphics::{DrawParam, Image, Rect, screen_coordinates};
+use ggez::graphics::{DrawParam, Image, Rect, Text, screen_coordinates};
 use ggez::graphics::spritebatch::SpriteBatch;
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
@@ -129,25 +129,21 @@ impl event::EventHandler for MainState {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
                 
-                if self.projectile_spritebatch.contains_key(&(projectile.w as u8)) {
-                    projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8));
+
+                let size = projectile.w as u16;
+                let vec_size = ((size as usize) *  (size as usize)) * 4;
+            
+                self.projectile_spritebatch.entry(projectile.w as u8).or_insert_with(|| SpriteBatch::new( 
+                    Image::from_rgba8(
+                        ctx,
+                        size,
+                        size,
+                        &vec![255; vec_size],
+                    ).unwrap()) 
+                );
+            
+                projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8));
                     
-                } else {
-                    let size = projectile.w as u16;
-                    let vec_size = ((size as usize) *  (size as usize)) * 4;
-                
-                    self.projectile_spritebatch.insert(projectile.w as u8, SpriteBatch::new( 
-                        Image::from_rgba8(
-                            ctx,
-                            size,
-                            size,
-                            &vec![255; vec_size],
-                        ).unwrap()) 
-                    );
-                
-                    projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8));
-                    
-                }
             }
         }
         
@@ -177,6 +173,19 @@ impl event::EventHandler for MainState {
             spritebatch.clear();
             
         }
+        
+        let mut text_y = 0.0;
+        
+        for (i, player) in self.players.iter().enumerate() {
+            if player.health > 0 {
+                let text = Text::new(format!("Player {} health: {}", i + 1, player.health));
+            
+                graphics::draw(ctx, &text, DrawParam::default().dest(Point2 {x: screen_coords.w - 300.0, y: text_y}) )?;
+                
+                text_y += 25.0;
+                
+            }
+        }
 
         graphics::present(ctx)?;
         Ok(())
@@ -193,9 +202,9 @@ pub fn main() -> ggez::GameResult {
             maximized: false,
             fullscreen_type: FullscreenType::Windowed,
             borderless: false,
-            min_width: 768.0,
+            min_width: 1152.0,
             max_width: 1920.0,
-            min_height: 432.0,
+            min_height: 648.0,
             max_height: 1080.0,
             resizable: true,
             visible: true,

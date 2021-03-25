@@ -10,7 +10,7 @@ use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Vec<Rect>, ctx: &mut ggez::Context) -> [Player; 8] {
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &[Rect], ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -79,6 +79,14 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
                 _ => {},
                 
             }
+            
+            // A players ability charge increases every tick (60 ticks per second on average)
+            if player.ability_charge < player.max_ability_charge {
+                player.ability_charge += 1;
+                println!("{}", player.ability_charge);
+                
+            }
+
         }
         
         // If a player started reloading in a previous tick, then it continues in this tick
@@ -416,7 +424,13 @@ pub struct Player {
     // 1 is stim
     
     ability: u8,
-    cooldown_finished_time: u128,
+    // Your ability charges every tick, and then when it hits its minimum threshold you can use it, though waiting until it hits its maximum threshold may be better, as it will increase the ability's power/duration/whatever.
+    // For example, the stim ability will run longer then longer you wait for its ability to charge
+    ability_charge: u64,
+    min_ability_charge: u64,
+    max_ability_charge: u64,
+    
+    
     speed: f32,
     
     pub gun: Gun,
@@ -435,19 +449,34 @@ impl Player {
             color:match color {
                 Some(color) => color,
                 //Random color
-                None => Color::from_rgba(rng.gen_range(0..255), rng.gen_range(0..255), rng.gen_range(0..255), 255),
+                None => Color::from_rgba(rng.gen_range(100..255), rng.gen_range(100..255), rng.gen_range(100..255), 255),
             },
             ability,
+            ability_charge: match ability {
+                0 => 150,
+                1 => 150,
+                _ => 150,
+            },
+            min_ability_charge: match ability {
+                // There's on average, 60 ticks per second, so 2.5 seconds need to pass to have enough charge to use your ability
+                0 => 150,
+                1 => 150,
+                _ => 150,
+            },
+            max_ability_charge: match ability {
+                0 => 300,
+                1 => 300,
+                _ => 300,
+            },
             speed: 10.0,
-            cooldown_finished_time: current_time(),
             health,
             gun: Gun::new(gun),
         }
     }
     
-    fn use_ability(&mut self, map: &Vec<Rect>) {
-        if self.health > 0 {
-            if self.ability == 0 && current_time() >= self.cooldown_finished_time + 2000 {
+    fn use_ability(&mut self, map: &[Rect]) {
+        if self.health > 0 && self.ability_charge > self.min_ability_charge{
+            if self.ability == 0  {
             
                 let teleport_distance = 250.0;
             
@@ -508,8 +537,8 @@ impl Player {
                     _ => {},
                 }
                 
-                self.cooldown_finished_time = current_time();
-            
+                self.ability_charge -= 150;
+                            
             } else if self.ability == 1  {
                 self.speed = 30.0;
                 
@@ -575,7 +604,7 @@ fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
 }
 
 // All the user input code is in here, instead of the tick fn, for readability purposes
-fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Vec<Rect>) {
+fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &[Rect]) {
     if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
         if is_key_pressed(ctx, KeyCode::D) {
             players[0].direction = 5;
