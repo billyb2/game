@@ -11,8 +11,8 @@ use game::{collision, tick, Player, Projectile};
 
 use std::collections::HashMap;
 
-pub const WORLD_WIDTH: f32 = 10_000.0;
-pub const WORLD_HEIGHT: f32 = 10_000.0;
+pub const WORLD_WIDTH: f32 = 3000.0;
+pub const WORLD_HEIGHT: f32 = 3000.0;
 
 struct MainState {
     players: [Player; 8],
@@ -175,16 +175,26 @@ impl event::EventHandler for MainState {
         }
         
         let mut text_y = 0.0;
+        let mut text_x_offset = 500.0;
         
         for (i, player) in self.players.iter().enumerate() {
             if player.health > 0 {
                 let text = Text::new(format!("Player {} health: {}", i + 1, player.health));
+                let positionX = Text::new(format!("Player {} X Position: {}", i + 1, player.x));
+                let positionY = Text::new(format!("Player {} Y Position: {}", i + 1, player.y));
             
-                graphics::draw(ctx, &text, DrawParam::default().dest(Point2 {x: screen_coords.w - 300.0, y: text_y}) )?;
+                graphics::draw(ctx, &text, DrawParam::default().dest(Point2 {x: screen_coords.w - text_x_offset, y: text_y}) );
                 
                 text_y += 25.0;
-                
+
+                graphics::draw(ctx, &positionX, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y}));
+
+                text_y += 25.0;
+
+                graphics::draw(ctx, &positionY, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y}));
             }
+            text_y = 0.0;
+            text_x_offset -= 250.0;
         }
 
         graphics::present(ctx)?;
@@ -237,7 +247,7 @@ pub fn main() -> ggez::GameResult {
     
     let (ctx, event_loop) = cb.build()?;
     
-    let state = MainState::new(2, vec![Rect::new(0.0, 0.0, 50.0, 50.0)]);
+    let state = MainState::new(2, vec![Rect::new(0.0, 0.0, 25.0, 25.0), Rect::new(1000.0, 0.0, 25.0, 25.0), Rect::new(15000.0, 15_000.0, 25.0, 25.0)]);
     event::run(ctx, event_loop, state)
     
 }
