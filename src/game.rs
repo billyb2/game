@@ -10,7 +10,7 @@ use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &[Rect], ctx: &mut ggez::Context) -> [Player; 8] {
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Vec<Rect>, ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -174,7 +174,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
     
     }
               
-    check_user_input(&ctx, &mut players, &mut projectiles);
+    check_user_input(&ctx, &mut players, &mut projectiles, map);
         
     //TODO: Multithreaded bots
     let player2_info = bots::bounce(&players, &projectiles);
@@ -187,7 +187,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
     }
     
     if player2_info.3 == 1 {
-        players[1].use_ability();
+        players[1].use_ability(map);
         
     }
     
@@ -445,7 +445,7 @@ impl Player {
         }
     }
     
-    fn use_ability(&mut self) {
+    fn use_ability(&mut self, map: &Vec<Rect>) {
         if self.health > 0 {
             if self.ability == 0 && current_time() >= self.cooldown_finished_time + 2000 {
             
@@ -453,14 +453,58 @@ impl Player {
             
                 //I know this is ugly, it just lets a player move if it's movement wouldn't put it out of bounds
                 match self.direction {
-                    1 => {if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0) {self.y -= teleport_distance;}},
-                    2 => {if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0) {self.y += teleport_distance;}},
-                    3=> {if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0) {self.x += teleport_distance;}},
-                    4 => {if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0) {self.x -= teleport_distance;}},
-                    5 => {if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0) {self.y -= teleport_distance; self.x += teleport_distance;}},
-                    6 => {if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0) {self.y -= teleport_distance; self.x -= teleport_distance;}},
-                    7 => {if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0) {self.y += teleport_distance; self.x += teleport_distance;}},
-                    8 => {if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0) {self.y += teleport_distance; self.x -= teleport_distance;}},
+                    1 => {
+                        if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x, self.y - teleport_distance, 15.0, 15.0), map) {
+                            self.y -= teleport_distance;
+                            
+                        }
+                    },
+                    2 => {
+                        if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x, self.y + teleport_distance, 15.0, 15.0), map){
+                            self.y += teleport_distance;
+                            
+                        }
+                    },
+                    3=> {
+                        if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0) && !collision_with_map(Rect::new(self.x + teleport_distance, self.y, 15.0, 15.0), map){
+                            self.x += teleport_distance;
+                        
+                        }
+                    },
+                    4 => {
+                        if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0) && !collision_with_map(Rect::new(self.x - teleport_distance, self.y, 15.0, 15.0), map){
+                            self.x -= teleport_distance;
+                            
+                        }
+                    },
+                    5 => {
+                        if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0), map){
+                            self.x += teleport_distance;
+                            self.y -= teleport_distance; 
+                            
+                        }
+                    },
+                    6 => {
+                        if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0), map) {
+                            self.x -= teleport_distance;
+                            self.y -= teleport_distance; 
+                            
+                        }
+                    },
+                    7 => {
+                        if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0), map) {
+                            self.x += teleport_distance;
+                            self.y += teleport_distance; 
+                            
+                        }
+                    },
+                    8 => {
+                        if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0) &&  !collision_with_map(Rect::new(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0), map) {
+                            self.x -= teleport_distance;
+                            self.y += teleport_distance;
+                            
+                        }
+                    },
                     _ => {},
                 }
                 
@@ -531,7 +575,7 @@ fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
 }
 
 // All the user input code is in here, instead of the tick fn, for readability purposes
-fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>) {
+fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Vec<Rect>) {
     if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
         if is_key_pressed(ctx, KeyCode::D) {
             players[0].direction = 5;
@@ -557,7 +601,7 @@ fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut proj
     }
     
     if is_key_pressed(ctx, KeyCode::E) {
-        players[0].use_ability();
+        players[0].use_ability(map);
         
     }
     
