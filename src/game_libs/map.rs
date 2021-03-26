@@ -19,18 +19,14 @@ impl Map {
             for object in objects.iter() {
                 let object = object.data;
             
-                if dimensions == None {
-                    if object.x + object.w > map_width {
-                        map_width = object.x + object.w ;
+                if dimensions == None && object.x + object.w > map_width{
+                    map_width = object.x + object.w ;
                         
-                    }
                 }
                 
-                if dimensions == None {
-                    if object.y + object.h > map_height {
-                        map_height = object.y + object.h;
+                if dimensions == None && object.y + object.h > map_height {
+                    map_height = object.y + object.h;
                         
-                    }
                 }
             }
             

@@ -182,20 +182,23 @@ impl event::EventHandler for MainState {
         
         for (i, player) in self.players.iter().enumerate() {
             if player.health > 0 {
-                let text = Text::new(format!("Player {} health: {}", i + 1, player.health));
-                let positionX = Text::new(format!("Player {} X Position: {}", i + 1, player.x));
-                let positionY = Text::new(format!("Player {} Y Position: {}", i + 1, player.y));
+                let health = Text::new(format!("Player {} health: {}", i + 1, player.health));
+                let position_x = Text::new(format!("Player {} X Position: {}", i + 1, player.x));
+                let position_y = Text::new(format!("Player {} Y Position: {}", i + 1, player.y));
             
-                graphics::draw(ctx, &text, DrawParam::default().dest(Point2 {x: screen_coords.w - text_x_offset, y: text_y}) );
+                //TODO: Eventually use queue text instead of multiple draw calls, since queue text is the equivalent of sprite batching
+                graphics::draw(ctx, &health, DrawParam::default().dest(Point2 {x: screen_coords.w - text_x_offset, y: text_y})).unwrap();
                 
                 text_y += 25.0;
 
-                graphics::draw(ctx, &positionX, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y}));
+                graphics::draw(ctx, &position_x, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
 
                 text_y += 25.0;
 
-                graphics::draw(ctx, &positionY, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y}));
+                graphics::draw(ctx, &position_y, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
+                
             }
+            
             text_y = 0.0;
             text_x_offset -= 250.0;
         }
