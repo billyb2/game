@@ -19,9 +19,8 @@ struct MainState {
     projectiles: Vec<Projectile>,
     map: Map,
     origin: Point2<f32>,
-    zoom: f32,
-    
-    projectile_spritebatch: HashMap<u8, SpriteBatch>,
+    zoom: f32,    
+    rect_spritebatch: HashMap<(u8, u8), SpriteBatch>,
     
 }
 
@@ -33,7 +32,7 @@ impl MainState {
             for player in players.iter_mut() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 0, 100, 2);
+                    *player = Player::new(None, 0, 100, 1);
                     
                 } else {
                     break;
@@ -53,7 +52,7 @@ impl MainState {
            map,
            origin: Point2 {x: 596.0, y: 342.0},
            zoom: 1.0,
-           projectile_spritebatch: HashMap::new(),
+           rect_spritebatch: HashMap::new(),
            
         }
     }
@@ -122,7 +121,9 @@ impl event::EventHandler for MainState {
         
         }
         
+        
         let mut projectiles: Vec<(Point2<f32>, u8)> = Vec::new();
+        let mut map_objects: Vec<(Point2<f32>, u8, u8)> = Vec::new();
         
         for projectile in &self.projectiles {
             if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
@@ -133,7 +134,7 @@ impl event::EventHandler for MainState {
                 let size = projectile.w as u16;
                 let vec_size = ((size as usize) *  (size as usize)) * 4;
             
-                self.projectile_spritebatch.entry(projectile.w as u8).or_insert_with(|| SpriteBatch::new( 
+                self.rect_spritebatch.entry((projectile.w as u8, projectile.h as u8)).or_insert_with(|| SpriteBatch::new( 
                     Image::from_rgba8(
                         ctx,
                         size,
@@ -154,28 +155,38 @@ impl event::EventHandler for MainState {
            if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
             
                 let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
-            
-                let rect_to_draw = graphics::Mesh::new_rectangle(
-                    ctx,
-                    graphics::DrawMode::fill(),
-                    rect,
-                    color,
-                )?;
                 
-                graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+                 let vec_size = ((object.w as usize) *  (object.h as usize)) * 4;
+                
+                self.rect_spritebatch.entry((object.w as u8, object.h as u8)).or_insert_with(|| SpriteBatch::new( 
+                    Image::from_rgba8(
+                        ctx,
+                        object.w as u16,
+                        object.h as u16,
+                        &generate_image_from_rgba8(color, vec_size),
+                    ).unwrap()) 
+                );
+            
+                map_objects.push((Point2 {x: rect.x, y: rect.y}, object.w as u8, object.h as u8));
             }
         }
         
         for (pos, size) in projectiles.iter() {
-            self.projectile_spritebatch.get_mut(size).unwrap().add(DrawParam::default().dest(*pos));
+            self.rect_spritebatch.get_mut(&(*size, *size)).unwrap().add(DrawParam::default().dest(*pos));
+            
+        }
+        
+        for (pos, w, h) in map_objects.iter() {
+            self.rect_spritebatch.get_mut(&(*w, *h)).unwrap().add(DrawParam::default().dest(*pos));
             
         }
                 
-        for (_, spritebatch) in self.projectile_spritebatch.iter_mut() {
+        for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
             graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
             spritebatch.clear();
             
         }
+        
         
         let mut text_y = 0.0;
         let mut text_x_offset = 500.0;
@@ -256,11 +267,38 @@ pub fn main() -> ggez::GameResult {
     let state = MainState::new(2, 
         Map::new(vec![
             MapObject::new(
-                Rect::new(0.0, 0.0, 5000.0, 10.0), (0, 0, 0, 0).into()
+                Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into()
             )], Some([10_000.0, 10_000.0])
         )
     );
     event::run(ctx, event_loop, state)
     
 }
+
+        // The image size is in bytes, and generally should be equal to the length of the image * the width * 4
+        fn generate_image_from_rgba8(color: graphics::Color, image_size: usize) -> Vec<u8> {            
+            if image_size % 4 != 0 {    
+                //Probably should use a better solution then just straight up panicking
+                panic!("Make sure you read the instructions for the image size!");
+                
+            }
+            
+            let mut bytes_vec: Vec<u8> = Vec::with_capacity(image_size);
+            let rgba = color.to_rgba();
+            
+            let r = rgba.0;
+            let g = rgba.1;
+            let b = rgba.2;
+            let a = rgba.3;
+            
+            while bytes_vec.len() != bytes_vec.capacity() {
+                bytes_vec.push(r);
+                bytes_vec.push(g);
+                bytes_vec.push(b);
+                bytes_vec.push(a);
+                
+            }
+            
+            bytes_vec
+        }
     
