@@ -1,44 +1,42 @@
-mod bots;
-
-use crate::{WORLD_WIDTH, WORLD_HEIGHT};
-
 use ggez::input::keyboard::{is_key_pressed, KeyCode};
 use ggez::input::mouse;
 use ggez::graphics::{Color, Rect, screen_coordinates};
+use crate::game_libs::map::Map;
+use crate::game_libs::bots;
 use rand::{Rng, thread_rng};
 use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &[Rect], ctx: &mut ggez::Context) -> [Player; 8] {
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Map, ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
             match player.direction {
                 1 => {
-                        if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0) && 
-                            !collision_with_map(Rect::new(player.x, player.y - player.speed, 15.0, 15.0), map) {   
+                        if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0, map.width, map.height) && 
+                            !map.collision(&Rect::new(player.x, player.y - player.speed, 15.0, 15.0)) {   
                             player.y -= player.speed; 
                             
                         }
                     },
                 
                 2 => {
-                        if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0) && !collision_with_map(Rect::new(player.x, player.y + player.speed, 15.0, 15.0), map) {
+                        if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x, player.y + player.speed, 15.0, 15.0)) {
                             player.y += player.speed; 
                         
                         }
                     },
                 
                 3=> {
-                        if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0) && !collision_with_map(Rect::new(player.x + player.speed, player.y, 15.0, 15.0), map) { 
+                        if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y, 15.0, 15.0)) { 
                             player.x += player.speed; 
                             
                         }
                     },
                 
                 4 => {
-                        if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0) &&  !collision_with_map(Rect::new(player.x - player.speed, player.y, 15.0, 15.0), map){
+                        if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x - player.speed, player.y, 15.0, 15.0)){
                             player.x -= player.speed; 
                             
                             
@@ -46,14 +44,14 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
                     },
                 
                 5 => {
-                        if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0) &&  !collision_with_map(Rect::new(player.x + player.speed, player.y - player.speed, 15.0, 15.0), map){ 
+                        if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x + player.speed, player.y - player.speed, 15.0, 15.0)){ 
                             player.y -= player.speed; player.x += player.speed; 
                             
                         }
                     },
                 
                 6 => {
-                        if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0)  &&  !collision_with_map(Rect::new(player.x - player.speed, player.y - player.speed, 15.0, 15.0), map) { 
+                        if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0, map.width, map.height)  &&  !map.collision(&Rect::new(player.x - player.speed, player.y - player.speed, 15.0, 15.0)) { 
                             player.x -= player.speed; 
                             player.y -= player.speed; 
                             
@@ -61,7 +59,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
                     },
                 
                 7 => {
-                        if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0) && !collision_with_map(Rect::new(player.x + player.speed, player.y + player.speed, 15.0, 15.0), map) { 
+                        if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y + player.speed, 15.0, 15.0)) { 
                             player.x += player.speed;
                             player.y += player.speed; 
                             
@@ -69,7 +67,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
                     },
                 
                 8 => {
-                        if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0) && !collision_with_map(Rect::new(player.x - player.speed, player.y + player.speed, 15.0, 15.0), map) { 
+                        if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x - player.speed, player.y + player.speed, 15.0, 15.0)) { 
                             player.x -= player.speed; 
                             player.y += player.speed; 
                     
@@ -83,7 +81,6 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
             // A players ability charge increases every tick (60 ticks per second on average)
             if player.ability_charge < player.max_ability_charge {
                 player.ability_charge += 1;
-                println!("{}", player.ability_charge);
                 
             }
 
@@ -172,7 +169,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
         
         
         // Remove all out of bounds projectiles + projectiles colliding w living players/ other projectiles
-        if out_of_bounds(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h) || player_collision || collision_with_map(projectile_rect, map) || max_distance_reached {
+        if out_of_bounds(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h, map.width, map.height) || player_collision || map.collision(&projectile_rect) || max_distance_reached {
             projectiles.remove(i);
             
         } else {
@@ -185,6 +182,11 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
     check_user_input(&ctx, &mut players, &mut projectiles, map);
         
     //TODO: Multithreaded bots
+    // Basically, a bot is given information on every player, info on the projectiles, and info on how the map looks, and it outputs 4 things. 
+    // The first is the direction that it wants to move in
+    // The second and third is whether or not it wants to shoot, and what angle it'll shoot at (if it gives an angle of 0, it won't shoot).
+    // The fourth is whether or not the bot wants to use its ability
+    
     let player2_info = bots::bounce(&players, &projectiles);
     
     players[1].direction = player2_info.0;
@@ -426,9 +428,9 @@ pub struct Player {
     ability: u8,
     // Your ability charges every tick, and then when it hits its minimum threshold you can use it, though waiting until it hits its maximum threshold may be better, as it will increase the ability's power/duration/whatever.
     // For example, the stim ability will run longer then longer you wait for its ability to charge
-    ability_charge: u64,
-    min_ability_charge: u64,
-    max_ability_charge: u64,
+    ability_charge: u16,
+    min_ability_charge: u16,
+    max_ability_charge: u16,
     
     
     speed: f32,
@@ -474,7 +476,7 @@ impl Player {
         }
     }
     
-    fn use_ability(&mut self, map: &[Rect]) {
+    fn use_ability(&mut self, map: &Map) {
         if self.health > 0 && self.ability_charge > self.min_ability_charge{
             if self.ability == 0  {
             
@@ -483,52 +485,52 @@ impl Player {
                 //I know this is ugly, it just lets a player move if it's movement wouldn't put it out of bounds
                 match self.direction {
                     1 => {
-                        if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x, self.y - teleport_distance, 15.0, 15.0), map) {
+                        if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y - teleport_distance, 15.0, 15.0)) {
                             self.y -= teleport_distance;
                             
                         }
                     },
                     2 => {
-                        if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x, self.y + teleport_distance, 15.0, 15.0), map){
+                        if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y + teleport_distance, 15.0, 15.0)){
                             self.y += teleport_distance;
                             
                         }
                     },
                     3=> {
-                        if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0) && !collision_with_map(Rect::new(self.x + teleport_distance, self.y, 15.0, 15.0), map){
+                        if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y, 15.0, 15.0)){
                             self.x += teleport_distance;
                         
                         }
                     },
                     4 => {
-                        if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0) && !collision_with_map(Rect::new(self.x - teleport_distance, self.y, 15.0, 15.0), map){
+                        if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y, 15.0, 15.0)){
                             self.x -= teleport_distance;
                             
                         }
                     },
                     5 => {
-                        if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0), map){
+                        if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0)){
                             self.x += teleport_distance;
                             self.y -= teleport_distance; 
                             
                         }
                     },
                     6 => {
-                        if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0), map) {
+                        if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0)) {
                             self.x -= teleport_distance;
                             self.y -= teleport_distance; 
                             
                         }
                     },
                     7 => {
-                        if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0) && !collision_with_map(Rect::new(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0), map) {
+                        if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0)) {
                             self.x += teleport_distance;
                             self.y += teleport_distance; 
                             
                         }
                     },
                     8 => {
-                        if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0) &&  !collision_with_map(Rect::new(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0), map) {
+                        if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0)) {
                             self.x -= teleport_distance;
                             self.y += teleport_distance;
                             
@@ -576,35 +578,21 @@ pub fn collision (rect1: &Rect, rect2: &Rect) -> bool {
     }
 }
 
-fn collision_with_map(rect: Rect, map: &[Rect]) -> bool {
-    let mut collided = false; 
-    
-    for object in map {
-        if collision(&rect, object) {
-            collided = true;
-            break;
-            
-        }
-    }
-    
-    collided
-    
-}
-
-fn out_of_bounds(x: f32, y: f32, w: f32, h: f32) -> bool {
+fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_height: f32,) -> bool {
     //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
     //TODO: make bullets have actual travel time
+    
     {
-        x + w >= WORLD_WIDTH || 
+        x + w >= world_width || 
         x <= 0.0 || 
-        y +h >= WORLD_HEIGHT || 
+        y +h >= world_height || 
         y <= 0.0
     }
 
 }
 
 // All the user input code is in here, instead of the tick fn, for readability purposes
-fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &[Rect]) {
+fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Map) {
     if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
         if is_key_pressed(ctx, KeyCode::D) {
             players[0].direction = 5;

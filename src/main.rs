@@ -1,4 +1,5 @@
-mod game;
+mod game_logic;
+mod game_libs;
 
 use ggez::{event, graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
@@ -7,17 +8,16 @@ use ggez::graphics::spritebatch::SpriteBatch;
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
-use game::{collision, tick, Player, Projectile};
+use game_logic::{collision, tick, Player, Projectile};
+
+use game_libs::map::{Map, MapObject};
 
 use std::collections::HashMap;
-
-pub const WORLD_WIDTH: f32 = 3000.0;
-pub const WORLD_HEIGHT: f32 = 3000.0;
 
 struct MainState {
     players: [Player; 8],
     projectiles: Vec<Projectile>,
-    map: Vec<Rect>,
+    map: Map,
     origin: Point2<f32>,
     zoom: f32,
     
@@ -26,14 +26,14 @@ struct MainState {
 }
 
 impl MainState {
-    fn new(mut num_of_players: u8, map: Vec<Rect>) -> MainState {
+    fn new(mut num_of_players: u8, map: Map) -> MainState {
         let players: [Player; 8] ={
             let mut players: [Player; 8] = [Player::new(None, 0, 0, 0); 8];
             
             for player in players.iter_mut() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 0, 100, 0);
+                    *player = Player::new(None, 0, 100, 2);
                     
                 } else {
                     break;
@@ -75,15 +75,15 @@ impl event::EventHandler for MainState {
             if self.origin.x < 0.0 {
                 self.origin.x = 0.0;
                 
-            } else if self.origin.x > WORLD_WIDTH {
-                self.origin.x = WORLD_WIDTH;
+            } else if self.origin.x > self.map.width {
+                self.origin.x = self.map.width;
                 
             }
             if self.origin.y < 0.0 {
                 self.origin.y = 0.0;
                 
-            } else if self.origin.y > WORLD_HEIGHT {
-                self.origin.y = WORLD_HEIGHT;
+            } else if self.origin.y > self.map.height {
+                self.origin.y = self.map.height;
                 
             }
         
@@ -147,7 +147,10 @@ impl event::EventHandler for MainState {
             }
         }
         
-        for object in &self.map {
+        for object in &self.map.objects {
+            let color = object.color;
+            let object = object.data;
+        
            if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
             
                 let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
@@ -156,7 +159,7 @@ impl event::EventHandler for MainState {
                     ctx,
                     graphics::DrawMode::fill(),
                     rect,
-                    (255, 255, 255).into(),
+                    color,
                 )?;
                 
                 graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
@@ -247,7 +250,13 @@ pub fn main() -> ggez::GameResult {
     
     let (ctx, event_loop) = cb.build()?;
     
-    let state = MainState::new(2, vec![Rect::new(0.0, 0.0, 25.0, 25.0), Rect::new(1000.0, 0.0, 25.0, 25.0), Rect::new(15000.0, 15_000.0, 25.0, 25.0)]);
+    let state = MainState::new(2, 
+        Map::new(vec![
+            MapObject::new(
+                Rect::new(0.0, 0.0, 5000.0, 10.0), (0, 0, 0, 0).into()
+            )], Some([10_000.0, 10_000.0])
+        )
+    );
     event::run(ctx, event_loop, state)
     
 }
