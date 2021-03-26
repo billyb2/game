@@ -80,7 +80,20 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
             
             // A players ability charge increases every tick (60 ticks per second on average)
             if player.ability_charge < player.max_ability_charge {
-                player.ability_charge += 1;
+                if player.ability == 1 && player.speed == 30.0 {
+                    if player.ability_charge > 0 {
+                    
+                        player.ability_charge -= 1;
+                        
+                    } else {
+                        player.speed = 10.0;
+                        
+                    }
+                
+                } else {
+                    player.ability_charge += 1;
+                    
+                }
                 
             }
 
@@ -462,7 +475,7 @@ impl Player {
             min_ability_charge: match ability {
                 // There's on average, 60 ticks per second, so 2.5 seconds need to pass to have enough charge to use your ability
                 0 => 150,
-                1 => 150,
+                1 => 1,
                 _ => 150,
             },
             max_ability_charge: match ability {
@@ -543,6 +556,8 @@ impl Player {
                             
             } else if self.ability == 1  {
                 self.speed = 30.0;
+                
+                self.ability_charge -= 1;
                 
             }
         }
