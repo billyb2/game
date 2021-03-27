@@ -251,6 +251,7 @@ pub struct Gun {
     // 1 is the shotgun
     // 2 is the speedball
     // 3 is the burst rifle
+    // 4 is the assault rifle
     pub model: u8,
     // This time is stored so that the bullets per second of guns can be limited dynamically
     time_since_last_shot: u128,
@@ -281,6 +282,7 @@ impl Gun {
                 1 => 8,
                 2 => 5,
                 3 => 21,
+                4 => 25,
                 _ => 30,
             },
             damage: match model {
@@ -288,6 +290,7 @@ impl Gun {
                 1 => 25,
                 2 => 1,
                 3 => 13,
+                4 => 15,
                 _ => 100,
             },
             max_distance: match model {
@@ -295,6 +298,7 @@ impl Gun {
                 1 => 300.0,
                 2 => 3000.0,
                 3 => 1000.0,
+                4 => 1000.0,
                 _ => 900.0,
             }
         }
@@ -323,6 +327,10 @@ impl Gun {
                 
             } else if self.model == 3 && self.time_since_start_reload + 5000 <= current_time() {
                 self.ammo_in_mag = 21;
+                self.reloading = false;
+                
+            } else if self.model == 4 && self.time_since_start_reload + 5500 <= current_time() {
+                self.ammo_in_mag = 25;
                 self.reloading = false;
                 
             }
@@ -455,6 +463,7 @@ impl Gun {
                                 max_distance: self.max_distance,
                                 
                             });
+                            self.ammo_in_mag -= 1;
                             
                         
                         } else {
@@ -495,7 +504,33 @@ impl Gun {
                 
                 }
                     
-            }
+            } else if self.model == 4 && current_time() >= self.time_since_last_shot + 80 {
+                self.time_since_last_shot = current_time();
+                
+                projectiles.push( Projectile {
+                    x: match right {
+                        true => x + (angle.cos() * 25.0),
+                        false => x - (angle.cos() * 15.0),
+                    },
+                    y: match right {
+                        true => y + (angle.sin() * 25.0),
+                        false => y - (angle.sin() * 5.0),
+                    },
+                    w: 5.0,
+                    h: 5.0,
+                    right,
+                    angle, 
+                    speed: 8.0,
+                    damage: self.damage,
+                    projectile_type: 0,
+                    distance_traveled: 0.0,
+                    max_distance: self.max_distance,
+                    
+                });
+                
+                self.ammo_in_mag -= 1;
+        
+            } 
             
         } else {
             // Reload if no ammo is available
