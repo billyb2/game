@@ -26,18 +26,20 @@ struct MainState {
 
 impl MainState {
     fn new(mut num_of_players: u8, map: Map) -> MainState {
+        let mut i = 0;
         let players: [Player; 8] ={
-            let mut players: [Player; 8] = [Player::new(None, 0, 0, 0); 8];
+            let mut players: [Player; 8] = [Player::new(None, 0, 0, 0, 0); 8];
             
             for player in players.iter_mut() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 1, 100, 4);
+                    *player = Player::new(None, 1, 100, 4, i);
                     
                 } else {
                     break;
                     
                 }
+                i += 1;
             }
             
             players[1].direction = 3;

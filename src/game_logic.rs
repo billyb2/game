@@ -148,6 +148,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
         projectiles[i].distance_traveled += projectiles[i].speed;
         
         let projectile_rect = Rect::new(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h);
+        let fired_from = projectiles[i].fired_from;
         
     
         // Check for a player-projectile collision
@@ -165,7 +166,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
             let player_rect = Rect::new(player.x, player.y, 15.0, 15.0);
             
             // Projectiles can only hit living players
-            if collision(&player_rect, &projectile_rect) && player.health > 0{
+            if (collision(&player_rect, &projectile_rect) && player.health > 0) && player.gun.fired_from != fired_from {
                 if player.health as i8 - projectiles[i].damage as i8 > 0 {
                     player.health -= projectiles[i].damage;
                     
@@ -238,6 +239,7 @@ pub struct Projectile {
     damage: u8,
     // 0 is just a regular bullet
     // 1 is a bullet that speeds up over time
+    fired_from: u8, // Fixes a game-breaking bug where the bots get killed by their own bullets
     projectile_type: u8,
     distance_traveled: f32,
     max_distance: f32,
@@ -262,12 +264,13 @@ pub struct Gun {
     reloading: bool,
     ammo_in_mag: u8,
     damage: u8,
+    pub fired_from: u8,
     max_distance: f32,
     
 }
 
 impl Gun {
-    pub fn new(model: u8) -> Gun {    
+    pub fn new(model: u8, player_fired_from: u8) -> Gun {
         Gun {
             model,
             // The time since the last shot is set as 0 so that you can start shooting as the start of the game
@@ -293,6 +296,7 @@ impl Gun {
                 4 => 15,
                 _ => 100,
             },
+            fired_from: player_fired_from,
             max_distance: match model {
                 0 => 900.0,
                 1 => 300.0,
@@ -361,6 +365,7 @@ impl Gun {
                     angle, 
                     speed: 12.0,
                     damage: self.damage,
+                    fired_from: self.fired_from,
                     projectile_type: 0,
                     distance_traveled: 0.0,
                     max_distance: self.max_distance,
@@ -398,6 +403,7 @@ impl Gun {
                                 speed: 11.0,
                                 projectile_type: 0,
                                 damage: self.damage,
+                                fired_from: self.fired_from,
                                 distance_traveled: 0.0,
                                 max_distance: self.max_distance,
                                 
@@ -430,6 +436,7 @@ impl Gun {
                     speed: 0.25,
                     projectile_type: 1,
                     damage: self.damage,
+                    fired_from: self.fired_from,
                     distance_traveled: 0.0,
                     max_distance: self.max_distance,
                     
@@ -459,6 +466,7 @@ impl Gun {
                                 speed: 12.0,
                                 projectile_type: 0,
                                 damage: self.damage,
+                                fired_from: self.fired_from,
                                 distance_traveled: 0.0,
                                 max_distance: self.max_distance,
                                 
@@ -496,6 +504,7 @@ impl Gun {
                         angle, 
                         speed: 12.0,
                         projectile_type: 0,
+                        fired_from: self.fired_from,
                         damage: self.damage,
                         distance_traveled: 0.0,
                         max_distance: self.max_distance,
@@ -524,6 +533,7 @@ impl Gun {
                     angle, 
                     speed: 8.0,
                     damage: self.damage,
+                    fired_from: self.fired_from,
                     projectile_type: 0,
                     distance_traveled: 0.0,
                     max_distance: self.max_distance,
@@ -580,7 +590,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8) -> Player {    
+    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8, player_id: u8) -> Player {
         let mut rng = thread_rng();
             
         Player {
@@ -611,7 +621,7 @@ impl Player {
             },
             speed: 10.0,
             health,
-            gun: Gun::new(gun),
+            gun: Gun::new(gun, player_id),
         }
     }
     
