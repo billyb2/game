@@ -80,7 +80,8 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
             
             // A players ability charge increases every tick (60 ticks per second on average)
             if player.ability_charge < player.max_ability_charge {
-                if player.ability == 1 && player.speed == 30.0 {
+                // The second requirement for the if block is basically && player.speed == 20.0, but it has no chance of messing up because of floating point rounding
+                if player.ability == 1 && (player.speed - 20.0).abs() < f32::EPSILON {
                     if player.ability_charge > 0 {
                     
                         player.ability_charge -= 1;
@@ -101,7 +102,14 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
         
         // If a player started reloading in a previous tick, then it continues in this tick
         if player.gun.reloading {
-            player.gun.reload()
+            player.gun.reload();
+            
+        }
+        
+        // Likewise, if a player was shooting in the previous tick (which only happens with guns with special ways of shooting, like the burst rifle), then it continues firing (in the case of the burst rifle, it will shoot the next bullet of the burst).
+        if player.gun.shooting.is_some() {
+            let args = player.gun.shooting.unwrap();
+            player.gun.shoot(args.0, args.1, args.2, args.3, projectiles);
             
         }
         
@@ -242,10 +250,14 @@ pub struct Gun {
     // 0 is the pistol
     // 1 is the shotgun
     // 2 is the speedball
+    // 3 is the burst rifle
     pub model: u8,
     // This time is stored so that the bullets per second of guns can be limited dynamically
     time_since_last_shot: u128,
     time_since_start_reload: u128,
+    // Shooting's,arguments are the arguments it had previously from the last frame, used for guns that don't just shoot one bullet at a time (like the burst rifle)
+    shooting: Option<(f32, f32, bool, f32)>,
+    projectiles_fired: u8,
     reloading: bool,
     ammo_in_mag: u8,
     damage: u8,
@@ -261,22 +273,28 @@ impl Gun {
             time_since_last_shot: 0,
             time_since_start_reload: 0,
             reloading: false,
+            // Some guns have special shooting behaviors that last over the course of mutliple ticks, which shooting and projectiles_fired take advantage of
+            shooting: None,
+            projectiles_fired: 0,
             ammo_in_mag: match model {
                 0 => 7,
                 1 => 8,
                 2 => 5,
+                3 => 21,
                 _ => 30,
             },
             damage: match model {
                 0 => 45,
                 1 => 25,
                 2 => 1,
+                3 => 13,
                 _ => 100,
             },
             max_distance: match model {
                 0 => 900.0,
                 1 => 300.0,
                 2 => 3000.0,
+                3 => 1000.0,
                 _ => 900.0,
             }
         }
@@ -301,6 +319,10 @@ impl Gun {
                 
             } else if self.model == 2  && self.time_since_start_reload + 3000 <= current_time() {
                 self.ammo_in_mag = 6;
+                self.reloading = false;
+                
+            } else if self.model == 3 && self.time_since_start_reload + 5000 <= current_time() {
+                self.ammo_in_mag = 21;
                 self.reloading = false;
                 
             }
@@ -406,6 +428,73 @@ impl Gun {
                 });
                 
                 self.ammo_in_mag -= 1;
+            } else if self.model == 3 {
+                if self.shooting.is_some() {
+                    if current_time() >= self.time_since_last_shot + 50 {
+                        self.time_since_last_shot = current_time();
+                    
+                        if self.projectiles_fired != 3 {
+                            self.projectiles_fired += 1;
+                            projectiles.push( Projectile {
+                                x: match right {
+                                    true => x + (angle.cos() * 25.0) as f32,
+                                    false => x - (angle.cos() * 15.0) as f32,
+                                },
+                                y: match right {
+                                    true => y + (angle.sin() * 25.0) as f32,
+                                    false => y - (angle.sin() * 15.0) as f32,
+                                },
+                                w: 5.0,
+                                h: 5.0,
+                                right,
+                                angle, 
+                                speed: 12.0,
+                                projectile_type: 0,
+                                damage: self.damage,
+                                distance_traveled: 0.0,
+                                max_distance: self.max_distance,
+                                
+                            });
+                            
+                        
+                        } else {
+                            self.projectiles_fired = 0;
+                            self.shooting = None;
+                        
+                        }
+                        
+                    }
+                    
+                
+                } else if current_time() >= self.time_since_last_shot + 500  {
+                    self.time_since_last_shot = current_time();
+            
+                    self.shooting = Some((x, y, right, angle));
+                    self.projectiles_fired += 1;
+                    
+                    projectiles.push( Projectile {
+                        x: match right {
+                            true => x + (angle.cos() * 25.0) as f32,
+                            false => x - (angle.cos() * 15.0) as f32,
+                        },
+                        y: match right {
+                            true => y + (angle.sin() * 25.0) as f32,
+                            false => y - (angle.sin() * 15.0) as f32,
+                        },
+                        w: 5.0,
+                        h: 5.0,
+                        right,
+                        angle, 
+                        speed: 12.0,
+                        projectile_type: 0,
+                        damage: self.damage,
+                        distance_traveled: 0.0,
+                        max_distance: self.max_distance,
+                        
+                    });
+                
+                }
+                    
             }
             
         } else {
@@ -555,7 +644,7 @@ impl Player {
                 self.ability_charge -= 150;
                             
             } else if self.ability == 1  {
-                self.speed = 30.0;
+                self.speed = 20.0;
                 
                 self.ability_charge -= 1;
                 
@@ -594,9 +683,7 @@ pub fn collision (rect1: &Rect, rect2: &Rect) -> bool {
 }
 
 fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_height: f32,) -> bool {
-    //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
-    //TODO: make bullets have actual travel time
-    
+    //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false    
     {
         x + w >= world_width || 
         x <= 0.0 || 
