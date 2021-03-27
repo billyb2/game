@@ -501,6 +501,8 @@ impl Gun {
                         max_distance: self.max_distance,
                         
                     });
+                    
+                    self.ammo_in_mag -= 1;
                 
                 }
                     
