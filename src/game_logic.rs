@@ -1,14 +1,14 @@
 use ggez::input::keyboard::{is_key_pressed, KeyCode};
 use ggez::input::mouse;
 use ggez::graphics::{Color, Rect, screen_coordinates};
-use crate::game_libs::map::Map;
+use crate::game_libs::map::{Map, MapObject};
 use crate::game_libs::bots;
 use rand::{Rng, thread_rng};
 use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Map, ctx: &mut ggez::Context) -> [Player; 8] {
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map, ctx: &mut ggez::Context) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -573,7 +573,7 @@ pub struct Player {
     // If it was stored as a string, then the players couldn't be stored in an array, causing more variable memory usage
     // 0 is phase
     // 1 is stim
-    
+    // 2 is the wall
     ability: u8,
     // Your ability charges every tick, and then when it hits its minimum threshold you can use it, though waiting until it hits its maximum threshold may be better, as it will increase the ability's power/duration/whatever.
     // For example, the stim ability will run longer then longer you wait for its ability to charge
@@ -606,17 +606,20 @@ impl Player {
             ability_charge: match ability {
                 0 => 150,
                 1 => 150,
+                2 => 150,
                 _ => 150,
             },
             min_ability_charge: match ability {
                 // There's on average, 60 ticks per second, so 2.5 seconds need to pass to have enough charge to use your ability
                 0 => 150,
                 1 => 1,
+                2 => 150,
                 _ => 150,
             },
             max_ability_charge: match ability {
                 0 => 300,
                 1 => 300,
+                2 => 150,
                 _ => 300,
             },
             speed: 10.0,
@@ -625,8 +628,8 @@ impl Player {
         }
     }
     
-    fn use_ability(&mut self, map: &Map) {
-        if self.health > 0 && self.ability_charge > self.min_ability_charge{
+    fn use_ability(&mut self, map: &mut Map) {
+        if self.health > 0 && self.ability_charge >= self.min_ability_charge{
             if self.ability == 0  {
             
                 let teleport_distance = 250.0;
@@ -695,6 +698,42 @@ impl Player {
                 
                 self.ability_charge -= 1;
                 
+            } else if self.ability == 2 {
+                let x = match self.direction {
+                    3 | 5 | 7 => self.x + 25.0,
+                    4 | 6 | 8=> self.x - 25.0,
+                    _ => self.x,
+
+                };
+
+                let y = match self.direction {
+                    1 | 5 | 6=> self.y - 25.0,
+                    2 | 7 | 8 => self.y + 25.0,
+                    _ => self.y,
+
+                };
+
+                let w = match self.direction {
+                    1 | 5 | 6 | 2 | 7 | 8 => 40.0,
+                    _ => 20.0,
+
+                };
+
+                // Can't compare floats since the compiler complains, so I convert the width to a u8
+                //See https://github.com/rust-lang/rust/issues/41620
+                let h = match w as u8{
+                    40 => 20.0,
+                    _ => match self.direction {
+                        3 | 5 | 7 | 4 | 6 | 8 => 40.0,
+                        _ => 20.0,
+                    }
+                };
+
+                let color = Color::from_rgb(0, 255, 0);
+
+                map.objects.push(MapObject::new(Rect::new(x, y, w, h), color));
+
+                self.ability_charge -= 100;
             }
         }
 
@@ -741,7 +780,7 @@ fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_height:
 }
 
 // All the user input code is in here, instead of the tick fn, for readability purposes
-fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &Map) {
+fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map) {
     if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
         if is_key_pressed(ctx, KeyCode::D) {
             players[0].direction = 5;

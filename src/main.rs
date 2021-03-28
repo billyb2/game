@@ -34,7 +34,7 @@ impl MainState {
             for (i, player) in players.iter_mut().enumerate() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 1, 100, 4, i.try_into().unwrap());
+                    *player = Player::new(None, 2, 100, 4, i.try_into().unwrap());
                     
                 } else {
                     break;
@@ -66,7 +66,7 @@ impl event::EventHandler for MainState {
         // Basically, the game will run 60 frames every second on average
         
         while check_update_time(ctx, 60) {
-            self.players = tick(self.players, &mut self.projectiles, &self.map, ctx);
+            self.players = tick(self.players, &mut self.projectiles, &mut self.map, ctx);
             
             let screen_coords = screen_coordinates(ctx);
             
