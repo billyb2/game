@@ -13,6 +13,8 @@ use game_logic::{collision, tick, Player, Projectile};
 use game_libs::map::{Map, MapObject};
 
 use std::collections::HashMap;
+use std::convert::TryInto;
+
 
 struct MainState {
     players: [Player; 8],
@@ -26,20 +28,18 @@ struct MainState {
 
 impl MainState {
     fn new(mut num_of_players: u8, map: Map) -> MainState {
-        let mut i = 0;
         let players: [Player; 8] ={
             let mut players: [Player; 8] = [Player::new(None, 0, 0, 0, 0); 8];
             
-            for player in players.iter_mut() {
+            for (i, player) in players.iter_mut().enumerate() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 1, 100, 4, i);
+                    *player = Player::new(None, 1, 100, 4, i.try_into().unwrap());
                     
                 } else {
                     break;
                     
                 }
-                i += 1;
             }
             
             players[1].direction = 3;
