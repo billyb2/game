@@ -34,7 +34,7 @@ impl MainState {
             for (i, player) in players.iter_mut().enumerate() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 2, 100, 4, i.try_into().unwrap());
+                    *player = Player::new(None, 2, 100, 3, i.try_into().unwrap());
                     
                 } else {
                     break;
@@ -274,7 +274,7 @@ pub fn main() -> ggez::GameResult {
     let state = MainState::new(2, 
         Map::new(vec![
             MapObject::new(
-                Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into()
+                Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
             )], Some([10_000.0, 10_000.0])
         )
     );

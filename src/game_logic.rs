@@ -15,28 +15,28 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
             match player.direction {
                 1 => {
                         if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0, map.width, map.height) && 
-                            !map.collision(&Rect::new(player.x, player.y - player.speed, 15.0, 15.0)) {   
+                            !map.collision(&Rect::new(player.x, player.y - player.speed, 15.0, 15.0), 0) {
                             player.y -= player.speed; 
                             
                         }
                     },
                 
                 2 => {
-                        if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x, player.y + player.speed, 15.0, 15.0)) {
+                        if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x, player.y + player.speed, 15.0, 15.0), 0) {
                             player.y += player.speed; 
                         
                         }
                     },
                 
                 3=> {
-                        if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y, 15.0, 15.0)) { 
+                        if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y, 15.0, 15.0), 0) {
                             player.x += player.speed; 
                             
                         }
                     },
                 
                 4 => {
-                        if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x - player.speed, player.y, 15.0, 15.0)){
+                        if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x - player.speed, player.y, 15.0, 15.0), 0){
                             player.x -= player.speed; 
                             
                             
@@ -44,14 +44,14 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
                     },
                 
                 5 => {
-                        if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x + player.speed, player.y - player.speed, 15.0, 15.0)){ 
+                        if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x + player.speed, player.y - player.speed, 15.0, 15.0), 0){
                             player.y -= player.speed; player.x += player.speed; 
                             
                         }
                     },
                 
                 6 => {
-                        if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0, map.width, map.height)  &&  !map.collision(&Rect::new(player.x - player.speed, player.y - player.speed, 15.0, 15.0)) { 
+                        if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0, map.width, map.height)  &&  !map.collision(&Rect::new(player.x - player.speed, player.y - player.speed, 15.0, 15.0), 0) {
                             player.x -= player.speed; 
                             player.y -= player.speed; 
                             
@@ -59,7 +59,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
                     },
                 
                 7 => {
-                        if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y + player.speed, 15.0, 15.0)) { 
+                        if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y + player.speed, 15.0, 15.0), 0) {
                             player.x += player.speed;
                             player.y += player.speed; 
                             
@@ -67,7 +67,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
                     },
                 
                 8 => {
-                        if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x - player.speed, player.y + player.speed, 15.0, 15.0)) { 
+                        if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x - player.speed, player.y + player.speed, 15.0, 15.0), 0) {
                             player.x -= player.speed; 
                             player.y += player.speed; 
                     
@@ -191,7 +191,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
         
         
         // Remove all out of bounds projectiles + projectiles colliding w living players/ other projectiles
-        if out_of_bounds(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h, map.width, map.height) || player_collision || map.collision(&projectile_rect) || max_distance_reached {
+        if out_of_bounds(projectiles[i].x, projectiles[i].y, projectiles[i].w, projectiles[i].h, map.width, map.height) || player_collision || map.collision(&projectile_rect, projectiles[i].damage as u16) || max_distance_reached {
             projectiles.remove(i);
             
         } else {
@@ -637,52 +637,52 @@ impl Player {
                 //I know this is ugly, it just lets a player move if it's movement wouldn't put it out of bounds
                 match self.direction {
                     1 => {
-                        if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y - teleport_distance, 15.0, 15.0)) {
+                        if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y - teleport_distance, 15.0, 15.0), 0) {
                             self.y -= teleport_distance;
                             
                         }
                     },
                     2 => {
-                        if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y + teleport_distance, 15.0, 15.0)){
+                        if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y + teleport_distance, 15.0, 15.0), 0){
                             self.y += teleport_distance;
                             
                         }
                     },
                     3=> {
-                        if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y, 15.0, 15.0)){
+                        if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y, 15.0, 15.0), 0){
                             self.x += teleport_distance;
                         
                         }
                     },
                     4 => {
-                        if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y, 15.0, 15.0)){
+                        if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y, 15.0, 15.0), 0){
                             self.x -= teleport_distance;
                             
                         }
                     },
                     5 => {
-                        if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0)){
+                        if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0), 0){
                             self.x += teleport_distance;
                             self.y -= teleport_distance; 
                             
                         }
                     },
                     6 => {
-                        if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0)) {
+                        if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0), 0) {
                             self.x -= teleport_distance;
                             self.y -= teleport_distance; 
                             
                         }
                     },
                     7 => {
-                        if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0)) {
+                        if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0), 0) {
                             self.x += teleport_distance;
                             self.y += teleport_distance; 
                             
                         }
                     },
                     8 => {
-                        if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0)) {
+                        if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0), 0) {
                             self.x -= teleport_distance;
                             self.y += teleport_distance;
                             
@@ -732,7 +732,7 @@ impl Player {
 
                 let color = Color::from_rgb(0, 255, 0);
 
-                map.objects.push(MapObject::new(Rect::new(x, y, w, h), color));
+                map.objects.push(MapObject::new(Rect::new(x, y, w, h), color, Some(100)));
 
                 self.ability_charge -= 150;
             }

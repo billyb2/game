@@ -44,18 +44,27 @@ impl Map {
         }
     }
     
-    pub fn collision(&self, other_object: &Rect) -> bool {
+    pub fn collision(&mut self, other_object: &Rect, damage: u16) -> bool {
         let mut collided = false;
         
         // Basically, every object checks if it's collided with the object in question
         // It's done this way to allow for customization of how collisions work
-        for object in &self.objects {
-            if object.collision(other_object) {
+        let mut i = 0;
+
+        while i != self.objects.len() {
+            if self.objects[i].collision(other_object, damage) {
+                if self.objects[i].health == Some(0) {
+                    self.objects.remove(i);
+
+                }
+
                 collided = true;
                 break;
-                
+
+            } else {
+                i += 1;
+
             }
-            
         }
         
         collided
@@ -66,21 +75,41 @@ pub struct MapObject {
     // It's x, y, width, and height
     pub data: Rect,
     pub color: Color,
+    pub health: Option<u16>,
     
 }
 
 impl MapObject {
-    pub fn new(data: Rect, color: Color) -> MapObject {
+    pub fn new(data: Rect, color: Color, health: Option<u16>) -> MapObject {
         MapObject {
             data,
             color,
+            // If the Option is None, then the wall cannot be destroyed
+            health,
         }
         
     }
     
     // For now, all MapObjects will simply run the rectangle collision code from main.rs
-    fn collision(&self, other_object: &Rect) -> bool{
-        crate::game_logic::collision(&self.data, other_object)
+    fn collision(&mut self, other_object: &Rect, damage: u16) -> bool{
+        if crate::game_logic::collision(&self.data, other_object) {
+            if self.health.is_some() {
+                if self.health.unwrap() as i16 - damage as i16 <= 0 {
+                    self.health = Some(0);
+
+                } else {
+                    self.health = Some(self.health.unwrap() - damage);
+
+                }
+
+            }
+
+            true
+
+        } else {
+            false
+
+        }
         
     }
 }
