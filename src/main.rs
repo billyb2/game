@@ -34,7 +34,7 @@ impl MainState {
             for (i, player) in players.iter_mut().enumerate() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 2, 100, 3, i.try_into().unwrap());
+                    *player = Player::new(None, 3, 100, 3, i.try_into().unwrap());
                     
                 } else {
                     break;

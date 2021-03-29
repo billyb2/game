@@ -109,7 +109,7 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
         // Likewise, if a player was shooting in the previous tick (which only happens with guns with special ways of shooting, like the burst rifle), then it continues firing (in the case of the burst rifle, it will shoot the next bullet of the burst).
         if player.gun.shooting.is_some() {
             let args = player.gun.shooting.unwrap();
-            player.gun.shoot(args.0, args.1, args.2, args.3, projectiles);
+            player.gun.shoot(args.0, args.1, args.2, args.3, player.ability, projectiles);
             
         }
         
@@ -273,8 +273,8 @@ pub struct Gun {
 }
 
 impl Gun {
-    pub fn new(model: u8, player_fired_from: u8) -> Gun {
-        Gun {
+    pub fn new(model: u8, ability: u8, player_fired_from: u8) -> Gun {
+        let mut gun = Gun {
             model,
             // The time since the last shot is set as 0 so that you can start shooting as the start of the game
             time_since_last_shot: 0,
@@ -326,7 +326,16 @@ impl Gun {
                 4 => 1000.0,
                 _ => 900.0,
             }
+
+        };
+
+        // The engineer ability can reload in half the time
+        if ability == 3 {
+            gun.reload_time /= 2;
+
         }
+
+        gun
     
     }
 
@@ -345,7 +354,7 @@ impl Gun {
         
     }
     
-    pub fn shoot (&mut self, x: f32, y: f32, right: bool, angle: f32, projectiles: &mut Vec<Projectile>) {    
+    pub fn shoot (&mut self, x: f32, y: f32, right: bool, angle: f32, ability: u8, projectiles: &mut Vec<Projectile>) {
         if self.ammo_in_mag > 0 && !self.reloading {
             //Pistol
             if self.model == 0 && current_time() >= self.time_since_last_shot + 500 {
@@ -364,7 +373,10 @@ impl Gun {
                     h: 5.0,
                     right,
                     angle, 
-                    speed: 12.0,
+                    speed: match ability {
+                        3 => 15.0,
+                        _ => 12.0,
+                    },
                     damage: self.damage,
                     fired_from: self.fired_from,
                     projectile_type: 0,
@@ -401,7 +413,10 @@ impl Gun {
                                 h: 5.0,
                                 right,
                                 angle: angle + rng.gen_range(-recoil_range..recoil_range), 
-                                speed: 11.0,
+                                speed: match ability {
+                                    3 => 13.75,
+                                    _ => 11.0,
+                                },
                                 projectile_type: 0,
                                 damage: self.damage,
                                 fired_from: self.fired_from,
@@ -430,11 +445,20 @@ impl Gun {
                         true => y + (angle.sin() * 25.0) as f32,
                         false => y - (angle.sin() * 15.0) as f32,
                     },
-                    w: 5.0,
-                    h: 5.0,
+                    w: match ability {
+                        3 => 6.25,
+                        _ => 5.0,
+                    },
+                    h: match ability {
+                        3 => 6.25,
+                        _ => 5.0,
+                    },
                     right,
                     angle, 
-                    speed: 0.25,
+                    speed: match ability {
+                        3 => 0.31,
+                        _ => 0.25,
+                    },
                     projectile_type: 1,
                     damage: self.damage,
                     fired_from: self.fired_from,
@@ -464,7 +488,10 @@ impl Gun {
                                 h: 5.0,
                                 right,
                                 angle, 
-                                speed: 12.0,
+                                speed: match ability {
+                                    3 => 15.0,
+                                    _ => 12.0,
+                                },
                                 projectile_type: 0,
                                 damage: self.damage,
                                 fired_from: self.fired_from,
@@ -503,7 +530,10 @@ impl Gun {
                         h: 5.0,
                         right,
                         angle, 
-                        speed: 12.0,
+                        speed: match ability {
+                            3 => 15.0,
+                            _ => 12.0,
+                        },
                         projectile_type: 0,
                         fired_from: self.fired_from,
                         damage: self.damage,
@@ -532,7 +562,10 @@ impl Gun {
                     h: 5.0,
                     right,
                     angle, 
-                    speed: 8.0,
+                    speed: match ability {
+                        3 => 10.0,
+                        _ => 8.0,
+                    },
                     damage: self.damage,
                     fired_from: self.fired_from,
                     projectile_type: 0,
@@ -575,7 +608,8 @@ pub struct Player {
     // 0 is phase
     // 1 is stim
     // 2 is the wall
-    ability: u8,
+    // 3 is the engineer (should probably be default)
+    pub ability: u8,
     // Your ability charges every tick, and then when it hits its minimum threshold you can use it, though waiting until it hits its maximum threshold may be better, as it will increase the ability's power/duration/whatever.
     // For example, the stim ability will run longer then longer you wait for its ability to charge
     pub ability_charge: u16,
@@ -608,6 +642,7 @@ impl Player {
                 0 => 150,
                 1 => 150,
                 2 => 150,
+                3 => 1,
                 _ => 150,
             },
             min_ability_charge: match ability {
@@ -615,17 +650,19 @@ impl Player {
                 0 => 150,
                 1 => 1,
                 2 => 150,
+                3 => 1,
                 _ => 150,
             },
             max_ability_charge: match ability {
                 0 => 300,
                 1 => 300,
                 2 => 150,
+                3 => 1,
                 _ => 300,
             },
             speed: 10.0,
             health,
-            gun: Gun::new(gun, player_id),
+            gun: Gun::new(gun, ability, player_id),
         }
     }
     
@@ -744,7 +781,7 @@ impl Player {
     fn shoot(&mut self, right: bool, angle: f32, projectiles: &mut Vec<Projectile>) {
         
         if self.health > 0 {
-            self.gun.shoot(self.x, self.y, right, angle, projectiles);
+            self.gun.shoot(self.x, self.y, right, angle, self.ability, projectiles);
             
         }
         
