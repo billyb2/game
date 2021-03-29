@@ -191,11 +191,12 @@ impl event::EventHandler for MainState {
         
         
         let mut text_y = 0.0;
-        let mut text_x_offset = 500.0;
+        let mut text_x_offset = 650.0;
         
         for (i, player) in self.players.iter().enumerate() {
             if player.health > 0 {
                 let health = Text::new(format!("Player {} health: {}", i + 1, player.health));
+                let ability_charge_percent = Text::new(format!("Player {} charge: {:.0}%", i + 1, player.ability_charge as f32 / player.max_ability_charge as f32 * 100.0));
                 let position_x = Text::new(format!("Player {} X Position: {}", i + 1, player.x));
                 let position_y = Text::new(format!("Player {} Y Position: {}", i + 1, player.y));
             
@@ -209,6 +210,10 @@ impl event::EventHandler for MainState {
                 text_y += 25.0;
 
                 graphics::draw(ctx, &position_y, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
+
+                text_y += 25.0;
+
+                graphics::draw(ctx, &ability_charge_percent, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
                 
             }
             

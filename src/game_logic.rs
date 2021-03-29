@@ -577,9 +577,9 @@ pub struct Player {
     ability: u8,
     // Your ability charges every tick, and then when it hits its minimum threshold you can use it, though waiting until it hits its maximum threshold may be better, as it will increase the ability's power/duration/whatever.
     // For example, the stim ability will run longer then longer you wait for its ability to charge
-    ability_charge: u16,
+    pub ability_charge: u16,
     min_ability_charge: u16,
-    max_ability_charge: u16,
+    pub max_ability_charge: u16,
     
     
     speed: f32,
@@ -709,6 +709,7 @@ impl Player {
                 let y = match self.direction {
                     1 | 5 | 6=> self.y - 25.0,
                     2 | 7 | 8 => self.y + 25.0,
+                    0 => self.y - 25.0,
                     _ => self.y,
 
                 };
@@ -733,7 +734,7 @@ impl Player {
 
                 map.objects.push(MapObject::new(Rect::new(x, y, w, h), color));
 
-                self.ability_charge -= 100;
+                self.ability_charge -= 150;
             }
         }
 
