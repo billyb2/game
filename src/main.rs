@@ -199,6 +199,10 @@ impl event::EventHandler for MainState {
                 let ability_charge_percent = Text::new(format!("Player {} charge: {:.0}%", i + 1, player.ability_charge as f32 / player.max_ability_charge as f32 * 100.0));
                 let position_x = Text::new(format!("Player {} X Position: {}", i + 1, player.x));
                 let position_y = Text::new(format!("Player {} Y Position: {}", i + 1, player.y));
+                let ammo = match player.gun.reloading {
+                    true => Text::new(format!("Player {}: Reloading", i + 1)),
+                    false => Text::new(format!("Player {}: {} / {}", i + 1, player.gun.ammo_in_mag, player.gun.max_ammo)),
+                };
             
                 //TODO: Eventually use queue text instead of multiple draw calls, since queue text is the equivalent of sprite batching
                 graphics::draw(ctx, &health, DrawParam::default().dest(Point2 {x: screen_coords.w - text_x_offset, y: text_y})).unwrap();
@@ -214,6 +218,10 @@ impl event::EventHandler for MainState {
                 text_y += 25.0;
 
                 graphics::draw(ctx, &ability_charge_percent, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
+
+                text_y += 25.0;
+
+                graphics::draw(ctx, &ammo, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
                 
             }
             

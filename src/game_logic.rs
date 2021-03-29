@@ -261,8 +261,11 @@ pub struct Gun {
     // Shooting's,arguments are the arguments it had previously from the last frame, used for guns that don't just shoot one bullet at a time (like the burst rifle)
     shooting: Option<(f32, f32, bool, f32)>,
     projectiles_fired: u8,
-    reloading: bool,
-    ammo_in_mag: u8,
+    pub reloading: bool,
+    // Reload time is in miliseconds
+    reload_time: u16,
+    pub ammo_in_mag: u8,
+    pub max_ammo: u8,
     damage: u8,
     pub fired_from: u8,
     max_distance: f32,
@@ -277,16 +280,34 @@ impl Gun {
             time_since_last_shot: 0,
             time_since_start_reload: 0,
             reloading: false,
+            reload_time: match model {
+                0 => 2000,
+                1 => 5000,
+                2 => 3000,
+                3 => 3250,
+                4 => 3750,
+                _ => 3000,
+            },
             // Some guns have special shooting behaviors that last over the course of mutliple ticks, which shooting and projectiles_fired take advantage of
             shooting: None,
             projectiles_fired: 0,
             ammo_in_mag: match model {
-                0 => 7,
+                0 => 16,
                 1 => 8,
-                2 => 5,
+                2 => 6,
                 3 => 21,
                 4 => 25,
                 _ => 30,
+
+            },
+            max_ammo: match model {
+                0 => 16,
+                1 => 8,
+                2 => 6,
+                3 => 21,
+                4 => 25,
+                _ => 30,
+
             },
             damage: match model {
                 0 => 45,
@@ -316,27 +337,10 @@ impl Gun {
             self.reloading = true;
             
         } else {
-            // Pistol has a reload time of 2 seconds
-            if self.model == 0  && self.time_since_start_reload + 2000 <= current_time() {
-                self.ammo_in_mag = 16;
+            if self.time_since_start_reload + self.reload_time as u128 <= current_time() {
+                self.ammo_in_mag = self.max_ammo;
                 self.reloading = false;
-                
-            } else if self.model == 1  && self.time_since_start_reload + 5000 <= current_time() {
-                self.ammo_in_mag = 8;
-                self.reloading = false;
-                
-            } else if self.model == 2  && self.time_since_start_reload + 3000 <= current_time() {
-                self.ammo_in_mag = 6;
-                self.reloading = false;
-                
-            } else if self.model == 3 && self.time_since_start_reload + 5000 <= current_time() {
-                self.ammo_in_mag = 21;
-                self.reloading = false;
-                
-            } else if self.model == 4 && self.time_since_start_reload + 5500 <= current_time() {
-                self.ammo_in_mag = 25;
-                self.reloading = false;
-                
+
             }
             
         }
