@@ -336,12 +336,9 @@ impl Gun {
             self.time_since_start_reload = current_time();
             self.reloading = true;
             
-        } else {
-            if self.time_since_start_reload + self.reload_time as u128 <= current_time() {
-                self.ammo_in_mag = self.max_ammo;
-                self.reloading = false;
-
-            }
+        } else if self.time_since_start_reload + self.reload_time as u128 <= current_time() {
+            self.ammo_in_mag = self.max_ammo;
+            self.reloading = false;
             
         }
        
