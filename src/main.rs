@@ -7,8 +7,9 @@ use ggez::input::keyboard::{KeyCode, is_key_pressed};
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
-use game_logic::{collision, tick, Player, Projectile};
+use game_logic::{collision, tick};
 use game_logic::map::{Map, MapObject};
+use game_logic::objects::{Player, Projectile};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
