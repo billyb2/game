@@ -894,7 +894,7 @@ fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     }
 }
 
-fn is_key_pressed(key: char, keys_pressed: &Vec<char>) -> bool {
+fn is_key_pressed(key: char, keys_pressed: &[char]) -> bool {
      keys_pressed.contains(&key)
 
 }
