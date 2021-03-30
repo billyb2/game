@@ -1,14 +1,13 @@
-use ggez::input::keyboard::{is_key_pressed, KeyCode};
-use ggez::input::mouse;
-use ggez::graphics::{Color, Rect, screen_coordinates};
-use crate::game_libs::map::{Map, MapObject};
-use crate::game_libs::bots;
+pub mod bots;
+pub mod map;
+
+use map::{Color, Map, MapObject, Point2, Rect};
 use rand::{Rng, thread_rng};
 use std::f32::consts::PI;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map, ctx: &mut ggez::Context) -> [Player; 8] {
+//mouse_pressed index are: 0: left mouse pressed, 1: middle mouse pressed, 2: right mouse pressed
+pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) -> [Player; 8] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -201,10 +200,10 @@ pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, ma
     
     }
               
-    check_user_input(&ctx, &mut players, &mut projectiles, map);
+    check_user_input(&mut players, &mut projectiles, map, keys_pressed, mouse_pressed, mouse_coords, screen_coords);
         
     //TODO: Multithreaded bots
-    // Basically, a bot is given information on every player, info on the projectiles, and info on how the map looks, and it outputs 4 things. 
+    // Basically, a bot is given information on every player, info on the projectiles, and info on how the map looks (not added yet), and it outputs 4 things.
     // The first is the direction that it wants to move in
     // The second and third is whether or not it wants to shoot, and what angle it'll shoot at (if it gives an angle of 0, it won't shoot).
     // The fourth is whether or not the bot wants to use its ability
@@ -819,62 +818,56 @@ fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_height:
 }
 
 // All the user input code is in here, instead of the tick fn, for readability purposes
-fn check_user_input(ctx: &ggez::Context, mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map) {
-    if is_key_pressed(ctx, KeyCode::W) && !is_key_pressed(ctx, KeyCode::S) {
-        if is_key_pressed(ctx, KeyCode::D) {
+fn check_user_input(mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) {
+    if is_key_pressed('w', &keys) && !is_key_pressed('s', &keys) {
+        if is_key_pressed('d', &keys) {
             players[0].direction = 5;
-        } else if is_key_pressed(ctx, KeyCode::A) {
+        } else if is_key_pressed('a', &keys) {
             players[0].direction = 6;
         } else {
             players[0].direction = 1;
         }
-    } else if is_key_pressed(ctx, KeyCode::S) && !is_key_pressed(ctx, KeyCode::W) {
-        if is_key_pressed(ctx, KeyCode::D) {
+    } else if is_key_pressed('s', &keys) && !is_key_pressed('w', &keys) {
+        if is_key_pressed('d', &keys) {
             players[0].direction = 7;
-        } else if is_key_pressed(ctx, KeyCode::A) {
+        } else if is_key_pressed('a', &keys) {
             players[0].direction = 8;
         } else {
             players[0].direction = 2;
         }
-    } else if is_key_pressed(ctx, KeyCode::D) && !is_key_pressed(ctx, KeyCode::A) {
+    } else if is_key_pressed('d', &keys) && !is_key_pressed('a', &keys) {
         players[0].direction = 3;
-    } else if is_key_pressed(ctx, KeyCode::A) && !is_key_pressed(ctx, KeyCode::D) {
+    } else if is_key_pressed('a', &keys) && !is_key_pressed('d', &keys) {
         players[0].direction = 4;
     } else {
         players[0].direction = 0;
     }
     
-    if is_key_pressed(ctx, KeyCode::E) {
+    if is_key_pressed('e', &keys) {
         players[0].use_ability(map);
         
     }
     
-    if is_key_pressed(ctx, KeyCode::R) {
+    if is_key_pressed('r', &keys) {
         players[0].gun.reload();
         
     }
         
-    if mouse::button_pressed(&ctx, mouse::MouseButton::Left) {
-        let screen_coords = screen_coordinates(&ctx);
+    if mouse_pressed[0] {
         // Because of trig stuff, you need to know whether the bullet is going to move right or left as well as what angle
-        let player_x = if players[0].x - screen_coords.w / 2.0 < 0.0 {
-            players[0].x
-            
-        } else {
-            screen_coords.w / 2.0
-            
+        let player_x = match players[0].x - screen_coords.w / 2.0 < 0.0 {
+            true => players[0].x,
+            false => screen_coords.w / 2.0,
+
+        };
+
+        let player_y = match players[0].y - screen_coords.h / 2.0 < 0.0 {
+            true => players[0].y,
+            false => screen_coords.h / 2.0,
         };
         
-        let player_y = if players[0].y - screen_coords.h / 2.0 < 0.0 {
-            players[0].y
-            
-        } else {
-            screen_coords.h / 2.0
-            
-        };
-        
-        let rad = get_angle(player_x + 7.5, player_y + 7.5, mouse::position(&ctx).x,  mouse::position(&ctx).y);
-        let right = { mouse::position(&ctx).x > player_x };
+        let rad = get_angle(player_x + 7.5, player_y + 7.5, mouse_coords.x,  mouse_coords.y);
+        let right = { mouse_coords.x > player_x };
     
         players[0].shoot(right, rad, &mut projectiles);
         
@@ -899,4 +892,9 @@ fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
             PI
     
     }
+}
+
+fn is_key_pressed(key: char, keys_pressed: &Vec<char>) -> bool {
+     keys_pressed.contains(&key)
+
 }

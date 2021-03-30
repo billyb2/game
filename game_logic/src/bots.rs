@@ -1,7 +1,7 @@
 #![allow(unused_assignments)]
 use std::f32::consts::PI;
 
-use crate::game_logic::{Player, Projectile};
+use crate::{Player, Projectile};
 
 // The first item of the tuple is the direction the player's going to move in
 // The second item of the tuple is what direction the player is shooting in, or 0 if they aren't going to shoot

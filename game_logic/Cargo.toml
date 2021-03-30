@@ -1,0 +1,16 @@
+[package]
+name = "game_logic"
+version = "0.1.0"
+authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgaston@myhoosierneighbors.com>"]
+edition = "2018"
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[dependencies]
+rand = "0.8"

@@ -1,16 +1,14 @@
-mod game_logic;
-mod game_libs;
-
 use ggez::{event, graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
-use ggez::graphics::{DrawParam, Image, Rect, Text, screen_coordinates};
+use ggez::graphics::{DrawParam, Image, Text, screen_coordinates};
 use ggez::graphics::spritebatch::SpriteBatch;
+use ggez::input::mouse;
+use ggez::input::keyboard::{KeyCode, is_key_pressed};
 use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
 use game_logic::{collision, tick, Player, Projectile};
-
-use game_libs::map::{Map, MapObject};
+use game_logic::map::{Map, MapObject};
 
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -64,9 +62,11 @@ impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         // Please see https://docs.rs/ggez/0.5.1/ggez/timer/fn.check_update_time.html for why I'm doing updates like this
         // Basically, the game will run 60 frames every second on average
-        
         while check_update_time(ctx, 60) {
-            self.players = tick(self.players, &mut self.projectiles, &mut self.map, ctx);
+            let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
+            let screen_coords = game_logic::map::Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
+
+            self.players = tick(self.players, &mut self.projectiles, &mut self.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords);
             
             let screen_coords = screen_coordinates(ctx);
             
@@ -103,16 +103,18 @@ impl event::EventHandler for MainState {
             
                 // Only draw players that are in the screen
                 // Recycling the collision function since I am basically just seeing if the two rectangles intersect
-                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+                if collision(&game_logic::map::Rect::new(player.x, player.y, 15.0, 15.0), &game_logic::map::Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
                 
                     // Draw each player as a filled rectangle
                     let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
+
+                    let color: (u8, u8, u8, u8) = player.color.into();
 
                     let rect_to_draw = graphics::Mesh::new_rectangle(
                         ctx,
                         graphics::DrawMode::fill(),
                         rect,
-                        player.color,
+                        color.into(),
                     )?;
                     
                     graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
@@ -128,7 +130,7 @@ impl event::EventHandler for MainState {
         let mut map_objects: Vec<(Point2<f32>, u8, u8)> = Vec::new();
         
         for projectile in &self.projectiles {
-            if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+            if collision(&game_logic::map::Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &game_logic::map::Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
                 
@@ -151,10 +153,12 @@ impl event::EventHandler for MainState {
         }
         
         for object in &self.map.objects {
-            let color = object.color;
+            let color: (u8, u8, u8, u8) = object.color.into();
+            let color: graphics::Color = color.into();
+
             let object = object.data;
         
-           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+           if collision(&game_logic::map::Rect::new(object.x, object.y, object.w, object.h), &game_logic::map::Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
             
                 let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
                 
@@ -282,7 +286,7 @@ pub fn main() -> ggez::GameResult {
     let state = MainState::new(2, 
         Map::new(vec![
             MapObject::new(
-                Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
+                game_logic::map::Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
             )], Some([10_000.0, 10_000.0])
         )
     );
@@ -290,30 +294,73 @@ pub fn main() -> ggez::GameResult {
     
 }
 
-        // The image size is in bytes, and generally should be equal to the length of the image * the width * 4
-        fn generate_image_from_rgba8(color: graphics::Color, image_size: usize) -> Vec<u8> {            
-            if image_size % 4 != 0 {    
-                //Probably should use a better solution then just straight up panicking
-                panic!("Make sure you read the instructions for the image size!");
-                
-            }
-            
-            let mut bytes_vec: Vec<u8> = Vec::with_capacity(image_size);
-            let rgba = color.to_rgba();
-            
-            let r = rgba.0;
-            let g = rgba.1;
-            let b = rgba.2;
-            let a = rgba.3;
-            
-            while bytes_vec.len() != bytes_vec.capacity() {
-                bytes_vec.push(r);
-                bytes_vec.push(g);
-                bytes_vec.push(b);
-                bytes_vec.push(a);
-                
-            }
-            
-            bytes_vec
-        }
-    
+// The image size is in bytes, and generally should be equal to the length of the image * the width * 4
+fn generate_image_from_rgba8(color: graphics::Color, image_size: usize) -> Vec<u8> {
+    if image_size % 4 != 0 {
+        //Probably should use a better solution then just straight up panicking
+        panic!("Make sure you read the instructions for the image size!");
+
+    }
+
+    let mut bytes_vec: Vec<u8> = Vec::with_capacity(image_size);
+    let rgba = color.to_rgba();
+
+    let r = rgba.0;
+    let g = rgba.1;
+    let b = rgba.2;
+    let a = rgba.3;
+
+    while bytes_vec.len() != bytes_vec.capacity() {
+        bytes_vec.push(r);
+        bytes_vec.push(g);
+        bytes_vec.push(b);
+        bytes_vec.push(a);
+
+    }
+
+    bytes_vec
+}
+
+fn check_user_input(ctx: &ggez::Context) -> (Vec<char>, [bool; 3], game_logic::map::Point2) {
+    let mut keys_pressed: Vec<char> = Vec::new();
+    let mut mouse_pressed: [bool; 3] = [false; 3];
+    let mouse_coords = game_logic::map::Point2 { x: mouse::position(ctx).x, y: mouse::position(ctx).y };
+
+    if is_key_pressed(ctx, KeyCode::W) {
+        keys_pressed.push('w');
+
+    }
+
+    if is_key_pressed(ctx, KeyCode::A) {
+        keys_pressed.push('a');
+
+    }
+
+    if is_key_pressed(ctx, KeyCode::S) {
+        keys_pressed.push('s');
+
+    }
+
+    if is_key_pressed(ctx, KeyCode::D) {
+        keys_pressed.push('d');
+
+    }
+
+    if is_key_pressed(ctx, KeyCode::R) {
+        keys_pressed.push('r');
+
+    }
+
+    if is_key_pressed(ctx, KeyCode::E) {
+        keys_pressed.push('e');
+
+    }
+
+    if mouse::button_pressed(ctx, mouse::MouseButton::Left) {
+        mouse_pressed[0] = true;
+
+    }
+
+    (keys_pressed, mouse_pressed, mouse_coords)
+}
+
