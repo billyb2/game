@@ -13,3 +13,5 @@
 /.idea/
 
 .cargo/
+
+/game_logic/target
