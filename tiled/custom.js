@@ -17,20 +17,6 @@ var customMapFormat = {
                         if (layer.cellAt(x, y).empty == false) {
                             let color = [255.0, 255.0, 255.0, 255.0];
 
-                            if (layer.cellAt(x, y).tileId == 1 || layer.cellAt(x, y).tileId == 2) {
-                                color = [0.0, 255.0, 0.0, 255.0];
-
-                            }
-
-                            if (layer.cellAt(x, y).tileId == 3 || layer.cellAt(x, y).tileId == 4) {
-                                color = [255.0, 0.0, 0.0, 255.0];
-
-                            }
-                            if (layer.cellAt(x, y).tileId == 5) {
-                                color = [0.0, 0.0, 255.0, 255.0];
-
-                            }
-
                             rows.push({
                                 data: {
                                     x: x * 15,
@@ -38,7 +24,7 @@ var customMapFormat = {
                                     w: 15,
                                     h: 15
                                 },
-                                color: color,
+                                color: [layer.tileAt(x, y).property("red"), layer.tileAt(x, y).property("green"), layer.tileAt(x, y).property("blue"), 255.0],
                                 //health: 100
 
 
