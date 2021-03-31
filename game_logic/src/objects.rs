@@ -586,7 +586,7 @@ pub fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_hei
 }
 
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,

@@ -29,7 +29,7 @@ struct MainState {
     game_mode: u8,
     origin: Point2<f32>,
     zoom: f32,    
-    rect_spritebatch: HashMap<(u8, u8), SpriteBatch>,
+    rect_spritebatch: HashMap<(u8, u8, (u8, u8, u8, u8)), SpriteBatch>,
     
 }
 
@@ -137,8 +137,8 @@ impl event::EventHandler for MainState {
         }
         
         
-        let mut projectiles: Vec<(Point2<f32>, u8)> = Vec::new();
-        let mut map_objects: Vec<(Point2<f32>, u8, u8)> = Vec::new();
+        let mut projectiles: Vec<(Point2<f32>, u8, (u8, u8, u8, u8))> = Vec::new();
+        let mut map_objects: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))> = Vec::new();
         
         for projectile in &self.projectiles {
             if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
@@ -149,7 +149,7 @@ impl event::EventHandler for MainState {
                 let size = projectile.w as u16;
                 let vec_size = ((size as usize) *  (size as usize)) * 4;
             
-                self.rect_spritebatch.entry((projectile.w as u8, projectile.h as u8)).or_insert_with(|| SpriteBatch::new( 
+                self.rect_spritebatch.entry((projectile.w as u8, projectile.h as u8, (255, 255, 255, 255))).or_insert_with(|| SpriteBatch::new(
                     Image::from_rgba8(
                         ctx,
                         size,
@@ -158,14 +158,14 @@ impl event::EventHandler for MainState {
                     ).unwrap()) 
                 );
             
-                projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8));
+                projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8, (255, 255, 255, 255)));
                     
             }
         }
         
         for object in &self.map.objects {
-            let color: (u8, u8, u8, u8) = object.color.into();
-            let color: graphics::Color = color.into();
+            let u8_color: (u8, u8, u8, u8) = object.color.into();
+            let color: graphics::Color = u8_color.into();
 
             let object = object.data;
         
@@ -175,7 +175,7 @@ impl event::EventHandler for MainState {
                 
                  let vec_size = ((object.w as usize) *  (object.h as usize)) * 4;
                 
-                self.rect_spritebatch.entry((object.w as u8, object.h as u8)).or_insert_with(|| SpriteBatch::new( 
+                self.rect_spritebatch.entry((object.w as u8, object.h as u8, color.into())).or_insert_with(|| SpriteBatch::new(
                     Image::from_rgba8(
                         ctx,
                         object.w as u16,
@@ -184,17 +184,17 @@ impl event::EventHandler for MainState {
                     ).unwrap()) 
                 );
             
-                map_objects.push((Point2 {x: rect.x, y: rect.y}, object.w as u8, object.h as u8));
+                map_objects.push((Point2 {x: rect.x, y: rect.y}, object.w as u8, object.h as u8, color.into()));
             }
         }
         
-        for (pos, size) in projectiles.iter() {
-            self.rect_spritebatch.get_mut(&(*size, *size)).unwrap().add(DrawParam::default().dest(*pos));
+        for (pos, size, color) in projectiles.iter() {
+            self.rect_spritebatch.get_mut(&(*size, *size, *color)).unwrap().add(DrawParam::default().dest(*pos));
             
         }
         
-        for (pos, w, h) in map_objects.iter() {
-            self.rect_spritebatch.get_mut(&(*w, *h)).unwrap().add(DrawParam::default().dest(*pos));
+        for (pos, w, h, color) in map_objects.iter() {
+            self.rect_spritebatch.get_mut(&(*w, *h, *color)).unwrap().add(DrawParam::default().dest(*pos));
             
         }
                 

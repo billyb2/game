@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 //TODO: Probably should turn Map and MapObjects into traits, but since the game's geometry is so simple at the moment it really doesn't matter.
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Map {
     pub objects: Vec<MapObject>,
     
@@ -75,13 +75,14 @@ impl Map {
 
     pub fn from_json_str(string: String) -> Map {
         let map: Map = serde_json::from_str(&string).unwrap();
+        println!("{:?}", map);
 
         map
 
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct MapObject {
     // It's x, y, width, and height
     pub data: Rect,
