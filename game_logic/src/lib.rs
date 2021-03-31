@@ -2,12 +2,12 @@ pub mod bots;
 pub mod map;
 pub mod objects;
 
-use map::{Map, Point2, Rect};
+use map::Map;
 use std::f32::consts::PI;
-use objects::{Player, Projectile, out_of_bounds};
+use objects::{Player, Projectile, out_of_bounds, Point2, Rect};
 
 //mouse_pressed index are: 0: left mouse pressed, 1: middle mouse pressed, 2: right mouse pressed
-pub fn tick (mut players: [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) -> [Player; 8] {
+pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) -> [Player; 20] {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -238,7 +238,7 @@ pub fn collision (rect1: &Rect, rect2: &Rect) -> bool {
 }
 
 // All the user input code is in here, instead of the tick fn, for readability purposes
-fn check_user_input(mut players: &mut [Player; 8], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) {
+fn check_user_input(mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) {
     if is_key_pressed('w', &keys) && !is_key_pressed('s', &keys) {
         if is_key_pressed('d', &keys) {
             players[0].direction = 5;

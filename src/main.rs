@@ -1,4 +1,4 @@
-use ggez::{event, graphics};
+use ggez::{event,graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
 use ggez::graphics::{DrawParam, Image, Text, screen_coordinates};
 use ggez::graphics::spritebatch::SpriteBatch;
@@ -8,17 +8,25 @@ use ggez::mint::Point2;
 use ggez::timer::check_update_time;
 
 use game_logic::{collision, tick};
-use game_logic::map::{Map, MapObject};
-use game_logic::objects::{Player, Projectile};
+use game_logic::map::Map;
+use game_logic::objects;
+use game_logic::objects::{Player, Projectile, Rect};
+
+use rust_embed::RustEmbed;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
 
+#[derive(RustEmbed)]
+#[folder = "tiled/"]
+struct Asset;
+
 
 struct MainState {
-    players: [Player; 8],
+    players: [Player; 20],
     projectiles: Vec<Projectile>,
     map: Map,
+    game_mode: u8,
     origin: Point2<f32>,
     zoom: f32,    
     rect_spritebatch: HashMap<(u8, u8), SpriteBatch>,
@@ -26,14 +34,15 @@ struct MainState {
 }
 
 impl MainState {
-    fn new(mut num_of_players: u8, map: Map) -> MainState {
-        let players: [Player; 8] ={
-            let mut players: [Player; 8] = [Player::new(None, 0, 0, 0, 0); 8];
+    fn new(mut num_of_players: u8, game_mode: u8, map: Map) -> MainState {
+        // Preallocate memory for the maximum of 20 players
+        let players: [Player; 20] ={
+            let mut players: [Player; 20] = [Player::new(None, 0, 0, 0, 0, false); 20];
             
             for (i, player) in players.iter_mut().enumerate() {
                 if num_of_players > 0 {
                     num_of_players -= 1;
-                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap());
+                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap(), true);
                     
                 } else {
                     break;
@@ -51,6 +60,7 @@ impl MainState {
            players,
            projectiles: Vec::new(),
            map,
+           game_mode,
            origin: Point2 {x: 596.0, y: 342.0},
            zoom: 1.0,
            rect_spritebatch: HashMap::new(),
@@ -65,7 +75,7 @@ impl event::EventHandler for MainState {
         // Basically, the game will run 60 frames every second on average
         while check_update_time(ctx, 60) {
             let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
-            let screen_coords = game_logic::map::Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
+            let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
 
             self.players = tick(self.players, &mut self.projectiles, &mut self.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords);
             
@@ -100,11 +110,11 @@ impl event::EventHandler for MainState {
         let screen_coords = screen_coordinates(&ctx);
         
         for player in &self.players {
-            if player.health > 0 {
+            if player.online {
             
                 // Only draw players that are in the screen
                 // Recycling the collision function since I am basically just seeing if the two rectangles intersect
-                if collision(&game_logic::map::Rect::new(player.x, player.y, 15.0, 15.0), &game_logic::map::Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
                 
                     // Draw each player as a filled rectangle
                     let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
@@ -131,7 +141,7 @@ impl event::EventHandler for MainState {
         let mut map_objects: Vec<(Point2<f32>, u8, u8)> = Vec::new();
         
         for projectile in &self.projectiles {
-            if collision(&game_logic::map::Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &game_logic::map::Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+            if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
                 
@@ -159,7 +169,7 @@ impl event::EventHandler for MainState {
 
             let object = object.data;
         
-           if collision(&game_logic::map::Rect::new(object.x, object.y, object.w, object.h), &game_logic::map::Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
             
                 let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
                 
@@ -284,12 +294,13 @@ pub fn main() -> ggez::GameResult {
     
     let (ctx, event_loop) = cb.build()?;
     
-    let state = MainState::new(2, 
-        Map::new(vec![
+    let state = MainState::new(2, 0,
+        /*Map::new(vec![
             MapObject::new(
-                game_logic::map::Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
+                Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
             )], Some([10_000.0, 10_000.0])
-        )
+        )*/
+        Map::from_json_str(std::str::from_utf8(&Asset::get( "map.custom").unwrap()).unwrap().to_string())
     );
     event::run(ctx, event_loop, state)
     
@@ -322,10 +333,10 @@ fn generate_image_from_rgba8(color: graphics::Color, image_size: usize) -> Vec<u
     bytes_vec
 }
 
-fn check_user_input(ctx: &ggez::Context) -> (Vec<char>, [bool; 3], game_logic::map::Point2) {
+fn check_user_input(ctx: &ggez::Context) -> (Vec<char>, [bool; 3], objects::Point2) {
     let mut keys_pressed: Vec<char> = Vec::new();
     let mut mouse_pressed: [bool; 3] = [false; 3];
-    let mouse_coords = game_logic::map::Point2 { x: mouse::position(ctx).x, y: mouse::position(ctx).y };
+    let mouse_coords = objects::Point2 { x: mouse::position(ctx).x, y: mouse::position(ctx).y };
 
     if is_key_pressed(ctx, KeyCode::W) {
         keys_pressed.push('w');
