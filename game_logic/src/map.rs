@@ -75,7 +75,6 @@ impl Map {
 
     pub fn from_json_str(string: String) -> Map {
         let map: Map = serde_json::from_str(&string).unwrap();
-        println!("{:?}", map);
 
         map
 
@@ -87,15 +86,19 @@ pub struct MapObject {
     // It's x, y, width, and height
     pub data: Rect,
     pub color: Color,
+    pub player_collidable: bool,
+    pub player_spawn: bool,
     pub health: Option<u16>,
     
 }
 
 impl MapObject {
-    pub fn new(data: Rect, color: Color, health: Option<u16>) -> MapObject {
+    pub fn new(data: Rect, color: Color, health: Option<u16>, player_spawn: bool, player_collidable: bool) -> MapObject {
         MapObject {
             data,
             color,
+            player_spawn,
+            player_collidable,
             // If the Option is None, then the wall cannot be destroyed
             health,
         }
@@ -104,7 +107,7 @@ impl MapObject {
     
     // For now, all MapObjects will simply run the rectangle collision code from main.rs
     fn collision(&mut self, other_object: &Rect, damage: u16) -> bool{
-        if collision(&self.data, other_object) {
+        if collision(&self.data, other_object) && self.player_collidable {
             if self.health.is_some() {
                 if self.health.unwrap() as i16 - damage as i16 <= 0 {
                     self.health = Some(0);

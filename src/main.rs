@@ -12,6 +12,8 @@ use game_logic::map::Map;
 use game_logic::objects;
 use game_logic::objects::{Player, Projectile, Rect};
 
+use rand::thread_rng;
+use rand::Rng;
 use rust_embed::RustEmbed;
 
 use std::collections::HashMap;
@@ -34,16 +36,38 @@ struct MainState {
 }
 
 impl MainState {
-    fn new(mut num_of_players: u8, game_mode: u8, map: Map) -> MainState {
+    fn new(game_mode: u8, map: Map) -> MainState {
+        let mut possible_player_spawns: Vec<(f32, f32)> =
+        {
+            let mut possible_player_spawns: Vec<(f32, f32)> = Vec::new();
+
+            for map_object in &map.objects {
+                if map_object.player_spawn {
+                    println!("player spawn");
+                    possible_player_spawns.push((map_object.data.x, map_object.data.y));
+
+                }
+
+            }
+
+            possible_player_spawns
+
+        };
+
         // Preallocate memory for the maximum of 20 players
         let players: [Player; 20] ={
-            let mut players: [Player; 20] = [Player::new(None, 0, 0, 0, 0, false); 20];
+            let mut players: [Player; 20] = [Player::new(None, 0, 0, 0, 0, false, 0.0, 0.0); 20];
             
+            let mut rng = thread_rng();
+
             for (i, player) in players.iter_mut().enumerate() {
-                if num_of_players > 0 {
-                    num_of_players -= 1;
-                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap(), true);
-                    
+                if possible_player_spawns.len() != 0 {
+                    let spawn_index: usize = rng.gen_range(0..possible_player_spawns.len());
+                    let (spawn_x, spawn_y) = possible_player_spawns[spawn_index];
+
+                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap(), true, spawn_x, spawn_y);
+                    possible_player_spawns.remove(spawn_index);
+
                 } else {
                     break;
                     
@@ -55,7 +79,7 @@ impl MainState {
             players
             
         };
-    
+
         MainState {
            players,
            projectiles: Vec::new(),
@@ -108,37 +132,34 @@ impl event::EventHandler for MainState {
         graphics::clear(ctx, (0, 0, 0).into());
         
         let screen_coords = screen_coordinates(&ctx);
-        
-        for player in &self.players {
-            if player.online {
-            
-                // Only draw players that are in the screen
-                // Recycling the collision function since I am basically just seeing if the two rectangles intersect
-                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
-                
-                    // Draw each player as a filled rectangle
-                    let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
 
-                    let color: (u8, u8, u8, u8) = player.color.into();
-
-                    let rect_to_draw = graphics::Mesh::new_rectangle(
-                        ctx,
-                        graphics::DrawMode::fill(),
-                        rect,
-                        color.into(),
-                    )?;
-                    
-                    graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
-                
-                }
-            
-            }
-        
-        }
-        
-        
         let mut projectiles: Vec<(Point2<f32>, u8, (u8, u8, u8, u8))> = Vec::new();
         let mut map_objects: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))> = Vec::new();
+
+        for object in &self.map.objects {
+            let u8_color: (u8, u8, u8, u8) = object.color.into();
+            let color: graphics::Color = u8_color.into();
+
+            let object = object.data;
+
+           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+
+                let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
+
+                 let vec_size = ((object.w as usize) *  (object.h as usize)) * 4;
+
+                self.rect_spritebatch.entry((object.w as u8, object.h as u8, color.into())).or_insert_with(|| SpriteBatch::new(
+                    Image::from_rgba8(
+                        ctx,
+                        object.w as u16,
+                        object.h as u16,
+                        &generate_image_from_rgba8(color, vec_size),
+                    ).unwrap())
+                );
+
+                map_objects.push((Point2 {x: rect.x, y: rect.y}, object.w as u8, object.h as u8, color.into()));
+            }
+        }
         
         for projectile in &self.projectiles {
             if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
@@ -163,31 +184,6 @@ impl event::EventHandler for MainState {
             }
         }
         
-        for object in &self.map.objects {
-            let u8_color: (u8, u8, u8, u8) = object.color.into();
-            let color: graphics::Color = u8_color.into();
-
-            let object = object.data;
-        
-           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
-            
-                let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
-                
-                 let vec_size = ((object.w as usize) *  (object.h as usize)) * 4;
-                
-                self.rect_spritebatch.entry((object.w as u8, object.h as u8, color.into())).or_insert_with(|| SpriteBatch::new(
-                    Image::from_rgba8(
-                        ctx,
-                        object.w as u16,
-                        object.h as u16,
-                        &generate_image_from_rgba8(color, vec_size),
-                    ).unwrap()) 
-                );
-            
-                map_objects.push((Point2 {x: rect.x, y: rect.y}, object.w as u8, object.h as u8, color.into()));
-            }
-        }
-        
         for (pos, size, color) in projectiles.iter() {
             self.rect_spritebatch.get_mut(&(*size, *size, *color)).unwrap().add(DrawParam::default().dest(*pos));
             
@@ -202,6 +198,34 @@ impl event::EventHandler for MainState {
             graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
             spritebatch.clear();
             
+        }
+
+        // The players should be drawn over all other objects
+        for player in &self.players {
+            if player.online {
+
+                // Only draw players that are in the screen
+                // Recycling the collision function since I am basically just seeing if the two rectangles intersect
+                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+
+                    // Draw each player as a filled rectangle
+                    let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
+
+                    let color: (u8, u8, u8, u8) = player.color.into();
+
+                    let rect_to_draw = graphics::Mesh::new_rectangle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        rect,
+                        color.into(),
+                    )?;
+
+                    graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+
+                }
+
+            }
+
         }
         
         
@@ -294,13 +318,13 @@ pub fn main() -> ggez::GameResult {
     
     let (ctx, event_loop) = cb.build()?;
     
-    let state = MainState::new(2, 0,
+    let state = MainState::new(0,
         /*Map::new(vec![
             MapObject::new(
                 Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
             )], Some([10_000.0, 10_000.0])
         )*/
-        Map::from_json_str(std::str::from_utf8(&Asset::get( "map.custom").unwrap()).unwrap().to_string())
+        Map::from_json_str(std::str::from_utf8(&Asset::get( "map1.custom").unwrap()).unwrap().to_string())
     );
     event::run(ctx, event_loop, state)
     

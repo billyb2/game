@@ -24,7 +24,9 @@ var customMapFormat = {
                                     w: 15,
                                     h: 15
                                 },
-                                color: [layer.tileAt(x, y).property("red"), layer.tileAt(x, y).property("green"), layer.tileAt(x, y).property("blue"), 255.0],
+                                player_spawn: layer.tileAt(x, y).property("player_spawn"),
+                                player_collidable: layer.tileAt(x, y).property("player_collidable"),
+                                color: [layer.tileAt(x, y).property("red"), layer.tileAt(x, y).property("green"), layer.tileAt(x, y).property("blue"), 255.0]
                                 //health: 100
 
 

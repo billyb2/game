@@ -401,12 +401,12 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8, player_id: u8, online: bool) -> Player {
+    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8, player_id: u8, online: bool, x: f32, y: f32) -> Player {
         let mut rng = thread_rng();
 
         Player {
-            x: 596.0,
-            y: 342.0,
+            x,
+            y,
             direction: 0,
             color:match color {
                 Some(color) => color,
@@ -547,7 +547,7 @@ impl Player {
 
                 let color = Color::from_rgb(0, 255, 0);
 
-                map.objects.push(MapObject::new(Rect::new(x, y, w, h), color, Some(100)));
+                map.objects.push(MapObject::new(Rect::new(x, y, w, h), color, Some(100), false, true));
 
                 self.ability_charge -= 150;
             }
