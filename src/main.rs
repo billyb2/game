@@ -43,7 +43,6 @@ impl MainState {
 
             for map_object in &map.objects {
                 if map_object.player_spawn {
-                    println!("player spawn");
                     possible_player_spawns.push((map_object.data.x, map_object.data.y));
 
                 }
@@ -139,6 +138,7 @@ impl event::EventHandler for MainState {
         for object in &self.map.objects {
             let u8_color: (u8, u8, u8, u8) = object.color.into();
             let color: graphics::Color = u8_color.into();
+            //println!("{:?}", color);
 
             let object = object.data;
 

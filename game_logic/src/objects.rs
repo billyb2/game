@@ -688,6 +688,16 @@ impl Color {
     }
 }
 
+impl From<[f32; 4]> for Color {
+    /// Turns an `[R, G, B, A] array of `f32`'s into a `Color` with no format changes.
+    /// All inputs should be in the range `[0.0-1.0]`.
+    fn from(val: [f32; 4]) -> Self {
+        println!("array");
+        Color::new(val[0], val[1], val[2], val[3])
+    }
+}
+
+
 impl From<(u8, u8, u8, u8)> for Color {
     /// Convert a `(R, G, B, A)` tuple of `u8`'s in the range `[0-255]` into a `Color`
     fn from(val: (u8, u8, u8, u8)) -> Self {
@@ -706,14 +716,6 @@ impl From<(u8, u8, u8)> for Color {
     fn from(val: (u8, u8, u8)) -> Self {
         let (r, g, b) = val;
         Color::from((r, g, b, 255))
-    }
-}
-
-impl From<[f32; 4]> for Color {
-    /// Turns an `[R, G, B, A] array of `f32`'s into a `Color` with no format changes.
-    /// All inputs should be in the range `[0.0-1.0]`.
-    fn from(val: [f32; 4]) -> Self {
-        Color::new(val[0], val[1], val[2], val[3])
     }
 }
 

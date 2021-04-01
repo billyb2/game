@@ -8,15 +8,15 @@ var customMapFormat = {
             height: map.height * 15,
         };
 
-            var layer = map.layerAt(0);
+
+        var rows = [];
+        for (i = 0; i < map.layerCount; i ++) {
+            var layer = map.layerAt(i);
 
             if (layer.isTileLayer) {
-                var rows = [];
                 for (y = 0; y < layer.height; ++y) {
                     for (x = 0; x < layer.width; ++x)
                         if (layer.cellAt(x, y).empty == false) {
-                            let color = [255.0, 255.0, 255.0, 255.0];
-
                             rows.push({
                                 data: {
                                     x: x * 15,
@@ -26,7 +26,10 @@ var customMapFormat = {
                                 },
                                 player_spawn: layer.tileAt(x, y).property("player_spawn"),
                                 player_collidable: layer.tileAt(x, y).property("player_collidable"),
-                                color: [layer.tileAt(x, y).property("red"), layer.tileAt(x, y).property("green"), layer.tileAt(x, y).property("blue"), 255.0]
+                                color: [layer.tileAt(x, y).property("red") / 255.0,
+                                            layer.tileAt(x, y).property("green") / 255.0,
+                                            layer.tileAt(x, y).property("blue") / 255.0,
+                                            layer.tileAt(x, y).property("alpha") / 255.0]
                                 //health: 100
 
 
@@ -35,9 +38,10 @@ var customMapFormat = {
                         }
 
                 }
-
-                m.objects = rows;
             }
+        }
+
+         m.objects = rows;
 
 
         var file = new TextFile(fileName, TextFile.WriteOnly);

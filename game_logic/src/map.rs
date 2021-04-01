@@ -75,7 +75,6 @@ impl Map {
 
     pub fn from_json_str(string: String) -> Map {
         let map: Map = serde_json::from_str(&string).unwrap();
-
         map
 
     }
