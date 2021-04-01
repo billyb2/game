@@ -10,7 +10,7 @@ var customMapFormat = {
 
 
         var rows = [];
-        for (i = 0; i < map.layerCount; i ++) {
+        for (i = map.layerCount - 1; i > 0; i--) {
             var layer = map.layerAt(i);
 
             if (layer.isTileLayer) {
