@@ -110,15 +110,15 @@ impl event::EventHandler for MainState {
             if self.origin.x < 0.0 {
                 self.origin.x = 0.0;
                 
-            } else if self.origin.x > self.map.width {
-                self.origin.x = self.map.width;
+            } else if self.origin.x > self.map.width - screen_coords.w {
+                self.origin.x = self.map.width - screen_coords.w;
                 
             }
             if self.origin.y < 0.0 {
                 self.origin.y = 0.0;
                 
-            } else if self.origin.y > self.map.height {
-                self.origin.y = self.map.height;
+            } else if self.origin.y > self.map.height - screen_coords.h {
+                self.origin.y = self.map.height - screen_coords.h;
                 
             }
         
@@ -132,13 +132,12 @@ impl event::EventHandler for MainState {
         
         let screen_coords = screen_coordinates(&ctx);
 
-        let mut projectiles: Vec<(Point2<f32>, u8, (u8, u8, u8, u8))> = Vec::new();
         let mut map_objects: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))> = Vec::new();
+        let mut projectiles: Vec<(Point2<f32>, u8, (u8, u8, u8, u8))> = Vec::new();
 
         for object in &self.map.objects {
             let u8_color: (u8, u8, u8, u8) = object.color.into();
             let color: graphics::Color = u8_color.into();
-            //println!("{:?}", color);
 
             let object = object.data;
 
@@ -160,44 +159,51 @@ impl event::EventHandler for MainState {
                 map_objects.push((Point2 {x: rect.x, y: rect.y}, object.w as u8, object.h as u8, color.into()));
             }
         }
-        
+
         for projectile in &self.projectiles {
             if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
 
                 let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
-                
+
 
                 let size = projectile.w as u16;
                 let vec_size = ((size as usize) *  (size as usize)) * 4;
-            
+
                 self.rect_spritebatch.entry((projectile.w as u8, projectile.h as u8, (255, 255, 255, 255))).or_insert_with(|| SpriteBatch::new(
                     Image::from_rgba8(
                         ctx,
                         size,
                         size,
                         &vec![255; vec_size],
-                    ).unwrap()) 
+                    ).unwrap())
                 );
-            
+
                 projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8, (255, 255, 255, 255)));
-                    
+
             }
         }
-        
-        for (pos, size, color) in projectiles.iter() {
-            self.rect_spritebatch.get_mut(&(*size, *size, *color)).unwrap().add(DrawParam::default().dest(*pos));
-            
-        }
-        
+
         for (pos, w, h, color) in map_objects.iter() {
             self.rect_spritebatch.get_mut(&(*w, *h, *color)).unwrap().add(DrawParam::default().dest(*pos));
             
         }
+
                 
         for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
             graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
             spritebatch.clear();
             
+        }
+
+        for (pos, size, color) in projectiles.iter() {
+            self.rect_spritebatch.get_mut(&(*size, *size, *color)).unwrap().add(DrawParam::default().dest(*pos));
+
+        }
+
+        for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
+            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+            spritebatch.clear();
+
         }
 
         // The players should be drawn over all other objects
@@ -317,6 +323,20 @@ pub fn main() -> ggez::GameResult {
     });
     
     let (ctx, event_loop) = cb.build()?;
+
+    let map_json = {
+        let compressed_data = Asset::get("map1.custom").unwrap();
+        /*println!("{:?}", compressed_data);
+
+        let compressed_data= String::from_utf8((&*compressed_data).to_vec()).unwrap();
+
+        let decompressed_data = &decompress_from_base64(&compressed_data).unwrap();
+
+        String::from_utf16(decompressed_data).unwrap()*/
+        compressed_data
+
+    };
+
     
     let state = MainState::new(0,
         /*Map::new(vec![
@@ -324,7 +344,9 @@ pub fn main() -> ggez::GameResult {
                 Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
             )], Some([10_000.0, 10_000.0])
         )*/
-        Map::from_json_str(std::str::from_utf8(&Asset::get( "map1.custom").unwrap()).unwrap().to_string())
+
+
+        Map::from_json_str(&map_json)
     );
     event::run(ctx, event_loop, state)
     

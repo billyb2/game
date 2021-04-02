@@ -10,7 +10,7 @@ var customMapFormat = {
 
 
         var rows = [];
-        for (i = map.layerCount - 1; i > 0; i--) {
+        for (i = map.layerCount  - 1; i >= 0; i--) {
             var layer = map.layerAt(i);
 
             if (layer.isTileLayer) {
@@ -45,6 +45,7 @@ var customMapFormat = {
 
 
         var file = new TextFile(fileName, TextFile.WriteOnly);
+
         file.write(JSON.stringify(m));
         file.commit();
     },

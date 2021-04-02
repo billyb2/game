@@ -447,7 +447,7 @@ impl Player {
         if self.health > 0 && self.ability_charge >= self.min_ability_charge{
             if self.ability == 0  {
 
-                let teleport_distance = 250.0;
+                let teleport_distance = 150.0;
 
                 //I know this is ugly, it just lets a player move if it's movement wouldn't put it out of bounds
                 match self.direction {

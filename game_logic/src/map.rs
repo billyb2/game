@@ -73,8 +73,8 @@ impl Map {
         collided
     }
 
-    pub fn from_json_str(string: String) -> Map {
-        let map: Map = serde_json::from_str(&string).unwrap();
+    pub fn from_json_str(string: &[u8]) -> Map {
+        let map: Map = serde_json::from_slice(&string).unwrap();
         map
 
     }

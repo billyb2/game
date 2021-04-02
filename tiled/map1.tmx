@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.5.0" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="5" tileheight="5" infinite="0" nextlayerid="4" nextobjectid="1">
+<map version="1.5" tiledversion="1.5.0" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="5" tileheight="5" infinite="0" nextlayerid="5" nextobjectid="1">
  <editorsettings>
   <export target="map1.custom" format="custom"/>
  </editorsettings>
  <tileset firstgid="1" source="player.tsx"/>
  <tileset firstgid="2" source="map_objects.tsx"/>
  <tileset firstgid="5" source="floor.tsx"/>
- <layer id="3" name="Floor" width="100" height="100">
-  <data encoding="base64" compression="zstd">
-   KLUv/WBAm2UAACAFAAAAAQA5nHVHBA==
-  </data>
- </layer>
  <layer id="1" name="Objects" width="100" height="100">
   <data encoding="base64" compression="zstd">
-   KLUv/WBAmx0DAIAAAgAAAAMAAAAEAAICAgEAH6Cwa89wghRN1HFZOezdnmd05ugXt7jqSyi3pj2mZu5GIuyx+piF3qxHalvGREQ9UnvlM1BLTp0FJwWldp8HId8DouBVVyb3Nbk6xJ1KeFKtFg==
+   KLUv/WBAm1UfAAKICYQQQSC1LMuyLMu2XdGo2lYla8XEFl93SrObwRwnWTRoABAACAAYgh2oUvb9DMIKeCIETecDEkARJCCChEjQYAQJQ5AwBAlDYBFUBBABRKGgqPCoA/kYNwcsOl0gAnlmolEH9nbS3a6K3O1jZr29o3wWDp7KkiMhzrzv7evzNHCgg5tTQU8z7G0a5zNw8NSWHAFx5n1vX5+ngQMd3Zwa9Jxhb5Mxn42Dp7DEiIgz73v7+jjdMNCSu6B41nv7dPE4MMCKvYHxnPfm8HH7MOgl931OXuPqfUJ+3TwMOsgHuOiDGuFwn7pKHREG5uaZH/QBMfZkn44yD5cDu+c0P2YeyVu/7PMk83c4sBsnDiGPomUmnL95YAeW4ozhoHrhvPOZcAN2wo/DNvNdw9nJG+KmevbwiLdmc4czycu1CQ+PXs1BF85ML91Ti/uTTg/czMoPZ+xdml8F/CovPDxudqWGM9fr1iwqe+S32x9ZVjiduWBnG9HjjN/cjNzhlOpzsXAKMKxJf/+s4ezdrS+IsuZxP5y3Q/UFvawp2A7n5TB9QZE1wpvhHGp9AeIDlVOOKPyNUTE55/Be4POdTdLt/DTZ5DO18P0jQWL+KYOrEhoiNkeRJm2fKv76MTqZseXdJp2eVX81m2P1LGBxn0zy1vqvyULPn+1UvbTRHiepPqj/D2yhPOHCi5c+T9p2IRMLw5t8y7IFpBOuSkh0/qgvL67cjwJGf/wVG4x3feUnu64h2chavimSRZXMf6lehemBqNwzk4r+mwE/U23bEDkj32FlUpuf5sDYIfyHmUk31HGvDeM2cBARHBFkM8zdEpNH34kf27Kge/mypMEhvDoHRcRt0Xu4LEhMvnoRP37RC9at8o9qSF22CI9zY7LotxpEP+N+dzqRmTYyqap/8rCR53Is/aycYiuTl7yw84ywWVs3YJSnDc/9zUxC9AaZD3IMmO3LCfft7Uy+ei8WIrpmPVzzg1gy1VjvdPZWzSA3O3n+q/qPRnDwp1wWue5jGFo3LYCi5/DYOOANU0CHxYZedyaP/+yeOf1C8gMLYVNyFvSZoel0XFw8D2DMTObtZjLf4h65gVlYrxpITG5zJJ3N3IAdJc8wBl8iYGFSin/+ZCUHjVSeKf3tnv0mnXQgMLnNgXQnu5vfp++zpuhIBvLkFxXdpu/2StbMBy+hG4mqk4L+sd/v6Mj6cs7+m/MfE0JxzyfDaUuT1DzZLdfZKEbKt/mkn/OD7QSwDCEb6J13IYM2zyTfT2W++GPbk6x+iOYXG5bjyMveH5zVvldzRw+cY+Ej7U/VPsG/Lh8wnmahOe5e2gWnGanX/zFaAQ==
+  </data>
+ </layer>
+ <layer id="4" name="Spawn" width="100" height="100">
+  <data encoding="base64" compression="zstd">
+   KLUv/WBAm50AABgAAQAEALkq7NAhSGBAQoAI79g=
   </data>
  </layer>
 </map>
