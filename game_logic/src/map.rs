@@ -1,6 +1,7 @@
 use crate::collision;
 use crate::objects::{Rect, Color};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 
 //TODO: Probably should turn Map and MapObjects into traits, but since the game's geometry is so simple at the moment it really doesn't matter.
 
@@ -73,9 +74,55 @@ impl Map {
         collided
     }
 
-    pub fn from_json_str(string: &[u8]) -> Map {
-        let map: Map = serde_json::from_slice(&string).unwrap();
+    pub fn from_json_bin(bytes: &[u8]) -> Map {
+        let map: Map = serde_json::from_slice(&bytes).unwrap();
         map
+
+    }
+
+    pub fn from_json_string(string: String) -> Map {
+        let map: Map = serde_json::from_str(&string).unwrap();
+        map
+
+    }
+
+    pub fn from_bin(bytes: &[u8]) -> Map {
+        let width = slice_to_u32(&bytes[0..=3]);
+        let height = slice_to_u32(&bytes[4..=7]);
+
+        let mut objects: Vec<MapObject> = Vec::new();
+
+        let mut i = 8;
+
+        while i < bytes.len() - 22 {
+            objects.push(
+                MapObject {
+                    data: Rect {
+                        x: (slice_to_u32(&bytes[i..=(i + 3)])) as f32,
+                        y: (slice_to_u32(&bytes[(i + 4)..=(i + 7)])) as f32,
+                        w: (slice_to_u32(&bytes[(i + 8)..=(i + 11)])) as f32,
+                        h: (slice_to_u32(&bytes[(i + 12)..=(i + 15)])) as f32,
+                    },
+                    player_spawn: match bytes[(i + 16)] {
+                        0 => false,
+                        _ => true,
+                    },
+                    player_collidable: match bytes[(i + 17)] {
+                        0 => false,
+                        _ => true,
+                    },
+                    color: Color::from_rgba(bytes[i + 18], bytes[i + 19], bytes[i + 20], bytes[i + 21]),
+                    health: match bytes[i + 22] {
+                        0 => None,
+                        _ => Some(bytes[i + 22] as u16),
+                    },
+                }
+            );
+
+            i += 23;
+        }
+
+        Map::new(objects, Some([width as f32, height as f32]))
 
     }
 }
@@ -126,4 +173,12 @@ impl MapObject {
         }
         
     }
+}
+
+fn slice_to_u32(data: &[u8]) -> u32 {
+    debug_assert!(data.len() == 4);
+
+    let data_array: [u8; 4] = data.try_into().unwrap();
+
+    u32::from_be_bytes(data_array)
 }

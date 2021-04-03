@@ -60,7 +60,7 @@ impl MainState {
             let mut rng = thread_rng();
 
             for (i, player) in players.iter_mut().enumerate() {
-                if possible_player_spawns.len() != 0 {
+                if !possible_player_spawns.is_empty(){
                     let spawn_index: usize = rng.gen_range(0..possible_player_spawns.len());
                     let (spawn_x, spawn_y) = possible_player_spawns[spawn_index];
 
@@ -324,29 +324,11 @@ pub fn main() -> ggez::GameResult {
     
     let (ctx, event_loop) = cb.build()?;
 
-    let map_json = {
-        let compressed_data = Asset::get("map1.custom").unwrap();
-        /*println!("{:?}", compressed_data);
-
-        let compressed_data= String::from_utf8((&*compressed_data).to_vec()).unwrap();
-
-        let decompressed_data = &decompress_from_base64(&compressed_data).unwrap();
-
-        String::from_utf16(decompressed_data).unwrap()*/
-        compressed_data
-
-    };
+    let map_bytes = Asset::get("map1.custom").unwrap();
 
     
     let state = MainState::new(0,
-        /*Map::new(vec![
-            MapObject::new(
-                Rect::new(0.0, 0.0, 200.0, 100.0), (255, 0, 0).into(), None
-            )], Some([10_000.0, 10_000.0])
-        )*/
-
-
-        Map::from_json_str(&map_json)
+        Map::from_bin(&map_bytes)
     );
     event::run(ctx, event_loop, state)
     
