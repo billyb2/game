@@ -1,5 +1,5 @@
 use crate::map::{Map, MapObject};
-use rand::{Rng, thread_rng};
+use getrandom::getrandom;
 use std::time::{SystemTime, UNIX_EPOCH};
 pub struct Projectile {
     pub x: f32,
@@ -161,13 +161,26 @@ impl Gun {
                 self.ammo_in_mag -= 1;
 
             } else if self.model == 1 && current_time() >= self.time_since_last_shot + 1500 {
-                let mut rng = thread_rng();
-                let recoil_range: f32 = 0.2;
+                let recoil_range = 0.2;
+
+                let mut random_bytes: [u8; 12] = [0; 12];
+                let mut negative_rnd: [u8; 12] = [0; 12];
+                getrandom(&mut random_bytes).unwrap();
+                getrandom(&mut negative_rnd).unwrap();
 
                 self.time_since_last_shot = current_time();
 
                 let mut shoot_several_bullets = |mut num_of_bullets: u8| {
                     while num_of_bullets > 0 {
+                        let recoil: f32 =
+                        if negative_rnd[num_of_bullets as usize - 1] <= 128 {
+                            (random_bytes[num_of_bullets as usize - 1] as f32 / 255.0) * recoil_range
+
+                        } else {
+                            -(random_bytes[num_of_bullets as usize - 1] as f32 / 255.0) * recoil_range
+
+                        };
+
                         num_of_bullets -= 1;
 
                         projectiles.push(
@@ -185,7 +198,7 @@ impl Gun {
                                 w: 5.0,
                                 h: 5.0,
                                 right,
-                                angle: angle + rng.gen_range(-recoil_range..recoil_range),
+                                angle: angle + recoil,
                                 speed: match ability {
                                     3 => 13.75,
                                     _ => 11.0,
@@ -400,7 +413,10 @@ pub struct Player {
 
 impl Player {
     pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8, player_id: u8, online: bool, x: f32, y: f32) -> Player {
-        let mut rng = thread_rng();
+        let mut random_color: [u8; 3] = [255; 3];
+
+        getrandom(&mut random_color).unwrap();
+
 
         Player {
             x,
@@ -409,7 +425,7 @@ impl Player {
             color:match color {
                 Some(color) => color,
                 //Random color
-                None => Color::from_rgba(rng.gen_range(100..255), rng.gen_range(100..255), rng.gen_range(100..255), 255),
+                None => Color::from_rgba(random_color[0], random_color[1], random_color[2], 255),
             },
             ability,
             ability_charge: match ability {
