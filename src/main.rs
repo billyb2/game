@@ -1,6 +1,6 @@
 use ggez::{event,graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
-use ggez::graphics::{DrawParam, Image, Text, screen_coordinates};
+use ggez::graphics::{DrawParam, Image, Text, TextFragment, screen_coordinates};
 use ggez::graphics::spritebatch::SpriteBatch;
 use ggez::input::mouse;
 use ggez::input::keyboard::{KeyCode, is_key_pressed};
@@ -82,7 +82,7 @@ impl MainState {
         };
 
         MainState {
-            view: 1,
+            view: 0,
             players,
             projectiles: Vec::new(),
             map,
@@ -96,6 +96,16 @@ impl MainState {
 
     fn update_start_screen(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         while check_update_time(ctx, 60) {
+            let (_, mouse_click, mouse_coords) = check_user_input(ctx);
+            let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
+
+            // If the user is left clicking and their coords are within the play button bounds
+            if mouse_click[0] && mouse_coords.x >= screen_coords.w / 2.0&& mouse_coords.x < screen_coords.w / 2.0 + 80.0 && mouse_coords.y >= screen_coords.h / 3.0 + 15.0&& mouse_coords.y <= screen_coords.h / 3.0 + 45.0  {
+                self.view = 1;
+
+            }
+
+
 
         }
         Ok(())
@@ -109,7 +119,7 @@ impl MainState {
 
 
         let mut buttons = Vec::new();
-        let button = graphics::Rect::new(20.0, 20.0, 20.0, 20.0);
+        let button = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 3.0, 75.0, 25.0);
         let color = graphics::Color::from_rgb(255, 255, 255);
         let vec_size = ((button.w as usize) *  (button.h as usize)) * 4;
 
@@ -140,7 +150,7 @@ impl MainState {
 
         graphics::draw(ctx, &title, DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 50.0, y : screen_coords.h / 4.0 })).unwrap();
 
-        graphics::draw(ctx, &Text::new("Play"), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 25.0, y : screen_coords.h / 3.0 })).unwrap();
+        graphics::draw(ctx, &Text::new(TextFragment::new("Play").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 25.0, y : screen_coords.h / 3.0 })).unwrap();
 
         graphics::present(ctx)?;
         Ok(())
