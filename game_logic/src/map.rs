@@ -90,14 +90,8 @@ impl Map {
                         w: (slice_to_u32(&bytes[(i + 8)..=(i + 11)])) as f32,
                         h: (slice_to_u32(&bytes[(i + 12)..=(i + 15)])) as f32,
                     },
-                    player_spawn: match bytes[(i + 16)] {
-                        0 => false,
-                        _ => true,
-                    },
-                    player_collidable: match bytes[(i + 17)] {
-                        0 => false,
-                        _ => true,
-                    },
+                    player_spawn: !matches!(bytes[(i + 16)], 0),
+                    player_collidable: !matches!(bytes[(i + 17)], 0),
                     color: Color::from_rgba(bytes[i + 18], bytes[i + 19], bytes[i + 20], bytes[i + 21]),
                     health: match bytes[i + 22] {
                         0 => None,

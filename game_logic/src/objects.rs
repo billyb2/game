@@ -412,15 +412,15 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8, player_id: u8, online: bool, x: f32, y: f32) -> Player {
+    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8, player_id: u8, online: bool, coords: [f32; 2]) -> Player {
         let mut random_color: [u8; 3] = [255; 3];
 
         getrandom(&mut random_color).unwrap();
 
 
         Player {
-            x,
-            y,
+            x: coords[0],
+            y: coords[1],
             direction: 0,
             color:match color {
                 Some(color) => color,
@@ -468,24 +468,28 @@ impl Player {
                     1 => {
                         if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y - teleport_distance, 15.0, 15.0), 0) {
                             self.y -= teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
                     2 => {
                         if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y + teleport_distance, 15.0, 15.0), 0){
                             self.y += teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
                     3=> {
                         if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y, 15.0, 15.0), 0){
                             self.x += teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
                     4 => {
                         if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y, 15.0, 15.0), 0){
                             self.x -= teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
@@ -493,6 +497,7 @@ impl Player {
                         if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0), 0){
                             self.x += teleport_distance;
                             self.y -= teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
@@ -500,6 +505,7 @@ impl Player {
                         if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0), 0) {
                             self.x -= teleport_distance;
                             self.y -= teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
@@ -507,6 +513,7 @@ impl Player {
                         if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0), 0) {
                             self.x += teleport_distance;
                             self.y += teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
@@ -514,13 +521,13 @@ impl Player {
                         if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0), 0) {
                             self.x -= teleport_distance;
                             self.y += teleport_distance;
+                            self.ability_charge -= 150;
 
                         }
                     },
                     _ => {},
                 }
 
-                self.ability_charge -= 150;
 
             } else if self.ability == 1  {
                 self.speed = 20.0;

@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use ggez::{event,graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
 use ggez::graphics::{DrawParam, Image, Text, TextFragment, screen_coordinates};
@@ -26,11 +28,12 @@ struct Asset;
 
 struct MainState {
     //0 the start screen
+    //1 is the game
+    //2 is the settings
     view: u8,
     players: [Player; 20],
     projectiles: Vec<Projectile>,
     map: Map,
-    game_mode: u8,
     origin: Point2<f32>,
     zoom: f32,    
     rect_spritebatch: HashMap<(u8, u8, (u8, u8, u8, u8)), SpriteBatch>,
@@ -38,7 +41,7 @@ struct MainState {
 }
 
 impl MainState {
-    fn new(game_mode: u8, map: Map) -> MainState {
+    fn new(map: Map) -> MainState {
         let mut possible_player_spawns: Vec<(f32, f32)> =
         {
             let mut possible_player_spawns: Vec<(f32, f32)> = Vec::new();
@@ -57,7 +60,7 @@ impl MainState {
 
         // Preallocate memory for the maximum of 20 players
         let players: [Player; 20] ={
-            let mut players: [Player; 20] = [Player::new(None, 0, 0, 0, 0, false, 0.0, 0.0); 20];
+            let mut players: [Player; 20] = [Player::new(None, 0, 0, 0, 0, false, [0.0, 0.0]); 20];
             
             let mut rng = thread_rng();
 
@@ -66,7 +69,7 @@ impl MainState {
                     let spawn_index: usize = rng.gen_range(0..possible_player_spawns.len());
                     let (spawn_x, spawn_y) = possible_player_spawns[spawn_index];
 
-                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap(), true, spawn_x, spawn_y);
+                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap(), true, [spawn_x, spawn_y]);
                     possible_player_spawns.remove(spawn_index);
 
                 } else {
@@ -86,7 +89,6 @@ impl MainState {
             players,
             projectiles: Vec::new(),
             map,
-            game_mode,
             origin: Point2 {x: 596.0, y: 342.0},
             zoom: 1.0,
             rect_spritebatch: HashMap::new(),
@@ -94,7 +96,7 @@ impl MainState {
         }
     }
 
-    fn update_start_screen(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+    fn update_start_screen(&mut self, ctx: &mut ggez::Context) {
         while check_update_time(ctx, 60) {
             let (_, mouse_click, mouse_coords) = check_user_input(ctx);
             let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
@@ -104,14 +106,10 @@ impl MainState {
                 self.view = 1;
 
             }
-
-
-
         }
-        Ok(())
     }
 
-    fn draw_start_screen(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+    fn draw_start_screen(&mut self, ctx: &mut ggez::Context) {
         graphics::clear(ctx, (0, 0, 0).into());
         let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
 
@@ -120,20 +118,24 @@ impl MainState {
 
         let mut buttons = Vec::new();
         let button = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 3.0, 75.0, 25.0);
+        let button2 = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 2.0, 75.0, 25.0);
+
         let color = graphics::Color::from_rgb(255, 255, 255);
-        let vec_size = ((button.w as usize) *  (button.h as usize)) * 4;
+        let vec_size = (button.w as usize) *  (button.h as usize) * 4;
 
         self.rect_spritebatch.entry((button.w as u8, button.h as u8, color.into())).or_insert_with(|| SpriteBatch::new(
             Image::from_rgba8(
                 ctx,
                 button.w as u16,
                 button.h as u16,
-                &generate_image_from_rgba8(color.into(), vec_size),
+                &generate_image_from_rgba8(color, vec_size),
             ).unwrap())
         );
 
 
         buttons.push((Point2 {x: button.x, y: button.y}, button.w as u8, button.h as u8, color.into()));
+
+        buttons.push((Point2 {x: button2.x, y: button2.y}, button2.w as u8, button2.h as u8, color.into()));
 
 
         for (pos, w, h, color) in buttons.iter() {
@@ -143,7 +145,7 @@ impl MainState {
 
 
         for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
-            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
             spritebatch.clear();
 
         }
@@ -152,11 +154,13 @@ impl MainState {
 
         graphics::draw(ctx, &Text::new(TextFragment::new("Play").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 25.0, y : screen_coords.h / 3.0 })).unwrap();
 
-        graphics::present(ctx)?;
-        Ok(())
+        graphics::draw(ctx, &Text::new(TextFragment::new("Settings").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 15.0, y : screen_coords.h / 2.0 })).unwrap();
+
+
+        graphics::present(ctx).unwrap();
     }
 
-    fn update_game(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+    fn update_game(&mut self, ctx: &mut ggez::Context) {
         // Please see https://docs.rs/ggez/0.5.1/ggez/timer/fn.check_update_time.html for why I'm doing updates like this
         // Basically, the game will run 60 frames every second on average
         while check_update_time(ctx, 60) {
@@ -185,10 +189,9 @@ impl MainState {
 
         }
 
-        Ok(())
     }
 
-    fn draw_game(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+    fn draw_game(&mut self, ctx: &mut ggez::Context){
         graphics::clear(ctx, (0, 0, 0).into());
 
         let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
@@ -251,7 +254,7 @@ impl MainState {
 
 
         for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
-            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
             spritebatch.clear();
 
         }
@@ -262,7 +265,7 @@ impl MainState {
         }
 
         for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
-            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
             spritebatch.clear();
 
         }
@@ -285,9 +288,9 @@ impl MainState {
                         graphics::DrawMode::fill(),
                         rect,
                         color.into(),
-                    )?;
+                    ).unwrap();
 
-                    graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) )?;
+                    graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
 
                 }
 
@@ -335,8 +338,21 @@ impl MainState {
             text_x_offset -= 250.0;
         }
 
-        graphics::present(ctx)?;
-        Ok(())
+        graphics::present(ctx).unwrap();
+    }
+
+    fn update_settings(&mut self, ctx: &mut ggez::Context) {
+        while check_update_time(ctx, 60) {
+
+        }
+    }
+
+    fn draw_settings(&mut self, ctx: &mut ggez::Context) {
+        graphics::clear(ctx, (0, 0, 0).into());
+
+
+
+        graphics::present(ctx).unwrap();
     }
 }
 
@@ -344,16 +360,24 @@ impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         match self.view {
             0 => MainState::draw_start_screen(self, ctx),
+            1 => MainState::draw_game(self, ctx),
+            2 => MainState::draw_settings(self, ctx),
             _ => MainState::draw_game(self, ctx),
-        }
+        };
+
+        Ok(())
 
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         match self.view {
             0 => MainState::update_start_screen(self, ctx),
-            _ => MainState::update_game(self, ctx),
-        }
+            1 => MainState::update_game(self, ctx),
+            2 => MainState::update_settings(self, ctx),
+            _ => MainState::update_game(self, ctx)
+        };
+
+        Ok(())
     }
 }
 
@@ -405,9 +429,7 @@ pub fn main() -> ggez::GameResult {
     let map_bytes = Asset::get("map1.custom").unwrap();
 
     
-    let state = MainState::new(0,
-        Map::from_bin(&map_bytes)
-    );
+    let state = MainState::new(Map::from_bin(&map_bytes));
     event::run(ctx, event_loop, state)
     
 }
