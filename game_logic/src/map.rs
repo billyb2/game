@@ -1,11 +1,10 @@
 use crate::collision;
 use crate::objects::{Rect, Color};
-use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 
 //TODO: Probably should turn Map and MapObjects into traits, but since the game's geometry is so simple at the moment it really doesn't matter.
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 pub struct Map {
     pub objects: Vec<MapObject>,
     
@@ -74,18 +73,6 @@ impl Map {
         collided
     }
 
-    pub fn from_json_bin(bytes: &[u8]) -> Map {
-        let map: Map = serde_json::from_slice(&bytes).unwrap();
-        map
-
-    }
-
-    pub fn from_json_string(string: String) -> Map {
-        let map: Map = serde_json::from_str(&string).unwrap();
-        map
-
-    }
-
     pub fn from_bin(bytes: &[u8]) -> Map {
         let width = slice_to_u32(&bytes[0..=3]);
         let height = slice_to_u32(&bytes[4..=7]);
@@ -127,7 +114,7 @@ impl Map {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 pub struct MapObject {
     // It's x, y, width, and height
     pub data: Rect,

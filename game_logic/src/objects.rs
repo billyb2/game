@@ -1,8 +1,6 @@
 use crate::map::{Map, MapObject};
 use rand::{Rng, thread_rng};
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde::{Deserialize, Serialize};
-
 pub struct Projectile {
     pub x: f32,
     pub y: f32,
@@ -586,7 +584,7 @@ pub fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_hei
 }
 
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
@@ -617,7 +615,7 @@ pub struct Point2 {
 }
 
 
-#[derive(Copy, Clone, PartialEq, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Color {
     /// Red component
     pub r: f32,

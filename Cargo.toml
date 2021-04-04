@@ -19,5 +19,5 @@ panic = "abort"
 # Grabbing the the latest 0.6 release canidate, since 0.6 isn't fully released yet
 ggez = "0.6.0-rc"
 rand = "0.8"
-rust-embed= {version = "5", features=["debug-embed"] }
+rust-embed= { version = "5" }
 game_logic = { path = "game_logic" }
