@@ -66,7 +66,7 @@ impl MainState {
                     let spawn_index: usize = rng.gen_range(0..possible_player_spawns.len());
                     let (spawn_x, spawn_y) = possible_player_spawns[spawn_index];
 
-                    *player = Player::new(None, 0, 100, 1, i.try_into().unwrap(), true, spawn_x, spawn_y);
+                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap(), true, spawn_x, spawn_y);
                     possible_player_spawns.remove(spawn_index);
 
                 } else {
@@ -100,7 +100,7 @@ impl MainState {
             let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
 
             // If the user is left clicking and their coords are within the play button bounds
-            if mouse_click[0] && mouse_coords.x >= screen_coords.w / 2.0&& mouse_coords.x < screen_coords.w / 2.0 + 80.0 && mouse_coords.y >= screen_coords.h / 3.0 + 15.0&& mouse_coords.y <= screen_coords.h / 3.0 + 45.0  {
+            if mouse_click[0] && mouse_coords.x >= screen_coords.w / 2.0 - 45.0 && mouse_coords.x <= screen_coords.w / 2.0 + 30.0 && mouse_coords.y >= screen_coords.h / 3.0 && mouse_coords.y <= screen_coords.h / 3.0 + 25.0  {
                 self.view = 1;
 
             }
@@ -161,11 +161,9 @@ impl MainState {
         // Basically, the game will run 60 frames every second on average
         while check_update_time(ctx, 60) {
             let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
-            let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
+            let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
 
             self.players = tick(self.players, &mut self.projectiles, &mut self.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords);
-
-            let screen_coords = screen_coordinates(ctx);
 
             self.origin.x = self.players[0].x - screen_coords.w / 2.0;
             self.origin.y = self.players[0].y - screen_coords.h / 2.0;
@@ -193,7 +191,7 @@ impl MainState {
     fn draw_game(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, (0, 0, 0).into());
 
-        let screen_coords = screen_coordinates(&ctx);
+        let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
 
         let mut map_objects: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))> = Vec::new();
         let mut projectiles: Vec<(Point2<f32>, u8, (u8, u8, u8, u8))> = Vec::new();
@@ -442,9 +440,13 @@ fn generate_image_from_rgba8(color: graphics::Color, image_size: usize) -> Vec<u
 }
 
 fn check_user_input(ctx: &ggez::Context) -> (Vec<char>, [bool; 3], objects::Point2) {
+    let screen_rect = graphics::screen_coordinates(ctx);
+    let size = graphics::window(ctx).inner_size();
+
     let mut keys_pressed: Vec<char> = Vec::new();
     let mut mouse_pressed: [bool; 3] = [false; 3];
-    let mouse_coords = objects::Point2 { x: mouse::position(ctx).x, y: mouse::position(ctx).y };
+
+    let mouse_coords = objects::Point2 { x: (mouse::position(ctx).x / (size.width as f32)) * screen_rect.w + screen_rect.x, y:  (mouse::position(ctx).y / (size.height as f32)) * screen_rect.h + screen_rect.y };
 
     if is_key_pressed(ctx, KeyCode::W) {
         keys_pressed.push('w');
