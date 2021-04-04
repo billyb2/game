@@ -8,7 +8,7 @@
  <tileset firstgid="5" source="floor.tsx"/>
  <layer id="1" name="Objects" width="100" height="100">
   <data encoding="base64" compression="zstd">
-   KLUv/WBAmz0EAKgFAAAAAgUDBQICAwUFAwICBQMABQUtoEC9BvACTZNWiwF9YxIeeKGm5oXKGH9lp12VczUjXZls/oaP9kieQOnKzM2pR6lsw6Um8/9OsA8yVTLFWCh9neSLKGr+j8KIitT9IdCtSpw2q0Z0pf1+80jYNJ4CmyKpFHb8jTqpF4uyGUrR2HKaUw==
+   KLUv/WBAm40DAJAFAAAAAgUDBQICAwMCAgUDAwUmoEC9BhCDTJJaA31jEh74o6bmFdWb+YboyuT2N3zUIzGNp+HTCCwxv18n3AOZKp3CGKi+TvJFBDX/R2FMacp9kF2hfp9ZBHwaS4FPkSiFnb9RJ/diUzRDKRtbTlkK
   </data>
  </layer>
  <layer id="4" name="Spawn" width="100" height="100">
