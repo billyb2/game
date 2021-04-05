@@ -1,5 +1,6 @@
 use crate::collision;
 use crate::objects::{Rect, Color};
+use crc32fast::Hasher;
 use std::convert::TryInto;
 
 //TODO: Probably should turn Map and MapObjects into traits, but since the game's geometry is so simple at the moment it really doesn't matter.
@@ -80,6 +81,8 @@ impl Map {
         let mut objects: Vec<MapObject> = Vec::new();
 
         let mut i = 8;
+        let mut crc32: u32 = 0;
+        let mut data_end_index = 0;
 
         while i < bytes.len() - 22 {
             objects.push(
@@ -100,8 +103,39 @@ impl Map {
                 }
             );
 
+            // Look for an entirely null map object, indicating the end of the data and the beginning of the CRC32
+            if bytes[(i + 22)..=(i + 43)] == [0; 22] {
+
+                crc32 = slice_to_u32(&bytes[(i + 44)..=(i + 47)]);
+                data_end_index = i + 43;
+                break;
+
+            }
+
             i += 23;
         }
+
+        if data_end_index == 0 {
+            panic!("No CRC32 found, please check your map file");
+
+        }
+
+        let mut hasher = Hasher::new();
+        hasher.update(&bytes[0..=data_end_index]);
+
+        let checksum: u32 = hasher.finalize();
+
+        if checksum == crc32 {
+            println!("Verified map checksum!");
+
+        } else {
+            panic!("The map file is corrupted! (Checksums don't match)");
+
+
+        }
+
+
+
 
         Map::new(objects, Some([width as f32, height as f32]))
 

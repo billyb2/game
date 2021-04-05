@@ -102,12 +102,19 @@ impl MainState {
             let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
 
             // If the user is left clicking and their coords are within the play button bounds
-            if mouse_click[0] && mouse_coords.x >= screen_coords.w / 2.0 - 45.0 && mouse_coords.x <= screen_coords.w / 2.0 + 30.0 && mouse_coords.y >= screen_coords.h / 3.0 && mouse_coords.y <= screen_coords.h / 3.0 + 25.0  {
+            if mouse_click[0] && mouse_coords.x >= screen_coords.w / 2.0 - 45.0 && mouse_coords.x <= screen_coords.w / 2.0 + 30.0 {
+
+                if mouse_coords.y >= screen_coords.h / 3.0 && mouse_coords.y <= screen_coords.h / 3.0 + 25.0  {
                 self.view = 1;
 
+                } else if mouse_coords.y >= screen_coords.h / 2.5 && mouse_coords.y <= screen_coords.h / 2.5 + 25.0 {
+                    self.view = 2;
+
+                }
             }
         }
     }
+
 
     fn draw_start_screen(&mut self, ctx: &mut ggez::Context) {
         graphics::clear(ctx, (0, 0, 0).into());
@@ -118,7 +125,7 @@ impl MainState {
 
         let mut buttons = Vec::new();
         let button = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 3.0, 75.0, 25.0);
-        let button2 = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 2.0, 75.0, 25.0);
+        let button2 = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 2.5, 75.0, 25.0);
 
         let color = graphics::Color::from_rgb(255, 255, 255);
         let vec_size = (button.w as usize) *  (button.h as usize) * 4;
@@ -154,7 +161,7 @@ impl MainState {
 
         graphics::draw(ctx, &Text::new(TextFragment::new("Play").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 25.0, y : screen_coords.h / 3.0 })).unwrap();
 
-        graphics::draw(ctx, &Text::new(TextFragment::new("Settings").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 15.0, y : screen_coords.h / 2.0 })).unwrap();
+        graphics::draw(ctx, &Text::new(TextFragment::new("Settings").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 40.0, y : screen_coords.h / 2.5 })).unwrap();
 
 
         graphics::present(ctx).unwrap();

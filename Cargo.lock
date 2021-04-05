@@ -756,6 +756,7 @@ dependencies = [
 name = "game_logic"
 version = "0.1.0"
 dependencies = [
+ "crc32fast",
  "getrandom 0.2.2",
 ]
 

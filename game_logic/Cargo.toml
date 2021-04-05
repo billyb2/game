@@ -5,9 +5,11 @@ authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgasto
 edition = "2018"
 
 [profile.dev]
+debug = 0
 opt-level = 1
 
 [profile.release]
+debug = 0
 lto = "fat"
 codegen-units = 1
 panic = "abort"
@@ -16,3 +18,4 @@ panic = "abort"
 # Unlinke the rand crate, get_ranodm supports every target under the sun, inclulding WASM and iOS which rand doesn't supports
 # All targets: https://docs.rs/getrandom/0.2.2/getrandom/
 getrandom = { version = "0.2", features = ["js"] }
+crc32fast = "1"

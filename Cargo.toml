@@ -8,9 +8,12 @@ edition = "2018"
 
 # Check out https://docs.rs/ggez/0.6.0-rc1/ggez/graphics/spritebatch/struct.SpriteBatch.html for more info
 [profile.dev]
+# Since neither me or Luke uses a debugger, turning off debug info should speed up compile times
+debug = 0
 opt-level = 1
 
 [profile.release]
+debug = 0
 lto = "fat"
 codegen-units = 1
 panic = "abort"
