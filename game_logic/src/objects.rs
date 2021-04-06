@@ -1,6 +1,18 @@
+#![allow(clippy::upper_case_acronyms)]
+// Rust compiler complains about snake case, Clippy complains about non snake case :(
+#![allow(non_snake_case)]
+
 use crate::map::{Map, MapObject};
 use getrandom::getrandom;
+
 use std::time::{SystemTime, UNIX_EPOCH};
+
+#[derive(PartialEq)]
+pub enum ProjectileType {
+    Regular,
+    Speedball,
+}
+
 pub struct Projectile {
     pub x: f32,
     pub y: f32,
@@ -10,24 +22,25 @@ pub struct Projectile {
     pub angle: f32,
     pub speed: f32,
     pub damage: u8,
-    // 0 is just a regular bullet
-    // 1 is a bullet that speeds up over time
     pub fired_from: u8, // Fixes a game-breaking bug where the bots get killed by their own bullets
-    pub projectile_type: u8,
+    pub projectile_type: ProjectileType,
     pub distance_traveled: f32,
     pub max_distance: f32,
 
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum Model {
+    Pistol,
+    Shotgun,
+    Speedball,
+    BurstRifle,
+    AssaultRifle,
+}
+
 #[derive(Copy, Clone)]
 pub struct Gun {
-    // Once again, storing the gun model as an int since it makes it fast and easy to deal with
-    // 0 is the pistol
-    // 1 is the shotgun
-    // 2 is the speedball
-    // 3 is the burst rifle
-    // 4 is the assault rifle
-    pub model: u8,
+    pub model: Model,
     // This time is stored so that the bullets per second of guns can be limited dynamically
     pub time_since_last_shot: u128,
     pub time_since_start_reload: u128,
@@ -46,7 +59,7 @@ pub struct Gun {
 }
 
 impl Gun {
-    pub fn new(model: u8, ability: u8, player_fired_from: u8) -> Gun {
+    pub fn new(model: Model, ability: Ability, player_fired_from: u8) -> Gun {
         let mut gun = Gun {
             model,
             // The time since the last shot is set as 0 so that you can start shooting as the start of the game
@@ -54,56 +67,53 @@ impl Gun {
             time_since_start_reload: 0,
             reloading: false,
             reload_time: match model {
-                0 => 2000,
-                1 => 5000,
-                2 => 3000,
-                3 => 3250,
-                4 => 3750,
-                _ => 3000,
+                Model::Pistol => 2000,
+                Model::Shotgun => 5000,
+                Model::Speedball => 3000,
+                Model::BurstRifle => 3250,
+                Model::AssaultRifle => 3750,
             },
             // Some guns have special shooting behaviors that last over the course of mutliple ticks, which shooting and projectiles_fired take advantage of
             shooting: None,
             projectiles_fired: 0,
             ammo_in_mag: match model {
-                0 => 16,
-                1 => 8,
-                2 => 6,
-                3 => 21,
-                4 => 25,
-                _ => 30,
+                Model::Pistol=> 16,
+                Model::Shotgun => 8,
+                Model::Speedball => 6,
+                Model::BurstRifle => 21,
+                Model::AssaultRifle => 25,
 
             },
             max_ammo: match model {
-                0 => 16,
-                1 => 8,
-                2 => 6,
-                3 => 21,
-                4 => 25,
-                _ => 30,
+                Model::Pistol => 16,
+                Model::Shotgun => 8,
+                Model::Speedball => 6,
+                Model::BurstRifle => 21,
+                Model::AssaultRifle => 25,
 
             },
             damage: match model {
-                0 => 45,
-                1 => 25,
-                2 => 1,
-                3 => 13,
-                4 => 15,
-                _ => 100,
+                Model::Pistol => 45,
+                Model::Shotgun => 25,
+                Model::Speedball => 1,
+                Model::BurstRifle => 13,
+                Model::AssaultRifle => 15,
+
             },
             fired_from: player_fired_from,
             max_distance: match model {
-                0 => 900.0,
-                1 => 300.0,
-                2 => 3000.0,
-                3 => 1000.0,
-                4 => 1000.0,
-                _ => 900.0,
+                Model::Pistol => 900.0,
+                Model::Shotgun => 300.0,
+                Model::Speedball => 3000.0,
+                Model::BurstRifle => 1000.0,
+                Model::AssaultRifle => 1000.0,
+
             }
 
         };
 
         // The engineer ability can reload in half the time
-        if ability == 3 {
+        if ability == Ability::Engineer {
             gun.reload_time /= 2;
 
         }
@@ -123,14 +133,12 @@ impl Gun {
             self.reloading = false;
 
         }
-
-
     }
 
-    pub fn shoot (&mut self, x: f32, y: f32, right: bool, angle: f32, ability: u8, projectiles: &mut Vec<Projectile>) {
+    pub fn shoot (&mut self, x: f32, y: f32, right: bool, angle: f32, ability: Ability, projectiles: &mut Vec<Projectile>) {
         if self.ammo_in_mag > 0 && !self.reloading {
             //Pistol
-            if self.model == 0 && current_time() >= self.time_since_last_shot + 500 {
+            if self.model == Model::Pistol && current_time() >= self.time_since_last_shot + 500 {
                 self.time_since_last_shot = current_time();
 
                 projectiles.push( Projectile {
@@ -147,12 +155,12 @@ impl Gun {
                     right,
                     angle,
                     speed: match ability {
-                        3 => 15.0,
+                        Ability::Engineer => 15.0,
                         _ => 12.0,
                     },
                     damage: self.damage,
                     fired_from: self.fired_from,
-                    projectile_type: 0,
+                    projectile_type: ProjectileType::Regular,
                     distance_traveled: 0.0,
                     max_distance: self.max_distance,
 
@@ -160,7 +168,7 @@ impl Gun {
 
                 self.ammo_in_mag -= 1;
 
-            } else if self.model == 1 && current_time() >= self.time_since_last_shot + 1500 {
+            } else if self.model == Model::Shotgun && current_time() >= self.time_since_last_shot + 1500 {
                 let recoil_range = 0.2;
 
                 let mut random_bytes: [u8; 12] = [0; 12];
@@ -200,10 +208,10 @@ impl Gun {
                                 right,
                                 angle: angle + recoil,
                                 speed: match ability {
-                                    3 => 13.75,
+                                    Ability::Engineer => 13.75,
                                     _ => 11.0,
                                 },
-                                projectile_type: 0,
+                                projectile_type: ProjectileType::Regular,
                                 damage: self.damage,
                                 fired_from: self.fired_from,
                                 distance_traveled: 0.0,
@@ -219,7 +227,7 @@ impl Gun {
 
                 self.ammo_in_mag -= 1;
 
-            } else if self.model == 2 && current_time() >= self.time_since_last_shot + 1500 {
+            } else if self.model == Model::Speedball && current_time() >= self.time_since_last_shot + 1500 {
                 self.time_since_last_shot = current_time();
 
                 projectiles.push( Projectile {
@@ -232,20 +240,20 @@ impl Gun {
                         false => y - (angle.sin() * 15.0) as f32,
                     },
                     w: match ability {
-                        3 => 6.25,
+                        Ability::Engineer => 6.25,
                         _ => 5.0,
                     },
                     h: match ability {
-                        3 => 6.25,
+                        Ability::Engineer => 6.25,
                         _ => 5.0,
                     },
                     right,
                     angle,
                     speed: match ability {
-                        3 => 0.31,
+                        Ability::Engineer => 0.31,
                         _ => 0.25,
                     },
-                    projectile_type: 1,
+                    projectile_type: ProjectileType::Speedball,
                     damage: self.damage,
                     fired_from: self.fired_from,
                     distance_traveled: 0.0,
@@ -254,7 +262,7 @@ impl Gun {
                 });
 
                 self.ammo_in_mag -= 1;
-            } else if self.model == 3 {
+            } else if self.model == Model::BurstRifle {
                 if self.shooting.is_some() {
                     if current_time() >= self.time_since_last_shot + 50 {
                         self.time_since_last_shot = current_time();
@@ -275,10 +283,10 @@ impl Gun {
                                 right,
                                 angle,
                                 speed: match ability {
-                                    3 => 15.0,
+                                    Ability::Engineer => 15.0,
                                     _ => 12.0,
                                 },
-                                projectile_type: 0,
+                                projectile_type: ProjectileType::Regular,
                                 damage: self.damage,
                                 fired_from: self.fired_from,
                                 distance_traveled: 0.0,
@@ -317,10 +325,10 @@ impl Gun {
                         right,
                         angle,
                         speed: match ability {
-                            3 => 15.0,
+                            Ability::Engineer => 15.0,
                             _ => 12.0,
                         },
-                        projectile_type: 0,
+                        projectile_type: ProjectileType::Regular,
                         fired_from: self.fired_from,
                         damage: self.damage,
                         distance_traveled: 0.0,
@@ -332,7 +340,7 @@ impl Gun {
 
                 }
 
-            } else if self.model == 4 && current_time() >= self.time_since_last_shot + 80 {
+            } else if self.model == Model::AssaultRifle && current_time() >= self.time_since_last_shot + 80 {
                 self.time_since_last_shot = current_time();
 
                 projectiles.push( Projectile {
@@ -349,12 +357,12 @@ impl Gun {
                     right,
                     angle,
                     speed: match ability {
-                        3 => 10.0,
+                        Ability::Engineer => 10.0,
                         _ => 8.0,
                     },
                     damage: self.damage,
                     fired_from: self.fired_from,
-                    projectile_type: 0,
+                    projectile_type: ProjectileType::Regular,
                     distance_traveled: 0.0,
                     max_distance: self.max_distance,
 
@@ -372,30 +380,35 @@ impl Gun {
     }
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum Direction {
+    None,
+    N,
+    S,
+    E,
+    W,
+    NE,
+    NW,
+    SE,
+    SW
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum Ability {
+    Stim,
+    Phase,
+    Wall,
+    Engineer, //Should be default
+}
+
 #[derive(Copy, Clone)]
 pub struct Player {
     pub x: f32,
     pub y: f32,
-    // 0 not moving
-    // 1 N
-    // 2 S
-    // 3 E
-    // 4 W
-    // 5 NE
-    // 6 NW
-    // 7 SE
-    // 8 SW
-
-    pub direction: u8,
+    pub direction: Direction,
     pub color: Color,
 
-    // The ability is stored as an int in order to allow for faster code
-    // If it was stored as a string, then the players couldn't be stored in an array, causing more variable memory usage
-    // 0 is phase
-    // 1 is stim
-    // 2 is the wall
-    // 3 is the engineer (should probably be default)
-    pub ability: u8,
+    pub ability: Ability,
     // Your ability charges every tick, and then when it hits its minimum threshold you can use it, though waiting until it hits its maximum threshold may be better, as it will increase the ability's power/duration/whatever.
     // For example, the stim ability will run longer then longer you wait for its ability to charge
     pub ability_charge: u16,
@@ -412,7 +425,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(color: Option<Color>, ability: u8, health: u8, gun: u8, player_id: u8, online: bool, coords: [f32; 2]) -> Player {
+    pub fn new(color: Option<Color>, ability: Ability, health: u8, gun: Model, player_id: u8, online: bool, coords: [f32; 2]) -> Player {
         let mut random_color: [u8; 3] = [255; 3];
 
         getrandom(&mut random_color).unwrap();
@@ -421,7 +434,7 @@ impl Player {
         Player {
             x: coords[0],
             y: coords[1],
-            direction: 0,
+            direction: Direction::None,
             color:match color {
                 Some(color) => color,
                 //Random color
@@ -429,26 +442,23 @@ impl Player {
             },
             ability,
             ability_charge: match ability {
-                0 => 150,
-                1 => 150,
-                2 => 150,
-                3 => 1,
-                _ => 150,
+                Ability::Phase => 150,
+                Ability::Stim => 150,
+                Ability::Wall => 150,
+                Ability::Engineer => 1,
             },
             min_ability_charge: match ability {
                 // There's on average, 60 ticks per second, so 2.5 seconds need to pass to have enough charge to use your ability
-                0 => 150,
-                1 => 1,
-                2 => 150,
-                3 => 1,
-                _ => 150,
+                Ability::Phase => 150,
+                Ability::Stim => 1,
+                Ability::Wall => 150,
+                Ability::Engineer => 1,
             },
             max_ability_charge: match ability {
-                0 => 300,
-                1 => 300,
-                2 => 150,
-                3 => 1,
-                _ => 300,
+                Ability::Phase => 300,
+                Ability::Stim => 300,
+                Ability::Wall => 150,
+                Ability::Engineer => 1,
             },
             speed: 10.0,
             health,
@@ -459,41 +469,41 @@ impl Player {
 
     pub fn use_ability(&mut self, map: &mut Map) {
         if self.health > 0 && self.ability_charge >= self.min_ability_charge{
-            if self.ability == 0  {
+            if self.ability == Ability::Phase  {
 
                 let teleport_distance = 150.0;
 
                 //I know this is ugly, it just lets a player move if it's movement wouldn't put it out of bounds
                 match self.direction {
-                    1 => {
+                   Direction::N=> {
                         if !out_of_bounds(self.x, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y - teleport_distance, 15.0, 15.0), 0) {
                             self.y -= teleport_distance;
                             self.ability_charge -= 150;
 
                         }
                     },
-                    2 => {
+                   Direction::S=> {
                         if !out_of_bounds(self.x, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x, self.y + teleport_distance, 15.0, 15.0), 0){
                             self.y += teleport_distance;
                             self.ability_charge -= 150;
 
                         }
                     },
-                    3=> {
+                   Direction::E=> {
                         if !out_of_bounds(self.x + teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y, 15.0, 15.0), 0){
                             self.x += teleport_distance;
                             self.ability_charge -= 150;
 
                         }
                     },
-                    4 => {
+                   Direction::W=> {
                         if !out_of_bounds(self.x - teleport_distance, self.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y, 15.0, 15.0), 0){
                             self.x -= teleport_distance;
                             self.ability_charge -= 150;
 
                         }
                     },
-                    5 => {
+                   Direction::NE=> {
                         if !out_of_bounds(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y - teleport_distance, 15.0, 15.0), 0){
                             self.x += teleport_distance;
                             self.y -= teleport_distance;
@@ -501,7 +511,7 @@ impl Player {
 
                         }
                     },
-                    6 => {
+                   Direction::NW=> {
                         if !out_of_bounds(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x - teleport_distance, self.y - teleport_distance, 15.0, 15.0), 0) {
                             self.x -= teleport_distance;
                             self.y -= teleport_distance;
@@ -509,7 +519,7 @@ impl Player {
 
                         }
                     },
-                    7 => {
+                   Direction::SE=> {
                         if !out_of_bounds(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(self.x + teleport_distance, self.y + teleport_distance, 15.0, 15.0), 0) {
                             self.x += teleport_distance;
                             self.y += teleport_distance;
@@ -517,7 +527,7 @@ impl Player {
 
                         }
                     },
-                    8 => {
+                   Direction::SW=> {
                         if !out_of_bounds(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(self.x - teleport_distance, self.y + teleport_distance, 15.0, 15.0), 0) {
                             self.x -= teleport_distance;
                             self.y += teleport_distance;
@@ -529,29 +539,29 @@ impl Player {
                 }
 
 
-            } else if self.ability == 1  {
+            } else if self.ability == Ability::Stim  {
                 self.speed = 20.0;
 
                 self.ability_charge -= 1;
 
-            } else if self.ability == 2 {
+            } else if self.ability == Ability::Wall {
                 let x = match self.direction {
-                    3 | 5 | 7 => self.x + 25.0,
-                    4 | 6 | 8=> self.x - 25.0,
+                   Direction::E | Direction::NE | Direction::SE=> self.x + 25.0,
+                   Direction::W| Direction::NW | Direction::SW=> self.x - 25.0,
                     _ => self.x,
 
                 };
 
                 let y = match self.direction {
-                    1 | 5 | 6=> self.y - 25.0,
-                    2 | 7 | 8 => self.y + 25.0,
-                    0 => self.y - 25.0,
+                   Direction::N | Direction::NE | Direction::NW=> self.y - 25.0,
+                   Direction::S | Direction::SE | Direction::SW=> self.y + 25.0,
+                    Direction::None => self.y - 25.0,
                     _ => self.y,
 
                 };
 
                 let w = match self.direction {
-                    1 | 5 | 6 | 2 | 7 | 8 => 40.0,
+                   Direction::N | Direction::NE | Direction::NW | Direction::E | Direction::SE | Direction::SW=> 40.0,
                     _ => 20.0,
 
                 };
@@ -561,7 +571,7 @@ impl Player {
                 let h = match w as u8{
                     40 => 20.0,
                     _ => match self.direction {
-                        3 | 5 | 7 | 4 | 6 | 8 => 40.0,
+                       Direction::W | Direction::NW | Direction::SW | Direction::NE | Direction::SE => 40.0,
                         _ => 20.0,
                     }
                 };

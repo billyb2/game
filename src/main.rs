@@ -1,4 +1,4 @@
-#![allow(clippy::type_complexity)]
+ #![allow(clippy::type_complexity)]
 
 use ggez::{event,graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
@@ -12,7 +12,7 @@ use ggez::timer::check_update_time;
 use game_logic::{collision, tick};
 use game_logic::map::Map;
 use game_logic::objects;
-use game_logic::objects::{Player, Projectile, Rect};
+use game_logic::objects::{Ability, Direction, Model, Player, Projectile, Rect};
 
 use rand::thread_rng;
 use rand::Rng;
@@ -60,7 +60,7 @@ impl MainState {
 
         // Preallocate memory for the maximum of 20 players
         let players: [Player; 20] ={
-            let mut players: [Player; 20] = [Player::new(None, 0, 0, 0, 0, false, [0.0, 0.0]); 20];
+            let mut players: [Player; 20] = [Player::new(None, Ability::Phase, 0, Model::Pistol, 0, false, [0.0, 0.0]); 20];
             
             let mut rng = thread_rng();
 
@@ -69,7 +69,7 @@ impl MainState {
                     let spawn_index: usize = rng.gen_range(0..possible_player_spawns.len());
                     let (spawn_x, spawn_y) = possible_player_spawns[spawn_index];
 
-                    *player = Player::new(None, 0, 100, 3, i.try_into().unwrap(), true, [spawn_x, spawn_y]);
+                    *player = Player::new(None, Ability::Phase, 100, Model::BurstRifle, i.try_into().unwrap(), true, [spawn_x, spawn_y]);
                     possible_player_spawns.remove(spawn_index);
 
                 } else {
@@ -78,7 +78,7 @@ impl MainState {
                 }
             }
             
-            players[1].direction = 3;
+            players[1].direction = Direction::E;
             
             players
             

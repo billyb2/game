@@ -4,7 +4,7 @@ pub mod objects;
 
 use map::Map;
 use std::f32::consts::PI;
-use objects::{Player, Projectile, out_of_bounds, Point2, Rect};
+use objects::{Ability, Direction, Player, Projectile, ProjectileType, out_of_bounds, Point2, Rect};
 
 //mouse_pressed index are: 0: left mouse pressed, 1: middle mouse pressed, 2: right mouse pressed
 pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) -> [Player; 20] {
@@ -12,7 +12,7 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
     for player in players.iter_mut() {
         if player.health > 0 {
             match player.direction {
-                1 => {
+                Direction::N => {
                         if !out_of_bounds(player.x, player.y - player.speed, 15.0, 15.0, map.width, map.height) && 
                             !map.collision(&Rect::new(player.x, player.y - player.speed, 15.0, 15.0), 0) {
                             player.y -= player.speed; 
@@ -20,21 +20,21 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
                         }
                     },
                 
-                2 => {
+                Direction::S => {
                         if !out_of_bounds(player.x, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x, player.y + player.speed, 15.0, 15.0), 0) {
                             player.y += player.speed; 
                         
                         }
                     },
                 
-                3=> {
+                Direction::E => {
                         if !out_of_bounds(player.x + player.speed, player.y, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y, 15.0, 15.0), 0) {
                             player.x += player.speed; 
                             
                         }
                     },
                 
-                4 => {
+                Direction::W => {
                         if !out_of_bounds(player.x - player.speed, player.y, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x - player.speed, player.y, 15.0, 15.0), 0){
                             player.x -= player.speed; 
                             
@@ -42,14 +42,14 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
                         }
                     },
                 
-                5 => {
+                Direction::NE => {
                         if !out_of_bounds(player.x + player.speed, player.y - player.speed, 15.0, 15.0, map.width, map.height) &&  !map.collision(&Rect::new(player.x + player.speed, player.y - player.speed, 15.0, 15.0), 0){
                             player.y -= player.speed; player.x += player.speed; 
                             
                         }
                     },
                 
-                6 => {
+                Direction::NW => {
                         if !out_of_bounds(player.x - player.speed , player.y - player.speed, 15.0, 15.0, map.width, map.height)  &&  !map.collision(&Rect::new(player.x - player.speed, player.y - player.speed, 15.0, 15.0), 0) {
                             player.x -= player.speed; 
                             player.y -= player.speed; 
@@ -57,7 +57,7 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
                         }
                     },
                 
-                7 => {
+                Direction::SE => {
                         if !out_of_bounds(player.x + player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x + player.speed, player.y + player.speed, 15.0, 15.0), 0) {
                             player.x += player.speed;
                             player.y += player.speed; 
@@ -65,7 +65,7 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
                         }
                     },
                 
-                8 => {
+                Direction::SW => {
                         if !out_of_bounds(player.x - player.speed, player.y + player.speed, 15.0, 15.0, map.width, map.height) && !map.collision(&Rect::new(player.x - player.speed, player.y + player.speed, 15.0, 15.0), 0) {
                             player.x -= player.speed; 
                             player.y += player.speed; 
@@ -80,7 +80,7 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
             // A players ability charge increases every tick (60 ticks per second on average)
             if player.ability_charge < player.max_ability_charge {
                 // The second requirement for the if block is basically && player.speed == 20.0, but it has no chance of messing up because of floating point rounding
-                if player.ability == 1 && (player.speed - 20.0).abs() < f32::EPSILON {
+                if player.ability == Ability::Stim && (player.speed - 20.0).abs() < f32::EPSILON {
                     if player.ability_charge > 0 {
                     
                         player.ability_charge -= 1;
@@ -130,7 +130,7 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
         }
         
         // The speedball projectile starts off slow, but increases its size and speed exponentially
-        if projectiles[i].projectile_type == 1 {
+        if projectiles[i].projectile_type == ProjectileType::Speedball {
             projectiles[i].speed *= 1.1;
             projectiles[i].w *= 1.03;
             projectiles[i].h *= 1.03;
@@ -210,7 +210,7 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
     
     let player2_info = bots::bounce(&players, &projectiles);
     
-    players[1].direction = player2_info.0;
+    players[1].direction = Direction::None;
     
     if player2_info.2 != 0.0 {
         players[1].shoot(player2_info.1, player2_info.2, &mut projectiles);
@@ -241,26 +241,26 @@ pub fn collision (rect1: &Rect, rect2: &Rect) -> bool {
 fn check_user_input(mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) {
     if is_key_pressed('w', &keys) && !is_key_pressed('s', &keys) {
         if is_key_pressed('d', &keys) {
-            players[0].direction = 5;
+            players[0].direction = Direction::NE;
         } else if is_key_pressed('a', &keys) {
-            players[0].direction = 6;
+            players[0].direction = Direction::NW;
         } else {
-            players[0].direction = 1;
+            players[0].direction = Direction::N;
         }
     } else if is_key_pressed('s', &keys) && !is_key_pressed('w', &keys) {
         if is_key_pressed('d', &keys) {
-            players[0].direction = 7;
+            players[0].direction = Direction::SE;
         } else if is_key_pressed('a', &keys) {
-            players[0].direction = 8;
+            players[0].direction = Direction::SW;
         } else {
-            players[0].direction = 2;
+            players[0].direction = Direction::S;
         }
     } else if is_key_pressed('d', &keys) && !is_key_pressed('a', &keys) {
-        players[0].direction = 3;
+        players[0].direction = Direction::E;
     } else if is_key_pressed('a', &keys) && !is_key_pressed('d', &keys) {
-        players[0].direction = 4;
+        players[0].direction = Direction::W;
     } else {
-        players[0].direction = 0;
+        players[0].direction = Direction::None;
     }
     
     if is_key_pressed('e', &keys) {

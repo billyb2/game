@@ -1,6 +1,8 @@
 use crate::collision;
 use crate::objects::{Rect, Color};
-use crc32fast::Hasher;
+
+use flate2::FlushDecompress;
+
 use std::convert::TryInto;
 
 //TODO: Probably should turn Map and MapObjects into traits, but since the game's geometry is so simple at the moment it really doesn't matter.
@@ -74,11 +76,19 @@ impl Map {
         collided
     }
 
-    pub fn from_bin(bytes: &[u8]) -> Map {
+    pub fn from_bin(compressed_bytes: &[u8]) -> Map {
+        //Decompress the map
+        let mut decompressor = flate2::Decompress::new(true);
+        //So the vector expects to have a maximum of a 1MB map, though it can be larger
+        // See https://doc.rust-lang.org/std/vec/struct.Vec.html#capacity-and-reallocation
+        let mut bytes: Vec<u8> = Vec::with_capacity(1_000_000);
+
+       decompressor.decompress_vec(compressed_bytes, &mut bytes, FlushDecompress::None).unwrap();
+
         let width = slice_to_u32(&bytes[0..=3]);
         let height = slice_to_u32(&bytes[4..=7]);
 
-        let mut objects: Vec<MapObject> = Vec::new();
+        let mut objects: Vec<MapObject> = Vec::with_capacity(999_993);
 
         let mut i = 8;
         let mut crc32: u32 = 0;
@@ -105,7 +115,6 @@ impl Map {
 
             // Look for an entirely null map object, indicating the end of the data and the beginning of the CRC32
             if bytes[(i + 22)..=(i + 43)] == [0; 22] {
-
                 crc32 = slice_to_u32(&bytes[(i + 44)..=(i + 47)]);
                 data_end_index = i + 43;
                 break;
@@ -120,10 +129,10 @@ impl Map {
 
         }
 
-        let mut hasher = Hasher::new();
+        let mut hasher = flate2::Crc::new();
         hasher.update(&bytes[0..=data_end_index]);
 
-        let checksum: u32 = hasher.finalize();
+        let checksum: u32 = hasher.sum();
 
         if checksum == crc32 {
             println!("Verified map checksum!");

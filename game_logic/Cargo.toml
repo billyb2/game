@@ -18,4 +18,4 @@ panic = "abort"
 # Unlinke the rand crate, get_ranodm supports every target under the sun, inclulding WASM and iOS which rand doesn't supports
 # All targets: https://docs.rs/getrandom/0.2.2/getrandom/
 getrandom = { version = "0.2", features = ["js"] }
-crc32fast = "1"
+flate2 = "1"
