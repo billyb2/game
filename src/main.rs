@@ -1,8 +1,10 @@
- #![allow(clippy::type_complexity)]
+//Unfortuanetly, the disadvantages of having game_logic as its own seperate crate is that it needs to have a lot of arguments to calculate all of the data needed
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
 
 use ggez::{event,graphics};
 use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
-use ggez::graphics::{DrawParam, Image, Text, TextFragment, screen_coordinates};
+use ggez::graphics::{Align, DrawParam, Image, PxScale, Text, TextFragment, screen_coordinates};
 use ggez::graphics::spritebatch::SpriteBatch;
 use ggez::input::mouse;
 use ggez::input::keyboard::{KeyCode, is_key_pressed};
@@ -12,7 +14,7 @@ use ggez::timer::check_update_time;
 use game_logic::{collision, tick};
 use game_logic::map::Map;
 use game_logic::objects;
-use game_logic::objects::{Ability, Direction, Model, Player, Projectile, Rect};
+use game_logic::objects::{Ability, Controls, Direction, Model, Player, Projectile, Rect};
 
 use rand::thread_rng;
 use rand::Rng;
@@ -25,18 +27,51 @@ use std::convert::TryInto;
 #[folder = "tiled/"]
 struct Asset;
 
+enum ViewScreen {
+    StartScreen,
+    Settings,
+    Game,
+
+}
+
+struct View {
+    view_screen: ViewScreen,
+    button_texts: Vec<(Point2<f32>, Text)>,
+    buttons: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))>,
+    // The selected button is an index of the buttons Vec
+    selected_button: Option<Text>,
+}
+
+impl View {
+    fn default() -> View {
+        View {
+            view_screen: ViewScreen::StartScreen,
+            buttons: Vec::with_capacity(10),
+            button_texts: Vec::with_capacity(10),
+            selected_button: None,
+
+        }
+    }
+
+    fn add_button(&mut self, coords: (Point2<f32>, u8, u8, (u8, u8, u8, u8)), mut text: Text) {
+        self.buttons.push(coords);
+
+        text.set_bounds(Point2 {x: coords.1 as f32, y: coords.2 as f32}, Align::Center);
+        self.button_texts.push((Point2 {x: coords.0.x, y: coords.0.y}, text));
+    }
+
+
+}
 
 struct MainState {
-    //0 the start screen
-    //1 is the game
-    //2 is the settings
-    view: u8,
+    view: View,
     players: [Player; 20],
     projectiles: Vec<Projectile>,
     map: Map,
     origin: Point2<f32>,
     zoom: f32,    
     rect_spritebatch: HashMap<(u8, u8, (u8, u8, u8, u8)), SpriteBatch>,
+    controls: Controls,
     
 }
 
@@ -85,14 +120,15 @@ impl MainState {
         };
 
         MainState {
-            view: 0,
+            view: View::default(),
             players,
             projectiles: Vec::new(),
             map,
             origin: Point2 {x: 596.0, y: 342.0},
             zoom: 1.0,
             rect_spritebatch: HashMap::new(),
-           
+            controls: Controls::default(),
+
         }
     }
 
@@ -105,19 +141,22 @@ impl MainState {
             if mouse_click[0] && mouse_coords.x >= screen_coords.w / 2.0 - 45.0 && mouse_coords.x <= screen_coords.w / 2.0 + 30.0 {
 
                 if mouse_coords.y >= screen_coords.h / 3.0 && mouse_coords.y <= screen_coords.h / 3.0 + 25.0  {
-                self.view = 1;
+                self.view.view_screen = ViewScreen::Game;
 
                 } else if mouse_coords.y >= screen_coords.h / 2.5 && mouse_coords.y <= screen_coords.h / 2.5 + 25.0 {
-                    self.view = 2;
+                    self.view.view_screen = ViewScreen::Settings;
 
                 }
             }
         }
     }
 
-
+    //TODO: Change all text from physical coords to logical
     fn draw_start_screen(&mut self, ctx: &mut ggez::Context) {
         graphics::clear(ctx, (0, 0, 0).into());
+        self.view.buttons.clear();
+        self.view.button_texts.clear();
+
         let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
 
         let title = Text::new("Necrophaser");
@@ -168,13 +207,16 @@ impl MainState {
     }
 
     fn update_game(&mut self, ctx: &mut ggez::Context) {
+        self.view.buttons = Vec::with_capacity(0);
+        self.view.button_texts = Vec::with_capacity(0);
+
         // Please see https://docs.rs/ggez/0.5.1/ggez/timer/fn.check_update_time.html for why I'm doing updates like this
         // Basically, the game will run 60 frames every second on average
         while check_update_time(ctx, 60) {
             let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
             let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
 
-            self.players = tick(self.players, &mut self.projectiles, &mut self.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords);
+            tick(&mut self.players, &mut self.projectiles, &mut self.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords, self.controls);
 
             self.origin.x = self.players[0].x - screen_coords.w / 2.0;
             self.origin.y = self.players[0].y - screen_coords.h / 2.0;
@@ -198,6 +240,7 @@ impl MainState {
 
     }
 
+    //TODO: Change all text from physical coords to logical
     fn draw_game(&mut self, ctx: &mut ggez::Context){
         graphics::clear(ctx, (0, 0, 0).into());
 
@@ -351,13 +394,267 @@ impl MainState {
     fn update_settings(&mut self, ctx: &mut ggez::Context) {
         while check_update_time(ctx, 60) {
 
+            let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
+
+            let strip_everything_after_colon = |text: &mut Text| {
+               // This just removes the colon and everything after it from the text
+                let text_vec =  text.contents();
+
+                let text_without_colon = String::from(text_vec.split(':').collect::<Vec<&str>>()[0]);
+
+                text.fragments_mut()[0].text = text_without_colon;
+            };
+
+
+            if mouse_pressed[0] {
+                let mut clicked_on_button = false;
+
+                for (i, (_, text)) in self.view.button_texts.iter_mut().enumerate() {
+                    let button = &self.view.buttons[i];
+
+                    if mouse_coords.x >= button.0.x && mouse_coords.x <= button.0.x + button.1 as f32 && mouse_coords.y >= button.0.y && mouse_coords.y <= button.0.y + button.2 as f32 {
+                        // The back button is special
+                        if text.contents() == *"Back" {
+                            self.view.view_screen = ViewScreen::StartScreen;
+
+                        } else {
+                            clicked_on_button = true;
+                            strip_everything_after_colon(text);
+                            // Ew I have to use a clone :(
+                            self.view.selected_button = Some((*text).clone());
+
+                        }
+
+                    }
+                }
+
+                if let false = clicked_on_button { self.view.selected_button = None }
+            }
+
+
+            if !keys_pressed.is_empty() && self.view.selected_button.is_some() {
+                let button = self.view.selected_button.as_ref().unwrap();
+
+                if button.contents() == *"Up Button" {
+                    self.view.selected_button = None;
+                    self.controls.up =  *keys_pressed.last().unwrap();
+
+                } else if button.contents() == *"Down Button" {
+                    self.view.selected_button = None;
+                    self.controls.down =  *keys_pressed.last().unwrap();
+
+                } else if button.contents() == *"Left Button" {
+                    self.view.selected_button = None;
+                    self.controls.left =  *keys_pressed.last().unwrap();
+
+                } else if button.contents() == *"Right Button" {
+                    self.view.selected_button = None;
+                    self.controls.right =  *keys_pressed.last().unwrap();
+
+                } else if button.contents() == *"Use Ability Button" {
+                    self.view.selected_button = None;
+                    self.controls.use_ability =  *keys_pressed.last().unwrap();
+
+                } else if button.contents() == *"Reload Button" {
+                    self.view.selected_button = None;
+                    self.controls.reload =  *keys_pressed.last().unwrap();
+
+                }
+            }
         }
     }
 
+    //TODO: Please for the love of god refactor this
+
     fn draw_settings(&mut self, ctx: &mut ggez::Context) {
         graphics::clear(ctx, (0, 0, 0).into());
+        self.view.buttons.clear();
+        self.view.button_texts.clear();
+
+        let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
+        let up_button = (
+            Point2 {
+                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
+                y: physical_to_logical(ctx, 0.0, screen_coords.h / 4.0)[1]
+            }, 75, 30, (255, 255, 255, 255));
+
+        let down_button = (
+            Point2 {
+                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
+                y: physical_to_logical(ctx, 0.0, screen_coords.h / 3.5 + 25.0)[1]
+            }, 75, 30, (255, 255, 255, 255));
+
+        let left_button = (
+            Point2 {
+                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
+                y: physical_to_logical(ctx, 0.0, screen_coords.h / 3.0 + 50.0)[1]
+            }, 75, 30, (255, 255, 255, 255));
+
+        let right_button = (
+            Point2 {
+                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
+                y: physical_to_logical(ctx, 0.0, screen_coords.h / 2.5 + 50.0)[1]
+            }, 75, 30, (255, 255, 255, 255));
+
+        let use_ability_button = (
+            Point2 {
+                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
+                y: physical_to_logical(ctx, 0.0, screen_coords.h / 2.0 + 25.0)[1]
+            }, 75, 30, (255, 255, 255, 255));
+
+        let reload_button = (
+            Point2 {
+                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
+                y: physical_to_logical(ctx, 0.0, screen_coords.h / 1.5 - 40.0)[1]
+            }, 75, 30, (255, 255, 255, 255));
 
 
+        let up_button_text = match &self.view.selected_button {
+            Some(text) => {
+                if text.contents() == *"Up Button" {
+                    text.clone()
+
+                } else {
+                    Text::new(TextFragment::new(format!("Up Button: {}", self.controls.up.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
+
+                }
+
+            },
+            None => Text::new(TextFragment::new(format!("Up Button: {}", self.controls.up.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
+        };
+
+        let down_button_text = match &self.view.selected_button {
+            Some(text) => {
+                if text.contents() == *"Down Button" {
+                    text.clone()
+
+                } else {
+                    Text::new(TextFragment::new(format!("Down Button: {}", self.controls.down.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
+
+                }
+
+            },
+            None => Text::new(TextFragment::new(format!("Down Button: {}", self.controls.down.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
+        };
+
+        let left_button_text = match &self.view.selected_button {
+            Some(text) => {
+                if text.contents() == *"Left Button" {
+                    text.clone()
+
+                } else {
+                    Text::new(TextFragment::new(format!("Left Button: {}", self.controls.left.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
+
+                }
+
+            },
+            None => Text::new(TextFragment::new(format!("Left Button: {}", self.controls.left.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
+        };
+
+        let right_button_text = match &self.view.selected_button {
+            Some(text) => {
+                if text.contents() == *"Right Button" {
+                    text.clone()
+
+                } else {
+                    Text::new(TextFragment::new(format!("Right Button: {}", self.controls.right.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
+
+                }
+
+            },
+            None => Text::new(TextFragment::new(format!("Right Button: {}", self.controls.right.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
+        };
+
+        let use_ability_button_text = match &self.view.selected_button {
+            Some(text) => {
+                if text.contents() == *"Use Ability Button" {
+                    text.clone()
+
+                } else {
+                    Text::new(TextFragment::new(format!("Use Ability Button: {}", self.controls.use_ability.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
+
+                }
+
+            },
+            None => Text::new(TextFragment::new(format!("Use Ability Button: {}", self.controls.use_ability.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
+        };
+
+        let reload_button_text = match &self.view.selected_button {
+            Some(text) => {
+                if text.contents() == *"Reload Button" {
+                    text.clone()
+
+                } else {
+                    Text::new(TextFragment::new(format!("Reload Button: {}", self.controls.reload.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
+
+                }
+
+            },
+            None => Text::new(TextFragment::new(format!("Reload Button: {}", self.controls.reload.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
+        };
+
+        let back_button = (
+            Point2 {
+                x: 15.0,
+                y: 15.0,
+            }, 50, 20, (255, 255, 255, 255));
+
+        let back_text = Text::new(TextFragment::new("Back").scale(PxScale::from(18.0)).color(graphics::Color::from_rgb(0, 0, 0)));
+
+        self.view.add_button(up_button, up_button_text);
+        self.view.add_button(down_button, down_button_text);
+        self.view.add_button(left_button, left_button_text);
+        self.view.add_button(right_button, right_button_text);
+        self.view.add_button(use_ability_button, use_ability_button_text);
+        self.view.add_button(reload_button, reload_button_text);
+
+        self.view.add_button(back_button, back_text);
+
+        let settings_text = TextFragment::new("Settings").scale(PxScale::from(24.0));
+
+        let mut settings_text = Text::new(settings_text);
+        settings_text.set_bounds(Point2 {x: 150.0, y: 100.0 }, Align::Center);
+
+        let color = graphics::Color::from_rgb(255, 255, 255);
+        let vec_size_back = (back_button.1 as usize) *  (back_button.2 as usize) * 4;
+        let vec_size_button = up_button.1 as usize * up_button.2 as usize * 4;
+
+
+        self.rect_spritebatch.entry((back_button.1 as u8, back_button.2 as u8, back_button.3)).or_insert_with(|| SpriteBatch::new(
+            Image::from_rgba8(
+                ctx,
+                back_button.1 as u16,
+                back_button.2 as u16,
+                &generate_image_from_rgba8(color, vec_size_back),
+            ).unwrap())
+        );
+
+        self.rect_spritebatch.entry((up_button.1 as u8, up_button.2 as u8, color.into())).or_insert_with(|| SpriteBatch::new(
+            Image::from_rgba8(
+                ctx,
+                up_button.1 as u16,
+                up_button.2 as u16,
+                &generate_image_from_rgba8(color, vec_size_button),
+            ).unwrap())
+        );
+
+        for (pos, w, h, color) in &self.view.buttons {
+            self.rect_spritebatch.get_mut(&(*w, *h, *color)).unwrap().add(DrawParam::default().dest(*pos));
+
+        }
+
+
+        for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
+            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
+            spritebatch.clear();
+
+        }
+
+        for (coords, text) in &self.view.button_texts {
+            graphics::draw(ctx, text, DrawParam::default().dest(*coords)).unwrap();
+        }
+
+        graphics::draw(ctx, &settings_text, DrawParam::default().dest(Point2 {x : physical_to_logical(ctx, screen_coords.w / 2.0 - 50.0, 0.0)[0], y: physical_to_logical(ctx, 0.0, screen_coords.h / 5.0)[1]})).unwrap();
 
         graphics::present(ctx).unwrap();
     }
@@ -365,11 +662,10 @@ impl MainState {
 
 impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        match self.view {
-            0 => MainState::draw_start_screen(self, ctx),
-            1 => MainState::draw_game(self, ctx),
-            2 => MainState::draw_settings(self, ctx),
-            _ => MainState::draw_game(self, ctx),
+        match self.view.view_screen {
+            ViewScreen::StartScreen => MainState::draw_start_screen(self, ctx),
+            ViewScreen::Game => MainState::draw_game(self, ctx),
+            ViewScreen::Settings => MainState::draw_settings(self, ctx),
         };
 
         Ok(())
@@ -377,11 +673,10 @@ impl event::EventHandler for MainState {
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        match self.view {
-            0 => MainState::update_start_screen(self, ctx),
-            1 => MainState::update_game(self, ctx),
-            2 => MainState::update_settings(self, ctx),
-            _ => MainState::update_game(self, ctx)
+        match self.view.view_screen {
+            ViewScreen::StartScreen => MainState::update_start_screen(self, ctx),
+            ViewScreen::Settings => MainState::update_settings(self, ctx),
+            ViewScreen::Game => MainState::update_game(self, ctx),
         };
 
         Ok(())
@@ -468,50 +763,203 @@ fn generate_image_from_rgba8(color: graphics::Color, image_size: usize) -> Vec<u
     bytes_vec
 }
 
+//TODO: Maybe move non-drawing scripts to a secondary file?
 fn check_user_input(ctx: &ggez::Context) -> (Vec<char>, [bool; 3], objects::Point2) {
-    let screen_rect = graphics::screen_coordinates(ctx);
-    let size = graphics::window(ctx).inner_size();
-
     let mut keys_pressed: Vec<char> = Vec::new();
     let mut mouse_pressed: [bool; 3] = [false; 3];
 
-    let mouse_coords = objects::Point2 { x: (mouse::position(ctx).x / (size.width as f32)) * screen_rect.w + screen_rect.x, y:  (mouse::position(ctx).y / (size.height as f32)) * screen_rect.h + screen_rect.y };
+    let logical_mouse_coords = physical_to_logical(ctx, mouse::position(ctx).x, mouse::position(ctx).y);
 
-    if is_key_pressed(ctx, KeyCode::W) {
-        keys_pressed.push('w');
-
-    }
-
-    if is_key_pressed(ctx, KeyCode::A) {
-        keys_pressed.push('a');
-
-    }
-
-    if is_key_pressed(ctx, KeyCode::S) {
-        keys_pressed.push('s');
-
-    }
-
-    if is_key_pressed(ctx, KeyCode::D) {
-        keys_pressed.push('d');
-
-    }
-
-    if is_key_pressed(ctx, KeyCode::R) {
-        keys_pressed.push('r');
-
-    }
-
-    if is_key_pressed(ctx, KeyCode::E) {
-        keys_pressed.push('e');
-
-    }
+    let mouse_coords = objects::Point2 { x: logical_mouse_coords[0], y: logical_mouse_coords[1]};
 
     if mouse::button_pressed(ctx, mouse::MouseButton::Left) {
         mouse_pressed[0] = true;
 
     }
 
+    // Totally not autgenerated code
+    if is_key_pressed(ctx, KeyCode::A) {
+            keys_pressed.push('a');
+    }
+    if is_key_pressed(ctx, KeyCode::B) {
+            keys_pressed.push('b');
+    }
+    if is_key_pressed(ctx, KeyCode::C) {
+            keys_pressed.push('c');
+    }
+    if is_key_pressed(ctx, KeyCode::D) {
+            keys_pressed.push('d');
+    }
+    if is_key_pressed(ctx, KeyCode::E) {
+            keys_pressed.push('e');
+    }
+    if is_key_pressed(ctx, KeyCode::F) {
+            keys_pressed.push('f');
+    }
+    if is_key_pressed(ctx, KeyCode::G) {
+            keys_pressed.push('g');
+    }
+    if is_key_pressed(ctx, KeyCode::H) {
+            keys_pressed.push('h');
+    }
+    if is_key_pressed(ctx, KeyCode::I) {
+            keys_pressed.push('i');
+    }
+    if is_key_pressed(ctx, KeyCode::J) {
+            keys_pressed.push('j');
+    }
+    if is_key_pressed(ctx, KeyCode::K) {
+            keys_pressed.push('k');
+    }
+    if is_key_pressed(ctx, KeyCode::L) {
+            keys_pressed.push('l');
+    }
+    if is_key_pressed(ctx, KeyCode::M) {
+            keys_pressed.push('m');
+    }
+    if is_key_pressed(ctx, KeyCode::N) {
+            keys_pressed.push('n');
+    }
+    if is_key_pressed(ctx, KeyCode::O) {
+            keys_pressed.push('o');
+    }
+    if is_key_pressed(ctx, KeyCode::P) {
+            keys_pressed.push('p');
+    }
+    if is_key_pressed(ctx, KeyCode::Q) {
+            keys_pressed.push('q');
+    }
+    if is_key_pressed(ctx, KeyCode::R) {
+            keys_pressed.push('r');
+    }
+    if is_key_pressed(ctx, KeyCode::S) {
+            keys_pressed.push('s');
+    }
+    if is_key_pressed(ctx, KeyCode::T) {
+            keys_pressed.push('t');
+    }
+    if is_key_pressed(ctx, KeyCode::U) {
+            keys_pressed.push('u');
+    }
+    if is_key_pressed(ctx, KeyCode::V) {
+            keys_pressed.push('v');
+    }
+    if is_key_pressed(ctx, KeyCode::W) {
+            keys_pressed.push('w');
+    }
+    if is_key_pressed(ctx, KeyCode::X) {
+            keys_pressed.push('x');
+    }
+    if is_key_pressed(ctx, KeyCode::Y) {
+            keys_pressed.push('y');
+    }
+    if is_key_pressed(ctx, KeyCode::Z) {
+            keys_pressed.push('z');
+    }
+    if is_key_pressed(ctx, KeyCode::A) {
+            keys_pressed.push('a');
+    }
+    if is_key_pressed(ctx, KeyCode::B) {
+            keys_pressed.push('b');
+    }
+    if is_key_pressed(ctx, KeyCode::C) {
+            keys_pressed.push('c');
+    }
+    if is_key_pressed(ctx, KeyCode::D) {
+            keys_pressed.push('d');
+    }
+    if is_key_pressed(ctx, KeyCode::E) {
+            keys_pressed.push('e');
+    }
+    if is_key_pressed(ctx, KeyCode::F) {
+            keys_pressed.push('f');
+    }
+    if is_key_pressed(ctx, KeyCode::G) {
+            keys_pressed.push('g');
+    }
+    if is_key_pressed(ctx, KeyCode::H) {
+            keys_pressed.push('h');
+    }
+    if is_key_pressed(ctx, KeyCode::I) {
+            keys_pressed.push('i');
+    }
+    if is_key_pressed(ctx, KeyCode::J) {
+            keys_pressed.push('j');
+    }
+    if is_key_pressed(ctx, KeyCode::K) {
+            keys_pressed.push('k');
+    }
+    if is_key_pressed(ctx, KeyCode::L) {
+            keys_pressed.push('l');
+    }
+    if is_key_pressed(ctx, KeyCode::M) {
+            keys_pressed.push('m');
+    }
+    if is_key_pressed(ctx, KeyCode::N) {
+            keys_pressed.push('n');
+    }
+    if is_key_pressed(ctx, KeyCode::O) {
+            keys_pressed.push('o');
+    }
+    if is_key_pressed(ctx, KeyCode::P) {
+            keys_pressed.push('p');
+    }
+    if is_key_pressed(ctx, KeyCode::Q) {
+            keys_pressed.push('q');
+    }
+    if is_key_pressed(ctx, KeyCode::R) {
+            keys_pressed.push('r');
+    }
+    if is_key_pressed(ctx, KeyCode::S) {
+            keys_pressed.push('s');
+    }
+    if is_key_pressed(ctx, KeyCode::T) {
+            keys_pressed.push('t');
+    }
+    if is_key_pressed(ctx, KeyCode::U) {
+            keys_pressed.push('u');
+    }
+    if is_key_pressed(ctx, KeyCode::V) {
+            keys_pressed.push('v');
+    }
+    if is_key_pressed(ctx, KeyCode::W) {
+            keys_pressed.push('w');
+    }
+    if is_key_pressed(ctx, KeyCode::X) {
+            keys_pressed.push('x');
+    }
+    if is_key_pressed(ctx, KeyCode::Y) {
+            keys_pressed.push('y');
+    }
+    if is_key_pressed(ctx, KeyCode::Z) {
+            keys_pressed.push('z');
+    }
+    if is_key_pressed(ctx, KeyCode::Right) {
+            keys_pressed.push('→');
+    }
+    if is_key_pressed(ctx, KeyCode::Left) {
+            keys_pressed.push('←');
+    }
+    if is_key_pressed(ctx, KeyCode::Up) {
+            keys_pressed.push('↑');
+    }
+    if is_key_pressed(ctx, KeyCode::Down) {
+            keys_pressed.push('↓');
+    }
+    if is_key_pressed(ctx, KeyCode::Space) {
+            keys_pressed.push(' ');
+    }
+
     (keys_pressed, mouse_pressed, mouse_coords)
 }
 
+fn physical_to_logical(ctx: &ggez::Context, x: f32, y: f32) -> [f32; 2] {
+    let screen_rect = graphics::screen_coordinates(ctx);
+    let size = graphics::window(ctx).inner_size();
+
+    let logical_x = (x / (size.width  as f32)) * screen_rect.w + screen_rect.x;
+    let logical_y = (y / (size.height as f32)) * screen_rect.h + screen_rect.y;
+
+
+    [logical_x, logical_y]
+}

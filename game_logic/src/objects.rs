@@ -616,6 +616,37 @@ pub fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_hei
 
 }
 
+#[derive(Copy, Clone)]
+pub struct Controls {
+    pub up: char,
+    pub down: char,
+    pub left: char,
+    pub right: char,
+    pub use_ability: char,
+    pub reload: char,
+
+}
+
+impl Controls {
+    pub fn new(up: char, down: char, left: char, right: char, use_ability: char, reload: char) -> Controls {
+        Controls {
+            up,
+            down,
+            left,
+            right,
+            use_ability,
+            reload,
+        }
+
+    }
+
+    pub fn default() -> Controls {
+        Controls::new('w', 's', 'a', 'd', 'e', 'r')
+
+    }
+
+}
+
 
 #[derive(Clone, Copy, Debug)]
 pub struct Rect {

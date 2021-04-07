@@ -1,13 +1,16 @@
+//TODO: Lower the number of arguments on check_user_input
+#![allow(clippy::too_many_arguments)]
+
 pub mod bots;
 pub mod map;
 pub mod objects;
 
 use map::Map;
 use std::f32::consts::PI;
-use objects::{Ability, Direction, Player, Projectile, ProjectileType, out_of_bounds, Point2, Rect};
+use objects::{Ability, Controls, Direction, Player, Projectile, ProjectileType, out_of_bounds, Point2, Rect};
 
 //mouse_pressed index are: 0: left mouse pressed, 1: middle mouse pressed, 2: right mouse pressed
-pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) -> [Player; 20] {
+pub fn tick (mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect, controls: Controls) {
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -200,7 +203,7 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
     
     }
               
-    check_user_input(&mut players, &mut projectiles, map, keys_pressed, mouse_pressed, mouse_coords, screen_coords);
+    check_user_input(&mut players, &mut projectiles, map, keys_pressed, mouse_pressed, mouse_coords, screen_coords, controls);
         
     //TODO: Multithreaded bots
     // Basically, a bot is given information on every player, info on the projectiles, and info on how the map looks (not added yet), and it outputs 4 things.
@@ -221,9 +224,6 @@ pub fn tick (mut players: [Player; 20], mut projectiles: &mut Vec<Projectile>, m
         players[1].use_ability(map);
         
     }
-    
-    // At the end of processing player movement, return the new player array
-    players
 
 }
 
@@ -238,37 +238,37 @@ pub fn collision (rect1: &Rect, rect2: &Rect) -> bool {
 }
 
 // All the user input code is in here, instead of the tick fn, for readability purposes
-fn check_user_input(mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect) {
-    if is_key_pressed('w', &keys) && !is_key_pressed('s', &keys) {
-        if is_key_pressed('d', &keys) {
+fn check_user_input(mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect, controls: Controls) {
+    if is_key_pressed(controls.up, &keys) && !is_key_pressed(controls.down, &keys) {
+        if is_key_pressed(controls.right, &keys) {
             players[0].direction = Direction::NE;
-        } else if is_key_pressed('a', &keys) {
+        } else if is_key_pressed(controls.left, &keys) {
             players[0].direction = Direction::NW;
         } else {
             players[0].direction = Direction::N;
         }
-    } else if is_key_pressed('s', &keys) && !is_key_pressed('w', &keys) {
-        if is_key_pressed('d', &keys) {
+    } else if is_key_pressed(controls.down, &keys) && !is_key_pressed(controls.up, &keys) {
+        if is_key_pressed(controls.right, &keys) {
             players[0].direction = Direction::SE;
-        } else if is_key_pressed('a', &keys) {
+        } else if is_key_pressed(controls.left, &keys) {
             players[0].direction = Direction::SW;
         } else {
             players[0].direction = Direction::S;
         }
-    } else if is_key_pressed('d', &keys) && !is_key_pressed('a', &keys) {
+    } else if is_key_pressed(controls.right, &keys) && !is_key_pressed(controls.left, &keys) {
         players[0].direction = Direction::E;
-    } else if is_key_pressed('a', &keys) && !is_key_pressed('d', &keys) {
+    } else if is_key_pressed(controls.left, &keys) && !is_key_pressed(controls.right, &keys) {
         players[0].direction = Direction::W;
     } else {
         players[0].direction = Direction::None;
     }
     
-    if is_key_pressed('e', &keys) {
+    if is_key_pressed(controls.use_ability, &keys) {
         players[0].use_ability(map);
         
     }
     
-    if is_key_pressed('r', &keys) {
+    if is_key_pressed(controls.reload, &keys) {
         players[0].gun.reload();
         
     }

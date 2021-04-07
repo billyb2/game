@@ -85,10 +85,13 @@ impl Map {
 
        decompressor.decompress_vec(compressed_bytes, &mut bytes, FlushDecompress::None).unwrap();
 
+       //Unallocates all the extra memory
+       bytes.shrink_to_fit();
+
         let width = slice_to_u32(&bytes[0..=3]);
         let height = slice_to_u32(&bytes[4..=7]);
 
-        let mut objects: Vec<MapObject> = Vec::with_capacity(999_993);
+        let mut objects: Vec<MapObject> = Vec::with_capacity(bytes.len() - 8);
 
         let mut i = 8;
         let mut crc32: u32 = 0;
@@ -124,6 +127,9 @@ impl Map {
             i += 23;
         }
 
+        //Deallocate any extra memory in objects
+        objects.shrink_to_fit();
+
         if data_end_index == 0 {
             panic!("No CRC32 found, please check your map file");
 
@@ -142,9 +148,6 @@ impl Map {
 
 
         }
-
-
-
 
         Map::new(objects, Some([width as f32, height as f32]))
 
