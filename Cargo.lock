@@ -706,15 +706,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "flate2"
-version = "1.0.20"
+name = "fehler"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd3aec53de10fe96d7d8c565eb17f2c687bb5518a2ec453b5b1252964526abe0"
+checksum = "d5729fe49ba028cd550747b6e62cd3d841beccab5390aa398538c31a2d983635"
 dependencies = [
- "cfg-if 1.0.0",
- "crc32fast",
- "libc",
- "miniz_oxide 0.4.4",
+ "fehler-macros",
+]
+
+[[package]]
+name = "fehler-macros"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccb5acb1045ebbfa222e2c50679e392a71dd77030b78fb0189f2d9c5974400f9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -768,8 +776,9 @@ dependencies = [
 name = "game_logic"
 version = "0.1.0"
 dependencies = [
- "flate2",
+ "crc32fast",
  "getrandom 0.2.2",
+ "lz-fear",
 ]
 
 [[package]]
@@ -1313,6 +1322,19 @@ dependencies = [
  "arrayvec",
  "lyon_path",
  "sid",
+]
+
+[[package]]
+name = "lz-fear"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06aad1ce45e4ccf7a8d7d43e0c3ad38dc5d2255174a5f29a3c39d961fbc6181d"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "fehler",
+ "thiserror",
+ "twox-hash",
 ]
 
 [[package]]

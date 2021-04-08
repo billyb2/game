@@ -1,7 +1,9 @@
 use crate::collision;
 use crate::objects::{Rect, Color};
 
-use flate2::FlushDecompress;
+use crc32fast::Hasher;
+
+use lz_fear::framed::decompress_frame;
 
 use std::convert::TryInto;
 
@@ -78,12 +80,7 @@ impl Map {
 
     pub fn from_bin(compressed_bytes: &[u8]) -> Map {
         //Decompress the map
-        let mut decompressor = flate2::Decompress::new(true);
-        //So the vector expects to have a maximum of a 1MB map, though it can be larger
-        // See https://doc.rust-lang.org/std/vec/struct.Vec.html#capacity-and-reallocation
-        let mut bytes: Vec<u8> = Vec::with_capacity(1_000_000);
-
-       decompressor.decompress_vec(compressed_bytes, &mut bytes, FlushDecompress::None).unwrap();
+        let mut bytes: Vec<u8> = decompress_frame(compressed_bytes).unwrap();
 
        //Unallocates all the extra memory
        bytes.shrink_to_fit();
@@ -135,17 +132,16 @@ impl Map {
 
         }
 
-        let mut hasher = flate2::Crc::new();
+        let mut hasher = Hasher::new();
         hasher.update(&bytes[0..=data_end_index]);
 
-        let checksum: u32 = hasher.sum();
+        let checksum: u32 = hasher.finalize();
 
         if checksum == crc32 {
             println!("Verified map checksum!");
 
         } else {
             panic!("The map file is corrupted! (Checksums don't match)");
-
 
         }
 

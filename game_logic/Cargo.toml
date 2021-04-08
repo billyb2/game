@@ -18,4 +18,8 @@ panic = "abort"
 # Unlinke the rand crate, get_ranodm supports every target under the sun, inclulding WASM and iOS which rand doesn't supports
 # All targets: https://docs.rs/getrandom/0.2.2/getrandom/
 getrandom = { version = "0.2", features = ["js"] }
-flate2 = "1"
+lz-fear = "0.1"
+crc32fast = "1"
+
+#TODO: Figure out how to get lz_flex to work for the following reason:
+# We could use default-features=false to get much faster performance, and also use the checked-decode feature to prevent out of bounds memory access attacks. The downside is that it uses unsafe Rust, meaning that if the library has any issues with not handling memory correctly (i.e. checked-decode isn't safe), it's vulnerable to any attacks C code would be vulnerable to
