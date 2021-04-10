@@ -14,7 +14,7 @@ use ggez::timer::check_update_time;
 use game_logic::{collision, tick};
 use game_logic::map::Map;
 use game_logic::objects;
-use game_logic::objects::{Ability, Controls, Direction, Model, Player, Projectile, Rect};
+use game_logic::objects::{Ability, Controls, Direction, Model, Player, Projectile, Rect, current_time};
 
 use rand::thread_rng;
 use rand::Rng;
@@ -63,15 +63,98 @@ impl View {
 
 }
 
-struct MainState {
-    view: View,
+trait GameModeIndividual {
+    fn add_to_score(&mut self, player_id: u8);
+
+    fn current_score(&self) -> [u8; 20];
+
+    fn win_conditions_met(&self) -> bool;
+}
+
+struct Deathmatch {
+    points: [u8; 20],
+
+}
+
+impl Deathmatch {
+    fn new() -> Deathmatch {
+        Deathmatch {
+            points: [0; 20],
+        }
+    }
+}
+
+impl GameModeIndividual for Deathmatch {
+    fn add_to_score(&mut self, player_id: u8) {
+        self.points[player_id as usize] += 1;
+
+    }
+
+    fn current_score(&self) -> [u8; 20] {
+        self.points
+
+    }
+
+    fn win_conditions_met(&self) -> bool {
+        let mut winning_player = false;
+
+        for point_count in self.points.iter() {
+            if point_count >= &20 {
+                winning_player = true;
+                break;
+
+            }
+
+        }
+
+        winning_player
+
+
+    }
+
+}
+
+//By wrapping each game mode in an enum, we can do all the fun stuff involving traits, without storing said GameMode in a Box on the heap, or do some funky stuff with dynamic Traits
+// We can also do specific actions for every game mode, like respawns, etc since enums are easy to code for all possibilities.
+//See https://bennetthardwick.com/blog/dont-use-boxed-trait-objects-for-struct-internals/
+enum GameMode {
+    Deathmatch(Deathmatch),
+
+}
+
+struct GameState {
     players: [Player; 20],
     projectiles: Vec<Projectile>,
     map: Map,
+    //Game log is stored by how long it's on screen, and the actual content of said logical
+    //Game log isn't the right word but it's basically like what's happening in the game
+    logs: Vec<(String, u128)>,
+    game_mode: GameMode,
     origin: Point2<f32>,
-    zoom: f32,    
-    rect_spritebatch: HashMap<(u8, u8, (u8, u8, u8, u8)), SpriteBatch>,
+    zoom: f32,
+
+}
+
+impl GameState {
+    fn log(&mut self, string: String) {
+        // The log can be a maximum of 9 items long
+        if self.logs.len() >= 9 {
+            self.logs.pop();
+
+        }
+
+        //Push the log value to the top of the vector
+        self.logs.insert(0, (string, current_time()));
+
+    }
+
+}
+
+struct MainState {
     controls: Controls,
+    game_state: GameState,
+    rect_spritebatch: HashMap<(u8, u8, (u8, u8, u8, u8)), SpriteBatch>,
+    view: View,
     
 }
 
@@ -95,7 +178,7 @@ impl MainState {
 
         // Preallocate memory for the maximum of 20 players
         let players: [Player; 20] ={
-            let mut players: [Player; 20] = [Player::new(None, Ability::Phase, 0, Model::Pistol, 0, false, [0.0, 0.0]); 20];
+            let mut players: [Player; 20] = [Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline()];
             
             let mut rng = thread_rng();
 
@@ -121,11 +204,15 @@ impl MainState {
 
         MainState {
             view: View::default(),
-            players,
-            projectiles: Vec::new(),
-            map,
-            origin: Point2 {x: 596.0, y: 342.0},
-            zoom: 1.0,
+            game_state: GameState {
+                players,
+                projectiles: Vec::new(),
+                map,
+                game_mode: GameMode::Deathmatch(Deathmatch::new()),
+                logs: Vec::with_capacity(10),
+                origin: Point2 {x: 596.0, y: 342.0},
+                zoom: 1.0,
+            },
             rect_spritebatch: HashMap::new(),
             controls: Controls::default(),
 
@@ -216,23 +303,60 @@ impl MainState {
             let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
             let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
 
-            tick(&mut self.players, &mut self.projectiles, &mut self.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords, self.controls);
+            let damaged_players = tick(&mut self.game_state.players, &mut self.game_state.projectiles, &mut self.game_state.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords, self.controls);
 
-            self.origin.x = self.players[0].x - screen_coords.w / 2.0;
-            self.origin.y = self.players[0].y - screen_coords.h / 2.0;
+            match &self.game_state.game_mode {
+                GameMode::Deathmatch(_) => {
 
-            if self.origin.x < 0.0 {
-                self.origin.x = 0.0;
+                    for player_id in damaged_players.iter() {
+                        if self.game_state.players[*player_id as usize].health > 0 {
+                            self.game_state.log(format!("Player {} took damage", player_id + 1));
 
-            } else if self.origin.x > self.map.width - screen_coords.w {
-                self.origin.x = self.map.width - screen_coords.w;
+                        } else {
+                            self.game_state.log(format!("Player {} got murked", player_id + 1));
+                            //TODO: Add points to players who kill other players
+
+                        }
+
+                    }
+
+
+                    let mut num_of_pops: u8 = 0;
+
+                    for (_, time)in self.game_state.logs.iter().rev() {
+                        if current_time() >= time + 8000 {
+                            num_of_pops += 1;
+
+                        } else {
+                            break;
+
+                        }
+
+                    }
+
+                    while num_of_pops > 0 {
+                        self.game_state.logs.pop();
+                        num_of_pops -= 1;
+
+                    }
+                },
+            };
+
+            self.game_state.origin.x = self.game_state.players[0].x - screen_coords.w / 2.0;
+            self.game_state.origin.y = self.game_state.players[0].y - screen_coords.h / 2.0;
+
+            if self.game_state.origin.x < 0.0 {
+                self.game_state.origin.x = 0.0;
+
+            } else if self.game_state.origin.x > self.game_state.map.width - screen_coords.w {
+                self.game_state.origin.x = self.game_state.map.width - screen_coords.w;
 
             }
-            if self.origin.y < 0.0 {
-                self.origin.y = 0.0;
+            if self.game_state.origin.y < 0.0 {
+                self.game_state.origin.y = 0.0;
 
-            } else if self.origin.y > self.map.height - screen_coords.h {
-                self.origin.y = self.map.height - screen_coords.h;
+            } else if self.game_state.origin.y > self.game_state.map.height - screen_coords.h {
+                self.game_state.origin.y = self.game_state.map.height - screen_coords.h;
 
             }
 
@@ -249,15 +373,15 @@ impl MainState {
         let mut map_objects: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))> = Vec::new();
         let mut projectiles: Vec<(Point2<f32>, u8, (u8, u8, u8, u8))> = Vec::new();
 
-        for object in &self.map.objects {
+        for object in &self.game_state.map.objects {
             let u8_color: (u8, u8, u8, u8) = object.color.into();
             let color: graphics::Color = u8_color.into();
 
             let object = object.data;
 
-           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.game_state.origin.x, self.game_state.origin.y, screen_coords.w, screen_coords.h)) {
 
-                let rect = graphics::Rect::new((object.x - self.origin.x) * self.zoom, (object.y - self.origin.y) * self.zoom, object.w * self.zoom, object.h * self.zoom);
+                let rect = graphics::Rect::new((object.x - self.game_state.origin.x) * self.game_state.zoom, (object.y - self.game_state.origin.y) * self.game_state.zoom, object.w * self.game_state.zoom, object.h * self.game_state.zoom);
 
                  let vec_size = ((object.w as usize) *  (object.h as usize)) * 4;
 
@@ -274,10 +398,10 @@ impl MainState {
             }
         }
 
-        for projectile in &self.projectiles {
-            if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+        for projectile in &self.game_state.projectiles {
+            if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.game_state.origin.x, self.game_state.origin.y, screen_coords.w, screen_coords.h)) {
 
-                let rect = graphics::Rect::new((projectile.x - self.origin.x) * self.zoom, (projectile.y - self.origin.y) * self.zoom, projectile.w * self.zoom, projectile.h * self.zoom);
+                let rect = graphics::Rect::new((projectile.x - self.game_state.origin.x) * self.game_state.zoom, (projectile.y - self.game_state.origin.y) * self.game_state.zoom, projectile.w * self.game_state.zoom, projectile.h * self.game_state.zoom);
 
 
                 let size = projectile.w as u16;
@@ -320,16 +444,42 @@ impl MainState {
 
         }
 
+        //Draw log text here
+        for (i, (log, time)) in self.game_state.logs.iter().enumerate() {
+            // I have to use clone until I figure out a better method :'(
+            let alpha: u8 = {
+                if current_time() >= time + 4000 {
+                    //TODO: Bitwise copy here (time)
+                    // This basically cahnges the opacity of the text depending on how long it's been on screen
+                    let alpha = (((*time + 8000) as f64 - (current_time()) as f64) / 4000.0) * 255.0;
+                    alpha as u8
+
+                } else {
+                    255
+
+                }
+
+
+            };
+
+            let color = graphics::Color::from_rgba(255, 255, 255, alpha);
+
+            let log_text = Text::new(TextFragment::new(String::from(log)).color(color));
+
+            graphics::draw(ctx, &log_text, DrawParam::default().dest(Point2 {x: screen_coords.w - 50.0 - log_text.width(ctx) as f32 * 2.0, y: screen_coords.h - 100.0 - i as f32 * 25.0})).unwrap();
+        }
+
+
         // The players should be drawn over all other objects
-        for player in &self.players {
+        for player in &self.game_state.players {
             if player.online {
 
                 // Only draw players that are in the screen
                 // Recycling the collision function since I am basically just seeing if the two rectangles intersect
-                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.origin.x, self.origin.y, screen_coords.w, screen_coords.h)) {
+                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.game_state.origin.x, self.game_state.origin.y, screen_coords.w, screen_coords.h)) {
 
                     // Draw each player as a filled rectangle
-                    let rect = graphics::Rect::new((player.x - self.origin.x) * self.zoom, (player.y - self.origin.y) * self.zoom, 15.0 * self.zoom, 15.0 * self.zoom);
+                    let rect = graphics::Rect::new((player.x - self.game_state.origin.x) * self.game_state.zoom, (player.y - self.game_state.origin.y) * self.game_state.zoom, 15.0 * self.game_state.zoom, 15.0 * self.game_state.zoom);
 
                     let color: (u8, u8, u8, u8) = player.color.into();
 
@@ -352,7 +502,7 @@ impl MainState {
         let mut text_y = 0.0;
         let mut text_x_offset = 650.0;
 
-        for (i, player) in self.players.iter().enumerate() {
+        for (i, player) in self.game_state.players.iter().enumerate() {
             if player.health > 0 {
                 let health = Text::new(format!("Player {} health: {}", i + 1, player.health));
                 let ability_charge_percent = Text::new(format!("Player {} charge: {:.0}%", i + 1, player.ability_charge as f32 / player.max_ability_charge as f32 * 100.0));
@@ -662,6 +812,7 @@ impl MainState {
 
 impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+
         match self.view.view_screen {
             ViewScreen::StartScreen => MainState::draw_start_screen(self, ctx),
             ViewScreen::Game => MainState::draw_game(self, ctx),
@@ -684,6 +835,7 @@ impl event::EventHandler for MainState {
 }
 
 pub fn main() -> ggez::GameResult { 
+
     let cb = ggez::ContextBuilder::new("game", "William Batista + Luke Gaston")
     .window_mode (
         WindowMode {
@@ -730,7 +882,7 @@ pub fn main() -> ggez::GameResult {
 
     let map_bytes = Asset::get("map1.custom").unwrap();
 
-    
+
     let state = MainState::new(Map::from_bin(&map_bytes));
     event::run(ctx, event_loop, state)
     

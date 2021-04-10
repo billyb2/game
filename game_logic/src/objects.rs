@@ -401,7 +401,6 @@ pub enum Ability {
     Engineer, //Should be default
 }
 
-#[derive(Copy, Clone)]
 pub struct Player {
     pub x: f32,
     pub y: f32,
@@ -465,6 +464,11 @@ impl Player {
             gun: Gun::new(gun, ability, player_id),
             online,
         }
+    }
+
+    pub fn offline() -> Player {
+        Player::new(None, Ability::Phase, 0, Model::Pistol, 0, false, [0.0, 0.0])
+
     }
 
     pub fn use_ability(&mut self, map: &mut Map) {

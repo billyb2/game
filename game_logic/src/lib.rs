@@ -8,9 +8,12 @@ pub mod objects;
 use map::Map;
 use std::f32::consts::PI;
 use objects::{Ability, Controls, Direction, Player, Projectile, ProjectileType, out_of_bounds, Point2, Rect};
+use std::convert::TryInto;
 
 //mouse_pressed index are: 0: left mouse pressed, 1: middle mouse pressed, 2: right mouse pressed
-pub fn tick (mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect, controls: Controls) {
+pub fn tick (mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectile>, map: &mut Map, keys_pressed: Vec<char>, mouse_pressed: [bool; 3], mouse_coords: Point2, screen_coords: Rect, controls: Controls) -> Vec<u8> {
+    let mut damaged_players: Vec<u8> = Vec::with_capacity(20);
+
     // Move every player 
     for player in players.iter_mut() {
         if player.health > 0 {
@@ -164,7 +167,7 @@ pub fn tick (mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectil
         }
         
         // Projectile collisions with player
-        for player in players.iter_mut() {
+        for (i, player) in players.iter_mut().enumerate() {
             let player_rect = Rect::new(player.x, player.y, 15.0, 15.0);
             
             // Projectiles can only hit living players
@@ -176,7 +179,8 @@ pub fn tick (mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectil
                     player.health = 0;
                     
                 }
-                println!("Player health: {} ", player.health);
+
+                damaged_players.push(i.try_into().unwrap()); println!("Player health: {} ", player.health);
                 
                 //The player's color slowly fades as they take more damage
                 let mut color_tuple = player.color.to_rgba();
@@ -224,6 +228,8 @@ pub fn tick (mut players: &mut [Player; 20], mut projectiles: &mut Vec<Projectil
         players[1].use_ability(map);
         
     }
+
+    damaged_players
 
 }
 
