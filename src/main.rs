@@ -14,7 +14,8 @@ use ggez::timer::check_update_time;
 use game_logic::{collision, tick};
 use game_logic::map::Map;
 use game_logic::objects;
-use game_logic::objects::{Ability, Controls, Direction, Model, Player, Projectile, Rect, current_time};
+use game_logic::objects::{Ability, Controls, Direction, Model, Player, Projectile, Rect};
+use game_logic::helper_functions::current_time;
 
 use rand::thread_rng;
 use rand::Rng;
@@ -155,6 +156,7 @@ struct MainState {
     game_state: GameState,
     rect_spritebatch: HashMap<(u8, u8, (u8, u8, u8, u8)), SpriteBatch>,
     view: View,
+    time: u128,
     
 }
 
@@ -213,6 +215,7 @@ impl MainState {
                 origin: Point2 {x: 596.0, y: 342.0},
                 zoom: 1.0,
             },
+            time: current_time(),
             rect_spritebatch: HashMap::new(),
             controls: Controls::default(),
 
@@ -324,7 +327,7 @@ impl MainState {
                     let mut num_of_pops: u8 = 0;
 
                     for (_, time)in self.game_state.logs.iter().rev() {
-                        if current_time() >= time + 8000 {
+                        if self.time >= time + 8000 {
                             num_of_pops += 1;
 
                         } else {
@@ -448,10 +451,10 @@ impl MainState {
         for (i, (log, time)) in self.game_state.logs.iter().enumerate() {
             // I have to use clone until I figure out a better method :'(
             let alpha: u8 = {
-                if current_time() >= time + 4000 {
+                if self.time >= time + 4000 {
                     //TODO: Bitwise copy here (time)
                     // This basically cahnges the opacity of the text depending on how long it's been on screen
-                    let alpha = (((*time + 8000) as f64 - (current_time()) as f64) / 4000.0) * 255.0;
+                    let alpha = (((*time + 8000) as f64 - self.time as f64) / 4000.0) * 255.0;
                     alpha as u8
 
                 } else {
@@ -812,6 +815,8 @@ impl MainState {
 
 impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+        self.time = current_time();
+
 
         match self.view.view_screen {
             ViewScreen::StartScreen => MainState::draw_start_screen(self, ctx),
