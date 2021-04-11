@@ -31,6 +31,7 @@ struct Asset;
 enum ViewScreen {
     StartScreen,
     Settings,
+    //GameStartScreen,
     Game,
 
 }
@@ -65,6 +66,11 @@ impl View {
 }
 
 trait GameModeIndividual {
+    fn add_dead_player(&mut self, player_id: u8, time: u128);
+
+    //So structs that are within other structs can't access data "above" them so to speak, so I need the time to be fead into the function
+    fn remove_dead_players(&mut self, players: &mut [Player; 20], current_time: u128);
+
     fn add_to_score(&mut self, player_id: u8);
 
     fn current_score(&self) -> [u8; 20];
@@ -74,6 +80,8 @@ trait GameModeIndividual {
 
 struct Deathmatch {
     points: [u8; 20],
+    //Tuple index 0 is the player id, index 1 is when the player has been dead
+    dead_players: Vec<(u8, u128)>
 
 }
 
@@ -81,11 +89,54 @@ impl Deathmatch {
     fn new() -> Deathmatch {
         Deathmatch {
             points: [0; 20],
+            dead_players: Vec::with_capacity(20),
         }
     }
+
 }
 
 impl GameModeIndividual for Deathmatch {
+    fn add_dead_player(&mut self, player_id: u8, time: u128) {
+        self.dead_players.push((player_id, time));
+
+    }
+
+    fn remove_dead_players(&mut self, players: &mut [Player; 20], current_time: u128) {
+        let mut num_of_pops: u8 = 0;
+
+        for (player_id, time) in self.dead_players.iter_mut().rev() {
+            //Is that a copy >:(
+            //Respawn players after 3 secondss
+            if current_time >= *time + 3000 {
+                let mut player = &mut players[*player_id as usize];
+
+                // Gotta forcefully set the players alpha
+                // If we dont set the players alpha, they spawn invisibly until they get shot
+                let mut color_tuple = player.color.to_rgba();
+                color_tuple.3 = 255;
+                player.color = color_tuple.into();
+
+                //Reset the player's stats
+                player.gun.ammo_in_mag = player.gun.max_ammo;
+                player.health = 100;
+                player.ability_charge = player.max_ability_charge;
+                num_of_pops += 1;
+
+            } else {
+                break;
+
+            }
+
+        }
+
+        while num_of_pops > 0 {
+            self.dead_players.pop();
+            num_of_pops -= 1;
+
+        }
+
+    }
+
     fn add_to_score(&mut self, player_id: u8) {
         self.points[player_id as usize] += 1;
 
@@ -115,13 +166,8 @@ impl GameModeIndividual for Deathmatch {
 
 }
 
-//By wrapping each game mode in an enum, we can do all the fun stuff involving traits, without storing said GameMode in a Box on the heap, or do some funky stuff with dynamic Traits
-// We can also do specific actions for every game mode, like respawns, etc since enums are easy to code for all possibilities.
 //See https://bennetthardwick.com/blog/dont-use-boxed-trait-objects-for-struct-internals/
-enum GameMode {
-    Deathmatch(Deathmatch),
-
-}
+//So after trying out using enums instead of Boxed dynamic traits, I absolutely despise them and I will take a performance hit in order to never ever deal with that garbage ever again
 
 struct GameState {
     players: [Player; 20],
@@ -130,7 +176,7 @@ struct GameState {
     //Game log is stored by how long it's on screen, and the actual content of said logical
     //Game log isn't the right word but it's basically like what's happening in the game
     logs: Vec<(String, u128)>,
-    game_mode: GameMode,
+    game_mode: Box<dyn GameModeIndividual>,
     origin: Point2<f32>,
     zoom: f32,
 
@@ -210,7 +256,7 @@ impl MainState {
                 players,
                 projectiles: Vec::new(),
                 map,
-                game_mode: GameMode::Deathmatch(Deathmatch::new()),
+                game_mode: Box::new(Deathmatch::new()),
                 logs: Vec::with_capacity(10),
                 origin: Point2 {x: 596.0, y: 342.0},
                 zoom: 1.0,
@@ -308,42 +354,64 @@ impl MainState {
 
             let damaged_players = tick(&mut self.game_state.players, &mut self.game_state.projectiles, &mut self.game_state.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords, self.controls);
 
-            match &self.game_state.game_mode {
-                GameMode::Deathmatch(_) => {
 
-                    for player_id in damaged_players.iter() {
-                        if self.game_state.players[*player_id as usize].health > 0 {
-                            self.game_state.log(format!("Player {} took damage", player_id + 1));
+            for player_id in damaged_players.iter() {
+                if self.game_state.players[*player_id as usize].health > 0 {
+                    self.game_state.log(format!("Player {} took damage", player_id + 1));
 
-                        } else {
-                            self.game_state.log(format!("Player {} got murked", player_id + 1));
-                            //TODO: Add points to players who kill other players
+                } else {
+                    self.game_state.log(format!("Player {} got murked", player_id + 1));
+                    //Yet another copy, TODO
+                    self.game_state.game_mode.add_dead_player(*player_id, self.time);
+                    //TODO: Add points to players who kill other players
+                }
 
-                        }
+            }
+
+            self.game_state.game_mode.remove_dead_players(&mut self.game_state.players, self.time);
+
+
+            let mut num_of_pops: u8 = 0;
+
+            for (_, time)in self.game_state.logs.iter().rev() {
+                if self.time >= time + 8000 {
+                    num_of_pops += 1;
+
+                } else {
+                    break;
+
+                }
+
+            }
+
+            while num_of_pops > 0 {
+                self.game_state.logs.pop();
+                num_of_pops -= 1;
+
+            }
+
+
+            // This is kind of inefficient, but I can't have multiple mutable borrows at the same time
+          /*  if let GameMode::Deathmatch(game_mode) = &mut self.game_state.game_mode {
+                for dead_player in dead_players.iter_mut().rev() {
+                    game_mode.dead_players.push(*dead_player);
+                    println!("Dead player");
+                    dead_players.pop();
+
+                }
+
+
+                for (player_id, time) in game_mode.dead_players.iter() {
+                    //3 second respawn time
+                    //Another copy
+                    if self.time >= *time + 3000 {
+                        self.game_state.players[*player_id as usize].health = 100;
+                        self.game_state.log(format!("Player {} has respawned!", &player_id));
 
                     }
+                }
 
-
-                    let mut num_of_pops: u8 = 0;
-
-                    for (_, time)in self.game_state.logs.iter().rev() {
-                        if self.time >= time + 8000 {
-                            num_of_pops += 1;
-
-                        } else {
-                            break;
-
-                        }
-
-                    }
-
-                    while num_of_pops > 0 {
-                        self.game_state.logs.pop();
-                        num_of_pops -= 1;
-
-                    }
-                },
-            };
+            }*/
 
             self.game_state.origin.x = self.game_state.players[0].x - screen_coords.w / 2.0;
             self.game_state.origin.y = self.game_state.players[0].y - screen_coords.h / 2.0;
@@ -811,6 +879,14 @@ impl MainState {
 
         graphics::present(ctx).unwrap();
     }
+
+    /*fn update_game_start_screen(&mut self, ctx: &mut ggez::Context) {
+
+    }
+
+    fn draw_game_start_screen(&mut self, ctx: &mut ggez::Context) {
+
+    }*/
 }
 
 impl event::EventHandler for MainState {
@@ -822,6 +898,7 @@ impl event::EventHandler for MainState {
             ViewScreen::StartScreen => MainState::draw_start_screen(self, ctx),
             ViewScreen::Game => MainState::draw_game(self, ctx),
             ViewScreen::Settings => MainState::draw_settings(self, ctx),
+            //ViewScreen::GameStartScreen => MainState::draw_game_start_screen(self, ctx),
         };
 
         Ok(())
@@ -833,6 +910,7 @@ impl event::EventHandler for MainState {
             ViewScreen::StartScreen => MainState::update_start_screen(self, ctx),
             ViewScreen::Settings => MainState::update_settings(self, ctx),
             ViewScreen::Game => MainState::update_game(self, ctx),
+            //ViewScreen::GameStartScreen => MainState::update_game_start_screen(self, ctx),
         };
 
         Ok(())
