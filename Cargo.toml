@@ -6,7 +6,6 @@ edition = "2018"
 
 # Sprite batching will actually slow down the program without some minor optimizations, but is much much faster than drawing normally in optimized programs (especially release builds). Using some minor optimization just so the game runs smoothly
 
-# Check out https://docs.rs/ggez/0.6.0-rc1/ggez/graphics/spritebatch/struct.SpriteBatch.html for more info
 [profile.dev]
 # Since neither me or Luke uses a debugger, turning off debug info should speed up compile times
 debug = 0
@@ -19,8 +18,12 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-# Grabbing the the latest 0.6 release canidate, since 0.6 isn't fully released yet
-ggez = "0.6.0-rc"
-rand = "0.8"
-rust-embed= { version = "5" }
-game_logic = { path = "game_logic" }
+bevy = "0.5"
+# Unlinke the rand crate, get_random supports every target under the sun, inclulding WASM and iOS which rand doesn't support easily
+# All targets: https://docs.rs/getrandom/0.2.2/getrandom/
+getrandom = { version = "0.2", features = ["js"] }
+#TODO: Figure out how to get lz_flex to work for the following reason:
+# We could use default-features=false to get much faster performance, and also use the checked-decode feature to prevent out of bounds memory access attacks. The downside is that it uses unsafe Rust, meaning that if the library has any issues with not handling memory correctly (i.e. checked-decode isn't safe), it's vulnerable to any attacks C code would be vulnerable to
+lz-fear = "0.1"
+crc32fast = "1"
+

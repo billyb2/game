@@ -19,35 +19,11 @@ pub struct Map {
 
 impl Map {
     pub fn new(objects: Vec<MapObject>, dimensions: Option<[f32; 2]>) -> Map {
-    
-        let mut map_width: f32 = 0.0;
-        let mut map_height: f32 = 0.0;
-    
-        if dimensions == None {
-            for object in objects.iter() {
-                let object = object.data;
-            
-                if dimensions == None && object.x + object.w > map_width{
-                    map_width = object.x + object.w ;
-                        
-                }
-                
-                if dimensions == None && object.y + object.h > map_height {
-                    map_height = object.y + object.h;
-                        
-                }
-            }
-            
-        } else {
-            map_width = dimensions.unwrap()[0];
-            map_height = dimensions.unwrap()[1];
-            
-        }
-    
+
         Map {
             objects,
-            width: map_width,
-            height: map_height,
+            width: dimensions.unwrap()[0],
+            height: dimensions.unwrap()[1],
             
         }
     }
