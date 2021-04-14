@@ -10,6 +10,7 @@ use std::convert::TryInto;
 #[derive(Bundle, Copy, Clone)]
 pub struct MapObject {
     pub coords: Coords,
+    pub size: Size,
     pub color: Color,
     pub player_collidable: bool,
     pub player_spawn: bool,
@@ -17,37 +18,21 @@ pub struct MapObject {
 
 }
 
-impl MapObject {
-    pub fn new(x: f32, y: f32, color: Color, player_collidable: bool, player_spawn: bool, health: Option<u8>) -> MapObject {
-        MapObject {
-            coords: Coords::new(x, y),
-            color,
-            player_collidable,
-            player_spawn,
-            health,
-
-        }
-
-    }
-}
-
 #[derive(Clone)]
 pub  struct Map {
     pub objects: Vec<MapObject>,
+    pub background_color: Color,
     pub size: Size,
 
 }
 
 impl Map {
-    pub fn new(objects: Vec<MapObject>, size: Option<[f32; 2]>) -> Map {
+    pub fn new(objects: Vec<MapObject>, size: [f32; 2], background_color: Color) -> Map {
 
         Map {
             objects,
-            size: Size {
-                w: size.unwrap()[0],
-                h: size.unwrap()[1],
-
-            }
+            size: Size::new(size[0],  size[1]),
+            background_color,
 
         }
     }
@@ -59,22 +44,26 @@ impl Map {
        //Unallocates all the extra memory
        bytes.shrink_to_fit();
 
-        let width = slice_to_u32(&bytes[0..=3]);
-        let height = slice_to_u32(&bytes[4..=7]);
+        let map_width = slice_to_u32(&bytes[0..=3]);
+        let map_height = slice_to_u32(&bytes[4..=7]);
+        let background_color = Color::rgb_u8(bytes[8], bytes[9], bytes[10]);
 
-        let mut objects: Vec<MapObject> = Vec::with_capacity(bytes.len() - 8);
+        let mut objects: Vec<MapObject> = Vec::with_capacity(bytes.len() - 11);
 
-        let mut i = 8;
+        let mut i = 11;
         let mut crc32: u32 = 0;
         let mut data_end_index = 0;
 
         while i < bytes.len() - 22 {
             let x = (slice_to_u32(&bytes[i..=(i + 3)])) as f32;
             let y = (slice_to_u32(&bytes[(i + 4)..=(i + 7)])) as f32;
+            let w = (slice_to_u32(&bytes[(i + 8)..=(i + 11)])) as f32;
+            let h = (slice_to_u32(&bytes[(i + 12)..=(i + 15)])) as f32;
 
             objects.push(
                 MapObject {
                     coords: Coords::new(x, y),
+                    size: Size::new(w, h),
                     player_spawn: !matches!(bytes[(i + 16)], 0),
                     player_collidable: !matches!(bytes[(i + 17)], 0),
                     color: Color::rgba_u8(bytes[i + 18], bytes[i + 19], bytes[i + 20], bytes[i + 21]),
@@ -117,11 +106,9 @@ impl Map {
 
         }
 
-        Map::new(objects, Some([width as f32, height as f32]))
+        Map::new(objects, [map_width as f32, map_height as f32], background_color)
 
     }
-
-    //TODO: Use the include_bytes! macro
 
 }
 

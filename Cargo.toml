@@ -4,12 +4,11 @@ version = "0.1.0"
 authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgaston@myhoosierneighbors.com>"]
 edition = "2018"
 
-# Sprite batching will actually slow down the program without some minor optimizations, but is much much faster than drawing normally in optimized programs (especially release builds). Using some minor optimization just so the game runs smoothly
-
 [profile.dev]
 # Since neither me or Luke uses a debugger, turning off debug info should speed up compile times
 debug = 0
-opt-level = 1
+# Bevy currently doesn't support 2d sprite batching, which is horrific, so I need to use a higher optimization level than I'd like
+opt-level = 2
 
 [profile.release]
 debug = 0
@@ -18,12 +17,17 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-bevy = "0.5"
+bevy = {git = "https://github.com/bevyengine/bevy/", rev = "d119c1ce14da59089a65373d59715a41d05251ad"}
 # Unlinke the rand crate, get_random supports every target under the sun, inclulding WASM and iOS which rand doesn't support easily
 # All targets: https://docs.rs/getrandom/0.2.2/getrandom/
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2" }
 #TODO: Figure out how to get lz_flex to work for the following reason:
 # We could use default-features=false to get much faster performance, and also use the checked-decode feature to prevent out of bounds memory access attacks. The downside is that it uses unsafe Rust, meaning that if the library has any issues with not handling memory correctly (i.e. checked-decode isn't safe), it's vulnerable to any attacks C code would be vulnerable to
 lz-fear = "0.1"
 crc32fast = "1"
+
+[package.metadata.android]
+build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
+target_sdk_version = 29
+min_sdk_version = 16
 

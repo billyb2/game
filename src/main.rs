@@ -3,6 +3,7 @@ mod map2;
 //use bevy::ecs::schedule::ReportExecutionOrderAmbiguities;
 use bevy::prelude::*;
 use bevy::render::camera::Camera;
+use bevy::sprite::SpriteSettings;
 
 use map2::*;
 
@@ -19,6 +20,16 @@ pub struct Size {
     pub h: f32,
 
 }
+
+impl Size {
+    fn new(w: f32, h: f32) -> Size {
+        Size {
+            w,
+            h,
+        }
+    }
+}
+
 
 #[derive(Copy, Clone)]
 pub struct Coords {
@@ -40,18 +51,13 @@ struct Skins {
 
 }
 
-struct Tiles {
-    colors: Vec<Handle<ColorMaterial>>,
-
-}
-
-
 fn main() {
     App::build()
         //Antialiasing
         .insert_resource(Msaa { samples: 8 })
-        // The background is a black rectangle
-        .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+        // Sprite culling doesn't render sprites outside of the camera viewport when enabled
+        // It's fairly buggy when rendering many many sprites at the same time, however
+        .insert_resource(SpriteSettings { frustum_culling_enabled: true })
         //Just checks for possible ambiguouty issue
         //.insert_resource(ReportExecutionOrderAmbiguities)
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
@@ -61,8 +67,7 @@ fn main() {
         .add_startup_stage("setup_game",
         SystemStage::parallel()
             .with_system(add_players.system())
-            .with_system(init_map.system().label("init_map"))
-            .with_system(draw_map.system().after("init_map"))
+            .with_system(draw_map.system())
         )
         .add_system(move_players.system())
         .add_system(move_camera.system())
@@ -111,16 +116,16 @@ fn add_players(mut commands: Commands, materials: Res<Skins>, asset_server: Res<
 
 }
 
-fn init_map(mut map: ResMut<Map>) {
-    map.objects.push(MapObject::new(200.0, 200.0, Color::rgba_u8(255, 255, 255, 255), false, false, Some(100)));
-
-}
-
 fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, map: Res<Map>) {
+
+    // Set the background color to the map's specified color
+    commands.insert_resource(ClearColor((*map).background_color));
+
     let mut i = 0;
 
     while i < (*map).objects.len() {
-        let map_object = (*map).objects[i].coords;
+        let map_coords = (*map).objects[i].coords;
+        let map_size =  (*map).objects[i].size;
         let color = (*map).objects[i].color;
 
         //Either create a new material, or grab a currently existing one
@@ -149,11 +154,11 @@ fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>
         commands
             .spawn_bundle(SpriteBundle {
                 material: color.clone(),
-                sprite: Sprite::new(Vec2::new(15.0, 15.0)),
-                transform: Transform::from_xyz(map_object.x, map_object.y, 0.0),
+                sprite: Sprite::new(Vec2::new(map_size.w, map_size.h)),
+                transform: Transform::from_xyz(map_coords.x, map_coords.y, 0.0),
                 ..Default::default()
             })
-            .insert(map_object);
+            .insert(map_coords);
 
         i += 1;
     }

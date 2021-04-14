@@ -120,6 +120,17 @@ var customMapFormat = {
         array.push((map.height * 15 & 0x0000ff00) >> 8);
         array.push((map.height * 15 & 0x000000ff));
 
+        let rgb_hex = String(map.backgroundColor).substr(1).match(/.{1,2}/g);
+        let rgb = [
+            parseInt(rgb_hex[0], 16),
+            parseInt(rgb_hex[1], 16),
+            parseInt(rgb_hex[2], 16)
+        ];
+
+        array.push(rgb[0]);
+        array.push(rgb[1]);
+        array.push(rgb[2]);
+
         for (i = map.layerCount  - 1; i >= 0; i--) {
             var layer = map.layerAt(i);
 
@@ -133,23 +144,38 @@ var customMapFormat = {
                             array.push((x * 15 & 0x0000ff00) >> 8);
                             array.push((x * 15 & 0x000000ff));
 
-                            //y coor
+                            // y coor
                             array.push((y * 15 & 0xff000000) >> 24);
                             array.push((y * 15 & 0x00ff0000) >> 16);
                             array.push((y * 15 & 0x0000ff00) >> 8);
                             array.push(y * 15 & 0x000000ff);
 
+                            let width = 15;
+
+                            //This basically makes it so objects will extend out to their width, significantly cutting down on the number of sprites
+                            while (x < layer.width) {
+                                if (layer.tileAt(x + 1, y) != null && layer.tileAt(x + 1, y).property("red") == layer.tileAt(x, y).property("red") && layer.tileAt(x + 1, y).property("green") == layer.tileAt(x, y).property("green") && layer.tileAt(x + 1, y).property("blue") == layer.tileAt(x, y).property("blue") && layer.tileAt(x + 1, y).property("alpha") == layer.tileAt(x, y).property("alpha") && layer.tileAt(x + 1, y).property("player_collidable") == layer.tileAt(x, y).property("player_collidable") && layer.tileAt(x + 1, y).property("player_spawn") == layer.tileAt(x, y).property("player_spawn")) {
+                                    width += 15;
+                                    x += 1;
+
+                                } else {
+                                    break;
+
+                                }
+
+                            }
+
                             //width
-                            array.push((15 & 0xff000000) >> 24);
-                            array.push((15 & 0x00ff0000) >> 16);
-                            array.push((15 & 0x0000ff00) >> 8);
-                            array.push(15 & 0x000000ff);
+                            array.push((width & 0xff000000) >> 24);
+                            array.push((width & 0x00ff0000) >> 16);
+                            array.push((width & 0x0000ff00) >> 8);
+                            array.push(width & 0x000000ff);
 
                             //height
                             array.push((15 & 0xff000000) >> 24);
                             array.push((15 & 0x00ff0000) >> 16);
                             array.push((15 & 0x0000ff00) >> 8);
-                           array.push(15 & 0x000000ff);
+                            array.push(15 & 0x000000ff);
 
                             if (layer.tileAt(x, y).property("player_spawn") == true) {
                                 array.push(255);
