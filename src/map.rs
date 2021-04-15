@@ -1,16 +1,13 @@
 use bevy::prelude::*;
-use crate::{Coords, Size};
-use crate::game_logic_2::*;
+use bevy::sprite::collide_aabb::collide;
 use crate::helper_functions_2::slice_to_u32;
-
 use crc32fast::Hasher;
-
 use lz_fear::framed::decompress_frame;
 
 #[derive(Bundle, Copy, Clone)]
 pub struct MapObject {
-    pub coords: Coords,
-    pub size: Size,
+    pub coords: Vec3,
+    pub size: Vec2,
     pub color: Color,
     pub player_collidable: bool,
     pub player_spawn: bool,
@@ -27,8 +24,8 @@ pub struct Map {
 }
 
 impl MapObject {
-    fn collision(&mut self, other_object_coords: &Coords, other_object_size: &Size, damage: u8) -> bool {
-        if collision(&self.coords, &self.size, other_object_coords, other_object_size) && self.player_collidable {
+    fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: u8) -> bool {
+        if collide(self.coords, self.size, other_object_coords, other_object_size).is_some() && self.player_collidable {
             if self.health.is_some() {
                 if self.health.unwrap() as i16 - damage as i16 <= 0 {
                     self.health = Some(0);
@@ -89,10 +86,10 @@ impl Map {
 
             objects.push(
                 MapObject {
-                    coords: Coords::new(x, y),
-                    size: Size::new(w, h),
-                    player_spawn: !matches!(bytes[(i + 16)], 0),
-                    player_collidable: !matches!(bytes[(i + 17)], 0),
+                    coords: Vec3::new(x, y, 0.0),
+                    size: Vec2::new(w, h),
+                    player_spawn: matches!(bytes[(i + 16)], 255),
+                    player_collidable: matches!(bytes[(i + 17)], 255),
                     color: Color::rgba_u8(bytes[i + 18], bytes[i + 19], bytes[i + 20], bytes[i + 21]),
                     health: match bytes[i + 22] {
                         0 => None,
@@ -137,7 +134,7 @@ impl Map {
 
     }
 
-     pub fn collision(&mut self, other_object_coords: &Coords, other_object_size: &Size, damage: u8) -> bool {
+     pub fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: u8) -> bool {
         let mut i = 0;
         let mut collided = false;
 

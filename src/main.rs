@@ -1,16 +1,19 @@
 mod map;
-mod game_logic_2;
 mod helper_functions_2;
 
 //use bevy::ecs::schedule::ReportExecutionOrderAmbiguities;
+use bevy::core::FixedTimestep;
 use bevy::prelude::*;
 use bevy::render::camera::Camera;
 use bevy::sprite::SpriteSettings;
 
 use map::*;
 
+// The game will always run at 60 fps
+const TIME_STEP: f32 = 1.0 / 60.0;
+
 #[derive(Debug, PartialEq)]
-struct RequestedMovement(Coords);
+struct RequestedMovement(Vec3);
 
 #[derive(Debug, PartialEq)]
 struct Health(u8);
@@ -32,40 +35,8 @@ impl Player {
         Player {
             id: ID(id),
             health: Health(100),
-            requested_movement: RequestedMovement(Coords::new(0.0, 0.0)),
+            requested_movement: RequestedMovement(Vec3::ZERO),
 
-        }
-    }
-}
-
-#[derive(Copy, Clone, PartialEq)]
-pub struct Size {
-    pub w: f32,
-    pub h: f32,
-
-}
-
-impl Size {
-    fn new(w: f32, h: f32) -> Size {
-        Size {
-            w,
-            h,
-        }
-    }
-}
-
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Coords {
-    pub x: f32,
-    pub y: f32,
-}
-
-impl Coords {
-    fn new(x: f32, y: f32) -> Coords {
-        Coords {
-            x,
-            y,
         }
     }
 }
@@ -104,9 +75,13 @@ fn main() {
             .with_system(draw_map.system().label("draw_map"))
             .with_system(add_players.system().after("draw_map"))
         )
-        .add_system(move_player.system().label(MoveReq))
-        .add_system(move_objects.system().after(MoveReq))
-        .add_system(move_camera.system().after(MoveReq))
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
+                .with_system(move_player.system().label(MoveReq))
+                .with_system(move_objects.system().after(MoveReq))
+                .with_system(move_camera.system().after(MoveReq))
+        )
         .run();
 }
 
@@ -136,12 +111,13 @@ fn add_players(mut commands: Commands, materials: Res<Skins>, asset_server: Res<
                         horizontal: HorizontalAlign::Center,
                     },
                 ),
-                transform: Transform::from_xyz(i as f32 * 25.0, 300.0, 0.0),
+                transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 0.0),
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
                 material: materials.phase.clone(),
                 sprite: Sprite::new(Vec2::new(10.0, 10.0)),
+                transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 0.0),
                 ..Default::default()
             });
 
@@ -159,7 +135,7 @@ fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>
 
     while i < (*map).objects.len() {
         let map_coords = (*map).objects[i].coords;
-        let map_size =  (*map).objects[i].size;
+        let map_object_size =  (*map).objects[i].size;
         let color = (*map).objects[i].color;
 
         //Either create a new material, or grab a currently existing one
@@ -188,25 +164,24 @@ fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>
         commands
             .spawn_bundle(SpriteBundle {
                 material: color.clone(),
-                sprite: Sprite::new(Vec2::new(map_size.w, map_size.h)),
+                sprite: Sprite::new(map_object_size),
                 transform: Transform::from_xyz(map_coords.x, map_coords.y, 0.0),
                 ..Default::default()
-            })
-            .insert(map_coords);
+            });
 
         i += 1;
     }
 }
 
 // Mobe objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement,  Changed<RequestedMovement>)>, mut map: ResMut<Map>) {
-    for (mut coords, mut movement, _) in movements.iter_mut() {
+fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement,  &Sprite, Changed<RequestedMovement>)>, mut map: ResMut<Map>) {
+    for (mut object, mut movement, sprite, _) in movements.iter_mut() {
         // Only do any math if a change has been detected, in order to avoid triggering this event without need
         // Only lets you move if the movement doesn't bump into a wall
-        if movement.0 != Coords::new(0.0, 0.0) {
-            if !map.collision(&Coords::new(coords.translation.x + movement.0.x, coords.translation.y + movement.0.y), &Size::new(15.0, 15.0), 0) {
-                coords.translation.x += movement.0.x;
-                coords.translation.y += movement.0.y;
+        if movement.0 != Vec3::ZERO {
+            if !map.collision(object.translation + movement.0, sprite.size, 0) {
+                object.translation.x += movement.0.x;
+                object.translation.y += movement.0.y;
 
             }
 
@@ -266,7 +241,7 @@ fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut Reque
     if x != 0.0 || y != 0.0 {
         for (mut requested_movement, id) in query.iter_mut() {
             if id.0 == 0 {
-                requested_movement.0 = Coords::new(x, y);
+                requested_movement.0 = Vec3::new(x, y, 0.0);
                 break;
 
             }

@@ -8,7 +8,11 @@ edition = "2018"
 # Since neither me or Luke uses a debugger, turning off debug info should speed up compile times
 debug = 0
 # Bevy currently doesn't support 2d sprite batching, which is horrific, so I need to use a higher optimization level than I'd like
-opt-level = 2
+opt-level = 1
+
+# Optimizing every package highly, so higher clean build times but also higher performance
+[profile.dev.package."*"]
+opt-level = 3
 
 [profile.release]
 debug = 0
@@ -17,7 +21,7 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-bevy = {git = "https://github.com/bevyengine/bevy/", rev = "d119c1ce14da59089a65373d59715a41d05251ad"}
+bevy = {git = "https://github.com/bevyengine/bevy/", rev = "86f3308308646d43f90eb23e0386a35036270d40"}
 # Unlinke the rand crate, get_random supports every target under the sun, inclulding WASM and iOS which rand doesn't support easily
 # All targets: https://docs.rs/getrandom/0.2.2/getrandom/
 getrandom = { version = "0.2" }
@@ -25,6 +29,7 @@ getrandom = { version = "0.2" }
 # We could use default-features=false to get much faster performance, and also use the checked-decode feature to prevent out of bounds memory access attacks. The downside is that it uses unsafe Rust, meaning that if the library has any issues with not handling memory correctly (i.e. checked-decode isn't safe), it's vulnerable to any attacks C code would be vulnerable to
 lz-fear = "0.1"
 crc32fast = "1"
+# TODO: Use Bevy tilemap for sprite batching on maps
 
 [package.metadata.android]
 build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
