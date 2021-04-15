@@ -153,7 +153,7 @@ var customMapFormat = {
                             let width = 15;
 
                             //This basically makes it so objects will extend out to their width, significantly cutting down on the number of sprites
-                            while (x < layer.width) {
+                            /*while (x < layer.width) {
                                 if (layer.tileAt(x + 1, y) != null && layer.tileAt(x + 1, y).property("red") == layer.tileAt(x, y).property("red") && layer.tileAt(x + 1, y).property("green") == layer.tileAt(x, y).property("green") && layer.tileAt(x + 1, y).property("blue") == layer.tileAt(x, y).property("blue") && layer.tileAt(x + 1, y).property("alpha") == layer.tileAt(x, y).property("alpha") && layer.tileAt(x + 1, y).property("player_collidable") == layer.tileAt(x, y).property("player_collidable") && layer.tileAt(x + 1, y).property("player_spawn") == layer.tileAt(x, y).property("player_spawn")) {
                                     width += 15;
                                     x += 1;
@@ -163,7 +163,7 @@ var customMapFormat = {
 
                                 }
 
-                            }
+                            }*/
 
                             //width
                             array.push((width & 0xff000000) >> 24);
