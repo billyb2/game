@@ -67,8 +67,8 @@ impl Map {
        //Unallocates all the extra memory
        bytes.shrink_to_fit();
 
-        let map_width = slice_to_u32(&bytes[0..=3]);
-        let map_height = slice_to_u32(&bytes[4..=7]);
+        let map_width = slice_to_u32(&bytes[0..=3]) * 5;
+        let map_height = slice_to_u32(&bytes[4..=7]) * 5;
         let background_color = Color::rgb_u8(bytes[8], bytes[9], bytes[10]);
 
         let mut objects: Vec<MapObject> = Vec::with_capacity(bytes.len() - 11);
@@ -83,10 +83,10 @@ impl Map {
             let w = (slice_to_u32(&bytes[(i + 8)..=(i + 11)])) as f32;
             let h = (slice_to_u32(&bytes[(i + 12)..=(i + 15)])) as f32;
 
-
             objects.push(
                 MapObject {
-                    coords: Vec3::new(x, y, 0.0),
+                    // Gotta adjust for Bevy's coordinate system center being at (0, 0)
+                    coords: Vec3::new(x, -y, 0.0) + Vec3::new(w / 2.0, -h / 2.0, 0.0),
                     size: Vec2::new(w, h),
                     player_spawn: matches!(bytes[(i + 16)], 255),
                     player_collidable: matches!(bytes[(i + 17)], 255),

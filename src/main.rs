@@ -62,6 +62,7 @@ fn main() {
         // Sprite culling doesn't render sprites outside of the camera viewport when enabled
         // It's fairly buggy when rendering many many sprites at the same time, however
         // Frustum culling also doesn't work with more than 1 camera, so it needs to be disabled for split screen
+        // Though it does give a performance boost, especially where there are many sprites to render
         .insert_resource(SpriteSettings { frustum_culling_enabled: true })
         //Just checks for possible ambiguouty issue
         //.insert_resource(ReportExecutionOrderAmbiguities)
@@ -165,7 +166,10 @@ fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>
             .spawn_bundle(SpriteBundle {
                 material: color.clone(),
                 sprite: Sprite::new(map_object_size),
-                transform: Transform::from_xyz(map_coords.x, map_coords.y, 0.0),
+                transform: Transform {
+                    translation: map_coords,
+                    ..Default::default()
+                },
                 ..Default::default()
             });
 
@@ -218,22 +222,22 @@ fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut Reque
     let mut y = 0.0;
 
     if keyboard_input.pressed(KeyCode::A) {
-        x = -5.0;
+        x += -5.0;
 
     }
 
     if keyboard_input.pressed(KeyCode::D) {
-        x = 5.0;
+        x += 5.0;
 
     }
 
     if keyboard_input.pressed(KeyCode::S) {
-        y = -5.0;
+        y += -5.0;
 
     }
 
     if keyboard_input.pressed(KeyCode::W) {
-        y = 5.0;
+        y += 5.0;
 
     }
 
