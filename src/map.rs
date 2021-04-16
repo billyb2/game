@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
-use crate::helper_functions_2::slice_to_u32;
+use crate::helper_functions_2::{slice_to_u32, decompress_frame};
 use crc32fast::Hasher;
-use lz_fear::framed::decompress_frame;
 
 #[derive(Bundle, Copy, Clone)]
 pub struct MapObject {

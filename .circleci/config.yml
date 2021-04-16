@@ -15,7 +15,7 @@ jobs:
       # delete this step.
       - run:
           name: Installing prerequisites
-          command: sudo apt-get install libasound2-dev libudev-dev pkg-config lld -y; sudo apt-get install vulkan-radeon -y; sudo apt-get install vulkan-intel -y; sudo apt-get install mesa-vulkan-drivers -y
+          command: rustup install nightly && sudo apt-get install libasound2-dev libudev-dev pkg-config lld clang -y; sudo apt-get install mesa-vulkan-drivers -y && rustup target add wasm32-unknown-unknown --toolchain nightly
       - run:
           name: Calculate dependencies
           command: cargo generate-lockfile
@@ -30,7 +30,7 @@ jobs:
           command: cargo make build
       - run:
           name: Verify it will compile to Web Assembly
-          command: cargo check --target wasm32-unknown-unknown
+          command: cargo check --features web --target wasm32-unknown-unknown
 
       - save_cache:
           paths:

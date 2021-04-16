@@ -10,6 +10,7 @@ use bevy::sprite::SpriteSettings;
 use map::*;
 
 // The game will always run at 60 fps
+//TODO: Make this a setting
 const TIME_STEP: f32 = 1.0 / 60.0;
 
 #[derive(Debug, PartialEq)]
@@ -55,12 +56,12 @@ fn main() {
         //Antialiasing
         app.insert_resource(Msaa { samples: 1 })
         .insert_resource( WindowDescriptor {
-            //vsync: true,
+            vsync: true,
             ..Default::default()
 
         })
         // Sprite culling doesn't render sprites outside of the camera viewport when enabled
-        // It's fairly buggy when rendering many many sprites at the same time, however
+        // It's fairly buggy when rendering many many  sprites (thousands) at the same time, however
         // Frustum culling also doesn't work with more than 1 camera, so it needs to be disabled for split screen
         // Though it does give a performance boost, especially where there are many sprites to render
         .insert_resource(SpriteSettings { frustum_culling_enabled: true })
@@ -68,17 +69,21 @@ fn main() {
         //.insert_resource(ReportExecutionOrderAmbiguities)
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
         .add_plugins(DefaultPlugins);
+
+        //The WebGL2 plugin is only added if we're compiling to WASM
         #[cfg(target_arch = "wasm32")]
         app.add_plugin(bevy_webgl2::WebGL2Plugin);
+
         app.add_startup_system(setup_graphics.system().label("setup_graphics"))
         //Spawning players happens in its own stage since setup_graphics needs to happen first
         .add_startup_stage("setup_game",
         SystemStage::parallel()
             //Players should be draw on on top of objects
-            .with_system(draw_map.system().label("draw_map"))
-            .with_system(add_players.system().after("draw_map"))
+            .with_system(draw_map.system())
+            .with_system(add_players.system())
         )
         .add_system_set(
+            // Anything that needds to run at a set framerate goes here (so basically everything in game)
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                 .with_system(move_player.system().label(MoveReq))
@@ -114,7 +119,7 @@ fn add_players(mut commands: Commands, materials: Res<Skins>, asset_server: Res<
                         horizontal: HorizontalAlign::Center,
                     },
                 ),
-                transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 0.0),
+                transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 1.0),
                 ..Default::default()
             })
             .insert_bundle(SpriteBundle {
