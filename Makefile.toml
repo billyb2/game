@@ -34,9 +34,22 @@ dependencies = ["cargo-build-web", "wasm-bindgen-cli"]
 args = ["build", "--features", "native", "@@split(CARGO_RELEASE_ARGS, )"]
 command = "cargo"
 
+[tasks.build]
+args = ["build", "--features", "native", "--release"]
+command = "cargo"
+
+[tasks.build-native-fast]
+args = ["build", "--features", "native", "--features", "bevy/dynamic"]
+command = "cargo"
+
 [tasks.run]
-command = "${CARGO_TARGET_DIR}/${ENV_DIR}/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
-dependencies = ["build-native"]
+args = ["run", "--features", "native", "--features", "bevy/dynamic"]
+command = "cargo"
+dependencies = ["build-native-fast"]
+
+[tasks.run-release]
+command = "${CARGO_TARGET_DIR}/release/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
+dependencies = ["build-native-release"]
 
 [tasks.serve]
 command = "basic-http-server"

@@ -27,10 +27,13 @@ The nightly compiler allows us to use unstable Rust optimizations for both faste
 
 
 To run the game in development mode (with very very fast build times), run:
-`cargo make run --features bevy/dynamic`
+`cargo make run`
 
 To run it in release mode:
-`cargo make run --release`
+`cargo make run-release`
+
+To buld for release mode:
+`cargo make build-release`
 
 Thanks th `bevy_webgl2`, this game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded. Because of this, WASM builds will be release by default.
 
