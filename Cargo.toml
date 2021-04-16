@@ -21,15 +21,35 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-bevy = {git = "https://github.com/bevyengine/bevy/", rev = "86f3308308646d43f90eb23e0386a35036270d40"}
+bevy = {version = "0.5", default-features=false}
+bevy_webgl2 = {version = "0.5"  , optional=true}
 # Unlinke the rand crate, get_random supports every target under the sun, inclulding WASM and iOS which rand doesn't support easily
 # All targets: https://docs.rs/getrandom/0.2.2/getrandom/
-getrandom = { version = "0.2" }
+# getrandom = { version = "0.2", features=["wasm-bindgen"]}
 #TODO: Figure out how to get lz_flex to work for the following reason:
 # We could use default-features=false to get much faster performance, and also use the checked-decode feature to prevent out of bounds memory access attacks. The downside is that it uses unsafe Rust, meaning that if the library has any issues with not handling memory correctly (i.e. checked-decode isn't safe), it's vulnerable to any attacks C code would be vulnerable to
 lz-fear = "0.1"
 crc32fast = "1"
 # TODO: Use Bevy tilemap for sprite batching on maps
+
+# Gotta use an older version of winit and rand for the web build to work
+winit = {version = "0.24.0"}
+rand = "0.7"
+
+#Other platform stuff:
+[features]
+default = [
+  "bevy/bevy_winit",
+  "bevy/render",
+]
+
+native = [
+  "bevy/bevy_wgpu",
+]
+
+web = [
+  "bevy_webgl2"
+]
 
 [package.metadata.android]
 build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]

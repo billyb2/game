@@ -51,9 +51,9 @@ struct Skins {
 struct MoveReq;
 
 fn main() {
-    App::build()
+    let mut app = App::build();
         //Antialiasing
-        .insert_resource(Msaa { samples: 1 })
+        app.insert_resource(Msaa { samples: 1 })
         .insert_resource( WindowDescriptor {
             //vsync: true,
             ..Default::default()
@@ -67,8 +67,10 @@ fn main() {
         //Just checks for possible ambiguouty issue
         //.insert_resource(ReportExecutionOrderAmbiguities)
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
-        .add_plugins(DefaultPlugins)
-        .add_startup_system(setup_graphics.system().label("setup_graphics"))
+        .add_plugins(DefaultPlugins);
+        #[cfg(target_arch = "wasm32")]
+        app.add_plugin(bevy_webgl2::WebGL2Plugin);
+        app.add_startup_system(setup_graphics.system().label("setup_graphics"))
         //Spawning players happens in its own stage since setup_graphics needs to happen first
         .add_startup_stage("setup_game",
         SystemStage::parallel()
@@ -217,6 +219,8 @@ fn move_camera(
     q.q0_mut().single_mut().unwrap().translation.y = y;
 }
 
+
+//TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
 fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &ID)>) {
     let mut x = 0.0;
     let mut y = 0.0;

@@ -15,16 +15,19 @@ jobs:
       # delete this step.
       - run:
           name: Installing prerequisites
-          command: sudo apt-get install libasound2-dev libudev-dev pkg-config -y
+          command: sudo apt-get install libasound2-dev libudev-dev pkg-config lld -y
       - run:
           name: Calculate dependencies
           command: cargo generate-lockfile
+      - run:
+          name: Install dependencies
+          command: cargo install -f cargo-make
       - restore_cache:
           keys:
             - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
-          name: Build all targets
-          command: cargo build
+          name: Build for PC
+          command: cargo make build
 
       - save_cache:
           paths:
