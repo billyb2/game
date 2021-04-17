@@ -10,7 +10,7 @@ Please instal the LLD linker (faster linker). Due to the way the .cargo/config.t
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 ### Arch/Manjaro Linux
-- `sudo pacman -Syu lld libx11 pkgconf alsa-lib`
+- `sudo pacman -Syu clang lld libx11 pkgconf alsa-lib`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 ### MacOS

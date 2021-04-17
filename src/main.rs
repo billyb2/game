@@ -1,3 +1,5 @@
+mod components;
+mod system_labels;
 mod map;
 mod helper_functions_2;
 
@@ -9,34 +11,51 @@ use bevy::sprite::SpriteSettings;
 
 use map::*;
 
+use components::*;
+use system_labels::*;
+
 // The game will always run at 60 fps
 //TODO: Make this a setting
 const TIME_STEP: f32 = 1.0 / 60.0;
 
-#[derive(Debug, PartialEq)]
-struct RequestedMovement(Vec3);
-
-#[derive(Debug, PartialEq)]
-struct Health(u8);
-
-#[derive(Debug, PartialEq)]
-struct ID(u8);
-
 //Each player has a unique player id
 #[derive(Bundle, Debug, PartialEq)]
 struct Player {
-    id: ID,
+    id: PlayerID,
     health: Health,
     requested_movement: RequestedMovement,
+    movement_type: MovementType,
+    distance_traveled: DistanceTraveled,
 
 }
 
 impl Player {
     fn new(id: u8) -> Player {
         Player {
-            id: ID(id),
+            id: PlayerID(id),
             health: Health(100),
             requested_movement: RequestedMovement(Vec3::ZERO),
+            movement_type: MovementType::SingleFrame,
+            distance_traveled: DistanceTraveled(Vec2::ZERO),
+
+        }
+    }
+}
+
+#[derive(Bundle, Debug, PartialEq)]
+struct Projectile {
+    distance_traveled: DistanceTraveled,
+    requested_movement: RequestedMovement,
+    movement_type: MovementType,
+
+}
+
+impl Projectile {
+    fn new() -> Projectile {
+        Projectile {
+            distance_traveled: DistanceTraveled(Vec2::ZERO),
+            requested_movement: RequestedMovement(Vec3::new(1.0, 1.0, 0.0)),
+            movement_type: MovementType::StopAfterDistance(Vec2::new(300.0, 300.0)),
 
         }
     }
@@ -44,12 +63,9 @@ impl Player {
 
 struct Skins {
     phase: Handle<ColorMaterial>,
+    projectile: Handle<ColorMaterial>,
 
 }
-
-//Anything that moves an object
-#[derive(SystemLabel, Copy, Clone, Debug, Eq, Hash, PartialEq)]
-struct MoveReq;
 
 fn main() {
     let mut app = App::build();
@@ -81,6 +97,8 @@ fn main() {
             //Players should be draw on on top of objects
             .with_system(draw_map.system())
             .with_system(add_players.system())
+            // Adds a single projectile as a test
+            .with_system(add_projectile.system())
         )
         .add_system_set(
             // Anything that needds to run at a set framerate goes here (so basically everything in game)
@@ -97,16 +115,17 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands.insert_resource(Skins {
         phase: materials.add(Color::rgb_u8(100, 242, 84).into()),
+        projectile: materials.add(Color::rgb_u8(255, 255, 255).into()),
 
     });
 
 }
 
-fn add_players(mut commands: Commands, materials: Res<Skins>, asset_server: Res<AssetServer>) {
+fn add_players(mut commands: Commands, materials: Res<Skins>, _asset_server: Res<AssetServer>) {
     for i in 0..=9 {
         commands
             .spawn_bundle(Player::new(i))
-            .insert_bundle(Text2dBundle {
+            /*.insert_bundle(Text2dBundle {
                 text: Text::with_section(
                     100.to_string(),
                     TextStyle {
@@ -121,10 +140,10 @@ fn add_players(mut commands: Commands, materials: Res<Skins>, asset_server: Res<
                 ),
                 transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 1.0),
                 ..Default::default()
-            })
+            })*/
             .insert_bundle(SpriteBundle {
                 material: materials.phase.clone(),
-                sprite: Sprite::new(Vec2::new(10.0, 10.0)),
+                sprite: Sprite::new(Vec2::new(15.0, 15.0)),
                 transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 0.0),
                 ..Default::default()
             });
@@ -185,8 +204,8 @@ fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>
 }
 
 // Mobe objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement,  &Sprite, Changed<RequestedMovement>)>, mut map: ResMut<Map>) {
-    for (mut object, mut movement, sprite, _) in movements.iter_mut() {
+fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, Changed<RequestedMovement>)>, mut map: ResMut<Map>) {
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _) in movements.iter_mut() {
         // Only do any math if a change has been detected, in order to avoid triggering this event without need
         // Only lets you move if the movement doesn't bump into a wall
         if movement.0 != Vec3::ZERO {
@@ -196,9 +215,31 @@ fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement,  &
 
             }
 
-            movement.0.x = 0.0;
-            movement.0.y = 0.0;
 
+            match movement_type {
+                // The object moves one frame, and then stops
+                MovementType::SingleFrame => {
+                    movement.0.x = 0.0;
+                    movement.0.y = 0.0;
+
+                },
+
+                MovementType::StopAfterDistance(distance_to_stop_at) => {
+                    // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
+                    distance_traveled.0 = distance_traveled.0 + Vec2::new(movement.0.x, movement.0.y);
+
+                    if distance_traveled.0.x + movement.0.x >= distance_to_stop_at.x {
+                        movement.0.x = 0.0;
+
+                    }
+
+
+                    if distance_traveled.0.y + movement.0.y >= distance_to_stop_at.y {
+                        movement.0.y = 0.0;
+
+                    }
+                },
+            }
         }
     }
 }
@@ -206,7 +247,7 @@ fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement,  &
 fn move_camera(
     mut q: QuerySet<(
         Query<&mut Transform, With<Camera>>,
-        Query<(&Transform, &ID, Changed<Transform>)>)
+        Query<(&Transform, &PlayerID, Changed<Transform>)>)
     >) {
     let mut x =  q.q0_mut().single_mut().unwrap().translation.x;
     let mut y =  q.q0_mut().single_mut().unwrap().translation.y;
@@ -226,7 +267,7 @@ fn move_camera(
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &ID)>) {
+fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>) {
     let mut x = 0.0;
     let mut y = 0.0;
 
@@ -260,6 +301,19 @@ fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut Reque
             }
         }
     }
+}
+
+fn add_projectile(mut commands: Commands, materials: Res<Skins>,) {
+    commands
+        .spawn_bundle(Projectile::new())
+        .insert_bundle(SpriteBundle {
+            material: materials.projectile.clone(),
+            sprite: Sprite::new(Vec2::new(5.0, 5.0)),
+            transform: Transform::from_xyz(50.0, 100.0, 0.0),
+            ..Default::default()
+        });
+
+
 }
 
 

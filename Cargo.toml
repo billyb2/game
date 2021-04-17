@@ -33,7 +33,6 @@ crc32fast = "1"
 
 # Gotta use an older version of winit and rand for the web build to work
 winit = {version = "0.24.0"}
-rand = "0.7"
 
 #Other platform stuff:
 [features]
