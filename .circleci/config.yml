@@ -15,19 +15,16 @@ jobs:
       # delete this step.
       - run:
           name: Installing prerequisites
-          command: rustup install nightly && sudo apt-get install libasound2-dev libudev-dev pkg-config lld clang -y; sudo apt-get install mesa-vulkan-drivers -y && rustup target add wasm32-unknown-unknown --toolchain nightly
+          command: rustup install nightly && rustup default nightly && sudo apt-get install libasound2-dev libudev-dev pkg-config lld clang mesa-vulkan-drivers -y && rustup target add wasm32-unknown-unknown --toolchain nightly
       - run:
           name: Calculate dependencies
           command: cargo generate-lockfile
-      - run:
-          name: Install dependencies
-          command: cargo install -f cargo-make
       - restore_cache:
           keys:
             - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
           name: Build for PC
-          command: cargo make build
+          command: cargo build --features native
       - run:
           name: Verify it will compile to Web Assembly
           command: cargo check --features web --target wasm32-unknown-unknown
@@ -75,7 +72,7 @@ jobs:
           command: rustup component add clippy
       - run:
           name: Install prerequisites
-          command: sudo apt-get install libasound2-dev libudev-dev pkg-config -y
+          command: rustup install nightly && rustup default nightly && sudo apt-get install libasound2-dev libudev-dev pkg-config lld clang mesa-vulkan-drivers -y && rustup target add wasm32-unknown-unknown --toolchain nightly
       - run:
           name: Linting
           command: cargo clippy -- -D warnings

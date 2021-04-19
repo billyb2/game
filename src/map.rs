@@ -1,6 +1,8 @@
+#![allow(clippy::type_complexity)]
+
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
-use crate::helper_functions_2::{slice_to_u32, decompress_frame};
+use crate::helper_functions::{slice_to_u32, decompress_lz4_frame};
 use crc32fast::Hasher;
 
 #[derive(Bundle, Copy, Clone)]
@@ -8,7 +10,7 @@ pub struct MapObject {
     pub coords: Vec3,
     pub size: Vec2,
     pub color: Color,
-    pub player_collidable: bool,
+    pub collidable: bool,
     pub player_spawn: bool,
     pub health: Option<u8>,
 
@@ -24,7 +26,7 @@ pub struct Map {
 
 impl MapObject {
     fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: u8) -> bool {
-        if collide(self.coords, self.size, other_object_coords, other_object_size).is_some() && self.player_collidable {
+        if collide(self.coords, self.size, other_object_coords, other_object_size).is_some() && self.collidable {
             if self.health.is_some() {
                 if self.health.unwrap() as i16 - damage as i16 <= 0 {
                     self.health = Some(0);
@@ -50,7 +52,6 @@ impl MapObject {
 
 impl Map {
     pub fn new(objects: Vec<MapObject>, size: [f32; 2], background_color: Color) -> Map {
-
         Map {
             objects,
             size: Size::new(size[0],  size[1]),
@@ -61,7 +62,7 @@ impl Map {
 
     pub fn from_bin(compressed_bytes: &[u8]) -> Map {
         //Decompress the map
-        let mut bytes: Vec<u8> = decompress_frame(compressed_bytes).unwrap();
+        let mut bytes: Vec<u8> = decompress_lz4_frame(compressed_bytes).unwrap();
 
        //Unallocates all the extra memory
        bytes.shrink_to_fit();
@@ -79,16 +80,16 @@ impl Map {
         while i < bytes.len() - 22 {
             let x = (slice_to_u32(&bytes[i..=(i + 3)])) as f32;
             let y = (slice_to_u32(&bytes[(i + 4)..=(i + 7)])) as f32;
-            let w = (slice_to_u32(&bytes[(i + 8)..=(i + 11)])) as f32;
-            let h = (slice_to_u32(&bytes[(i + 12)..=(i + 15)])) as f32;
+            let width = (slice_to_u32(&bytes[(i + 8)..=(i + 11)])) as f32;
+            let height = (slice_to_u32(&bytes[(i + 12)..=(i + 15)])) as f32;
 
             objects.push(
                 MapObject {
                     // Gotta adjust for Bevy's coordinate system center being at (0, 0)
-                    coords: Vec3::new(x, -y, 0.0) + Vec3::new(w / 2.0, -h / 2.0, 0.0),
-                    size: Vec2::new(w, h),
+                    coords: Vec3::new(x, -y, 0.0) + Vec3::new(width / 2.0, -height / 2.0, 0.0),
+                    size: Vec2::new(width, height),
                     player_spawn: matches!(bytes[(i + 16)], 255),
-                    player_collidable: matches!(bytes[(i + 17)], 255),
+                    collidable: matches!(bytes[(i + 17)], 255),
                     color: Color::rgba_u8(bytes[i + 18], bytes[i + 19], bytes[i + 20], bytes[i + 21]),
                     health: match bytes[i + 22] {
                         0 => None,

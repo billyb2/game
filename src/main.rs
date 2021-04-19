@@ -1,14 +1,18 @@
+#![allow(clippy::type_complexity)]
+
 mod components;
 mod system_labels;
 mod map;
-mod helper_functions_2;
+mod helper_functions;
 
-//use bevy::ecs::schedule::ReportExecutionOrderAmbiguities;
+use std::f32::consts::PI;
+
 use bevy::core::FixedTimestep;
 use bevy::prelude::*;
 use bevy::render::camera::Camera;
 use bevy::sprite::SpriteSettings;
 
+use helper_functions::*;
 use map::*;
 
 use components::*;
@@ -34,9 +38,9 @@ impl Player {
         Player {
             id: PlayerID(id),
             health: Health(100),
-            requested_movement: RequestedMovement(Vec3::ZERO),
+            requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
-            distance_traveled: DistanceTraveled(Vec2::ZERO),
+            distance_traveled: DistanceTraveled(0.0),
 
         }
     }
@@ -51,11 +55,11 @@ struct Projectile {
 }
 
 impl Projectile {
-    fn new() -> Projectile {
+    fn new(requested_movement: RequestedMovement) -> Projectile {
         Projectile {
-            distance_traveled: DistanceTraveled(Vec2::ZERO),
-            requested_movement: RequestedMovement(Vec3::new(1.0, 1.0, 0.0)),
-            movement_type: MovementType::StopAfterDistance(Vec2::new(300.0, 300.0)),
+            distance_traveled: DistanceTraveled(0.0),
+            requested_movement,
+            movement_type: MovementType::StopAfterDistance(300.0),
 
         }
     }
@@ -66,6 +70,9 @@ struct Skins {
     projectile: Handle<ColorMaterial>,
 
 }
+
+// The mouse's position in 2D world coordinates
+struct MousePosition(Vec2);
 
 fn main() {
     let mut app = App::build();
@@ -84,27 +91,32 @@ fn main() {
         //Just checks for possible ambiguouty issue
         //.insert_resource(ReportExecutionOrderAmbiguities)
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
+        .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
         .add_plugins(DefaultPlugins);
 
         //The WebGL2 plugin is only added if we're compiling to WASM
         #[cfg(target_arch = "wasm32")]
         app.add_plugin(bevy_webgl2::WebGL2Plugin);
 
-        app.add_startup_system(setup_graphics.system().label("setup_graphics"))
+        app
+        .add_startup_system(setup_graphics.system().label("setup_graphics"))
         //Spawning players happens in its own stage since setup_graphics needs to happen first
         .add_startup_stage("setup_game",
         SystemStage::parallel()
             //Players should be draw on on top of objects
             .with_system(draw_map.system())
             .with_system(add_players.system())
-            // Adds a single projectile as a test
-            .with_system(add_projectile.system())
+            // Set the mouse coordinates initially
+            .with_system(set_mouse_coords.system())
         )
+        .add_system(set_mouse_coords.system().label("mouse"))
         .add_system_set(
             // Anything that needds to run at a set framerate goes here (so basically everything in game)
             SystemSet::new()
+                .after("mouse")
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                 .with_system(move_player.system().label(MoveReq))
+                .with_system(shoot.system().label(MoveReq))
                 .with_system(move_objects.system().after(MoveReq))
                 .with_system(move_camera.system().after(MoveReq))
         )
@@ -122,7 +134,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
 }
 
 fn add_players(mut commands: Commands, materials: Res<Skins>, _asset_server: Res<AssetServer>) {
-    for i in 0..=9 {
+    for i in 0..=0 {
         commands
             .spawn_bundle(Player::new(i))
             /*.insert_bundle(Text2dBundle {
@@ -178,9 +190,8 @@ fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>
             }
 
 
-            if color_to_return.is_some() {
-                color_to_return.unwrap()
-
+            if let Some(color) = color_to_return {
+                color
 
             } else {
                 materials.add(color.into())
@@ -208,10 +219,16 @@ fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement, &M
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _) in movements.iter_mut() {
         // Only do any math if a change has been detected, in order to avoid triggering this event without need
         // Only lets you move if the movement doesn't bump into a wall
-        if movement.0 != Vec3::ZERO {
-            if !map.collision(object.translation + movement.0, sprite.size, 0) {
-                object.translation.x += movement.0.x;
-                object.translation.y += movement.0.y;
+        let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
+
+        if movement.speed != 0.0 {
+            if !map.collision(object.translation + next_potential_movement, sprite.size, 0) {
+                object.translation.x += movement.speed * movement.angle.cos();
+                object.translation.y += movement.speed * movement.angle.sin();
+
+            } else {
+                movement.speed = 0.0;
+                println!("Collision!");
 
             }
 
@@ -219,23 +236,17 @@ fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement, &M
             match movement_type {
                 // The object moves one frame, and then stops
                 MovementType::SingleFrame => {
-                    movement.0.x = 0.0;
-                    movement.0.y = 0.0;
+                    movement.speed = 0.0;
 
                 },
 
                 MovementType::StopAfterDistance(distance_to_stop_at) => {
                     // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
-                    distance_traveled.0 = distance_traveled.0 + Vec2::new(movement.0.x, movement.0.y);
+                    // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
+                    distance_traveled.0 += movement.speed.abs();
 
-                    if distance_traveled.0.x + movement.0.x >= distance_to_stop_at.x {
-                        movement.0.x = 0.0;
-
-                    }
-
-
-                    if distance_traveled.0.y + movement.0.y >= distance_to_stop_at.y {
-                        movement.0.y = 0.0;
+                    if distance_traveled.0 >= *distance_to_stop_at {
+                        movement.speed = 0.0;
 
                     }
                 },
@@ -268,34 +279,57 @@ fn move_camera(
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
 fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>) {
-    let mut x = 0.0;
-    let mut y = 0.0;
+    let mut angle = None;
 
-    if keyboard_input.pressed(KeyCode::A) {
-        x += -5.0;
+    if keyboard_input.pressed(KeyCode::A) && angle.is_none() {
+        match keyboard_input.pressed(KeyCode::W) {
+            true => { angle = Some(PI  * 0.75); }
+            false => {
+                match keyboard_input.pressed(KeyCode::S) {
+                    true => { angle = Some(PI * 1.25); }
+                    false => { angle = Some(PI); }
+
+                }
+
+            }
+
+        }
 
     }
 
-    if keyboard_input.pressed(KeyCode::D) {
-        x += 5.0;
+    if keyboard_input.pressed(KeyCode::D) && angle.is_none() {
+        match keyboard_input.pressed(KeyCode::W) {
+            true => { angle = Some(PI  * 0.25); }
+            false => {
+                match keyboard_input.pressed(KeyCode::S) {
+                    true => { angle = Some(PI * 1.75); }
+                    false => { angle = Some(0.0); }
+
+                }
+
+            }
+
+        }
 
     }
 
-    if keyboard_input.pressed(KeyCode::S) {
-        y += -5.0;
+    if keyboard_input.pressed(KeyCode::S) && angle.is_none() {
+        angle = Some(-PI / 2.0);
 
     }
 
-    if keyboard_input.pressed(KeyCode::W) {
-        y += 5.0;
+    if keyboard_input.pressed(KeyCode::W) && angle.is_none() {
+       angle = Some(PI / 2.0);
 
     }
 
     // Only do a change event if a key has been pressed
-    if x != 0.0 || y != 0.0 {
+    if let Some(angle) = angle {
         for (mut requested_movement, id) in query.iter_mut() {
             if id.0 == 0 {
-                requested_movement.0 = Vec3::new(x, y, 0.0);
+                requested_movement.angle = angle;
+                requested_movement.speed = 15.0;
+
                 break;
 
             }
@@ -303,7 +337,47 @@ fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut Reque
     }
 }
 
-fn add_projectile(mut commands: Commands, materials: Res<Skins>,) {
+fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<Skins>, mouse_pos: Res<MousePosition>, players: Query<(&Transform, &PlayerID)>) {
+    if btn.just_pressed(MouseButton::Left) {
+        let mut angle = PI;
+        let mut speed = 15.0;
+
+        let mut start_pos_x = mouse_pos.0.x;
+        let mut start_pos_y = mouse_pos.0.y;
+
+        for (player, id) in players.iter() {
+            if *id == PlayerID(0) {
+                angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, player.translation.x, player.translation.y);
+
+                start_pos_x = player.translation.x;
+                start_pos_y = player.translation.y;
+
+                // Bullets need to travel "backwards" when moving to the left
+                if mouse_pos.0.x <= player.translation.x {
+                    speed = -speed;
+
+                }
+
+                break;
+            }
+
+        }
+
+        let movement = RequestedMovement::new(angle, speed);
+
+        commands
+            .spawn_bundle(Projectile::new(movement))
+            .insert_bundle(SpriteBundle {
+                material: materials.projectile.clone(),
+                sprite: Sprite::new(Vec2::new(5.0, 5.0)),
+                transform: Transform::from_xyz(start_pos_x + 2.5, start_pos_y + 2.5, 0.0),
+                ..Default::default()
+            });
+
+    }
+}
+
+/*fn add_projectile(mut commands: Commands, materials: Res<Skins>,) {
     commands
         .spawn_bundle(Projectile::new())
         .insert_bundle(SpriteBundle {
@@ -312,8 +386,37 @@ fn add_projectile(mut commands: Commands, materials: Res<Skins>,) {
             transform: Transform::from_xyz(50.0, 100.0, 0.0),
             ..Default::default()
         });
+}*/
 
+fn set_mouse_coords(mut commands: Commands,
+    // need to get window dimensions
+    wnds: Res<Windows>,
+    // query to get camera transform
+    camera: Query<&Transform, With<Camera>>
+) {
+    // assuming there is exactly one main camera entity, so this is OK
+    let camera_transform = camera.single().unwrap();
+
+    // get the size of the window that the event is for
+    let wnd = wnds.get_primary().unwrap();
+    let size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+    // the default orthographic projection is in pixels from the center;
+    // just undo the translation
+    let cursor_pos = match wnd.cursor_position() {
+        Some(pos) => pos,
+        None => Vec2::ZERO,
+
+    };
+
+    let p = cursor_pos - size / 2.0;
+
+    // apply the camera transform
+    let pos_wld = camera_transform.compute_matrix() * p.extend(0.0).extend(1.0);
+
+    commands.insert_resource(MousePosition(pos_wld.into()));
 
 }
+
 
 

@@ -1,6 +1,6 @@
 # game
 
-Please instal the LLD linker (faster linker). Due to the way the .cargo/config.toml file works, you absolutely need to follow those steps (but you'll thank me later), but it results in much much faster build times.
+Please follow the instructions below in order, while it seems complicated, it makes having builds for web and native PC's very easy.
 
 ## Instructions
 ### Windows
@@ -35,8 +35,13 @@ To run it in release mode:
 To buld for release mode:
 `cargo make build-release`
 
-Thanks th `bevy_webgl2`, this game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded. Because of this, WASM builds will be release by default.
+Thanks to `bevy_webgl2`, this game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded. Because of this, WASM builds will be release by default.
+
+I'd recommend using Chrome (or Chromium based browsers like Brave) for testing WASM builds. The performance on Firefox is pretty bad (30 fps) without messing with flags, and even then it's still slightly worse than Chrome.
 
 To build for the WASM (Web ASseMbly), run:
 `cargo make serve`
+
+To run a debug WASM build (not recommended since the performance is horrible), run:
+`cargo make serve-debug`
 

@@ -622,9 +622,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_webgl2"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c798cc87d7730835c1ead2887be5bd46213faa5e698f839d5643354e10901b0"
+checksum = "cdd06789e1153b76088b9034b7c450ee2776d16922a873a19d7862fb91207225"
 dependencies = [
  "bevy",
  "cfg-if 1.0.0",
@@ -1296,9 +1296,9 @@ dependencies = [
 
 [[package]]
 name = "gfx-backend-dx12"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36dc6ba2b7647e2c2b27b8f74ff5ccdd53c703776588eee5b1de515fdcbd6bc9"
+checksum = "5032d716a2a5f4dafb4675a794c5dc32081af8fbc7303c93ad93ff5413c6559f"
 dependencies = [
  "arrayvec",
  "bit-set",
@@ -1312,6 +1312,7 @@ dependencies = [
  "raw-window-handle",
  "smallvec",
  "spirv_cross",
+ "thunderdome",
  "winapi 0.3.9",
 ]
 
@@ -1658,9 +1659,9 @@ checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
 name = "jobserver"
-version = "0.1.21"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c71313ebb9439f74b00d9d2dcec36440beaf57a6aa0623068441dd7cd81a7f2"
+checksum = "972f5ae5d1cb9c6ae417789196c803205313edde988685da5e3aae0827b9e7fd"
 dependencies = [
  "libc",
 ]
@@ -1765,7 +1766,7 @@ dependencies = [
 [[package]]
 name = "lz4_flex"
 version = "0.7.5"
-source = "git+https://github.com/arthurprs/lz4_flex?branch=dict#f403967ffacf6e527e5fee2ecb9f13ae5f98b1dd"
+source = "git+https://github.com/arthurprs/lz4_flex?branch=dict#66dd535b8a30ba67b966dc03d90fccfe7faa4cf9"
 dependencies = [
  "twox-hash",
 ]

@@ -1,20 +1,44 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::f32::consts::PI;
 
-pub fn current_time() -> u128 {
-    // Returns the time in Unix Time (the number of milliseconds since 1970)
-    let time: u128 = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_millis();
+use std::convert::TryInto;
+use std::io::Read;
+use lz4_flex::frame::FrameDecoder;
 
-    //Return the current time
-    time
+pub fn slice_to_u32(data: &[u8]) -> u32 {
+    debug_assert!(data.len() == 4);
+
+    let data_array: [u8; 4] = data.try_into().unwrap();
+
+    u32::from_be_bytes(data_array)
+
 }
 
-pub fn out_of_bounds(x: f32, y: f32, w: f32, h: f32, world_width: f32, world_height: f32,) -> bool {
-    //Basically, if the rectangle is out of bounds, it returns true, if not it'll return false
-    {
-        x + w >= world_width ||
-        x <= 0.0 ||
-        y +h >= world_height ||
-        y <= 0.0
-    }
+pub fn decompress_lz4_frame(input: &[u8]) -> Result<Vec<u8>, lz4_flex::frame::Error> {
+    let mut de = FrameDecoder::new(input);
+    let mut out = Vec::with_capacity(1_000);
 
+    de.read_to_end(&mut out)?;
+
+    Ok(out)
+
+}
+
+
+pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
+    let dy = ey - cy;
+    let dx = ex - cx;
+
+    if dx != 0.0 {
+        let d = dy / dx;
+
+        // Returns the angle in radians
+        d.atan()
+
+    } else if dy > 0.0 {
+            PI / 2.0
+
+    }  else {
+            PI
+
+    }
 }
