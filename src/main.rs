@@ -4,16 +4,14 @@ mod components;
 mod system_labels;
 mod map;
 mod helper_functions;
-
-use std::f32::consts::PI;
+mod player_input;
 
 use bevy::core::FixedTimestep;
 use bevy::prelude::*;
-use bevy::render::camera::Camera;
 use bevy::sprite::SpriteSettings;
 
-use helper_functions::*;
 use map::*;
+use player_input::*;
 
 use components::*;
 use system_labels::*;
@@ -22,57 +20,160 @@ use system_labels::*;
 //TODO: Make this a setting
 const TIME_STEP: f32 = 1.0 / 60.0;
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Model {
+    Pistol,
+    Shotgun,
+    Speedball,
+    BurstRifle,
+    AssaultRifle,
+}
+
+#[derive(Clone, Debug)]
+pub struct TimeSinceLastShot(Timer);
+
+#[derive(Bundle, Debug)]
+pub struct Gun {
+    pub model: Model,
+    pub time_since_last_shot: TimeSinceLastShot,
+/*    // This time is stored so that the bullets per second of guns can be limited dynamically
+    pub time_since_last_shot: u128,
+    pub time_since_start_reload: u128,
+    // Shooting's,arguments are the arguments it had previously from the last frame, used for guns that don't just shoot one bullet at a time (like the burst rifle)
+    pub shooting: Option<(f32, f32, bool, f32)>,
+    pub projectiles_fired: u8,
+    pub reloading: bool,
+    // Reload time is in miliseconds
+    pub reload_time: u16,
+    pub ammo_in_mag: u8,
+    pub max_ammo: u8,
+    pub damage: u8,
+    pub max_distance: f32,
+*/
+
+}
+
+/*impl Gun {
+    pub fn new(model: Model) -> Gun {
+        Gun {
+            model,
+            // The time since the last shot is set as 0 so that you can start shooting as the start of the game
+            time_since_last_shot: 0,
+            time_since_start_reload: 0,
+            reloading: false,
+            reload_time: match model {
+                Model::Pistol => 2000,
+                Model::Shotgun => 5000,
+                Model::Speedball => 3000,
+                Model::BurstRifle => 3250,
+                Model::AssaultRifle => 3750,
+            },
+            // Some guns have special shooting behaviors that last over the course of mutliple ticks, which shooting and projectiles_fired take advantage of
+            shooting: None,
+            projectiles_fired: 0,
+            ammo_in_mag: match model {
+                Model::Pistol=> 16,
+                Model::Shotgun => 8,
+                Model::Speedball => 6,
+                Model::BurstRifle => 21,
+                Model::AssaultRifle => 25,
+
+            },
+            max_ammo: match model {
+                Model::Pistol => 16,
+                Model::Shotgun => 8,
+                Model::Speedball => 6,
+                Model::BurstRifle => 21,
+                Model::AssaultRifle => 25,
+
+            },
+            damage: match model {
+                Model::Pistol => 45,
+                Model::Shotgun => 25,
+                Model::Speedball => 1,
+                Model::BurstRifle => 13,
+                Model::AssaultRifle => 15,
+
+            },
+            max_distance: match model {
+                Model::Pistol => 900.0,
+                Model::Shotgun => 300.0,
+                Model::Speedball => 3000.0,
+                Model::BurstRifle => 1000.0,
+                Model::AssaultRifle => 1000.0,
+
+            }
+
+        }
+    }
+}*/
 //Each player has a unique player id
-#[derive(Bundle, Debug, PartialEq)]
-struct Player {
-    id: PlayerID,
-    health: Health,
-    requested_movement: RequestedMovement,
-    movement_type: MovementType,
-    distance_traveled: DistanceTraveled,
+#[derive(Bundle, Debug)]
+pub struct Player {
+    pub id: PlayerID,
+    pub health: Health,
+    pub requested_movement: RequestedMovement,
+    pub movement_type: MovementType,
+    pub distance_traveled: DistanceTraveled,
+    #[bundle]
+    pub gun: Gun,
 
 }
 
 impl Player {
-    fn new(id: u8) -> Player {
+    pub fn new(id: u8) -> Player {
         Player {
             id: PlayerID(id),
             health: Health(100),
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),
+            gun: Gun {
+                model: Model::Pistol,
+                time_since_last_shot: TimeSinceLastShot(Timer::from_seconds(0.3, false)),
+            },
 
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ProjectileType {
+    Regular,
+    Speedball,
+
 }
 
 #[derive(Bundle, Debug, PartialEq)]
-struct Projectile {
-    distance_traveled: DistanceTraveled,
-    requested_movement: RequestedMovement,
-    movement_type: MovementType,
+pub struct Projectile {
+    pub distance_traveled: DistanceTraveled,
+    pub requested_movement: RequestedMovement,
+    pub movement_type: MovementType,
+    pub projectile_type: ProjectileType,
 
 }
 
+
 impl Projectile {
-    fn new(requested_movement: RequestedMovement) -> Projectile {
+    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32) -> Projectile {
         Projectile {
             distance_traveled: DistanceTraveled(0.0),
             requested_movement,
-            movement_type: MovementType::StopAfterDistance(300.0),
+            movement_type: MovementType::StopAfterDistance(max_distance),
+            projectile_type
 
         }
     }
 }
 
-struct Skins {
+pub struct Skins {
     phase: Handle<ColorMaterial>,
     projectile: Handle<ColorMaterial>,
 
 }
 
 // The mouse's position in 2D world coordinates
-struct MousePosition(Vec2);
+pub struct MousePosition(Vec2);
 
 fn main() {
     let mut app = App::build();
@@ -110,10 +211,12 @@ fn main() {
             .with_system(set_mouse_coords.system())
         )
         .add_system(set_mouse_coords.system().label("mouse"))
+        .add_system(timer_system.system().label("tick_timers"))
         .add_system_set(
             // Anything that needds to run at a set framerate goes here (so basically everything in game)
             SystemSet::new()
                 .after("mouse")
+                .after("tick_timers")
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                 .with_system(move_player.system().label(MoveReq))
                 .with_system(shoot.system().label(MoveReq))
@@ -214,9 +317,9 @@ fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>
     }
 }
 
-// Mobe objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, Changed<RequestedMovement>)>, mut map: ResMut<Map>) {
-    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _) in movements.iter_mut() {
+// Move objects will first validate whether a movement can be done, and if so move them
+fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, Option<&ProjectileType>)>, mut map: ResMut<Map>) {
+    for (_, mut object, mut movement, movement_type, mut distance_traveled, sprite, _) in movements.iter_mut() {
         // Only do any math if a change has been detected, in order to avoid triggering this event without need
         // Only lets you move if the movement doesn't bump into a wall
         let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -226,197 +329,48 @@ fn move_objects(mut movements: Query<(&mut Transform, &mut RequestedMovement, &M
                 object.translation.x += movement.speed * movement.angle.cos();
                 object.translation.y += movement.speed * movement.angle.sin();
 
-            } else {
-                movement.speed = 0.0;
-                println!("Collision!");
-
-            }
-
-
-            match movement_type {
-                // The object moves one frame, and then stops
-                MovementType::SingleFrame => {
-                    movement.speed = 0.0;
-
-                },
-
-                MovementType::StopAfterDistance(distance_to_stop_at) => {
-                    // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
-                    // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                    distance_traveled.0 += movement.speed.abs();
-
-                    if distance_traveled.0 >= *distance_to_stop_at {
+                match movement_type {
+                    // The object moves one frame, and then stops
+                    MovementType::SingleFrame => {
                         movement.speed = 0.0;
 
-                    }
-                },
-            }
-        }
-    }
-}
+                    },
 
-fn move_camera(
-    mut q: QuerySet<(
-        Query<&mut Transform, With<Camera>>,
-        Query<(&Transform, &PlayerID, Changed<Transform>)>)
-    >) {
-    let mut x =  q.q0_mut().single_mut().unwrap().translation.x;
-    let mut y =  q.q0_mut().single_mut().unwrap().translation.y;
+                    MovementType::StopAfterDistance(distance_to_stop_at) => {
+                        // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
+                        // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
+                        distance_traveled.0 += movement.speed.abs();
 
+                        if distance_traveled.0 >= *distance_to_stop_at {
+                            movement.speed = 0.0;
 
-    for (player, id, _) in q.q1_mut().iter_mut() {
-        if id.0 == 0 {
-            x = player.translation.x;
-            y= player.translation.y;
-
-        }
-    }
-
-    q.q0_mut().single_mut().unwrap().translation.x = x;
-    q.q0_mut().single_mut().unwrap().translation.y = y;
-}
-
-
-//TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>) {
-    let mut angle = None;
-
-    if keyboard_input.pressed(KeyCode::A) && angle.is_none() {
-        match keyboard_input.pressed(KeyCode::W) {
-            true => { angle = Some(PI  * 0.75); }
-            false => {
-                match keyboard_input.pressed(KeyCode::S) {
-                    true => { angle = Some(PI * 1.25); }
-                    false => { angle = Some(PI); }
-
+                        }
+                    },
                 }
 
-            }
-
-        }
-
-    }
-
-    if keyboard_input.pressed(KeyCode::D) && angle.is_none() {
-        match keyboard_input.pressed(KeyCode::W) {
-            true => { angle = Some(PI  * 0.25); }
-            false => {
-                match keyboard_input.pressed(KeyCode::S) {
-                    true => { angle = Some(PI * 1.75); }
-                    false => { angle = Some(0.0); }
-
-                }
-
-            }
-
-        }
-
-    }
-
-    if keyboard_input.pressed(KeyCode::S) && angle.is_none() {
-        angle = Some(-PI / 2.0);
-
-    }
-
-    if keyboard_input.pressed(KeyCode::W) && angle.is_none() {
-       angle = Some(PI / 2.0);
-
-    }
-
-    // Only do a change event if a key has been pressed
-    if let Some(angle) = angle {
-        for (mut requested_movement, id) in query.iter_mut() {
-            if id.0 == 0 {
-                requested_movement.angle = angle;
-                requested_movement.speed = 15.0;
-
-                break;
+            } else {
+                movement.speed = 0.0;
 
             }
         }
     }
-}
 
-fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<Skins>, mouse_pos: Res<MousePosition>, players: Query<(&Transform, &PlayerID)>) {
-    if btn.just_pressed(MouseButton::Left) {
-        let mut angle = PI;
-        let mut speed = 15.0;
+    // Remove all stopped bullets
+    for object in movements.iter_mut() {
+        if object.2.speed == 0.0 && object.6.is_some() {
+            commands.entity(object.0).despawn_recursive();
 
-        let mut start_pos_x = mouse_pos.0.x;
-        let mut start_pos_y = mouse_pos.0.y;
-
-        for (player, id) in players.iter() {
-            if *id == PlayerID(0) {
-                angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, player.translation.x, player.translation.y);
-
-                start_pos_x = player.translation.x;
-                start_pos_y = player.translation.y;
-
-                // Bullets need to travel "backwards" when moving to the left
-                if mouse_pos.0.x <= player.translation.x {
-                    speed = -speed;
-
-                }
-
-                break;
-            }
 
         }
-
-        let movement = RequestedMovement::new(angle, speed);
-
-        commands
-            .spawn_bundle(Projectile::new(movement))
-            .insert_bundle(SpriteBundle {
-                material: materials.projectile.clone(),
-                sprite: Sprite::new(Vec2::new(5.0, 5.0)),
-                transform: Transform::from_xyz(start_pos_x + 2.5, start_pos_y + 2.5, 0.0),
-                ..Default::default()
-            });
-
     }
-}
-
-/*fn add_projectile(mut commands: Commands, materials: Res<Skins>,) {
-    commands
-        .spawn_bundle(Projectile::new())
-        .insert_bundle(SpriteBundle {
-            material: materials.projectile.clone(),
-            sprite: Sprite::new(Vec2::new(5.0, 5.0)),
-            transform: Transform::from_xyz(50.0, 100.0, 0.0),
-            ..Default::default()
-        });
-}*/
-
-fn set_mouse_coords(mut commands: Commands,
-    // need to get window dimensions
-    wnds: Res<Windows>,
-    // query to get camera transform
-    camera: Query<&Transform, With<Camera>>
-) {
-    // assuming there is exactly one main camera entity, so this is OK
-    let camera_transform = camera.single().unwrap();
-
-    // get the size of the window that the event is for
-    let wnd = wnds.get_primary().unwrap();
-    let size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
-
-    // the default orthographic projection is in pixels from the center;
-    // just undo the translation
-    let cursor_pos = match wnd.cursor_position() {
-        Some(pos) => pos,
-        None => Vec2::ZERO,
-
-    };
-
-    let p = cursor_pos - size / 2.0;
-
-    // apply the camera transform
-    let pos_wld = camera_transform.compute_matrix() * p.extend(0.0).extend(1.0);
-
-    commands.insert_resource(MousePosition(pos_wld.into()));
 
 }
 
+/// This system ticks all the `Timer` components on entities within the scene
+/// using bevy's `Time` resource to get the delta between each update.
+fn timer_system(time: Res<Time>, mut timers: Query<&mut TimeSinceLastShot>) {
+    for mut timer in timers.iter_mut() {
+        timer.0.tick(time.delta());
 
-
+    }
+}
