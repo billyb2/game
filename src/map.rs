@@ -1,7 +1,8 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::prelude::*;
-use bevy::sprite::collide_aabb::collide;
+//use bevy::sprite::collide_aabb::collide;
+use crate::helper_functions::collide;
 use crate::helper_functions::{slice_to_u32, decompress_lz4_frame};
 use crc32fast::Hasher;
 
@@ -26,7 +27,7 @@ pub struct Map {
 
 impl MapObject {
     fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: u8) -> bool {
-        if collide(self.coords, self.size, other_object_coords, other_object_size).is_some() && self.collidable {
+        if collide(self.coords, self.size, other_object_coords, other_object_size) && self.collidable {
             if self.health.is_some() {
                 if self.health.unwrap() as i16 - damage as i16 <= 0 {
                     self.health = Some(0);
