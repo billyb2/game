@@ -1,16 +1,15 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use bevy::render::camera::Camera;
 
 use crate::helper_functions::get_angle;
 
 use crate::*;
-use crate::components::RequestedMovement;
+use crate::components::*;
 
 pub fn move_camera(
     mut q: QuerySet<(
-        Query<&mut Transform, With<Camera>>,
+        Query<&mut Transform, With<GameCamera>>,
         Query<(&Transform, &PlayerID, Changed<Transform>)>)
     >) {
     let mut x =  q.q0_mut().single_mut().unwrap().translation.x;
@@ -31,7 +30,7 @@ pub fn move_camera(
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>) {
+pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>, mut ev_reload: EventWriter<ReloadEvent>) {
     let mut angle = None;
 
     if keyboard_input.pressed(KeyCode::A) && angle.is_none() {
@@ -76,12 +75,17 @@ pub fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut R
 
     }
 
+    if keyboard_input.pressed(KeyCode::R) {
+        ev_reload.send(ReloadEvent);
+
+    }
+
     // Only do a change event if a key has been pressed
     if let Some(angle) = angle {
         for (mut requested_movement, id) in query.iter_mut() {
             if id.0 == 0 {
                 requested_movement.angle = angle;
-                requested_movement.speed = 15.0;
+                requested_movement.speed = 10.0;
 
                 break;
 
@@ -90,7 +94,7 @@ pub fn move_player(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut R
     }
 }
 
-pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<Skins>, mouse_pos: Res<MousePosition>, mut players: Query<(&Transform, &PlayerID, &Model, &mut TimeSinceLastShot)>) {
+pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>) {
     if btn.just_pressed(MouseButton::Left) {
         let mut angle = PI;
         let mut speed = 15.0;
@@ -102,7 +106,7 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
         let mut start_pos_x = mouse_pos.0.x;
         let mut start_pos_y = mouse_pos.0.y;
 
-        for (player, id, gun_model, mut time_since_last_shot) in players.iter_mut() {
+        for (player, id, gun_model, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
             if *id == PlayerID(0) {
                 angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, player.translation.x, player.translation.y);
 
@@ -110,21 +114,24 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
                 start_pos_y = player.translation.y;
 
 
-                if *gun_model == Model::Pistol && time_since_last_shot.0.finished() {
-                    shooting = true;
+                if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 {
+                    if *gun_model == Model::Pistol {
+                        shooting = true;
 
-                    speed = 12.0;
-                    projectile_type = ProjectileType::Regular;
+                        speed = 12.0;
+                        projectile_type = ProjectileType::Regular;
 
-                    max_distance = 900.0;
+                        max_distance = 900.0;
 
+                    }
+
+                    ammo_in_mag.0 -= 1;
                     time_since_last_shot.0.reset();
+                } else if ammo_in_mag.0 == 0 {
+                    // Reload automatically if the player tries to shoot with no ammo
+                    ev_reload.send(ReloadEvent);
 
                 }
-
-
-
-
 
 
                 // Bullets need to travel "backwards" when moving to the left
@@ -144,7 +151,7 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
             commands
                 .spawn_bundle(Projectile::new(movement, projectile_type, max_distance))
                 .insert_bundle(SpriteBundle {
-                    material: materials.projectile.clone(),
+                    material: materials.regular.clone(),
                     sprite: Sprite::new(Vec2::new(5.0, 5.0)),
                     transform: Transform::from_xyz(start_pos_x + 2.5, start_pos_y + 2.5, 0.0),
                     ..Default::default()
@@ -155,8 +162,35 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
     }
 }
 
+pub fn start_reload(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &PlayerID, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>) {
+    // Only start a reload if the reload event is read
+    for _ in ev_reload.iter() {
+        for (mut ammo_in_mag, max_ammo, id, mut reload_timer) in query.iter_mut() {
+            if *id == PlayerID(0) && ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
+                reload_timer.reloading = true;
+                reload_timer.timer.reset();
 
-pub fn set_mouse_coords(mut commands: Commands, wnds: Res<Windows>, camera: Query<&Transform, With<Camera>> ) {
+            } else if reload_timer.reloading && reload_timer.timer.finished() {
+                ammo_in_mag.0 = max_ammo.0;
+
+            }
+
+        }
+    }
+}
+
+pub fn reset_mag(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload)>) {
+    for (mut ammo_in_mag, max_ammo, mut reload_timer) in query.iter_mut() {
+        if reload_timer.reloading && reload_timer.timer.finished() {
+            ammo_in_mag.0 = max_ammo.0;
+            reload_timer.reloading = false;
+
+        }
+    }
+}
+
+
+pub fn set_mouse_coords(mut commands: Commands, wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>> ) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = camera.single().unwrap();
 

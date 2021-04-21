@@ -3,8 +3,10 @@
 use bevy::prelude::*;
 //use bevy::sprite::collide_aabb::collide;
 use crate::helper_functions::collide;
-use crate::helper_functions::{slice_to_u32, decompress_lz4_frame};
+use crate::helper_functions::slice_to_u32;
 use crc32fast::Hasher;
+
+use lz4_flex::frame::decompress;
 
 #[derive(Bundle, Copy, Clone)]
 pub struct MapObject {
@@ -63,7 +65,7 @@ impl Map {
 
     pub fn from_bin(compressed_bytes: &[u8]) -> Map {
         //Decompress the map
-        let mut bytes: Vec<u8> = decompress_lz4_frame(compressed_bytes).unwrap();
+        let mut bytes: Vec<u8> = decompress(compressed_bytes).unwrap();
 
        //Unallocates all the extra memory
        bytes.shrink_to_fit();
@@ -159,4 +161,54 @@ impl Map {
 
      }
 
+}
+
+// This system just iterates through the map and draws each MapObject
+pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, map: Res<Map>) {
+
+    // Set the background color to the map's specified color
+    commands.insert_resource(ClearColor((*map).background_color));
+
+    let mut i = 0;
+
+    while i < (*map).objects.len() {
+        let map_coords = (*map).objects[i].coords;
+        let map_object_size =  (*map).objects[i].size;
+        let color = (*map).objects[i].color;
+
+        //Either create a new material, or grab a currently existing one
+        let color: Handle<ColorMaterial> = {
+            let mut color_to_return = None;
+
+            for (id, material_to_return) in materials.iter() {
+                if color == material_to_return.color {
+                    color_to_return = Some(materials.get_handle(id));
+
+                }
+
+            }
+
+
+            if let Some(color) = color_to_return {
+                color
+
+            } else {
+                materials.add(color.into())
+
+            }
+        };
+
+        commands
+            .spawn_bundle(SpriteBundle {
+                material: color.clone(),
+                sprite: Sprite::new(map_object_size),
+                transform: Transform {
+                    translation: map_coords,
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+
+        i += 1;
+    }
 }

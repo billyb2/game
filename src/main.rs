@@ -20,6 +20,10 @@ use system_labels::*;
 //TODO: Make this a setting
 const TIME_STEP: f32 = 1.0 / 60.0;
 
+pub struct GameCamera;
+
+struct AmmoText;
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Model {
     Pistol,
@@ -29,15 +33,15 @@ pub enum Model {
     AssaultRifle,
 }
 
-#[derive(Clone, Debug)]
-pub struct TimeSinceLastShot(Timer);
-
 #[derive(Bundle, Debug)]
 pub struct Gun {
     pub model: Model,
     pub time_since_last_shot: TimeSinceLastShot,
-/*    // This time is stored so that the bullets per second of guns can be limited dynamically
-    pub time_since_last_shot: u128,
+    pub time_since_start_reload: TimeSinceStartReload,
+    pub ammo_in_mag: AmmoInMag,
+    pub max_ammo: MaxAmmo,
+    pub reload_time: ReloadTime,
+/*
     pub time_since_start_reload: u128,
     // Shooting's,arguments are the arguments it had previously from the last frame, used for guns that don't just shoot one bullet at a time (like the burst rifle)
     pub shooting: Option<(f32, f32, bool, f32)>,
@@ -45,8 +49,6 @@ pub struct Gun {
     pub reloading: bool,
     // Reload time is in miliseconds
     pub reload_time: u16,
-    pub ammo_in_mag: u8,
-    pub max_ammo: u8,
     pub damage: u8,
     pub max_distance: f32,
 */
@@ -131,6 +133,14 @@ impl Player {
             gun: Gun {
                 model: Model::Pistol,
                 time_since_last_shot: TimeSinceLastShot(Timer::from_seconds(0.3, false)),
+                time_since_start_reload: TimeSinceStartReload {
+                    timer: Timer::from_seconds(2.0, false),
+                    reloading: false,
+
+                },
+                ammo_in_mag: AmmoInMag(16),
+                max_ammo: MaxAmmo(16),
+                reload_time: ReloadTime(3.0),
             },
 
         }
@@ -168,7 +178,12 @@ impl Projectile {
 
 pub struct Skins {
     phase: Handle<ColorMaterial>,
-    projectile: Handle<ColorMaterial>,
+
+}
+
+pub struct ProjectileMaterials {
+    regular: Handle<ColorMaterial>,
+    //speedball: Handle<ColorMaterial>,
 
 }
 
@@ -177,9 +192,14 @@ pub struct MousePosition(Vec2);
 
 fn main() {
     let mut app = App::build();
-        //Antialiasing
-        app.insert_resource(Msaa { samples: 1 })
-        .insert_resource( WindowDescriptor {
+        // Antialiasing
+        app.insert_resource(Msaa { samples: 1 });
+        // Since text looks like garbage in browsers without antialiasing, it's higher for WASM by default
+        #[cfg(target_arch = "wasm32")]
+        app.insert_resource(Msaa { samples: 8 });
+
+        app.insert_resource( WindowDescriptor {
+            title: String::from("Necrophaser"),
             vsync: true,
             ..Default::default()
 
@@ -188,12 +208,15 @@ fn main() {
         // It's fairly buggy when rendering many many  sprites (thousands) at the same time, however
         // Frustum culling also doesn't work with more than 1 camera, so it needs to be disabled for split screen
         // Though it does give a performance boost, especially where there are many sprites to render
-        .insert_resource(SpriteSettings { frustum_culling_enabled: true })
+        // Currently it's disable, since we use the UI camera and the game camera
+        .insert_resource(SpriteSettings { frustum_culling_enabled: false })
         //Just checks for possible ambiguouty issue
         //.insert_resource(ReportExecutionOrderAmbiguities)
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
+        // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
-        .add_plugins(DefaultPlugins);
+        .add_plugins(DefaultPlugins)
+        .add_event::<ReloadEvent>();
 
         //The WebGL2 plugin is only added if we're compiling to WASM
         #[cfg(target_arch = "wasm32")]
@@ -217,103 +240,96 @@ fn main() {
             SystemSet::new()
                 .after("mouse")
                 .after("tick_timers")
+                // Run the game at TIME_STEP per seconds (currently 60)
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
-                .with_system(move_player.system().label(MoveReq))
-                .with_system(shoot.system().label(MoveReq))
-                .with_system(move_objects.system().after(MoveReq))
-                .with_system(move_camera.system().after(MoveReq))
+                .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("reload"))
+                .with_system(shoot.system().label(InputFromPlayer))
+                .with_system(reset_mag.system().label(InputFromPlayer).label("reload"))
+                .with_system(start_reload.system().label(InputFromPlayer).label("reload"))
+                .with_system(move_objects.system().after(InputFromPlayer))
+                .with_system(move_camera.system().after(InputFromPlayer))
+                .with_system(update_ui.system().after(InputFromPlayer))
         )
         .run();
 }
 
-fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
+    commands.spawn_bundle(UiCameraBundle::default());
+
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(GameCamera);
+
     commands.insert_resource(Skins {
         phase: materials.add(Color::rgb_u8(100, 242, 84).into()),
-        projectile: materials.add(Color::rgb_u8(255, 255, 255).into()),
 
     });
 
+    commands.insert_resource(ProjectileMaterials {
+        regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
+        //speedball: materials.add(Color::rgb_u8(68, 86, 90).into()),
+
+    });
+
+    //Setup the UI
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position: Rect {
+                    left: Val::Percent(90.0),
+
+                    ..Default::default()
+                },
+
+                ..Default::default()
+            },
+            text: Text {
+                sections: vec![
+                    TextSection {
+                        value: "16".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 45.0,
+                            color: Color::GOLD,
+                        },
+                    },
+                    TextSection {
+                        value: "/".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 45.0,
+                            color: Color::GOLD,
+                        },
+                    },
+                    TextSection {
+                        value: "16".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 45.0,
+                            color: Color::GOLD,
+                        },
+                    },
+                ],
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(AmmoText);
+
 }
 
-fn add_players(mut commands: Commands, materials: Res<Skins>, _asset_server: Res<AssetServer>) {
+fn add_players(mut commands: Commands, materials: Res<Skins>) {
     for i in 0..=0 {
         commands
             .spawn_bundle(Player::new(i))
-            /*.insert_bundle(Text2dBundle {
-                text: Text::with_section(
-                    100.to_string(),
-                    TextStyle {
-                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                        font_size: 14.0,
-                        color: Color::WHITE,
-                    },
-                    TextAlignment {
-                        vertical: VerticalAlign::Top,
-                        horizontal: HorizontalAlign::Center,
-                    },
-                ),
-                transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 1.0),
-                ..Default::default()
-            })*/
             .insert_bundle(SpriteBundle {
                 material: materials.phase.clone(),
                 sprite: Sprite::new(Vec2::new(15.0, 15.0)),
-                transform: Transform::from_xyz(i as f32 * 25.0, 100.0, 0.0),
+                transform: Transform::from_xyz(i as f32 * 25.0 + 1000.0, -750.0, 0.0),
                 ..Default::default()
             });
 
-    }
-
-
-}
-
-fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, map: Res<Map>) {
-
-    // Set the background color to the map's specified color
-    commands.insert_resource(ClearColor((*map).background_color));
-
-    let mut i = 0;
-
-    while i < (*map).objects.len() {
-        let map_coords = (*map).objects[i].coords;
-        let map_object_size =  (*map).objects[i].size;
-        let color = (*map).objects[i].color;
-
-        //Either create a new material, or grab a currently existing one
-        let color: Handle<ColorMaterial> = {
-            let mut color_to_return = None;
-
-            for (id, material_to_return) in materials.iter() {
-                if color == material_to_return.color {
-                    color_to_return = Some(materials.get_handle(id));
-
-                }
-
-            }
-
-
-            if let Some(color) = color_to_return {
-                color
-
-            } else {
-                materials.add(color.into())
-
-            }
-        };
-
-        commands
-            .spawn_bundle(SpriteBundle {
-                material: color.clone(),
-                sprite: Sprite::new(map_object_size),
-                transform: Transform {
-                    translation: map_coords,
-                    ..Default::default()
-                },
-                ..Default::default()
-            });
-
-        i += 1;
     }
 }
 
@@ -368,9 +384,53 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
 
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
-fn timer_system(time: Res<Time>, mut timers: Query<&mut TimeSinceLastShot>) {
-    for mut timer in timers.iter_mut() {
-        timer.0.tick(time.delta());
+fn timer_system(time: Res<Time>, mut timers: Query<(&mut TimeSinceLastShot, &mut TimeSinceStartReload)>) {
+    for (mut time_since_last_shot, mut time_since_start_reload) in timers.iter_mut() {
+        time_since_last_shot.0.tick(time.delta());
+
+        // If the player is reloading
+        if time_since_start_reload.reloading {
+            time_since_start_reload.timer.tick(time.delta());
+
+        }
 
     }
+}
+
+fn update_ui(query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_text: Query<&mut Text, With<AmmoText>>, mut ammo_style: Query<&mut Style, With<AmmoText>>) {
+    let mut ammo_in_mag = 0;
+    let mut max_ammo = 0;
+
+    let mut reloading = false;
+
+    for (player_ammo_count, player_max_ammo, id, reload_timer) in query.iter() {
+        if *id == PlayerID(0) {
+            ammo_in_mag = (*player_ammo_count).0;
+            max_ammo = (*player_max_ammo).0;
+
+            reloading = reload_timer.reloading;
+
+            break;
+
+        }
+    }
+
+    let mut ammo_text = ammo_text.single_mut().unwrap();
+    let mut ammo_pos = ammo_style.single_mut().unwrap();
+
+    if !reloading {
+        ammo_text.sections[0].value = ammo_in_mag.to_string();
+        ammo_text.sections[1].value = " / ".to_string();
+        ammo_text.sections[2].value = max_ammo.to_string();
+
+    } else {
+        ammo_text.sections[0].value = "Reloading...".to_string();
+        ammo_text.sections[1].value = "".to_string();
+        ammo_text.sections[2].value = "".to_string();
+
+        // Since the Reloading text is pretty big, I need to shift it left slightly
+        ammo_pos.position.left = Val::Percent(83.0)
+
+    }
+
 }

@@ -1,3 +1,5 @@
+use bevy::core::Timer;
+
 #[derive(Debug, PartialEq)]
 pub enum MovementType {
     // Stop moving after this frame passes
@@ -33,3 +35,28 @@ pub struct Health(pub u8);
 
 #[derive(Debug, PartialEq)]
 pub struct PlayerID(pub u8);
+
+
+
+// Gun stuff
+#[derive(Clone, Debug)]
+pub struct TimeSinceLastShot(pub Timer);
+
+#[derive(Clone, Debug)]
+pub struct TimeSinceStartReload {
+    pub timer: Timer,
+    pub reloading: bool,
+
+}
+
+#[derive(Clone, Debug)]
+pub struct AmmoInMag(pub u8);
+
+#[derive(Clone, Debug)]
+pub struct MaxAmmo(pub u8);
+
+#[derive(Clone, Debug)]
+pub struct ReloadTime(pub f32);
+
+#[derive(Clone, Debug)]
+pub struct ReloadEvent;
