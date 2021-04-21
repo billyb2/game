@@ -94,7 +94,7 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 }
 
-pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>) {
+pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload)>, mut ev_reload: EventWriter<ReloadEvent>) {
     if btn.just_pressed(MouseButton::Left) {
         let mut angle = PI;
         let mut speed = 15.0;
@@ -106,7 +106,7 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
         let mut start_pos_x = mouse_pos.0.x;
         let mut start_pos_y = mouse_pos.0.y;
 
-        for (player, id, gun_model, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
+        for (player, id, gun_model, mut time_since_last_shot, mut ammo_in_mag, reload_timer) in query.iter_mut() {
             if *id == PlayerID(0) {
                 angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, player.translation.x, player.translation.y);
 
@@ -114,7 +114,7 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
                 start_pos_y = player.translation.y;
 
 
-                if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 {
+                if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !reload_timer.reloading{
                     if *gun_model == Model::Pistol {
                         shooting = true;
 

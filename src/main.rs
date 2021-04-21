@@ -233,17 +233,16 @@ fn main() {
             // Set the mouse coordinates initially
             .with_system(set_mouse_coords.system())
         )
-        .add_system(set_mouse_coords.system().label("mouse"))
         .add_system(timer_system.system().label("tick_timers"))
         .add_system_set(
             // Anything that needds to run at a set framerate goes here (so basically everything in game)
             SystemSet::new()
-                .after("mouse")
                 .after("tick_timers")
                 // Run the game at TIME_STEP per seconds (currently 60)
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("reload"))
                 .with_system(shoot.system().label(InputFromPlayer))
+                .with_system(set_mouse_coords.system().label(InputFromPlayer))
                 .with_system(reset_mag.system().label(InputFromPlayer).label("reload"))
                 .with_system(start_reload.system().label(InputFromPlayer).label("reload"))
                 .with_system(move_objects.system().after(InputFromPlayer))
