@@ -11,11 +11,14 @@ use crate::ProjectileType;
 pub struct Player {
     pub id: PlayerID,
     pub health: Health,
+    pub speed: PlayerSpeed,
     pub requested_movement: RequestedMovement,
     pub movement_type: MovementType,
     pub distance_traveled: DistanceTraveled,
     pub ability: Ability,
     pub ability_charge: AbilityCharge,
+    pub ability_completed: AbilityCompleted,
+    pub using_ability: UsingAbility,
 
 }
 
@@ -24,11 +27,14 @@ impl Player {
         Player {
             id: PlayerID(id),
             health: Health(100),
+            speed: PlayerSpeed(10.0),
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),
-            ability: Ability::Engineer,
+            ability: Ability::Stim,
             ability_charge: AbilityCharge(Timer::from_seconds(2.5, false)),
+            ability_completed: AbilityCompleted(Timer::from_seconds(4.0, false)),
+            using_ability: UsingAbility(false),
 
         }
     }
@@ -43,7 +49,17 @@ pub enum Ability {
 }
 
 #[derive(Debug)]
+pub struct PlayerSpeed(pub f32);
+
+#[derive(Debug)]
 pub struct AbilityCharge(pub Timer);
+
+#[derive(Debug)]
+pub struct AbilityCompleted(pub Timer);
+
+#[derive(Debug)]
+pub struct UsingAbility(pub bool);
+
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Model {
@@ -153,6 +169,7 @@ impl Gun {
             // Increase the speed
             gun.projectile_speed.0 *= 1.25;
 
+            // Increase the size of speedball slightly
             if gun.model == Model::Speedball {
                 gun.projectile_size *= 1.25;
 

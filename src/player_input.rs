@@ -34,7 +34,7 @@ pub fn move_camera(
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>) {
+pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>) {
     let mut angle = None;
 
     if keyboard_input.pressed(KeyCode::A) && angle.is_none() {
@@ -91,10 +91,10 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
 
     // Only do a change event if a key has been pressed
     if let Some(angle) = angle {
-        for (mut requested_movement, id) in query.iter_mut() {
+        for (mut requested_movement, id, speed) in query.iter_mut() {
             if id.0 == 0 {
                 requested_movement.angle = angle;
-                requested_movement.speed = 10.0;
+                requested_movement.speed = speed.0;
 
                 break;
 
@@ -234,9 +234,9 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
     }
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge), With<PlayerID>>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility), With<PlayerID>>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>) {
     for _ in ev_use_ability.iter() {
-        for (transform, mut requested_movement, ability, mut ability_charge) in query.iter_mut() {
+        for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, mut using_ability) in query.iter_mut() {
             if ability_charge.0.finished() {
                 match ability {
                     Ability::Wall => {
@@ -309,7 +309,12 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                     },
                     _ => {
+                        if !using_ability.0 && ability_charge.0.finished() {
+                            speed.0 *= 2.0;
+                            ability_completed.0.reset();
+                            using_ability.0 = true;
 
+                        }
                     },
                 }
             }
@@ -317,14 +322,24 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
     }
 }
 
-pub fn reset_mag(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload, &mut Bursting)>) {
-    for (mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting) in query.iter_mut() {
+pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut AbilityCharge, &mut PlayerSpeed)>) {
+    for (mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability, mut using_ability, mut ability_charge, mut speed) in query.iter_mut() {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
             bursting.0 = false;
 
 
+        }
+
+        if using_ability.0 && ability_completed.0.finished() {
+            if *ability == Ability::Stim {
+                speed.0 /= 2.0;
+
+            }
+
+            using_ability.0 = false;
+            ability_charge.0.reset();
         }
     }
 }

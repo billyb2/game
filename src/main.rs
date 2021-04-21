@@ -129,7 +129,7 @@ fn main() {
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shoot.system().label(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer))
-                .with_system(reset_mag.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer))
@@ -211,7 +211,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
                 position_type: PositionType::Absolute,
                 position: Rect {
                     left: Val::Percent(92.0),
-                    top: Val::Percent(5.0),
+                    top: Val::Percent(6.0),
 
                     ..Default::default()
                 },
@@ -315,8 +315,8 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut TimeSinceLastShot, &mut TimeSinceStartReload)>) {
-    for (mut ability_charge, mut time_since_last_shot, mut time_since_start_reload) in timers.iter_mut() {
+fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &mut TimeSinceLastShot, &mut TimeSinceStartReload)>) {
+    for (mut ability_charge, mut ability_completed, using_ability, mut time_since_last_shot, mut time_since_start_reload) in timers.iter_mut() {
         time_since_last_shot.0.tick(time.delta());
         ability_charge.0.tick(time.delta());
 
@@ -325,7 +325,10 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Tim
             time_since_start_reload.timer.tick(time.delta());
 
         }
+        if using_ability.0 {
+            ability_completed.0.tick(time.delta());
 
+        }
     }
 }
 
@@ -364,13 +367,15 @@ fn update_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &Tim
         ammo_text.sections[1].value = " / ".to_string();
         ammo_text.sections[2].value = max_ammo.to_string();
 
+        ammo_pos.position.left = Val::Percent(90.0);
+
     } else {
         ammo_text.sections[0].value = "Reloading...".to_string();
         ammo_text.sections[1].value = "".to_string();
         ammo_text.sections[2].value = "".to_string();
 
         // Since the Reloading text is pretty big, I need to shift it left slightly
-        ammo_pos.position.left = Val::Percent(83.0)
+        ammo_pos.position.left = Val::Percent(83.0);
 
     }
 
