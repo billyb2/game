@@ -37,6 +37,13 @@ pub struct Health(pub u8);
 pub struct PlayerID(pub u8);
 
 
+// Projectile stuff
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProjectileIdent;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProjectileSpeed(pub f32);
+
 
 // Gun stuff
 #[derive(Clone, Debug)]
@@ -53,7 +60,16 @@ pub struct TimeSinceStartReload {
 pub struct AmmoInMag(pub u8);
 
 #[derive(Clone, Debug)]
+pub struct Bursting(pub bool);
+
+#[derive(Clone, Debug)]
 pub struct MaxAmmo(pub u8);
+
+#[derive(Clone, Debug)]
+pub struct MaxDistance(pub f32);
+
+#[derive(Clone, Debug)]
+pub struct RecoilRange(pub f32);
 
 #[derive(Clone, Debug)]
 pub struct ReloadTime(pub f32);

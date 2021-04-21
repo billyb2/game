@@ -26,8 +26,7 @@ crc32fast = "1"
 winit = { version = "0.24.0" }
 
 # This is a fix for rand to work on WASM
-# rand = "0.8"
-# getrandom = { version="0.1", features=["wasm-bindgen"] }
+rand = "0.8"
 
 #Other platform stuff:
 [features]

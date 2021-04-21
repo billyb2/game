@@ -1220,6 +1220,7 @@ dependencies = [
  "bevy_webgl2",
  "crc32fast",
  "lz4_flex",
+ "rand",
  "winit",
 ]
 

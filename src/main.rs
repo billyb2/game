@@ -40,75 +40,93 @@ pub struct Gun {
     pub time_since_start_reload: TimeSinceStartReload,
     pub ammo_in_mag: AmmoInMag,
     pub max_ammo: MaxAmmo,
-    pub reload_time: ReloadTime,
+    pub max_distance: MaxDistance,
+    pub projectile_type: ProjectileType,
+    pub projectile_speed: ProjectileSpeed,
+    pub recoil_range: RecoilRange,
+    pub bursting: Bursting,
 /*
     pub time_since_start_reload: u128,
     // Shooting's,arguments are the arguments it had previously from the last frame, used for guns that don't just shoot one bullet at a time (like the burst rifle)
     pub shooting: Option<(f32, f32, bool, f32)>,
     pub projectiles_fired: u8,
-    pub reloading: bool,
     // Reload time is in miliseconds
-    pub reload_time: u16,
     pub damage: u8,
-    pub max_distance: f32,
 */
 
 }
 
-/*impl Gun {
-    pub fn new(model: Model) -> Gun {
+impl Gun {
+    fn new(model: Model) -> Gun {
         Gun {
             model,
-            // The time since the last shot is set as 0 so that you can start shooting as the start of the game
-            time_since_last_shot: 0,
-            time_since_start_reload: 0,
-            reloading: false,
-            reload_time: match model {
-                Model::Pistol => 2000,
-                Model::Shotgun => 5000,
-                Model::Speedball => 3000,
-                Model::BurstRifle => 3250,
-                Model::AssaultRifle => 3750,
+            time_since_last_shot: match model {
+                Model::Pistol => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
+                Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
+                Model::Speedball => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
+                Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
+                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.08, false)),
+
             },
-            // Some guns have special shooting behaviors that last over the course of mutliple ticks, which shooting and projectiles_fired take advantage of
-            shooting: None,
-            projectiles_fired: 0,
+            time_since_start_reload: TimeSinceStartReload {
+                timer: match model {
+                    Model::Pistol => Timer::from_seconds(2.0, false),
+                    Model::Shotgun => Timer::from_seconds(5.0, false),
+                    Model::Speedball => Timer::from_seconds(3.0, false),
+                    Model::BurstRifle => Timer::from_seconds(3.25, false),
+                    Model::AssaultRifle => Timer::from_seconds(3.75, false),
+
+                },
+                reloading: false,
+
+            },
             ammo_in_mag: match model {
-                Model::Pistol=> 16,
-                Model::Shotgun => 8,
-                Model::Speedball => 6,
-                Model::BurstRifle => 21,
-                Model::AssaultRifle => 25,
+                Model::Pistol=> AmmoInMag(16),
+                Model::Shotgun => AmmoInMag(8),
+                Model::Speedball => AmmoInMag(6),
+                Model::BurstRifle => AmmoInMag(21),
+                Model::AssaultRifle => AmmoInMag(25),
 
             },
             max_ammo: match model {
-                Model::Pistol => 16,
-                Model::Shotgun => 8,
-                Model::Speedball => 6,
-                Model::BurstRifle => 21,
-                Model::AssaultRifle => 25,
-
-            },
-            damage: match model {
-                Model::Pistol => 45,
-                Model::Shotgun => 25,
-                Model::Speedball => 1,
-                Model::BurstRifle => 13,
-                Model::AssaultRifle => 15,
+                Model::Pistol=> MaxAmmo(16),
+                Model::Shotgun => MaxAmmo(8),
+                Model::Speedball => MaxAmmo(6),
+                Model::BurstRifle => MaxAmmo(21),
+                Model::AssaultRifle => MaxAmmo(25),
 
             },
             max_distance: match model {
-                Model::Pistol => 900.0,
-                Model::Shotgun => 300.0,
-                Model::Speedball => 3000.0,
-                Model::BurstRifle => 1000.0,
-                Model::AssaultRifle => 1000.0,
+                Model::Pistol => MaxDistance(900.0),
+                Model::Shotgun => MaxDistance(300.0),
+                Model::Speedball => MaxDistance(3000.0),
+                Model::BurstRifle => MaxDistance(1000.0),
+                Model::AssaultRifle => MaxDistance(1000.0),
 
-            }
+            },
+
+            recoil_range: match model {
+                Model::Shotgun => RecoilRange(0.2),
+                _ => RecoilRange(0.075),
+
+            },
+            projectile_type: ProjectileType::Regular,
+            projectile_speed: match model {
+                Model::Pistol => ProjectileSpeed(12.0),
+                Model::Shotgun => ProjectileSpeed(11.0),
+                Model::Speedball => ProjectileSpeed(0.25),
+                Model::BurstRifle => ProjectileSpeed(12.0),
+                Model::AssaultRifle => ProjectileSpeed(12.0),
+
+            },
+            // The bursting component only matters for burst rifles
+            bursting: Bursting(false),
 
         }
     }
-}*/
+
+}
+
 //Each player has a unique player id
 #[derive(Bundle, Debug)]
 pub struct Player {
@@ -130,18 +148,7 @@ impl Player {
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),
-            gun: Gun {
-                model: Model::Pistol,
-                time_since_last_shot: TimeSinceLastShot(Timer::from_seconds(0.3, false)),
-                time_since_start_reload: TimeSinceStartReload {
-                    timer: Timer::from_seconds(2.0, false),
-                    reloading: false,
-
-                },
-                ammo_in_mag: AmmoInMag(16),
-                max_ammo: MaxAmmo(16),
-                reload_time: ReloadTime(3.0),
-            },
+            gun: Gun::new(Model::BurstRifle),
 
         }
     }
@@ -160,6 +167,8 @@ pub struct Projectile {
     pub requested_movement: RequestedMovement,
     pub movement_type: MovementType,
     pub projectile_type: ProjectileType,
+    // A general purpose identifier for projectiles, to distinguish between guns and projectiles
+    pub projectile: ProjectileIdent,
 
 }
 
@@ -170,7 +179,8 @@ impl Projectile {
             distance_traveled: DistanceTraveled(0.0),
             requested_movement,
             movement_type: MovementType::StopAfterDistance(max_distance),
-            projectile_type
+            projectile_type,
+            projectile: ProjectileIdent,
 
         }
     }
@@ -333,8 +343,8 @@ fn add_players(mut commands: Commands, materials: Res<Skins>) {
 }
 
 // Move objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, Option<&ProjectileType>)>, mut map: ResMut<Map>) {
-    for (_, mut object, mut movement, movement_type, mut distance_traveled, sprite, _) in movements.iter_mut() {
+fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, Option<&ProjectileType>, Option<&ProjectileIdent>)>, mut map: ResMut<Map>) {
+    for (_, mut object, mut movement, movement_type, mut distance_traveled, sprite, _, _) in movements.iter_mut() {
         // Only do any math if a change has been detected, in order to avoid triggering this event without need
         // Only lets you move if the movement doesn't bump into a wall
         let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -372,7 +382,7 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
 
     // Remove all stopped bullets
     for object in movements.iter_mut() {
-        if object.2.speed == 0.0 && object.6.is_some() {
+        if object.2.speed == 0.0 && object.7.is_some() {
             commands.entity(object.0).despawn_recursive();
 
 

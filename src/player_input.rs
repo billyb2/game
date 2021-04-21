@@ -1,6 +1,8 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
+use bevy::utils::Duration;
+use rand::Rng;
 
 use crate::helper_functions::get_angle;
 
@@ -94,59 +96,90 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 }
 
-pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload)>, mut ev_reload: EventWriter<ReloadEvent>) {
-    if btn.just_pressed(MouseButton::Left) {
-        let mut angle = PI;
-        let mut speed = 15.0;
-        let mut projectile_type = ProjectileType::Regular;
-        let mut max_distance = 900.0;
+pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &ProjectileSpeed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting)>, mut ev_reload: EventWriter<ReloadEvent>) {
+    //TODO: Use just_pressed for non automatic weapons
+    // The or shooting bit is for burst rifles
+    let mut angle = PI;
+    let mut speed = 15.0;
+    let mut projectile_type = ProjectileType::Regular;
+    let mut max_distance = 900.0;
 
-        let mut shooting = false;
+    let mut shooting = false;
 
-        let mut start_pos_x = mouse_pos.0.x;
-        let mut start_pos_y = mouse_pos.0.y;
+    let mut start_pos_x = mouse_pos.0.x;
+    let mut start_pos_y = mouse_pos.0.y;
 
-        for (player, id, gun_model, mut time_since_last_shot, mut ammo_in_mag, reload_timer) in query.iter_mut() {
-            if *id == PlayerID(0) {
+    let mut recoil_range = 0.0;
+    let mut num_of_bullets = 1;
+
+    for (player, id, gun_model, projectile_max_distance, bullet_type, gun_recoil_range, bullet_speed, mut time_since_last_shot, mut ammo_in_mag, reload_timer, mut bursting) in query.iter_mut() {
+        // Checks that player 1 can shoot, and isnt reloading
+        if *id == PlayerID(0) {
+            if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !reload_timer.reloading && (btn.pressed(MouseButton::Left) || bursting.0) {
                 angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, player.translation.x, player.translation.y);
 
                 start_pos_x = player.translation.x;
                 start_pos_y = player.translation.y;
 
+                max_distance = projectile_max_distance.0;
+                projectile_type = *bullet_type;
+                speed = bullet_speed.0;
+                recoil_range = gun_recoil_range.0;
 
-                if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !reload_timer.reloading{
-                    if *gun_model == Model::Pistol {
-                        shooting = true;
+                shooting = true;
 
-                        speed = 12.0;
-                        projectile_type = ProjectileType::Regular;
+                if *gun_model == Model::Shotgun {
+                    num_of_bullets = 12;
 
-                        max_distance = 900.0;
+                } else if *gun_model == Model::BurstRifle {
+                    if !bursting.0 {
+                        bursting.0 = true;
+                        time_since_last_shot.0.set_duration(Duration::from_millis(60));
+
+                    } else if ammo_in_mag.0 % 3 == 0 {
+                        bursting.0 = false;
+                        shooting = false;
+
+                        time_since_last_shot.0.set_duration(Duration::from_millis(500));
 
                     }
 
+                }
+
+
+                if shooting {
                     ammo_in_mag.0 -= 1;
-                    time_since_last_shot.0.reset();
-                } else if ammo_in_mag.0 == 0 {
-                    // Reload automatically if the player tries to shoot with no ammo
-                    ev_reload.send(ReloadEvent);
 
                 }
 
+                time_since_last_shot.0.reset();
 
-                // Bullets need to travel "backwards" when moving to the left
-                if mouse_pos.0.x <= player.translation.x {
-                    speed = -speed;
+            } else if ammo_in_mag.0 == 0 {
+                // Reload automatically if the player tries to shoot with no ammo
+                ev_reload.send(ReloadEvent);
 
-                }
-
-                break;
             }
+
+
+            // Bullets need to travel "backwards" when moving to the left
+            if mouse_pos.0.x <= player.translation.x {
+                speed = -speed;
+
+            }
+
+            break;
 
         }
 
-        if shooting {
-            let movement = RequestedMovement::new(angle, speed);
+    }
+
+    if shooting {
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..num_of_bullets {
+
+            let recoil = rng.gen_range(-recoil_range..recoil_range);
+            let movement = RequestedMovement::new(angle + recoil, speed);
 
             commands
                 .spawn_bundle(Projectile::new(movement, projectile_type, max_distance))
@@ -157,21 +190,16 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
                     ..Default::default()
                 });
         }
-
-
     }
 }
 
-pub fn start_reload(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &PlayerID, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>) {
+pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>) {
     // Only start a reload if the reload event is read
     for _ in ev_reload.iter() {
-        for (mut ammo_in_mag, max_ammo, id, mut reload_timer) in query.iter_mut() {
+        for (ammo_in_mag, max_ammo, id, mut reload_timer) in query.iter_mut() {
             if *id == PlayerID(0) && ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
                 reload_timer.reloading = true;
                 reload_timer.timer.reset();
-
-            } else if reload_timer.reloading && reload_timer.timer.finished() {
-                ammo_in_mag.0 = max_ammo.0;
 
             }
 
@@ -179,11 +207,13 @@ pub fn start_reload(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &PlayerID, &mut 
     }
 }
 
-pub fn reset_mag(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload)>) {
-    for (mut ammo_in_mag, max_ammo, mut reload_timer) in query.iter_mut() {
+pub fn reset_mag(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload, &mut Bursting)>) {
+    for (mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting) in query.iter_mut() {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
+            bursting.0 = false;
+
 
         }
     }
