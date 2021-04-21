@@ -1,0 +1,167 @@
+// Gotta allow dead code in here since most guns aren't used at once
+#![allow(dead_code)]
+
+use bevy::prelude::*;
+
+use crate::components::*;
+use crate::ProjectileType;
+
+//Each player has a unique player id
+#[derive(Bundle, Debug)]
+pub struct Player {
+    pub id: PlayerID,
+    pub health: Health,
+    pub requested_movement: RequestedMovement,
+    pub movement_type: MovementType,
+    pub distance_traveled: DistanceTraveled,
+    pub ability: Ability,
+    pub ability_charge: AbilityCharge,
+
+}
+
+impl Player {
+    pub fn new(id: u8) -> Player {
+        Player {
+            id: PlayerID(id),
+            health: Health(100),
+            requested_movement: RequestedMovement::new(0.0, 0.0),
+            movement_type: MovementType::SingleFrame,
+            distance_traveled: DistanceTraveled(0.0),
+            ability: Ability::Engineer,
+            ability_charge: AbilityCharge(Timer::from_seconds(2.5, false)),
+
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Ability {
+    Stim,
+    Phase,
+    Wall,
+    Engineer, //Should be default
+}
+
+#[derive(Debug)]
+pub struct AbilityCharge(pub Timer);
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Model {
+    Pistol,
+    Shotgun,
+    Speedball,
+    BurstRifle,
+    AssaultRifle,
+}
+
+
+#[derive(Bundle, Debug)]
+pub struct Gun {
+    pub model: Model,
+    pub time_since_last_shot: TimeSinceLastShot,
+    pub time_since_start_reload: TimeSinceStartReload,
+    pub ammo_in_mag: AmmoInMag,
+    pub max_ammo: MaxAmmo,
+    pub max_distance: MaxDistance,
+    pub projectile_type: ProjectileType,
+    pub projectile_speed: Speed,
+    pub recoil_range: RecoilRange,
+    pub bursting: Bursting,
+    pub projectile_size: Size,
+
+}
+
+
+impl Gun {
+    pub fn new(model: Model, ability: Ability) -> Gun {
+        let mut gun = Gun {
+            model,
+            time_since_last_shot: match model {
+                Model::Pistol => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
+                Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
+                Model::Speedball => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
+                Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
+                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.08, false)),
+
+            },
+            time_since_start_reload: TimeSinceStartReload {
+                timer: match model {
+                    Model::Pistol => Timer::from_seconds(2.0, false),
+                    Model::Shotgun => Timer::from_seconds(5.0, false),
+                    Model::Speedball => Timer::from_seconds(3.0, false),
+                    Model::BurstRifle => Timer::from_seconds(3.25, false),
+                    Model::AssaultRifle => Timer::from_seconds(3.75, false),
+
+                },
+                reloading: false,
+
+            },
+            ammo_in_mag: match model {
+                Model::Pistol=> AmmoInMag(16),
+                Model::Shotgun => AmmoInMag(8),
+                Model::Speedball => AmmoInMag(6),
+                Model::BurstRifle => AmmoInMag(21),
+                Model::AssaultRifle => AmmoInMag(25),
+
+            },
+            max_ammo: match model {
+                Model::Pistol=> MaxAmmo(16),
+                Model::Shotgun => MaxAmmo(8),
+                Model::Speedball => MaxAmmo(6),
+                Model::BurstRifle => MaxAmmo(21),
+                Model::AssaultRifle => MaxAmmo(25),
+
+            },
+            max_distance: match model {
+                Model::Pistol => MaxDistance(900.0),
+                Model::Shotgun => MaxDistance(300.0),
+                Model::Speedball => MaxDistance(3000.0),
+                Model::BurstRifle => MaxDistance(1000.0),
+                Model::AssaultRifle => MaxDistance(1000.0),
+
+            },
+
+            recoil_range: match model {
+                Model::Shotgun => RecoilRange(0.2),
+                Model::Speedball => RecoilRange(0.0),
+                Model::BurstRifle => RecoilRange(0.03),
+                _ => RecoilRange(0.075),
+
+            },
+            projectile_type: match model {
+                Model::Speedball => ProjectileType::Speedball,
+                _ => ProjectileType::Regular,
+            },
+            projectile_speed: match model {
+                Model::Pistol => Speed(12.0),
+                Model::Shotgun => Speed(11.0),
+                Model::Speedball => Speed(0.25),
+                Model::BurstRifle => Speed(12.0),
+                Model::AssaultRifle => Speed(12.0),
+
+            },
+            projectile_size: Size::new(0.5, 0.5),
+            // The bursting component only matters for burst rifles
+            bursting: Bursting(false),
+
+        };
+
+        if ability == Ability::Engineer {
+            // Cut the reload time in half
+            gun.time_since_start_reload.timer.set_duration(gun.time_since_start_reload.timer.duration() / 2);
+
+            // Increase the speed
+            gun.projectile_speed.0 *= 1.25;
+
+            if gun.model == Model::Speedball {
+                gun.projectile_size *= 1.25;
+
+            }
+
+
+        }
+
+        gun
+    }
+
+}

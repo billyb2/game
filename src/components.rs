@@ -20,6 +20,9 @@ pub struct RequestedMovement {
 
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Speed(pub f32);
+
 impl RequestedMovement {
     pub fn new(angle: f32, speed: f32) -> RequestedMovement {
         RequestedMovement {
@@ -36,14 +39,9 @@ pub struct Health(pub u8);
 #[derive(Debug, PartialEq)]
 pub struct PlayerID(pub u8);
 
-
 // Projectile stuff
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProjectileIdent;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct ProjectileSpeed(pub f32);
-
 
 // Gun stuff
 #[derive(Clone, Debug)]
@@ -76,3 +74,6 @@ pub struct ReloadTime(pub f32);
 
 #[derive(Clone, Debug)]
 pub struct ReloadEvent;
+
+#[derive(Clone, Debug)]
+pub struct AbilityEvent;

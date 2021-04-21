@@ -8,7 +8,9 @@ use crate::helper_functions::get_angle;
 
 use crate::*;
 use crate::components::*;
+use crate::player_attributes::*;
 
+// This just keeps the camera in sync with the player
 pub fn move_camera(
     mut q: QuerySet<(
         Query<&mut Transform, With<GameCamera>>,
@@ -32,7 +34,7 @@ pub fn move_camera(
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>, mut ev_reload: EventWriter<ReloadEvent>) {
+pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>) {
     let mut angle = None;
 
     if keyboard_input.pressed(KeyCode::A) && angle.is_none() {
@@ -82,6 +84,11 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
 
     }
 
+    if keyboard_input.pressed(KeyCode::E) {
+        ev_use_ability.send(AbilityEvent);
+
+    }
+
     // Only do a change event if a key has been pressed
     if let Some(angle) = angle {
         for (mut requested_movement, id) in query.iter_mut() {
@@ -96,7 +103,7 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 }
 
-pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &ProjectileSpeed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting, &Size)>, mut ev_reload: EventWriter<ReloadEvent>) {
+pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &Speed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting, &Size)>, mut ev_reload: EventWriter<ReloadEvent>) {
     //TODO: Use just_pressed for non automatic weapons
     // The or shooting bit is for burst rifles
     let mut angle = PI;
@@ -138,7 +145,7 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
                 } else if *gun_model == Model::BurstRifle {
                     if !bursting.0 {
                         bursting.0 = true;
-                        time_since_last_shot.0.set_duration(Duration::from_millis(60));
+                        time_since_last_shot.0.set_duration(Duration::from_millis(45));
 
                     } else if ammo_in_mag.0 % 3 == 0 {
                         bursting.0 = false;
@@ -192,10 +199,19 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
 
             let movement = RequestedMovement::new(angle + recoil, speed);
 
+            let material =
+                if projectile_type == ProjectileType::Regular {
+                    materials.regular.clone()
+
+                } else {
+                    materials.speedball.clone()
+
+                };
+
             commands
                 .spawn_bundle(Projectile::new(movement, projectile_type, max_distance, projectile_size))
                 .insert_bundle(SpriteBundle {
-                    material: materials.regular.clone(),
+                    material,
                     sprite: Sprite::new(Vec2::new(5.0, 5.0)),
                     transform: Transform::from_xyz(start_pos_x + 2.5, start_pos_y + 2.5, 0.0),
                     ..Default::default()
@@ -214,6 +230,89 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
 
             }
 
+        }
+    }
+}
+
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge), With<PlayerID>>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>) {
+    for _ in ev_use_ability.iter() {
+        for (transform, mut requested_movement, ability, mut ability_charge) in query.iter_mut() {
+            if ability_charge.0.finished() {
+                match ability {
+                    Ability::Wall => {
+                        if requested_movement.speed != 0.0 {
+                            let color = Color::rgb_u8(255, 255, 0);
+
+                            let color_handle: Handle<ColorMaterial> = {
+                                let mut color_to_return = None;
+
+                                for (id, material_to_return) in materials.iter() {
+                                    if color == material_to_return.color {
+                                        color_to_return = Some(materials.get_handle(id));
+
+                                    }
+
+                                }
+
+
+                                if let Some(color) = color_to_return {
+                                    color
+
+                                } else {
+                                    materials.add(color.into())
+
+                                }
+                            };
+
+                            let coords = transform.translation + Vec3::new(25.0 * requested_movement.angle.cos(), 25.0 * requested_movement.angle.sin(), 0.0);
+
+                            let size =
+                            if requested_movement.angle.abs() == PI / 2.0 {
+                                Vec2::new(50.0, 25.0)
+
+                            } else {
+                                Vec2::new(25.0, 50.0)
+
+                            };
+
+
+                            commands
+                                .spawn_bundle(SpriteBundle {
+                                    material: color_handle.clone(),
+                                    sprite: Sprite::new(size),
+                                    transform: Transform {
+                                        translation: coords,
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                });
+
+                            map.objects.push(
+                                MapObject {
+                                    coords,
+                                    size,
+                                    color,
+                                    collidable: true,
+                                    player_spawn: false,
+                                    health: Some(30),
+
+                                }
+                            );
+
+                            ability_charge.0.reset();
+
+                        }
+                    },
+                    Ability::Phase => {
+                        requested_movement.speed += 500.0;
+                        ability_charge.0.reset();
+
+                    },
+                    _ => {
+
+                    },
+                }
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ mod system_labels;
 mod map;
 mod helper_functions;
 mod player_input;
+mod player_attributes;
 
 use bevy::core::FixedTimestep;
 use bevy::prelude::*;
@@ -14,6 +15,7 @@ use map::*;
 use player_input::*;
 
 use components::*;
+use player_attributes::*;
 use system_labels::*;
 
 // The game will always run at 60 fps
@@ -23,138 +25,7 @@ const TIME_STEP: f32 = 1.0 / 60.0;
 pub struct GameCamera;
 
 struct AmmoText;
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Model {
-    Pistol,
-    Shotgun,
-    Speedball,
-    BurstRifle,
-    AssaultRifle,
-}
-
-#[derive(Bundle, Debug)]
-pub struct Gun {
-    pub model: Model,
-    pub time_since_last_shot: TimeSinceLastShot,
-    pub time_since_start_reload: TimeSinceStartReload,
-    pub ammo_in_mag: AmmoInMag,
-    pub max_ammo: MaxAmmo,
-    pub max_distance: MaxDistance,
-    pub projectile_type: ProjectileType,
-    pub projectile_speed: ProjectileSpeed,
-    pub recoil_range: RecoilRange,
-    pub bursting: Bursting,
-    pub projectile_size: Size,
-/*
-    pub damage: u8,
-*/
-
-}
-
-impl Gun {
-    fn new(model: Model) -> Gun {
-        Gun {
-            model,
-            time_since_last_shot: match model {
-                Model::Pistol => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
-                Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
-                Model::Speedball => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
-                Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
-                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.08, false)),
-
-            },
-            time_since_start_reload: TimeSinceStartReload {
-                timer: match model {
-                    Model::Pistol => Timer::from_seconds(2.0, false),
-                    Model::Shotgun => Timer::from_seconds(5.0, false),
-                    Model::Speedball => Timer::from_seconds(3.0, false),
-                    Model::BurstRifle => Timer::from_seconds(3.25, false),
-                    Model::AssaultRifle => Timer::from_seconds(3.75, false),
-
-                },
-                reloading: false,
-
-            },
-            ammo_in_mag: match model {
-                Model::Pistol=> AmmoInMag(16),
-                Model::Shotgun => AmmoInMag(8),
-                Model::Speedball => AmmoInMag(6),
-                Model::BurstRifle => AmmoInMag(21),
-                Model::AssaultRifle => AmmoInMag(25),
-
-            },
-            max_ammo: match model {
-                Model::Pistol=> MaxAmmo(16),
-                Model::Shotgun => MaxAmmo(8),
-                Model::Speedball => MaxAmmo(6),
-                Model::BurstRifle => MaxAmmo(21),
-                Model::AssaultRifle => MaxAmmo(25),
-
-            },
-            max_distance: match model {
-                Model::Pistol => MaxDistance(900.0),
-                Model::Shotgun => MaxDistance(300.0),
-                Model::Speedball => MaxDistance(3000.0),
-                Model::BurstRifle => MaxDistance(1000.0),
-                Model::AssaultRifle => MaxDistance(1000.0),
-
-            },
-
-            recoil_range: match model {
-                Model::Shotgun => RecoilRange(0.2),
-                Model::Speedball => RecoilRange(0.0),
-                Model::BurstRifle => RecoilRange(0.04),
-                _ => RecoilRange(0.075),
-
-            },
-            projectile_type: match model {
-                Model::Speedball => ProjectileType::Speedball,
-                _ => ProjectileType::Regular,
-            },
-            projectile_speed: match model {
-                Model::Pistol => ProjectileSpeed(12.0),
-                Model::Shotgun => ProjectileSpeed(11.0),
-                Model::Speedball => ProjectileSpeed(0.25),
-                Model::BurstRifle => ProjectileSpeed(12.0),
-                Model::AssaultRifle => ProjectileSpeed(12.0),
-
-            },
-            projectile_size: Size::new(0.5, 0.5),
-            // The bursting component only matters for burst rifles
-            bursting: Bursting(false),
-
-        }
-    }
-
-}
-
-//Each player has a unique player id
-#[derive(Bundle, Debug)]
-pub struct Player {
-    pub id: PlayerID,
-    pub health: Health,
-    pub requested_movement: RequestedMovement,
-    pub movement_type: MovementType,
-    pub distance_traveled: DistanceTraveled,
-    #[bundle]
-    pub gun: Gun,
-
-}
-
-impl Player {
-    pub fn new(id: u8) -> Player {
-        Player {
-            id: PlayerID(id),
-            health: Health(100),
-            requested_movement: RequestedMovement::new(0.0, 0.0),
-            movement_type: MovementType::SingleFrame,
-            distance_traveled: DistanceTraveled(0.0),
-            gun: Gun::new(Model::Speedball),
-
-        }
-    }
-}
+struct AbilityChargeText;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProjectileType {
@@ -197,7 +68,7 @@ pub struct Skins {
 
 pub struct ProjectileMaterials {
     regular: Handle<ColorMaterial>,
-    //speedball: Handle<ColorMaterial>,
+    speedball: Handle<ColorMaterial>,
 
 }
 
@@ -230,7 +101,8 @@ fn main() {
         // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
         .add_plugins(DefaultPlugins)
-        .add_event::<ReloadEvent>();
+        .add_event::<ReloadEvent>()
+        .add_event::<AbilityEvent>();
 
         //The WebGL2 plugin is only added if we're compiling to WASM
         #[cfg(target_arch = "wasm32")]
@@ -254,11 +126,12 @@ fn main() {
                 .after("tick_timers")
                 // Run the game at TIME_STEP per seconds (currently 60)
                 .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
-                .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("reload"))
+                .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shoot.system().label(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer))
-                .with_system(reset_mag.system().label(InputFromPlayer).label("reload"))
-                .with_system(start_reload.system().label(InputFromPlayer).label("reload"))
+                .with_system(reset_mag.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer))
                 .with_system(move_camera.system().after(InputFromPlayer))
                 .with_system(update_ui.system().after(InputFromPlayer))
@@ -280,7 +153,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
 
     commands.insert_resource(ProjectileMaterials {
         regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
-        //speedball: materials.add(Color::rgb_u8(68, 86, 90).into()),
+        speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
 
     });
 
@@ -289,6 +162,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
         .spawn_bundle(TextBundle {
             style: Style {
                 align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
                 position: Rect {
                     left: Val::Percent(90.0),
 
@@ -304,7 +178,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
                         style: TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 45.0,
-                            color: Color::GOLD,
+                            color: Color::WHITE,
                         },
                     },
                     TextSection {
@@ -312,7 +186,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
                         style: TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 45.0,
-                            color: Color::GOLD,
+                            color: Color::WHITE,
                         },
                     },
                     TextSection {
@@ -320,7 +194,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
                         style: TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 45.0,
-                            color: Color::GOLD,
+                            color: Color::WHITE,
                         },
                     },
                 ],
@@ -330,12 +204,45 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
         })
         .insert(AmmoText);
 
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Percent(92.0),
+                    top: Val::Percent(5.0),
+
+                    ..Default::default()
+                },
+
+                ..Default::default()
+            },
+            text: Text {
+                sections: vec![
+                    TextSection {
+                        value: "0%".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 45.0,
+                            color: Color::RED,
+                        },
+                    },
+                ],
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(AbilityChargeText);
+
+
 }
 
 fn add_players(mut commands: Commands, materials: Res<Skins>) {
     for i in 0..=0 {
         commands
             .spawn_bundle(Player::new(i))
+            .insert_bundle(Gun::new(Model::Speedball, Ability::Engineer))
             .insert_bundle(SpriteBundle {
                 material: materials.phase.clone(),
                 sprite: Sprite::new(Vec2::new(15.0, 15.0)),
@@ -349,22 +256,19 @@ fn add_players(mut commands: Commands, materials: Res<Skins>) {
 // Move objects will first validate whether a movement can be done, and if so move them
 fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, Option<&ProjectileType>, Option<&ProjectileIdent>)>, mut map: ResMut<Map>) {
     for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, is_projectile) in movements.iter_mut() {
-        // Only do any math if a change has been detected, in order to avoid triggering this event without need
-        // Only lets you move if the movement doesn't bump into a wall
-        let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
-
         if movement.speed != 0.0 {
+            // Only lets you move if the movement doesn't bump into a wall
+            let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
+
             if !map.collision(object.translation + next_potential_movement, sprite.size, 0) {
                 object.translation.x += movement.speed * movement.angle.cos();
                 object.translation.y += movement.speed * movement.angle.sin();
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
                 // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
-                if projectile_type.is_some() && is_projectile.is_some() {
-                    let projectile_type = projectile_type.unwrap();
-
+                if let Some(projectile_type) = projectile_type {
                     // The speedball's weapon speeds up and gets bigger
-                    if *projectile_type == ProjectileType::Speedball {
+                    if *projectile_type == ProjectileType::Speedball && is_projectile.is_some() {
                         movement.speed *= 1.1;
                         sprite.size *= 1.03;
 
@@ -410,9 +314,11 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
 
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
-fn timer_system(time: Res<Time>, mut timers: Query<(&mut TimeSinceLastShot, &mut TimeSinceStartReload)>) {
-    for (mut time_since_last_shot, mut time_since_start_reload) in timers.iter_mut() {
+// Also adds ability charge to each player
+fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut TimeSinceLastShot, &mut TimeSinceStartReload)>) {
+    for (mut ability_charge, mut time_since_last_shot, mut time_since_start_reload) in timers.iter_mut() {
         time_since_last_shot.0.tick(time.delta());
+        ability_charge.0.tick(time.delta());
 
         // If the player is reloading
         if time_since_start_reload.reloading {
@@ -423,16 +329,25 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut TimeSinceLastShot, &mut
     }
 }
 
-fn update_ui(query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_text: Query<&mut Text, With<AmmoText>>, mut ammo_style: Query<&mut Style, With<AmmoText>>) {
+fn update_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
+    mut t: QuerySet<(
+        Query<&mut Text, With<AmmoText>>,
+        Query<&mut Text, With<AbilityChargeText>>
+    )>
+) {
     let mut ammo_in_mag = 0;
     let mut max_ammo = 0;
 
+    let mut ability_charge_percent = 0.0;
+
     let mut reloading = false;
 
-    for (player_ammo_count, player_max_ammo, id, reload_timer) in query.iter() {
+    for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer) in query.iter() {
         if *id == PlayerID(0) {
             ammo_in_mag = (*player_ammo_count).0;
             max_ammo = (*player_max_ammo).0;
+
+            ability_charge_percent = ability_charge.0.percent() * 100.0;
 
             reloading = reload_timer.reloading;
 
@@ -441,7 +356,7 @@ fn update_ui(query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReloa
         }
     }
 
-    let mut ammo_text = ammo_text.single_mut().unwrap();
+    let mut ammo_text = t.q0_mut().single_mut().unwrap();
     let mut ammo_pos = ammo_style.single_mut().unwrap();
 
     if !reloading {
@@ -456,6 +371,22 @@ fn update_ui(query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReloa
 
         // Since the Reloading text is pretty big, I need to shift it left slightly
         ammo_pos.position.left = Val::Percent(83.0)
+
+    }
+
+    let mut ability_charge_text = t.q1_mut().single_mut().unwrap();
+    ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
+
+    let ability_charge_percent = ability_charge_percent as u8;
+
+    if ability_charge_percent < 50 {
+        ability_charge_text.sections[0].style.color = Color::RED;
+
+    } else if (50..100).contains(&ability_charge_percent) {
+        ability_charge_text.sections[0].style.color = Color::YELLOW;
+
+    } else if ability_charge_percent == 100 {
+        ability_charge_text.sections[0].style.color = Color::GREEN;
 
     }
 
