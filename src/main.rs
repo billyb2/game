@@ -45,12 +45,8 @@ pub struct Gun {
     pub projectile_speed: ProjectileSpeed,
     pub recoil_range: RecoilRange,
     pub bursting: Bursting,
+    pub projectile_size: Size,
 /*
-    pub time_since_start_reload: u128,
-    // Shooting's,arguments are the arguments it had previously from the last frame, used for guns that don't just shoot one bullet at a time (like the burst rifle)
-    pub shooting: Option<(f32, f32, bool, f32)>,
-    pub projectiles_fired: u8,
-    // Reload time is in miliseconds
     pub damage: u8,
 */
 
@@ -107,10 +103,15 @@ impl Gun {
 
             recoil_range: match model {
                 Model::Shotgun => RecoilRange(0.2),
+                Model::Speedball => RecoilRange(0.0),
+                Model::BurstRifle => RecoilRange(0.04),
                 _ => RecoilRange(0.075),
 
             },
-            projectile_type: ProjectileType::Regular,
+            projectile_type: match model {
+                Model::Speedball => ProjectileType::Speedball,
+                _ => ProjectileType::Regular,
+            },
             projectile_speed: match model {
                 Model::Pistol => ProjectileSpeed(12.0),
                 Model::Shotgun => ProjectileSpeed(11.0),
@@ -119,6 +120,7 @@ impl Gun {
                 Model::AssaultRifle => ProjectileSpeed(12.0),
 
             },
+            projectile_size: Size::new(0.5, 0.5),
             // The bursting component only matters for burst rifles
             bursting: Bursting(false),
 
@@ -148,7 +150,7 @@ impl Player {
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),
-            gun: Gun::new(Model::BurstRifle),
+            gun: Gun::new(Model::Speedball),
 
         }
     }
@@ -169,18 +171,20 @@ pub struct Projectile {
     pub projectile_type: ProjectileType,
     // A general purpose identifier for projectiles, to distinguish between guns and projectiles
     pub projectile: ProjectileIdent,
+    pub projectile_size: Size,
 
 }
 
 
 impl Projectile {
-    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32) -> Projectile {
+    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32, size: Size) -> Projectile {
         Projectile {
             distance_traveled: DistanceTraveled(0.0),
             requested_movement,
             movement_type: MovementType::StopAfterDistance(max_distance),
             projectile_type,
             projectile: ProjectileIdent,
+            projectile_size: size
 
         }
     }
@@ -343,8 +347,8 @@ fn add_players(mut commands: Commands, materials: Res<Skins>) {
 }
 
 // Move objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, Option<&ProjectileType>, Option<&ProjectileIdent>)>, mut map: ResMut<Map>) {
-    for (_, mut object, mut movement, movement_type, mut distance_traveled, sprite, _, _) in movements.iter_mut() {
+fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, Option<&ProjectileType>, Option<&ProjectileIdent>)>, mut map: ResMut<Map>) {
+    for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, is_projectile) in movements.iter_mut() {
         // Only do any math if a change has been detected, in order to avoid triggering this event without need
         // Only lets you move if the movement doesn't bump into a wall
         let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -353,6 +357,19 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
             if !map.collision(object.translation + next_potential_movement, sprite.size, 0) {
                 object.translation.x += movement.speed * movement.angle.cos();
                 object.translation.y += movement.speed * movement.angle.sin();
+
+                // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
+                // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
+                if projectile_type.is_some() && is_projectile.is_some() {
+                    let projectile_type = projectile_type.unwrap();
+
+                    // The speedball's weapon speeds up and gets bigger
+                    if *projectile_type == ProjectileType::Speedball {
+                        movement.speed *= 1.1;
+                        sprite.size *= 1.03;
+
+                    }
+                }
 
                 match movement_type {
                     // The object moves one frame, and then stops

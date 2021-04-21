@@ -96,7 +96,7 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 }
 
-pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &ProjectileSpeed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting)>, mut ev_reload: EventWriter<ReloadEvent>) {
+pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &ProjectileSpeed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting, &Size)>, mut ev_reload: EventWriter<ReloadEvent>) {
     //TODO: Use just_pressed for non automatic weapons
     // The or shooting bit is for burst rifles
     let mut angle = PI;
@@ -112,7 +112,9 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
     let mut recoil_range = 0.0;
     let mut num_of_bullets = 1;
 
-    for (player, id, gun_model, projectile_max_distance, bullet_type, gun_recoil_range, bullet_speed, mut time_since_last_shot, mut ammo_in_mag, reload_timer, mut bursting) in query.iter_mut() {
+    let mut projectile_size = Size::new(0.5, 0.5);
+
+    for (player, id, gun_model, projectile_max_distance, bullet_type, gun_recoil_range, bullet_speed, mut time_since_last_shot, mut ammo_in_mag, reload_timer, mut bursting, bullet_size) in query.iter_mut() {
         // Checks that player 1 can shoot, and isnt reloading
         if *id == PlayerID(0) {
             if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !reload_timer.reloading && (btn.pressed(MouseButton::Left) || bursting.0) {
@@ -127,6 +129,8 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
                 recoil_range = gun_recoil_range.0;
 
                 shooting = true;
+
+                projectile_size = *bullet_size;
 
                 if *gun_model == Model::Shotgun {
                     num_of_bullets = 12;
@@ -177,12 +181,19 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
         let mut rng = rand::thread_rng();
 
         for _ in 0..num_of_bullets {
+            let recoil =
+                if recoil_range == 0.0 {
+                    0.0
 
-            let recoil = rng.gen_range(-recoil_range..recoil_range);
+                } else {
+                    rng.gen_range(-recoil_range..recoil_range)
+
+            };
+
             let movement = RequestedMovement::new(angle + recoil, speed);
 
             commands
-                .spawn_bundle(Projectile::new(movement, projectile_type, max_distance))
+                .spawn_bundle(Projectile::new(movement, projectile_type, max_distance, projectile_size))
                 .insert_bundle(SpriteBundle {
                     material: materials.regular.clone(),
                     sprite: Sprite::new(Vec2::new(5.0, 5.0)),
