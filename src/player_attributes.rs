@@ -23,7 +23,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: u8) -> Player {
+    pub fn new(id: u8, ability: Ability) -> Player {
         Player {
             id: PlayerID(id),
             health: Health(100),
@@ -31,7 +31,7 @@ impl Player {
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),
-            ability: Ability::Stim,
+            ability,
             ability_charge: AbilityCharge(Timer::from_seconds(2.5, false)),
             ability_completed: AbilityCompleted(Timer::from_seconds(4.0, false)),
             using_ability: UsingAbility(false),
@@ -140,7 +140,7 @@ impl Gun {
             recoil_range: match model {
                 Model::Shotgun => RecoilRange(0.2),
                 Model::Speedball => RecoilRange(0.0),
-                Model::BurstRifle => RecoilRange(0.03),
+                Model::BurstRifle => RecoilRange(0.025),
                 _ => RecoilRange(0.075),
 
             },
@@ -156,7 +156,7 @@ impl Gun {
                 Model::AssaultRifle => Speed(12.0),
 
             },
-            projectile_size: Size::new(0.5, 0.5),
+            projectile_size: Size::new(5.0, 5.0),
             // The bursting component only matters for burst rifles
             bursting: Bursting(false),
 

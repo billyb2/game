@@ -103,7 +103,7 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 }
 
-pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &Speed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting, &Size)>, mut ev_reload: EventWriter<ReloadEvent>) {
+pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &Speed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting, &Size, &Ability)>, mut ev_reload: EventWriter<ReloadEvent>) {
     //TODO: Use just_pressed for non automatic weapons
     // The or shooting bit is for burst rifles
     let mut angle = PI;
@@ -121,10 +121,12 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
 
     let mut projectile_size = Size::new(0.5, 0.5);
 
-    for (player, id, gun_model, projectile_max_distance, bullet_type, gun_recoil_range, bullet_speed, mut time_since_last_shot, mut ammo_in_mag, reload_timer, mut bursting, bullet_size) in query.iter_mut() {
+    let mut ability = Ability::Engineer;
+
+    for (player, id, gun_model, projectile_max_distance, bullet_type, gun_recoil_range, bullet_speed, mut time_since_last_shot, mut ammo_in_mag, reload_timer, mut bursting, bullet_size, player_ability) in query.iter_mut() {
         // Checks that player 1 can shoot, and isnt reloading
         if *id == PlayerID(0) {
-            if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !reload_timer.reloading && (btn.pressed(MouseButton::Left) || bursting.0) {
+            if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !reload_timer.reloading && (btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0) {
                 angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, player.translation.x, player.translation.y);
 
                 start_pos_x = player.translation.x;
@@ -138,6 +140,8 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
                 shooting = true;
 
                 projectile_size = *bullet_size;
+
+                ability = *player_ability;
 
                 if *gun_model == Model::Shotgun {
                     num_of_bullets = 12;
@@ -200,7 +204,10 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
             let movement = RequestedMovement::new(angle + recoil, speed);
 
             let material =
-                if projectile_type == ProjectileType::Regular {
+                if ability == Ability::Engineer {
+                    materials.engineer.clone()
+
+                } else if projectile_type == ProjectileType::Regular {
                     materials.regular.clone()
 
                 } else {
@@ -308,7 +315,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         ability_charge.0.reset();
 
                     },
-                    _ => {
+                    Ability::Stim => {
                         if !using_ability.0 && ability_charge.0.finished() {
                             speed.0 *= 2.0;
                             ability_completed.0.reset();
@@ -316,6 +323,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                         }
                     },
+                    _ => {},
                 }
             }
         }

@@ -69,6 +69,7 @@ pub struct Skins {
 pub struct ProjectileMaterials {
     regular: Handle<ColorMaterial>,
     speedball: Handle<ColorMaterial>,
+    engineer: Handle<ColorMaterial>,
 
 }
 
@@ -154,10 +155,12 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
     commands.insert_resource(ProjectileMaterials {
         regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
         speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
+        engineer: materials.add(Color::rgb_u8(255, 0, 200).into()),
 
     });
 
     //Setup the UI
+    // The text saying the player's ammo count
     commands
         .spawn_bundle(TextBundle {
             style: Style {
@@ -204,6 +207,7 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
         })
         .insert(AmmoText);
 
+    // Text saying the player's ability charge
     commands
         .spawn_bundle(TextBundle {
             style: Style {
@@ -235,14 +239,13 @@ fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMate
         })
         .insert(AbilityChargeText);
 
-
 }
 
 fn add_players(mut commands: Commands, materials: Res<Skins>) {
     for i in 0..=0 {
         commands
-            .spawn_bundle(Player::new(i))
-            .insert_bundle(Gun::new(Model::Speedball, Ability::Engineer))
+            .spawn_bundle(Player::new(i, Ability::Engineer))
+            .insert_bundle(Gun::new(Model::BurstRifle, Ability::Engineer))
             .insert_bundle(SpriteBundle {
                 material: materials.phase.clone(),
                 sprite: Sprite::new(Vec2::new(15.0, 15.0)),
