@@ -6,8 +6,9 @@ mod map;
 mod helper_functions;
 mod player_input;
 mod player_attributes;
+mod setup_systems;
 
-use bevy::core::FixedTimestep;
+//use bevy::core::FixedTimestep;
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
 
@@ -17,15 +18,24 @@ use player_input::*;
 use components::*;
 use player_attributes::*;
 use system_labels::*;
+use setup_systems::*;
 
 // The game will always run at 60 fps
 //TODO: Make this a setting
-const TIME_STEP: f32 = 1.0 / 60.0;
+//const TIME_STEP: f32 = 1.0 / 60.0;
 
 pub struct GameCamera;
 
 struct AmmoText;
 struct AbilityChargeText;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum AppState {
+    MainMenu,
+    InGame,
+
+}
+
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProjectileType {
@@ -61,17 +71,24 @@ impl Projectile {
     }
 }
 
-pub struct Skins {
+struct Skins {
     phase: Handle<ColorMaterial>,
 
 }
 
 pub struct ProjectileMaterials {
-    regular: Handle<ColorMaterial>,
-    speedball: Handle<ColorMaterial>,
-    engineer: Handle<ColorMaterial>,
+    pub regular: Handle<ColorMaterial>,
+    pub speedball: Handle<ColorMaterial>,
+    pub engineer: Handle<ColorMaterial>,
 
 }
+
+pub struct ButtonMaterials {
+    pub normal: Handle<ColorMaterial>,
+    pub hovered: Handle<ColorMaterial>,
+    pub pressed: Handle<ColorMaterial>,
+}
+
 
 // The mouse's position in 2D world coordinates
 pub struct MousePosition(Vec2);
@@ -94,14 +111,20 @@ fn main() {
         // It's fairly buggy when rendering many many  sprites (thousands) at the same time, however
         // Frustum culling also doesn't work with more than 1 camera, so it needs to be disabled for split screen
         // Though it does give a performance boost, especially where there are many sprites to render
-        // Currently it's disable, since we use the UI camera and the game camera
+        // Currently it's disabled, since we use the UI camera and the game camera
         .insert_resource(SpriteSettings { frustum_culling_enabled: false })
-        //Just checks for possible ambiguouty issue
-        //.insert_resource(ReportExecutionOrderAmbiguities)
+
+        //Start in the main menu
+        .add_state(AppState::MainMenu)
+
+        // Embed the map into the binary
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
         // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
+
         .add_plugins(DefaultPlugins)
+
+        // Adds some possible events, like reloading and using your ability
         .add_event::<ReloadEvent>()
         .add_event::<AbilityEvent>();
 
@@ -110,23 +133,35 @@ fn main() {
         app.add_plugin(bevy_webgl2::WebGL2Plugin);
 
         app
-        .add_startup_system(setup_graphics.system().label("setup_graphics"))
-        //Spawning players happens in its own stage since setup_graphics needs to happen first
-        .add_startup_stage("setup_game",
-        SystemStage::parallel()
-            //Players should be draw on on top of objects
-            .with_system(draw_map.system())
-            .with_system(add_players.system())
-            // Set the mouse coordinates initially
-            .with_system(set_mouse_coords.system())
-        )
-        .add_system(timer_system.system().label("tick_timers"))
+        //.add_startup_system(setup_game_graphics.system())
+        // All the materials of the game NEED to be added before everything else
+        .add_startup_system(setup_materials.system())
+        // The cameras also need to be added first as well
+        .add_startup_system(setup_cameras.system())
+
+        // Initialize InGame
         .add_system_set(
-            // Anything that needds to run at a set framerate goes here (so basically everything in game)
-            SystemSet::new()
-                .after("tick_timers")
+            SystemSet::on_enter(AppState::InGame)
+                .with_system(setup_game_graphics.system())
+                .with_system(draw_map.system())
+                .with_system(add_players.system())
+                // Set the mouse coordinates initially
+                .with_system(set_mouse_coords.system())
+
+        )
+
+        // Run every tick when InGame
+        .add_system_set(
+            // Anything that needs to run at a set framerate goes here (so basically everything in game)
+            SystemSet::on_update(AppState::InGame)
+
+                //TODO: Figure out how to use with_run_criteria with SystemSet to set a manual frame rate
                 // Run the game at TIME_STEP per seconds (currently 60)
-                .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
+                // Currently disabled since states mess with with_run_criteria
+                //.with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
+
+                // Timers should be ticked first
+                .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shoot.system().label(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer))
@@ -135,110 +170,56 @@ fn main() {
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer))
                 .with_system(move_camera.system().after(InputFromPlayer))
-                .with_system(update_ui.system().after(InputFromPlayer))
+                .with_system(update_game_ui.system().after(InputFromPlayer))
         )
+
+        .add_system_set(
+            SystemSet::on_enter(AppState::MainMenu)
+                .with_system(setup_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::MainMenu)
+                .with_system(button_system.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_exit(AppState::MainMenu)
+                .with_system(exit_main_menu.system())
+
+        )
+
         .run();
 }
 
-fn setup_graphics(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
-    commands.spawn_bundle(UiCameraBundle::default());
+fn button_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut app_state: ResMut<State<AppState>>) {
+    for (interaction, mut material, _children) in interaction_query.iter_mut() {
+        //let text = text_query.get_mut(children[0]).unwrap();
 
-    commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(GameCamera);
+        match *interaction {
+            Interaction::Clicked => {
+                app_state.set(AppState::InGame).unwrap();
 
-    commands.insert_resource(Skins {
-        phase: materials.add(Color::rgb_u8(100, 242, 84).into()),
+            }
+            Interaction::Hovered => {
+                //text.sections[0].value = "Hover".to_string();
+                *material = button_materials.hovered.clone();
 
-    });
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
 
-    commands.insert_resource(ProjectileMaterials {
-        regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
-        speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
-        engineer: materials.add(Color::rgb_u8(255, 0, 200).into()),
+            }
+        }
+    }
+}
 
-    });
+// When exiting the main menu, it just removes everything that has the Style component (which is everything in the main menu). Just for convenience
+fn exit_main_menu(mut commands: Commands, mut query: Query<(Entity, &Style)>) {
+    for q in query.iter_mut() {
+        commands.entity(q.0).despawn_recursive();
 
-    //Setup the UI
-    // The text saying the player's ammo count
-    commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    left: Val::Percent(90.0),
-
-                    ..Default::default()
-                },
-
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "16".to_string(),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 45.0,
-                            color: Color::WHITE,
-                        },
-                    },
-                    TextSection {
-                        value: "/".to_string(),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 45.0,
-                            color: Color::WHITE,
-                        },
-                    },
-                    TextSection {
-                        value: "16".to_string(),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 45.0,
-                            color: Color::WHITE,
-                        },
-                    },
-                ],
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(AmmoText);
-
-    // Text saying the player's ability charge
-    commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    left: Val::Percent(92.0),
-                    top: Val::Percent(6.0),
-
-                    ..Default::default()
-                },
-
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "0%".to_string(),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 45.0,
-                            color: Color::RED,
-                        },
-                    },
-                ],
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(AbilityChargeText);
-
+    }
 }
 
 fn add_players(mut commands: Commands, materials: Res<Skins>) {
@@ -309,7 +290,6 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
         if object.2.speed == 0.0 && object.7.is_some() {
             commands.entity(object.0).despawn_recursive();
 
-
         }
     }
 
@@ -335,7 +315,7 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
     }
 }
 
-fn update_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
+fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
     mut t: QuerySet<(
         Query<&mut Text, With<AmmoText>>,
         Query<&mut Text, With<AbilityChargeText>>
