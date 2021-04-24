@@ -4,6 +4,7 @@ mod components;
 mod system_labels;
 mod map;
 mod helper_functions;
+mod menus;
 mod player_input;
 mod player_attributes;
 mod setup_systems;
@@ -16,6 +17,7 @@ use map::*;
 use player_input::*;
 
 use components::*;
+use menus::*;
 use player_attributes::*;
 use system_labels::*;
 use setup_systems::*;
@@ -30,9 +32,10 @@ struct AmmoText;
 struct AbilityChargeText;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-enum AppState {
+pub enum AppState {
     MainMenu,
     InGame,
+    Settings,
 
 }
 
@@ -71,7 +74,7 @@ impl Projectile {
     }
 }
 
-struct Skins {
+pub struct Skins {
     phase: Handle<ColorMaterial>,
 
 }
@@ -86,17 +89,39 @@ pub struct ProjectileMaterials {
 pub struct ButtonMaterials {
     pub normal: Handle<ColorMaterial>,
     pub hovered: Handle<ColorMaterial>,
-    pub pressed: Handle<ColorMaterial>,
+
 }
 
 
 // The mouse's position in 2D world coordinates
 pub struct MousePosition(Vec2);
 
+#[derive(Debug)]
+pub struct KeyBindings {
+    pub up: KeyCode,
+    pub down: KeyCode,
+    pub left: KeyCode,
+    pub right: KeyCode,
+    pub use_ability: KeyCode,
+    pub reload: KeyCode,
+
+}
+
+#[derive(Debug, PartialEq)]
+pub enum KeyBindingButtons {
+    Up,
+    Down,
+    Left,
+    Right,
+    UseAbility,
+    Reload,
+}
+
 fn main() {
     let mut app = App::build();
         // Antialiasing
         app.insert_resource(Msaa { samples: 1 });
+
         // Since text looks like garbage in browsers without antialiasing, it's higher for WASM by default
         #[cfg(target_arch = "wasm32")]
         app.insert_resource(Msaa { samples: 8 });
@@ -106,13 +131,24 @@ fn main() {
             vsync: true,
             ..Default::default()
 
-        })
+        });
+
+        // I want the screen size to be smaller on wasm
+        #[cfg(target_arch = "wasm32")]
+        app.insert_resource( WindowDescriptor {
+            title: String::from("Necrophaser"),
+            vsync: true,
+            width: 1366.0 * 0.85,
+            height: 768.0 * 0.85,
+            ..Default::default()
+
+        });
         // Sprite culling doesn't render sprites outside of the camera viewport when enabled
         // It's fairly buggy when rendering many many  sprites (thousands) at the same time, however
         // Frustum culling also doesn't work with more than 1 camera, so it needs to be disabled for split screen
         // Though it does give a performance boost, especially where there are many sprites to render
         // Currently it's disabled, since we use the UI camera and the game camera
-        .insert_resource(SpriteSettings { frustum_culling_enabled: false })
+        app.insert_resource(SpriteSettings { frustum_culling_enabled: false })
 
         //Start in the main menu
         .add_state(AppState::MainMenu)
@@ -133,18 +169,18 @@ fn main() {
         app.add_plugin(bevy_webgl2::WebGL2Plugin);
 
         app
-        //.add_startup_system(setup_game_graphics.system())
         // All the materials of the game NEED to be added before everything else
         .add_startup_system(setup_materials.system())
         // The cameras also need to be added first as well
         .add_startup_system(setup_cameras.system())
+        .add_startup_system(setup_default_controls.system())
 
         // Initialize InGame
         .add_system_set(
             SystemSet::on_enter(AppState::InGame)
-                .with_system(setup_game_graphics.system())
+                .with_system(setup_game_ui.system())
                 .with_system(draw_map.system())
-                .with_system(add_players.system())
+                .with_system(setup_players.system())
                 // Set the mouse coordinates initially
                 .with_system(set_mouse_coords.system())
 
@@ -175,67 +211,43 @@ fn main() {
 
         .add_system_set(
             SystemSet::on_enter(AppState::MainMenu)
-                .with_system(setup_menu.system())
+                .with_system(setup_main_menu.system())
 
         )
         .add_system_set(
             SystemSet::on_update(AppState::MainMenu)
-                .with_system(button_system.system())
+                .with_system(main_menu_system.system())
 
         )
         .add_system_set(
             SystemSet::on_exit(AppState::MainMenu)
-                .with_system(exit_main_menu.system())
+                .with_system(exit_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_enter(AppState::Settings)
+                .with_system(setup_settings.system())
+
+        )
+
+        .add_system_set(
+            SystemSet::on_update(AppState::Settings)
+                .with_system(settings_system.system())
+
+        )
+
+
+        .add_system_set(
+            SystemSet::on_exit(AppState::Settings)
+                .with_system(exit_menu.system())
 
         )
 
         .run();
 }
 
-fn button_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut app_state: ResMut<State<AppState>>) {
-    for (interaction, mut material, _children) in interaction_query.iter_mut() {
-        //let text = text_query.get_mut(children[0]).unwrap();
-
-        match *interaction {
-            Interaction::Clicked => {
-                app_state.set(AppState::InGame).unwrap();
-
-            }
-            Interaction::Hovered => {
-                //text.sections[0].value = "Hover".to_string();
-                *material = button_materials.hovered.clone();
-
-            }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-
-            }
-        }
-    }
-}
-
-// When exiting the main menu, it just removes everything that has the Style component (which is everything in the main menu). Just for convenience
-fn exit_main_menu(mut commands: Commands, mut query: Query<(Entity, &Style)>) {
-    for q in query.iter_mut() {
-        commands.entity(q.0).despawn_recursive();
-
-    }
-}
-
-fn add_players(mut commands: Commands, materials: Res<Skins>) {
-    for i in 0..=0 {
-        commands
-            .spawn_bundle(Player::new(i, Ability::Engineer))
-            .insert_bundle(Gun::new(Model::BurstRifle, Ability::Engineer))
-            .insert_bundle(SpriteBundle {
-                material: materials.phase.clone(),
-                sprite: Sprite::new(Vec2::new(15.0, 15.0)),
-                transform: Transform::from_xyz(i as f32 * 25.0 + 1000.0, -750.0, 0.0),
-                ..Default::default()
-            });
-
-    }
-}
+#[derive(Debug, PartialEq)]
+pub struct SelectedKeyButton(Option<KeyBindingButtons>);
 
 // Move objects will first validate whether a movement can be done, and if so move them
 fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, Option<&ProjectileType>, Option<&ProjectileIdent>)>, mut map: ResMut<Map>) {

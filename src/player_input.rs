@@ -34,14 +34,14 @@ pub fn move_camera(
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>) {
+pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>) {
     let mut angle = None;
 
-    if keyboard_input.pressed(KeyCode::A) && angle.is_none() {
-        match keyboard_input.pressed(KeyCode::W) {
+    if keyboard_input.pressed(keybindings.left) && angle.is_none() {
+        match keyboard_input.pressed(keybindings.up) {
             true => { angle = Some(PI  * 0.75); }
             false => {
-                match keyboard_input.pressed(KeyCode::S) {
+                match keyboard_input.pressed(keybindings.down) {
                     true => { angle = Some(PI * 1.25); }
                     false => { angle = Some(PI); }
 
@@ -53,11 +53,11 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
 
     }
 
-    if keyboard_input.pressed(KeyCode::D) && angle.is_none() {
-        match keyboard_input.pressed(KeyCode::W) {
+    if keyboard_input.pressed(keybindings.right) && angle.is_none() {
+        match keyboard_input.pressed(keybindings.up) {
             true => { angle = Some(PI  * 0.25); }
             false => {
-                match keyboard_input.pressed(KeyCode::S) {
+                match keyboard_input.pressed(keybindings.down) {
                     true => { angle = Some(PI * 1.75); }
                     false => { angle = Some(0.0); }
 
@@ -69,22 +69,22 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
 
     }
 
-    if keyboard_input.pressed(KeyCode::S) && angle.is_none() {
+    if keyboard_input.pressed(keybindings.down) && angle.is_none() {
         angle = Some(-PI / 2.0);
 
     }
 
-    if keyboard_input.pressed(KeyCode::W) && angle.is_none() {
+    if keyboard_input.pressed(keybindings.up) && angle.is_none() {
        angle = Some(PI / 2.0);
 
     }
 
-    if keyboard_input.pressed(KeyCode::R) {
+    if keyboard_input.pressed(keybindings.reload) {
         ev_reload.send(ReloadEvent);
 
     }
 
-    if keyboard_input.pressed(KeyCode::E) {
+    if keyboard_input.pressed(keybindings.use_ability) {
         ev_use_ability.send(AbilityEvent);
 
     }

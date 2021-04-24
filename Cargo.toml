@@ -23,7 +23,7 @@ bevy_webgl2 = { version = "0.5", optional=true }
 # Using a pull request of lz4_flex that supports frame (de)compression, since currently the main lz4_flex does not
 lz4_flex = { git = "https://github.com/arthurprs/lz4_flex", branch = "dict", default-features = false, features = ["checked-decode", "std", "frame"] }
 crc32fast = "1"
-# Gotta use an older version of winit and rand for the web build to work
+# Gotta use an older version of winit
 winit = { version = "0.24.0" }
 rand = "0.8"
 
