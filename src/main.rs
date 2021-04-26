@@ -9,7 +9,6 @@ mod player_input;
 mod player_attributes;
 mod setup_systems;
 
-//use bevy::core::FixedTimestep;
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
 
@@ -22,10 +21,6 @@ use menus::*;
 use player_attributes::*;
 use system_labels::*;
 use setup_systems::*;
-
-// The game will always run at 60 fps
-//TODO: Make this a setting
-//const TIME_STEP: f32 = 1.0 / 60.0;
 
 pub struct GameCamera;
 
@@ -203,12 +198,6 @@ fn main() {
         .add_system_set(
             // Anything that needs to run at a set framerate goes here (so basically everything in game)
             SystemSet::on_update(AppState::InGame)
-
-                //TODO: Figure out how to use with_run_criteria with SystemSet to set a manual frame rate
-                // Run the game at TIME_STEP per seconds (currently 60)
-                // Currently disabled since states mess with with_run_criteria
-                //.with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
-
                 // Timers should be ticked first
                 .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
@@ -219,7 +208,7 @@ fn main() {
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
                 .with_system(dead_players.system().after("move_objects"))
-                .with_system(move_camera.system().after(InputFromPlayer))
+                .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
                 .with_system(update_game_ui.system().after(InputFromPlayer))
         )
 
@@ -263,26 +252,16 @@ fn main() {
 
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>) {
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health) in player_movements.iter_mut() {
         if movement.speed != 0.0 && *health != Health(0){
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
+            // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
+            let next_potential_pos = object.translation + (next_potential_movement * 60.0 * time.delta_seconds());
 
-            if !map.collision(object.translation + next_potential_movement, sprite.size, 0) {
-                object.translation.x += movement.speed * movement.angle.cos();
-                object.translation.y += movement.speed * movement.angle.sin();
-
-                // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
-                // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
-                /*if let Some(projectile_type) = projectile_type {
-                    // The speedball's weapon speeds up and gets bigger
-                    if *projectile_type == ProjectileType::Speedball && is_projectile.is_some() {
-                        movement.speed *= 1.1;
-                        sprite.size *= 1.03;
-
-                    }
-                }*/
+            if !map.collision(next_potential_pos, sprite.size, 0) {
+                object.translation = next_potential_pos;
 
                 match movement_type {
                     // The object moves one frame, and then stops
@@ -314,6 +293,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
         if movement.speed != 0.0 {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
+            // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
+            let next_potential_pos = object.translation + (next_potential_movement * 60.0 * time.delta_seconds());
 
             let mut player_collision = false;
 
@@ -321,7 +302,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             for (player, _, _, _, player_sprite, player_id, mut health) in player_movements.iter_mut() {
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
-                if collide(player.translation, player_sprite.size, object.translation + next_potential_movement, sprite.size) && player_id.0 != shot_from.0 && *health != Health(0) {
+                if collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 && *health != Health(0) {
                     if (health.0 as i8 - damage.0 as i8) < 0 {
                         health.0 = 0;
 
@@ -337,9 +318,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             }
 
-            if !map.collision(object.translation + next_potential_movement, sprite.size, damage.0) && !player_collision {
-                object.translation.x += movement.speed * movement.angle.cos();
-                object.translation.y += movement.speed * movement.angle.sin();
+            if !map.collision(next_potential_pos, sprite.size, damage.0) && !player_collision {
+                object.translation = next_potential_pos;
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
                 // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
