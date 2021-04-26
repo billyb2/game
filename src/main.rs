@@ -117,6 +117,17 @@ pub enum KeyBindingButtons {
     Reload,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct SelectedKeyButton(Option<KeyBindingButtons>);
+
+
+pub enum GameMode {
+    Deathmatch,
+
+}
+
+pub struct CurrentGameMode(GameMode);
+
 fn main() {
     let mut app = App::build();
         // Antialiasing
@@ -240,14 +251,12 @@ fn main() {
         .add_system_set(
             SystemSet::on_exit(AppState::Settings)
                 .with_system(exit_menu.system())
+                .with_system(remove_selected.system())
 
         )
 
         .run();
 }
-
-#[derive(Debug, PartialEq)]
-pub struct SelectedKeyButton(Option<KeyBindingButtons>);
 
 // Move objects will first validate whether a movement can be done, and if so move them
 fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, Option<&ProjectileType>, Option<&ProjectileIdent>)>, mut map: ResMut<Map>) {

@@ -115,18 +115,26 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 }
 
-pub fn setup_players(mut commands: Commands, materials: Res<Skins>) {
-    for i in 0..=0 {
-        commands
-            .spawn_bundle(Player::new(i, Ability::Engineer))
-            .insert_bundle(Gun::new(Model::BurstRifle, Ability::Engineer))
-            .insert_bundle(SpriteBundle {
-                material: materials.phase.clone(),
-                sprite: Sprite::new(Vec2::new(15.0, 15.0)),
-                transform: Transform::from_xyz(i as f32 * 25.0 + 1000.0, -750.0, 0.0),
-                ..Default::default()
-            });
+pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map>) {
+    commands.spawn().insert(CurrentGameMode(GameMode::Deathmatch));
 
+    let mut i: u8 = 0;
+
+    for object in map.objects.iter() {
+        if object.player_spawn {
+            commands
+                .spawn_bundle(Player::new(i, Ability::Engineer))
+                .insert_bundle(Gun::new(Model::BurstRifle, Ability::Engineer))
+                .insert_bundle(SpriteBundle {
+                    material: materials.phase.clone(),
+                    sprite: Sprite::new(Vec2::new(15.0, 15.0)),
+                    transform: Transform::from_translation(object.coords),
+                    ..Default::default()
+                });
+
+                i += 1;
+
+        }
     }
 }
 

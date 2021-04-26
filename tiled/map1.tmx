@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.5.0" orientation="orthogonal" renderorder="right-down" compressionlevel="9" width="100" height="100" tilewidth="5" tileheight="5" infinite="0" backgroundcolor="#041a1a" nextlayerid="10" nextobjectid="93">
+<map version="1.5" tiledversion="1.6.0" orientation="orthogonal" renderorder="right-down" compressionlevel="9" width="100" height="100" tilewidth="5" tileheight="5" infinite="0" backgroundcolor="#041a1a" nextlayerid="13" nextobjectid="96">
  <editorsettings>
   <export target="map1.custom" format="custom"/>
  </editorsettings>
  <tileset firstgid="1" source="player.tsx"/>
  <tileset firstgid="2" source="map_objects.tsx"/>
  <tileset firstgid="5" source="floor.tsx"/>
- <objectgroup id="8" name="Object Layer 1">
+ <objectgroup id="8" name="Object Layer 1" offsetx="22.6757" offsety="7.55858">
   <object id="53" x="0" y="230" width="180" height="50">
    <properties>
     <property name="alpha" type="int" value="255"/>
@@ -125,6 +125,16 @@
     <property name="player_collidable" type="bool" value="true"/>
     <property name="player_spawn" type="bool" value="false"/>
     <property name="red" type="int" value="255"/>
+   </properties>
+  </object>
+  <object id="95" x="180" y="225" width="3" height="3">
+   <properties>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
    </properties>
   </object>
  </objectgroup>

@@ -219,3 +219,11 @@ pub fn exit_menu(mut commands: Commands, mut query: Query<(Entity, &Node)>) {
 
     }
 }
+
+pub fn remove_selected(mut commands: Commands, mut query: Query<(Entity, &SelectedKeyButton)>) {
+    for q in query.iter_mut() {
+        commands.entity(q.0).despawn_recursive();
+
+    }
+
+}
