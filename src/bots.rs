@@ -1,49 +1,31 @@
 #![allow(unused_assignments)]
 use std::f32::consts::PI;
+use bevy::prelude::*;
 
-use crate::{Direction, Player, Projectile};
+use crate::map::Map;
 
-// The first item of the tuple is the direction the player's going to move in
-// The second item of the tuple is what direction the player is shooting in, or 0 if they aren't going to shoot
-// The third is a bool of whether or not they're shooting to the left
-// The fourth is whether or not the player is using its ability (0 or 1)
+// The first item of the tuple is the requested movement of the player
 
-pub fn bounce(players: &[Player; 20], projectiles: &[Projectile]) -> (Direction, bool, f32, u8) {
-    let mut direction = Direction::None;
-    
-    // Why use an int instead of a bool you may be asking? Well if I ever add more complex functionality to shooting or using your ability, it's less code to refactor. It's also just as efficient as using a bool, since they both use a byte
-    let mut use_ability: u8 = 0;
-    let mut shooting: f32 = 0.0;
-    let mut right = false;
+pub fn bounce(player_coords: Vec3, player_size: Vec2, current_direction: f32, map: &mut Map) -> f32 {
+    let movement_radius = Vec3::new(7.0, 0.0, 0.0);
 
-    if players[1].x >= 750.0  && players[1].direction == Direction::W {
-        // Move west
-        direction = Direction::W;
-        
-    } else if players[1].x <= 10.0 && players[1].direction == Direction::E {
-        // Move east
-        direction = Direction::E;
-        right = true;
-    
-    } else {
-        direction = players[1].direction;
-        
-    }
-    
-    for projectile in projectiles {
-        if projectile.x + 50.0 >= players[1].x && projectile.x - 50.0 <= players[1].x || projectile.y + 50.0 >= players[1].y && projectile.y - 50.0 <= players[1].y{
-            use_ability = 1;
-            shooting = match direction {
-                Direction::E => 0.00001,
-                Direction::W => PI,
-                _ => PI / 2.0,
-            };
-            
-            break;
-            
+    if map.collision(player_coords, player_size * 2.0, 0) {
+        if map.collision(player_coords + movement_radius, player_size, 0) {
+            // Move west
+            PI
+
+        } else if map.collision(player_coords - movement_radius, player_size, 0) {
+            // Move east
+            0.0
+
+        } else {
+            current_direction
+
         }
+
+    } else {
+        current_direction
+
     }
-    
-    (direction, right, shooting, use_ability)
     
 }

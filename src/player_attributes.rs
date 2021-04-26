@@ -36,8 +36,8 @@ impl Player {
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),
             ability,
-            ability_charge: AbilityCharge(Timer::from_seconds(2.5, false)),
-            ability_completed: AbilityCompleted(Timer::from_seconds(4.0, false)),
+            ability_charge: AbilityCharge(Timer::from_seconds(5.0, false)),
+            ability_completed: AbilityCompleted(Timer::from_seconds(3.0, false)),
             using_ability: UsingAbility(false),
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false))
 

@@ -1,5 +1,6 @@
 #![allow(clippy::type_complexity)]
 
+mod bots;
 mod components;
 mod system_labels;
 mod map;
@@ -12,6 +13,7 @@ mod setup_systems;
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
 
+use bots::*;
 use map::*;
 use player_input::*;
 use helper_functions::collide;
@@ -216,6 +218,7 @@ fn main() {
             SystemSet::on_update(AppState::InGame)
                 // Timers should be ticked first
                 .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
+                .with_system(bots.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shoot.system().label(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer))
@@ -226,7 +229,7 @@ fn main() {
                 .with_system(dead_players.system().after("move_objects").label("dead_players"))
                 .with_system(log_system.system().after("dead_players"))
                 .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
-                .with_system(update_game_ui.system().after(InputFromPlayer))
+                .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
         )
 
         .add_system_set(
@@ -450,6 +453,20 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
 
         }
     }
+}
+
+fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
+    for (coords, sprite, id, mut requested_movement, speed) in player_query.iter_mut() {
+        if *id == PlayerID(1) {
+            let res = bounce(coords.translation, sprite.size, requested_movement.angle, &mut map);
+
+            requested_movement.angle = res;
+            requested_movement.speed = speed.0;
+
+        }
+
+    }
+
 }
 
 fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
