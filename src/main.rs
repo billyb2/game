@@ -123,13 +123,11 @@ pub enum KeyBindingButtons {
 #[derive(Debug, PartialEq)]
 pub struct SelectedKeyButton(Option<KeyBindingButtons>);
 
-
+#[derive(Debug, PartialEq)]
 pub enum GameMode {
     Deathmatch,
 
 }
-
-pub struct CurrentGameMode(GameMode);
 
 fn main() {
     let mut app = App::build();
@@ -171,6 +169,7 @@ fn main() {
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
         // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
+        .insert_resource(GameMode::Deathmatch)
 
         .add_plugins(DefaultPlugins)
 
@@ -218,7 +217,8 @@ fn main() {
                 .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
-                .with_system(move_objects.system().after(InputFromPlayer))
+                .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+                .with_system(dead_players.system().after("move_objects"))
                 .with_system(move_camera.system().after(InputFromPlayer))
                 .with_system(update_game_ui.system().after(InputFromPlayer))
         )
@@ -264,8 +264,8 @@ fn main() {
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
 fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>) {
-    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, _health) in player_movements.iter_mut() {
-        if movement.speed != 0.0 {
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health) in player_movements.iter_mut() {
+        if movement.speed != 0.0 && *health != Health(0){
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
 
@@ -320,7 +320,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // Check to see if a player-projectile collision takes place
             for (player, _, _, _, player_sprite, player_id, mut health) in player_movements.iter_mut() {
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
-                if collide(player.translation, player_sprite.size, object.translation + next_potential_movement, sprite.size) && player_id.0 != shot_from.0{
+                // Checks that players aren't already dead as well lol
+                if collide(player.translation, player_sprite.size, object.translation + next_potential_movement, sprite.size) && player_id.0 != shot_from.0 && *health != Health(0) {
                     if (health.0 as i8 - damage.0 as i8) < 0 {
                         health.0 = 0;
 
@@ -336,7 +337,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             }
 
-            if !map.collision(object.translation + next_potential_movement, sprite.size, 0) && !player_collision {
+            if !map.collision(object.translation + next_potential_movement, sprite.size, damage.0) && !player_collision {
                 object.translation.x += movement.speed * movement.angle.cos();
                 object.translation.y += movement.speed * movement.angle.sin();
 
@@ -390,11 +391,30 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
 }
 
+// This system just deals with stuff like making dead players invisible, respawning players, etc
+fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer), With<PlayerID>>, game_mode: Res<GameMode>) {
+    for (mut health, mut visibility, mut respawn_timer) in players.iter_mut() {
+        if health.0 == 0 {
+            visibility.is_visible = false;
+
+        }
+
+        if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch {
+            health.0 = 100;
+            respawn_timer.0.reset();
+            visibility.is_visible = true;
+
+        }
+
+    }
+
+}
+
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &mut TimeSinceLastShot, &mut TimeSinceStartReload)>) {
-    for (mut ability_charge, mut ability_completed, using_ability, mut time_since_last_shot, mut time_since_start_reload) in timers.iter_mut() {
+fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, game_mode: Res<GameMode>) {
+    for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in timers.iter_mut() {
         time_since_last_shot.0.tick(time.delta());
         ability_charge.0.tick(time.delta());
 
@@ -403,8 +423,14 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
             time_since_start_reload.timer.tick(time.delta());
 
         }
+
         if using_ability.0 {
             ability_completed.0.tick(time.delta());
+
+        }
+
+        if *health == Health(0) && *game_mode == GameMode::Deathmatch {
+            respawn_timer.0.tick(time.delta());
 
         }
     }

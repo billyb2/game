@@ -116,8 +116,6 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map>) {
-    commands.spawn().insert(CurrentGameMode(GameMode::Deathmatch));
-
     let mut i: u8 = 0;
 
     for object in map.objects.iter() {

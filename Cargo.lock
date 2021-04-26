@@ -2128,6 +2128,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "packed_simd_2"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3278e0492f961fd4ae70909f56b2723a7e8d01a228427294e19cdfdebda89a17"
+dependencies = [
+ "cfg-if 0.1.10",
+ "libm 0.1.4",
+]
+
+[[package]]
 name = "parking"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2238,6 +2248,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ef9e7e66b4468674bfcb0c81af8b7fa0bb154fa9f28eb840da5c447baeb8d7e"
 dependencies = [
  "libc",
+ "packed_simd_2",
  "rand_chacha",
  "rand_core",
  "rand_hc",

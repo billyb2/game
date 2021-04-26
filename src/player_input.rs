@@ -103,7 +103,7 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 }
 
-pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &Speed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting, &Size, &Damage, &Ability)>, mut ev_reload: EventWriter<ReloadEvent>) {
+pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Res<ProjectileMaterials>, mouse_pos: Res<MousePosition>, mut query: Query<(&Transform, &PlayerID, &Health, &Model, &MaxDistance, &ProjectileType, &RecoilRange, &Speed, &mut TimeSinceLastShot, &mut AmmoInMag, &TimeSinceStartReload, &mut Bursting, &Size, &Damage, &Ability)>, mut ev_reload: EventWriter<ReloadEvent>) {
     //TODO: Use just_pressed for non automatic weapons
     // The or shooting bit is for burst rifles
     let mut angle = PI;
@@ -127,9 +127,9 @@ pub fn shoot(mut commands: Commands, btn: Res<Input<MouseButton>>, materials: Re
 
     let mut player_id = 0;
 
-    for (player, id, gun_model, projectile_max_distance, bullet_type, gun_recoil_range, bullet_speed, mut time_since_last_shot, mut ammo_in_mag, reload_timer, mut bursting, bullet_size, damage, player_ability) in query.iter_mut() {
+    for (player, id, health, gun_model, projectile_max_distance, bullet_type, gun_recoil_range, bullet_speed, mut time_since_last_shot, mut ammo_in_mag, reload_timer, mut bursting, bullet_size, damage, player_ability) in query.iter_mut() {
         // Checks that player 1 can shoot, and isnt reloading
-        if *id == PlayerID(0) {
+        if *id == PlayerID(0) && *health != Health(0) {
             if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !reload_timer.reloading && (btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0) {
                 angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, player.translation.x, player.translation.y);
 

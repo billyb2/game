@@ -19,6 +19,7 @@ pub struct Player {
     pub ability_charge: AbilityCharge,
     pub ability_completed: AbilityCompleted,
     pub using_ability: UsingAbility,
+    pub can_respawn: RespawnTimer,
 
 }
 
@@ -35,6 +36,7 @@ impl Player {
             ability_charge: AbilityCharge(Timer::from_seconds(2.5, false)),
             ability_completed: AbilityCompleted(Timer::from_seconds(4.0, false)),
             using_ability: UsingAbility(false),
+            can_respawn: RespawnTimer(Timer::from_seconds(2.5, false))
 
         }
     }
@@ -56,6 +58,9 @@ pub struct AbilityCharge(pub Timer);
 
 #[derive(Debug)]
 pub struct AbilityCompleted(pub Timer);
+
+#[derive(Debug)]
+pub struct RespawnTimer(pub Timer);
 
 #[derive(Debug)]
 pub struct UsingAbility(pub bool);

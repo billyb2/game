@@ -25,7 +25,7 @@ lz4_flex = { git = "https://github.com/arthurprs/lz4_flex", branch = "dict", def
 crc32fast = "1"
 # Gotta use an older version of winit
 winit = { version = "0.24.0" }
-rand = "0.8"
+rand = { version = "0.8" }
 
 #Other platform stuff:
 [features]
@@ -36,6 +36,9 @@ default = [
 
 native = [
   "bevy/bevy_wgpu",
+  # Since literally every modern CPU has SIMD support, I think it's fine to enable it for rand
+  # For WASM, however, SIMD support is currently behind a feature flag for Firefox, and older versions of Chrome don't have it at all, so we should definetly just use SIMD for PC
+  "rand/simd_support",
 ]
 
 web = [
