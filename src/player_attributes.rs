@@ -28,7 +28,10 @@ impl Player {
         Player {
             id: PlayerID(id),
             health: Health(100),
-            speed: PlayerSpeed(12.5),
+            speed: match ability {
+                Ability::Stim => PlayerSpeed(13.5),
+                _ => PlayerSpeed(12.5),
+            },
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),

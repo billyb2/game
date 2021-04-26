@@ -26,6 +26,7 @@ pub struct GameCamera;
 
 struct AmmoText;
 struct AbilityChargeText;
+struct GameLogText;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -56,6 +57,20 @@ pub struct Projectile {
 
 }
 
+struct GameLogs(Vec<GameLog>);
+
+impl GameLogs {
+    fn new() -> GameLogs {
+        GameLogs(Vec::with_capacity(10))
+
+    }
+}
+
+struct GameLog {
+    text: TextSection,
+    timer: Timer,
+
+}
 
 impl Projectile {
     pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
@@ -165,6 +180,7 @@ fn main() {
         // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
         .insert_resource(GameMode::Deathmatch)
+        .insert_resource(GameLogs::new())
 
         .add_plugins(DefaultPlugins)
 
@@ -207,7 +223,8 @@ fn main() {
                 .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
-                .with_system(dead_players.system().after("move_objects"))
+                .with_system(dead_players.system().after("move_objects").label("dead_players"))
+                .with_system(log_system.system().after("dead_players"))
                 .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
                 .with_system(update_game_ui.system().after(InputFromPlayer))
         )
@@ -252,13 +269,15 @@ fn main() {
 
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>) {
-    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health) in player_movements.iter_mut() {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>, mut logs: ResMut<GameLogs>, asset_server: Res<AssetServer>) {
+    let desired_ticks_per_second: f32 = 60.0;
+
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _visibility) in player_movements.iter_mut() {
         if movement.speed != 0.0 && *health != Health(0){
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let next_potential_pos = object.translation + (next_potential_movement * 60.0 * time.delta_seconds());
+            let next_potential_pos = object.translation + (next_potential_movement * desired_ticks_per_second * time.delta_seconds());
 
             if !map.collision(next_potential_pos, sprite.size, 0) {
                 object.translation = next_potential_pos;
@@ -273,7 +292,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.0 += movement.speed.abs();
+                        distance_traveled.0 += movement.speed.abs() * desired_ticks_per_second * time.delta_seconds();
 
                         if distance_traveled.0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
@@ -299,12 +318,29 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            for (player, _, _, _, player_sprite, player_id, mut health) in player_movements.iter_mut() {
+            for (player, _, _, _, player_sprite, player_id, mut health, mut visibility) in player_movements.iter_mut() {
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 if collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 && *health != Health(0) {
                     if (health.0 as i8 - damage.0 as i8) < 0 {
                         health.0 = 0;
+
+                        logs.0.insert(0,
+                            GameLog {
+                                text: TextSection {
+                                    value: format!("Player {} got murked\n", player_id.0 + 1),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 35.0,
+                                        color: Color::WHITE,
+                                    }
+                                },
+                                timer: Timer::from_seconds(8.0, false),
+
+                            }
+                        );
+
+                        visibility.is_visible = false;
 
                     } else {
                         health.0 -= damage.0;
@@ -345,7 +381,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.0 += movement.speed.abs();
+                        distance_traveled.0 += movement.speed.abs() * 60.0 * time.delta_seconds();
 
                         if distance_traveled.0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
@@ -371,14 +407,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
 }
 
-// This system just deals with stuff like making dead players invisible, respawning players, etc
+// This system just deals respawning players
 fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer), With<PlayerID>>, game_mode: Res<GameMode>) {
     for (mut health, mut visibility, mut respawn_timer) in players.iter_mut() {
-        if health.0 == 0 {
-            visibility.is_visible = false;
-
-        }
-
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch {
             health.0 = 100;
             respawn_timer.0.reset();
@@ -393,7 +424,7 @@ fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, game_mode: Res<GameMode>) {
+fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>) {
     for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in timers.iter_mut() {
         time_since_last_shot.0.tick(time.delta());
         ability_charge.0.tick(time.delta());
@@ -411,6 +442,11 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
 
         if *health == Health(0) && *game_mode == GameMode::Deathmatch {
             respawn_timer.0.tick(time.delta());
+
+        }
+
+        for game_log in logs.0.iter_mut() {
+            game_log.timer.tick(time.delta());
 
         }
     }
@@ -478,5 +514,39 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
         ability_charge_text.sections[0].style.color = Color::GREEN;
 
     }
+
+}
+
+fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>) {
+    if logs.0.len() >= 9 {
+        logs.0.pop();
+
+    }
+
+    let mut text_vec = Vec::with_capacity(10);
+
+    let mut num_of_pops: u8 = 0;
+
+    for log in logs.0.iter().rev() {
+        if !log.timer.finished() {
+            let mut text = log.text.clone();
+            text.style.color.set_a(log.timer.percent_left());
+
+            text_vec.push(text);
+
+        } else {
+            num_of_pops += 1;
+
+        }
+
+    }
+
+    while num_of_pops != 0 {
+        logs.0.pop();
+        num_of_pops -= 1;
+
+    }
+
+    game_log.single_mut().unwrap().sections = text_vec;
 
 }

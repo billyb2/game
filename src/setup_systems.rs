@@ -113,6 +113,29 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(AbilityChargeText);
 
+    // Text saying the game log charge
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Percent(75.0),
+                    bottom: Val::Percent(6.0),
+
+                    ..Default::default()
+                },
+
+                ..Default::default()
+            },
+            text: Text {
+                sections: Vec::with_capacity(10),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(GameLogText);
+
 }
 
 pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map>) {
