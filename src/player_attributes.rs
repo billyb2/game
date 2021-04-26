@@ -83,6 +83,7 @@ pub struct Gun {
     pub projectile_speed: Speed,
     pub recoil_range: RecoilRange,
     pub bursting: Bursting,
+    pub damage: Damage,
     pub projectile_size: Size,
 
 }
@@ -157,6 +158,15 @@ impl Gun {
 
             },
             projectile_size: Size::new(5.0, 5.0),
+
+            damage: match model {
+                Model::Pistol => Damage(45),
+                Model::Shotgun => Damage(25),
+                Model::Speedball => Damage(1),
+                Model::BurstRifle => Damage(13),
+                Model::AssaultRifle => Damage(15),
+
+            },
             // The bursting component only matters for burst rifles
             bursting: Bursting(false),
 

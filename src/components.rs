@@ -17,6 +17,7 @@ pub struct RequestedMovement {
     // Angle is in radians
     pub angle: f32,
     pub speed: f32,
+    // How much damage the bullets do to players or the environment
 
 }
 
@@ -36,12 +37,16 @@ impl RequestedMovement {
 #[derive(Debug, PartialEq)]
 pub struct Health(pub u8);
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Damage(pub u8);
+
 #[derive(Debug, PartialEq)]
 pub struct PlayerID(pub u8);
 
 // Projectile stuff
+// The value inside the struct is the player id of the person who shot it, so that player is immune from collisions
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProjectileIdent;
+pub struct ProjectileIdent(pub u8);
 
 // Gun stuff
 #[derive(Clone, Debug)]

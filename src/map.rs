@@ -1,7 +1,6 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::prelude::*;
-//use bevy::sprite::collide_aabb::collide;
 use crate::helper_functions::collide;
 use crate::helper_functions::slice_to_u32;
 use crc32fast::Hasher;

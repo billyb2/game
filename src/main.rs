@@ -15,6 +15,7 @@ use bevy::sprite::SpriteSettings;
 
 use map::*;
 use player_input::*;
+use helper_functions::collide;
 
 use components::*;
 use menus::*;
@@ -56,19 +57,21 @@ pub struct Projectile {
     // A general purpose identifier for projectiles, to distinguish between guns and projectiles
     pub projectile: ProjectileIdent,
     pub projectile_size: Size,
+    pub damage: Damage,
 
 }
 
 
 impl Projectile {
-    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32, size: Size) -> Projectile {
+    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
         Projectile {
             distance_traveled: DistanceTraveled(0.0),
             requested_movement,
             movement_type: MovementType::StopAfterDistance(max_distance),
             projectile_type,
-            projectile: ProjectileIdent,
-            projectile_size: size
+            projectile: ProjectileIdent(player_id),
+            projectile_size: size,
+            damage,
 
         }
     }
@@ -258,9 +261,10 @@ fn main() {
         .run();
 }
 
+//TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
-fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, Option<&ProjectileType>, Option<&ProjectileIdent>)>, mut map: ResMut<Map>) {
-    for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, is_projectile) in movements.iter_mut() {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>) {
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, _health) in player_movements.iter_mut() {
         if movement.speed != 0.0 {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -271,13 +275,83 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
                 // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
-                if let Some(projectile_type) = projectile_type {
+                /*if let Some(projectile_type) = projectile_type {
                     // The speedball's weapon speeds up and gets bigger
                     if *projectile_type == ProjectileType::Speedball && is_projectile.is_some() {
                         movement.speed *= 1.1;
                         sprite.size *= 1.03;
 
                     }
+                }*/
+
+                match movement_type {
+                    // The object moves one frame, and then stops
+                    MovementType::SingleFrame => {
+                        movement.speed = 0.0;
+
+                    },
+
+                    MovementType::StopAfterDistance(distance_to_stop_at) => {
+                        // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
+                        // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
+                        distance_traveled.0 += movement.speed.abs();
+
+                        if distance_traveled.0 >= *distance_to_stop_at {
+                            movement.speed = 0.0;
+
+                        }
+                    },
+                }
+
+            } else {
+                movement.speed = 0.0;
+
+            }
+        }
+    }
+
+    for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage) in projectile_movements.iter_mut() {
+        if movement.speed != 0.0 {
+            // Only lets you move if the movement doesn't bump into a wall
+            let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
+
+            let mut player_collision = false;
+
+            // Check to see if a player-projectile collision takes place
+            for (player, _, _, _, player_sprite, player_id, mut health) in player_movements.iter_mut() {
+                // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
+                if collide(player.translation, player_sprite.size, object.translation + next_potential_movement, sprite.size) && player_id.0 != shot_from.0{
+                    if (health.0 as i8 - damage.0 as i8) < 0 {
+                        health.0 = 0;
+
+                    } else {
+                        health.0 -= damage.0;
+
+                    }
+
+                    player_collision = true;
+                    break;
+
+                }
+
+            }
+
+            if !map.collision(object.translation + next_potential_movement, sprite.size, 0) && !player_collision {
+                object.translation.x += movement.speed * movement.angle.cos();
+                object.translation.y += movement.speed * movement.angle.sin();
+
+                // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
+                // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
+                // The speedball's weapon speeds up and gets bigger
+                if *projectile_type == ProjectileType::Speedball {
+                    movement.speed *= 1.1;
+                    sprite.size *= 1.03;
+
+                    if damage.0 <= 75 {
+                        damage.0 += (distance_traveled.0 / 60.0 ) as u8;
+
+                    }
+
                 }
 
                 match movement_type {
@@ -307,8 +381,8 @@ fn move_objects(mut commands: Commands, mut movements: Query<(Entity, &mut Trans
     }
 
     // Remove all stopped bullets
-    for object in movements.iter_mut() {
-        if object.2.speed == 0.0 && object.7.is_some() {
+    for object in projectile_movements.iter_mut() {
+        if object.2.speed == 0.0 {
             commands.entity(object.0).despawn_recursive();
 
         }
