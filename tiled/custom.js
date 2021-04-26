@@ -108,107 +108,114 @@ var customMapFormat = {
     extension: "custom",
 
     write: function(map, fileName) {
-        let array = [];;
+        let array = [];
 
-        array.push((map.width * 15 & 0xff000000) >> 24);
-        array.push((map.width * 15 & 0x00ff0000) >> 16);
-        array.push((map.width * 15 & 0x0000ff00) >> 8);
-        array.push((map.width * 15 & 0x000000ff));
+        let map_width = map.width * 5;
+        let map_height = map.height * 5;
 
-        array.push((map.height * 15 & 0xff000000) >> 24);
-        array.push((map.height * 15 & 0x00ff0000) >> 16);
-        array.push((map.height * 15 & 0x0000ff00) >> 8);
-        array.push((map.height * 15 & 0x000000ff));
+        array.push((map_width & 0xff000000) >> 24);
+        array.push((map_width & 0x00ff0000) >> 16);
+        array.push((map_width & 0x0000ff00) >> 8);
+        array.push((map_width & 0x000000ff));
 
-        for (i = map.layerCount  - 1; i >= 0; i--) {
-            var layer = map.layerAt(i);
+        array.push((map_height & 0xff000000) >> 24);
+        array.push((map_height & 0x00ff0000) >> 16);
+        array.push((map_height & 0x0000ff00) >> 8);
+        array.push((map_height & 0x000000ff));
 
-            if (layer.isTileLayer) {
-                for (y = 0; y < layer.height; ++y) {
-                    for (x = 0; x < layer.width; ++x)
-                        if (layer.tileAt(x, y) != null) {
-                            // x coor
-                            array.push((x * 15 & 0xff000000) >> 24);
-                            array.push((x * 15 & 0x00ff0000) >> 16);
-                            array.push((x * 15 & 0x0000ff00) >> 8);
-                            array.push((x * 15 & 0x000000ff));
+        let rgb_hex = String(map.backgroundColor).substr(1).match(/.{1,2}/g);
+        let rgb = [
+            parseInt(rgb_hex[0], 16),
+            parseInt(rgb_hex[1], 16),
+            parseInt(rgb_hex[2], 16)
+        ];
 
-                            //y coor
-                            array.push((y * 15 & 0xff000000) >> 24);
-                            array.push((y * 15 & 0x00ff0000) >> 16);
-                            array.push((y * 15 & 0x0000ff00) >> 8);
-                            array.push(y * 15 & 0x000000ff);
+        array.push(rgb[0]);
+        array.push(rgb[1]);
+        array.push(rgb[2]);
 
-                            //width
-                            array.push((15 & 0xff000000) >> 24);
-                            array.push((15 & 0x00ff0000) >> 16);
-                            array.push((15 & 0x0000ff00) >> 8);
-                            array.push(15 & 0x000000ff);
 
-                            //height
-                            array.push((15 & 0xff000000) >> 24);
-                            array.push((15 & 0x00ff0000) >> 16);
-                            array.push((15 & 0x0000ff00) >> 8);
-                           array.push(15 & 0x000000ff);
+        for (q = 0; q < map.layerCount ; q++) {
+            let layer = map.layerAt(q);
 
-                            if (layer.tileAt(x, y).property("player_spawn") == true) {
-                                array.push(255);
+            if (layer.isObjectLayer) {
+                for (let i = 0; i < layer.objectCount; i ++) {
+                    if (layer.objectAt(i) != null) {
+                        let object = layer.objectAt(i);
 
-                            } else {
-                                array.push(0);
+                        let x = object.x * 5;
+                        let y = object.y * 5;
 
-                            }
+                        let width = object.width * 5;
+                        let height = object.height * 5;
 
-                            if (layer.tileAt(x, y).property("player_collidable") == true) {
-                                array.push(255);
+                        let player_spawn = object.property("player_spawn");
+                        let player_collidable = object.property("player_collidable");
 
-                            } else {
-                                array.push(0);
+                        let red = object.property("red");
+                        let green = object.property("green");
+                        let blue = object.property("blue");
+                        let alpha = object.property("alpha");
 
-                            }
+                        // x coor
+                        array.push((x & 0xff000000) >> 24);
+                        array.push((x & 0x00ff0000) >> 16);
+                        array.push((x & 0x0000ff00) >> 8);
+                        array.push((x & 0x000000ff));
 
-                            array.push(layer.tileAt(x, y).property("red"));
-                            array.push(layer.tileAt(x, y).property("green"));
-                            array.push(layer.tileAt(x, y).property("blue"));
-                            array.push(layer.tileAt(x, y).property("alpha"));
+                        // y coor
+                        array.push((y & 0xff000000) >> 24);
+                        array.push((y & 0x00ff0000) >> 16);
+                        array.push((y & 0x0000ff00) >> 8);
+                        array.push(y & 0x000000ff);
+
+                        //width
+                        array.push((width & 0xff000000) >> 24);
+                        array.push((width & 0x00ff0000) >> 16);
+                        array.push((width & 0x0000ff00) >> 8);
+                        array.push(width & 0x000000ff);
+
+                        //height
+                        array.push((height & 0xff000000) >> 24);
+                        array.push((height & 0x00ff0000) >> 16);
+                        array.push((height & 0x0000ff00) >> 8);
+                        array.push(height & 0x000000ff);
+
+                        if (player_spawn == true) {
+                            array.push(255);
+
+                        } else {
                             array.push(0);
-
-
-                            for (var z = 0; z < array.length; z += 23) {
-                                var is_null = true;
-
-                                for (var j = 0; j <= 22; j ++) {
-                                    if (array[j + z] != 0) {
-                                        is_null = false;
-                                        break;
-
-                                    }
-                                }
-
-                                if (is_null == true) {
-                                    index += 23;
-                                    break;
-
-                                }
-                            }
-
-
-
 
                         }
 
-                }
+                        if (player_collidable == true) {
+                            array.push(255);
 
+                        } else {
+                            array.push(0);
+
+                        }
+
+                        array.push(red);
+                        array.push(green);
+                        array.push(blue);
+                        array.push(alpha);
+                        array.push(0);
+
+
+
+                    }
+                }
             }
         }
+
 
         // An entirely null map object signifies the start of the crc32 hash
         for (var i = 1; i < 22; i ++) {
             array.push(0);
 
         }
-
-        //array.push(1);
 
 
         var file = new BinaryFile(fileName, BinaryFile.WriteOnly);

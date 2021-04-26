@@ -1,1200 +1,569 @@
-//Unfortuanetly, the disadvantages of having game_logic as its own seperate crate is that it needs to have a lot of arguments to calculate all of the data needed
-#![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
-use ggez::{event,graphics};
-use ggez::conf::{Backend, FullscreenType, NumSamples, WindowSetup, WindowMode};
-use ggez::graphics::{Align, DrawParam, Image, PxScale, Text, TextFragment, screen_coordinates};
-use ggez::graphics::spritebatch::SpriteBatch;
-use ggez::input::mouse;
-use ggez::input::keyboard::{KeyCode, is_key_pressed};
-use ggez::mint::Point2;
-use ggez::timer::check_update_time;
+mod bots;
+mod components;
+mod system_labels;
+mod map;
+mod helper_functions;
+mod menus;
+mod player_input;
+mod player_attributes;
+mod setup_systems;
 
-use game_logic::{collision, tick};
-use game_logic::map::Map;
-use game_logic::objects;
-use game_logic::objects::{Ability, Controls, Direction, Model, Player, Projectile, Rect};
-use game_logic::helper_functions::current_time;
+use bevy::prelude::*;
+use bevy::sprite::SpriteSettings;
 
-use rand::thread_rng;
-use rand::Rng;
-use rust_embed::RustEmbed;
+use bots::*;
+use map::*;
+use player_input::*;
+use helper_functions::collide;
 
-use std::collections::HashMap;
-use std::convert::TryInto;
+use components::*;
+use menus::*;
+use player_attributes::*;
+use system_labels::*;
+use setup_systems::*;
 
-#[derive(RustEmbed)]
-#[folder = "tiled/"]
-struct Asset;
+pub struct GameCamera;
 
-enum ViewScreen {
-    StartScreen,
+struct AmmoText;
+struct AbilityChargeText;
+struct GameLogText;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum AppState {
+    MainMenu,
+    InGame,
     Settings,
-    //GameStartScreen,
-    Game,
 
 }
 
-struct View {
-    view_screen: ViewScreen,
-    button_texts: Vec<(Point2<f32>, Text)>,
-    buttons: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))>,
-    // The selected button is an index of the buttons Vec
-    selected_button: Option<Text>,
-}
 
-impl View {
-    fn default() -> View {
-        View {
-            view_screen: ViewScreen::StartScreen,
-            buttons: Vec::with_capacity(10),
-            button_texts: Vec::with_capacity(10),
-            selected_button: None,
-
-        }
-    }
-
-    fn add_button(&mut self, coords: (Point2<f32>, u8, u8, (u8, u8, u8, u8)), mut text: Text) {
-        self.buttons.push(coords);
-
-        text.set_bounds(Point2 {x: coords.1 as f32, y: coords.2 as f32}, Align::Center);
-        self.button_texts.push((Point2 {x: coords.0.x, y: coords.0.y}, text));
-    }
-
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ProjectileType {
+    Regular,
+    Speedball,
 
 }
 
-trait GameModeIndividual {
-    fn add_dead_player(&mut self, player_id: u8, time: u128);
-
-    //So structs that are within other structs can't access data "above" them so to speak, so I need the time to be fead into the function
-    fn remove_dead_players(&mut self, players: &mut [Player; 20], current_time: u128);
-
-    fn add_to_score(&mut self, player_id: u8);
-
-    fn current_score(&self) -> [u8; 20];
-
-    fn win_conditions_met(&self) -> bool;
-}
-
-struct Deathmatch {
-    points: [u8; 20],
-    //Tuple index 0 is the player id, index 1 is when the player has been dead
-    dead_players: Vec<(u8, u128)>
+#[derive(Bundle, Debug, PartialEq)]
+pub struct Projectile {
+    pub distance_traveled: DistanceTraveled,
+    pub requested_movement: RequestedMovement,
+    pub movement_type: MovementType,
+    pub projectile_type: ProjectileType,
+    // A general purpose identifier for projectiles, to distinguish between guns and projectiles
+    pub projectile: ProjectileIdent,
+    pub projectile_size: Size,
+    pub damage: Damage,
 
 }
 
-impl Deathmatch {
-    fn new() -> Deathmatch {
-        Deathmatch {
-            points: [0; 20],
-            dead_players: Vec::with_capacity(20),
-        }
+struct GameLogs(Vec<GameLog>);
+
+impl GameLogs {
+    fn new() -> GameLogs {
+        GameLogs(Vec::with_capacity(10))
+
     }
+}
+
+struct GameLog {
+    text: TextSection,
+    timer: Timer,
 
 }
 
-impl GameModeIndividual for Deathmatch {
-    fn add_dead_player(&mut self, player_id: u8, time: u128) {
-        self.dead_players.push((player_id, time));
-
-    }
-
-    fn remove_dead_players(&mut self, players: &mut [Player; 20], current_time: u128) {
-        let mut num_of_pops: u8 = 0;
-
-        for (player_id, time) in self.dead_players.iter_mut().rev() {
-            //Is that a copy >:(
-            //Respawn players after 3 secondss
-            if current_time >= *time + 3000 {
-                let mut player = &mut players[*player_id as usize];
-
-                // Gotta forcefully set the players alpha
-                // If we dont set the players alpha, they spawn invisibly until they get shot
-                let mut color_tuple = player.color.to_rgba();
-                color_tuple.3 = 255;
-                player.color = color_tuple.into();
-
-                //Reset the player's stats
-                player.gun.ammo_in_mag = player.gun.max_ammo;
-                player.health = 100;
-                player.ability_charge = player.max_ability_charge;
-                num_of_pops += 1;
-
-            } else {
-                break;
-
-            }
+impl Projectile {
+    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
+        Projectile {
+            distance_traveled: DistanceTraveled(0.0),
+            requested_movement,
+            movement_type: MovementType::StopAfterDistance(max_distance),
+            projectile_type,
+            projectile: ProjectileIdent(player_id),
+            projectile_size: size,
+            damage,
 
         }
-
-        while num_of_pops > 0 {
-            self.dead_players.pop();
-            num_of_pops -= 1;
-
-        }
-
     }
+}
 
-    fn add_to_score(&mut self, player_id: u8) {
-        self.points[player_id as usize] += 1;
-
-    }
-
-    fn current_score(&self) -> [u8; 20] {
-        self.points
-
-    }
-
-    fn win_conditions_met(&self) -> bool {
-        let mut winning_player = false;
-
-        for point_count in self.points.iter() {
-            if point_count >= &20 {
-                winning_player = true;
-                break;
-
-            }
-
-        }
-
-        winning_player
-
-
-    }
+pub struct Skins {
+    phase: Handle<ColorMaterial>,
 
 }
 
-//See https://bennetthardwick.com/blog/dont-use-boxed-trait-objects-for-struct-internals/
-//So after trying out using enums instead of Boxed dynamic traits, I absolutely despise them and I will take a performance hit in order to never ever deal with that garbage ever again
-
-struct GameState {
-    players: [Player; 20],
-    projectiles: Vec<Projectile>,
-    map: Map,
-    //Game log is stored by how long it's on screen, and the actual content of said logical
-    //Game log isn't the right word but it's basically like what's happening in the game
-    logs: Vec<(String, u128)>,
-    game_mode: Box<dyn GameModeIndividual>,
-    origin: Point2<f32>,
-    zoom: f32,
+pub struct ProjectileMaterials {
+    pub regular: Handle<ColorMaterial>,
+    pub speedball: Handle<ColorMaterial>,
+    pub engineer: Handle<ColorMaterial>,
 
 }
 
-impl GameState {
-    fn log(&mut self, string: String) {
-        // The log can be a maximum of 9 items long
-        if self.logs.len() >= 9 {
-            self.logs.pop();
-
-        }
-
-        //Push the log value to the top of the vector
-        self.logs.insert(0, (string, current_time()));
-
-    }
+pub struct ButtonMaterials {
+    pub normal: Handle<ColorMaterial>,
+    pub hovered: Handle<ColorMaterial>,
 
 }
 
-struct MainState {
-    controls: Controls,
-    game_state: GameState,
-    rect_spritebatch: HashMap<(u8, u8, (u8, u8, u8, u8)), SpriteBatch>,
-    view: View,
-    time: u128,
-    
+
+// The mouse's position in 2D world coordinates
+pub struct MousePosition(Vec2);
+
+#[derive(Debug)]
+pub struct KeyBindings {
+    pub up: KeyCode,
+    pub down: KeyCode,
+    pub left: KeyCode,
+    pub right: KeyCode,
+    pub use_ability: KeyCode,
+    pub reload: KeyCode,
+
 }
 
-impl MainState {
-    fn new(map: Map) -> MainState {
-        let mut possible_player_spawns: Vec<(f32, f32)> =
-        {
-            let mut possible_player_spawns: Vec<(f32, f32)> = Vec::new();
-
-            for map_object in &map.objects {
-                if map_object.player_spawn {
-                    possible_player_spawns.push((map_object.data.x, map_object.data.y));
-
-                }
-
-            }
-
-            possible_player_spawns
-
-        };
-
-        // Preallocate memory for the maximum of 20 players
-        let players: [Player; 20] ={
-            let mut players: [Player; 20] = [Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline(), Player::offline()];
-            
-            let mut rng = thread_rng();
-
-            for (i, player) in players.iter_mut().enumerate() {
-                if !possible_player_spawns.is_empty(){
-                    let spawn_index: usize = rng.gen_range(0..possible_player_spawns.len());
-                    let (spawn_x, spawn_y) = possible_player_spawns[spawn_index];
-
-                    *player = Player::new(None, Ability::Phase, 100, Model::BurstRifle, i.try_into().unwrap(), true, [spawn_x, spawn_y]);
-                    possible_player_spawns.remove(spawn_index);
-
-                } else {
-                    break;
-                    
-                }
-            }
-            
-            players[1].direction = Direction::E;
-            
-            players
-            
-        };
-
-        MainState {
-            view: View::default(),
-            game_state: GameState {
-                players,
-                projectiles: Vec::new(),
-                map,
-                game_mode: Box::new(Deathmatch::new()),
-                logs: Vec::with_capacity(10),
-                origin: Point2 {x: 596.0, y: 342.0},
-                zoom: 1.0,
-            },
-            time: current_time(),
-            rect_spritebatch: HashMap::new(),
-            controls: Controls::default(),
-
-        }
-    }
-
-    fn update_start_screen(&mut self, ctx: &mut ggez::Context) {
-        while check_update_time(ctx, 60) {
-            let (_, mouse_click, mouse_coords) = check_user_input(ctx);
-            let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
-
-            // If the user is left clicking and their coords are within the play button bounds
-            if mouse_click[0] && mouse_coords.x >= screen_coords.w / 2.0 - 45.0 && mouse_coords.x <= screen_coords.w / 2.0 + 30.0 {
-
-                if mouse_coords.y >= screen_coords.h / 3.0 && mouse_coords.y <= screen_coords.h / 3.0 + 25.0  {
-                self.view.view_screen = ViewScreen::Game;
-
-                } else if mouse_coords.y >= screen_coords.h / 2.5 && mouse_coords.y <= screen_coords.h / 2.5 + 25.0 {
-                    self.view.view_screen = ViewScreen::Settings;
-
-                }
-            }
-        }
-    }
-
-    //TODO: Change all text from physical coords to logical
-    fn draw_start_screen(&mut self, ctx: &mut ggez::Context) {
-        graphics::clear(ctx, (0, 0, 0).into());
-        self.view.buttons.clear();
-        self.view.button_texts.clear();
-
-        let screen_coords = Rect { x: 0.0, y: 0.0, w: screen_coordinates(ctx).w, h: screen_coordinates(ctx).h };
-
-        let title = Text::new("Necrophaser");
-
-
-        let mut buttons = Vec::new();
-        let button = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 3.0, 75.0, 25.0);
-        let button2 = graphics::Rect::new(screen_coords.w / 2.0 - 45.0 , screen_coords.h / 2.5, 75.0, 25.0);
-
-        let color = graphics::Color::from_rgb(255, 255, 255);
-        let vec_size = (button.w as usize) *  (button.h as usize) * 4;
-
-        self.rect_spritebatch.entry((button.w as u8, button.h as u8, color.into())).or_insert_with(|| SpriteBatch::new(
-            Image::from_rgba8(
-                ctx,
-                button.w as u16,
-                button.h as u16,
-                &generate_image_from_rgba8(color, vec_size),
-            ).unwrap())
-        );
-
-
-        buttons.push((Point2 {x: button.x, y: button.y}, button.w as u8, button.h as u8, color.into()));
-
-        buttons.push((Point2 {x: button2.x, y: button2.y}, button2.w as u8, button2.h as u8, color.into()));
-
-
-        for (pos, w, h, color) in buttons.iter() {
-            self.rect_spritebatch.get_mut(&(*w, *h, *color)).unwrap().add(DrawParam::default().dest(*pos));
-
-        }
-
-
-        for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
-            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
-            spritebatch.clear();
-
-        }
-
-        graphics::draw(ctx, &title, DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 50.0, y : screen_coords.h / 4.0 })).unwrap();
-
-        graphics::draw(ctx, &Text::new(TextFragment::new("Play").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 25.0, y : screen_coords.h / 3.0 })).unwrap();
-
-        graphics::draw(ctx, &Text::new(TextFragment::new("Settings").color(graphics::Color::from_rgb(0, 0, 0))), DrawParam::default().dest(Point2 {x : screen_coords.w / 2.0 - 40.0, y : screen_coords.h / 2.5 })).unwrap();
-
-
-        graphics::present(ctx).unwrap();
-    }
-
-    fn update_game(&mut self, ctx: &mut ggez::Context) {
-        self.view.buttons = Vec::with_capacity(0);
-        self.view.button_texts = Vec::with_capacity(0);
-
-        // Please see https://docs.rs/ggez/0.5.1/ggez/timer/fn.check_update_time.html for why I'm doing updates like this
-        // Basically, the game will run 60 frames every second on average
-        while check_update_time(ctx, 60) {
-            let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
-            let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
-
-            let damaged_players = tick(&mut self.game_state.players, &mut self.game_state.projectiles, &mut self.game_state.map, keys_pressed, mouse_pressed, mouse_coords, screen_coords, self.controls);
-
-
-            for player_id in damaged_players.iter() {
-                if self.game_state.players[*player_id as usize].health > 0 {
-                    self.game_state.log(format!("Player {} took damage", player_id + 1));
-
-                } else {
-                    self.game_state.log(format!("Player {} got murked", player_id + 1));
-                    //Yet another copy, TODO
-                    self.game_state.game_mode.add_dead_player(*player_id, self.time);
-                    //TODO: Add points to players who kill other players
-                }
-
-            }
-
-            self.game_state.game_mode.remove_dead_players(&mut self.game_state.players, self.time);
-
-
-            let mut num_of_pops: u8 = 0;
-
-            for (_, time)in self.game_state.logs.iter().rev() {
-                if self.time >= time + 8000 {
-                    num_of_pops += 1;
-
-                } else {
-                    break;
-
-                }
-
-            }
-
-            while num_of_pops > 0 {
-                self.game_state.logs.pop();
-                num_of_pops -= 1;
-
-            }
-
-
-            // This is kind of inefficient, but I can't have multiple mutable borrows at the same time
-          /*  if let GameMode::Deathmatch(game_mode) = &mut self.game_state.game_mode {
-                for dead_player in dead_players.iter_mut().rev() {
-                    game_mode.dead_players.push(*dead_player);
-                    println!("Dead player");
-                    dead_players.pop();
-
-                }
-
-
-                for (player_id, time) in game_mode.dead_players.iter() {
-                    //3 second respawn time
-                    //Another copy
-                    if self.time >= *time + 3000 {
-                        self.game_state.players[*player_id as usize].health = 100;
-                        self.game_state.log(format!("Player {} has respawned!", &player_id));
-
-                    }
-                }
-
-            }*/
-
-            self.game_state.origin.x = self.game_state.players[0].x - screen_coords.w / 2.0;
-            self.game_state.origin.y = self.game_state.players[0].y - screen_coords.h / 2.0;
-
-            if self.game_state.origin.x < 0.0 {
-                self.game_state.origin.x = 0.0;
-
-            } else if self.game_state.origin.x > self.game_state.map.width - screen_coords.w {
-                self.game_state.origin.x = self.game_state.map.width - screen_coords.w;
-
-            }
-            if self.game_state.origin.y < 0.0 {
-                self.game_state.origin.y = 0.0;
-
-            } else if self.game_state.origin.y > self.game_state.map.height - screen_coords.h {
-                self.game_state.origin.y = self.game_state.map.height - screen_coords.h;
-
-            }
-
-        }
-
-    }
-
-    //TODO: Change all text from physical coords to logical
-    fn draw_game(&mut self, ctx: &mut ggez::Context){
-        graphics::clear(ctx, (0, 0, 0).into());
-
-        let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
-
-        let mut map_objects: Vec<(Point2<f32>, u8, u8, (u8, u8, u8, u8))> = Vec::new();
-        let mut projectiles: Vec<(Point2<f32>, u8, (u8, u8, u8, u8))> = Vec::new();
-
-        for object in &self.game_state.map.objects {
-            let u8_color: (u8, u8, u8, u8) = object.color.into();
-            let color: graphics::Color = u8_color.into();
-
-            let object = object.data;
-
-           if collision(&Rect::new(object.x, object.y, object.w, object.h), &Rect::new(self.game_state.origin.x, self.game_state.origin.y, screen_coords.w, screen_coords.h)) {
-
-                let rect = graphics::Rect::new((object.x - self.game_state.origin.x) * self.game_state.zoom, (object.y - self.game_state.origin.y) * self.game_state.zoom, object.w * self.game_state.zoom, object.h * self.game_state.zoom);
-
-                 let vec_size = ((object.w as usize) *  (object.h as usize)) * 4;
-
-                self.rect_spritebatch.entry((object.w as u8, object.h as u8, color.into())).or_insert_with(|| SpriteBatch::new(
-                    Image::from_rgba8(
-                        ctx,
-                        object.w as u16,
-                        object.h as u16,
-                        &generate_image_from_rgba8(color, vec_size),
-                    ).unwrap())
-                );
-
-                map_objects.push((Point2 {x: rect.x, y: rect.y}, object.w as u8, object.h as u8, color.into()));
-            }
-        }
-
-        for projectile in &self.game_state.projectiles {
-            if collision(&Rect::new(projectile.x, projectile.y, projectile.w, projectile.h), &Rect::new(self.game_state.origin.x, self.game_state.origin.y, screen_coords.w, screen_coords.h)) {
-
-                let rect = graphics::Rect::new((projectile.x - self.game_state.origin.x) * self.game_state.zoom, (projectile.y - self.game_state.origin.y) * self.game_state.zoom, projectile.w * self.game_state.zoom, projectile.h * self.game_state.zoom);
-
-
-                let size = projectile.w as u16;
-                let vec_size = ((size as usize) *  (size as usize)) * 4;
-
-                self.rect_spritebatch.entry((projectile.w as u8, projectile.h as u8, (255, 255, 255, 255))).or_insert_with(|| SpriteBatch::new(
-                    Image::from_rgba8(
-                        ctx,
-                        size,
-                        size,
-                        &vec![255; vec_size],
-                    ).unwrap())
-                );
-
-                projectiles.push((Point2 {x: rect.x, y: rect.y}, projectile.w as u8, (255, 255, 255, 255)));
-
-            }
-        }
-
-        for (pos, w, h, color) in map_objects.iter() {
-            self.rect_spritebatch.get_mut(&(*w, *h, *color)).unwrap().add(DrawParam::default().dest(*pos));
-
-        }
-
-
-        for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
-            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
-            spritebatch.clear();
-
-        }
-
-        for (pos, size, color) in projectiles.iter() {
-            self.rect_spritebatch.get_mut(&(*size, *size, *color)).unwrap().add(DrawParam::default().dest(*pos));
-
-        }
-
-        for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
-            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
-            spritebatch.clear();
-
-        }
-
-        //Draw log text here
-        for (i, (log, time)) in self.game_state.logs.iter().enumerate() {
-            // I have to use clone until I figure out a better method :'(
-            let alpha: u8 = {
-                if self.time >= time + 4000 {
-                    //TODO: Bitwise copy here (time)
-                    // This basically cahnges the opacity of the text depending on how long it's been on screen
-                    let alpha = (((*time + 8000) as f64 - self.time as f64) / 4000.0) * 255.0;
-                    alpha as u8
-
-                } else {
-                    255
-
-                }
-
-
-            };
-
-            let color = graphics::Color::from_rgba(255, 255, 255, alpha);
-
-            let log_text = Text::new(TextFragment::new(String::from(log)).color(color));
-
-            graphics::draw(ctx, &log_text, DrawParam::default().dest(Point2 {x: screen_coords.w - 50.0 - log_text.width(ctx) as f32 * 2.0, y: screen_coords.h - 100.0 - i as f32 * 25.0})).unwrap();
-        }
-
-
-        // The players should be drawn over all other objects
-        for player in &self.game_state.players {
-            if player.online {
-
-                // Only draw players that are in the screen
-                // Recycling the collision function since I am basically just seeing if the two rectangles intersect
-                if collision(&Rect::new(player.x, player.y, 15.0, 15.0), &Rect::new(self.game_state.origin.x, self.game_state.origin.y, screen_coords.w, screen_coords.h)) {
-
-                    // Draw each player as a filled rectangle
-                    let rect = graphics::Rect::new((player.x - self.game_state.origin.x) * self.game_state.zoom, (player.y - self.game_state.origin.y) * self.game_state.zoom, 15.0 * self.game_state.zoom, 15.0 * self.game_state.zoom);
-
-                    let color: (u8, u8, u8, u8) = player.color.into();
-
-                    let rect_to_draw = graphics::Mesh::new_rectangle(
-                        ctx,
-                        graphics::DrawMode::fill(),
-                        rect,
-                        color.into(),
-                    ).unwrap();
-
-                    graphics::draw(ctx, &rect_to_draw, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
-
-                }
-
-            }
-
-        }
-
-
-        let mut text_y = 0.0;
-        let mut text_x_offset = 650.0;
-
-        for (i, player) in self.game_state.players.iter().enumerate() {
-            if player.health > 0 {
-                let health = Text::new(format!("Player {} health: {}", i + 1, player.health));
-                let ability_charge_percent = Text::new(format!("Player {} charge: {:.0}%", i + 1, player.ability_charge as f32 / player.max_ability_charge as f32 * 100.0));
-                let position_x = Text::new(format!("Player {} X Position: {}", i + 1, player.x));
-                let position_y = Text::new(format!("Player {} Y Position: {}", i + 1, player.y));
-                let ammo = match player.gun.reloading {
-                    true => Text::new(format!("Player {}: Reloading", i + 1)),
-                    false => Text::new(format!("Player {}: {} / {}", i + 1, player.gun.ammo_in_mag, player.gun.max_ammo)),
-                };
-
-                //TODO: Eventually use queue text instead of multiple draw calls, since queue text is the equivalent of sprite batching
-                graphics::draw(ctx, &health, DrawParam::default().dest(Point2 {x: screen_coords.w - text_x_offset, y: text_y})).unwrap();
-
-                text_y += 25.0;
-
-                graphics::draw(ctx, &position_x, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
-
-                text_y += 25.0;
-
-                graphics::draw(ctx, &position_y, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
-
-                text_y += 25.0;
-
-                graphics::draw(ctx, &ability_charge_percent, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
-
-                text_y += 25.0;
-
-                graphics::draw(ctx, &ammo, DrawParam::default().dest(Point2 {x : screen_coords.w - text_x_offset, y : text_y})).unwrap();
-
-            }
-
-            text_y = 0.0;
-            text_x_offset -= 250.0;
-        }
-
-        graphics::present(ctx).unwrap();
-    }
-
-    fn update_settings(&mut self, ctx: &mut ggez::Context) {
-        while check_update_time(ctx, 60) {
-
-            let (keys_pressed, mouse_pressed, mouse_coords) = check_user_input(ctx);
-
-            let strip_everything_after_colon = |text: &mut Text| {
-               // This just removes the colon and everything after it from the text
-                let text_vec =  text.contents();
-
-                let text_without_colon = String::from(text_vec.split(':').collect::<Vec<&str>>()[0]);
-
-                text.fragments_mut()[0].text = text_without_colon;
-            };
-
-
-            if mouse_pressed[0] {
-                let mut clicked_on_button = false;
-
-                for (i, (_, text)) in self.view.button_texts.iter_mut().enumerate() {
-                    let button = &self.view.buttons[i];
-
-                    if mouse_coords.x >= button.0.x && mouse_coords.x <= button.0.x + button.1 as f32 && mouse_coords.y >= button.0.y && mouse_coords.y <= button.0.y + button.2 as f32 {
-                        // The back button is special
-                        if text.contents() == *"Back" {
-                            self.view.view_screen = ViewScreen::StartScreen;
-
-                        } else {
-                            clicked_on_button = true;
-                            strip_everything_after_colon(text);
-                            // Ew I have to use a clone :(
-                            self.view.selected_button = Some((*text).clone());
+#[derive(Debug, PartialEq)]
+pub enum KeyBindingButtons {
+    Up,
+    Down,
+    Left,
+    Right,
+    UseAbility,
+    Reload,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SelectedKeyButton(Option<KeyBindingButtons>);
+
+#[derive(Debug, PartialEq)]
+pub enum GameMode {
+    Deathmatch,
+
+}
+
+fn main() {
+    let mut app = App::build();
+        // Antialiasing
+        app.insert_resource(Msaa { samples: 1 });
+
+        // Since text looks like garbage in browsers without antialiasing, it's higher for WASM by default
+        #[cfg(target_arch = "wasm32")]
+        app.insert_resource(Msaa { samples: 8 });
+
+        app.insert_resource( WindowDescriptor {
+            title: String::from("Necrophaser"),
+            vsync: true,
+            ..Default::default()
+
+        });
+
+        // I want the screen size to be smaller on wasm
+        #[cfg(target_arch = "wasm32")]
+        app.insert_resource( WindowDescriptor {
+            title: String::from("Necrophaser"),
+            vsync: true,
+            width: 1366.0 * 0.85,
+            height: 768.0 * 0.85,
+            ..Default::default()
+
+        });
+        // Sprite culling doesn't render sprites outside of the camera viewport when enabled
+        // It's fairly buggy when rendering many many  sprites (thousands) at the same time, however
+        // Frustum culling also doesn't work with more than 1 camera, so it needs to be disabled for split screen
+        // Though it does give a performance boost, especially where there are many sprites to render
+        // Currently it's disabled, since we use the UI camera and the game camera
+        app.insert_resource(SpriteSettings { frustum_culling_enabled: false })
+
+        //Start in the main menu
+        .add_state(AppState::MainMenu)
+
+        // Embed the map into the binary
+        .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
+        // Gotta initialize the mouse position with something, or else the game crashes
+        .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
+        .insert_resource(GameMode::Deathmatch)
+        .insert_resource(GameLogs::new())
+
+        .add_plugins(DefaultPlugins)
+
+        // Adds some possible events, like reloading and using your ability
+        .add_event::<ReloadEvent>()
+        .add_event::<AbilityEvent>();
+
+        //The WebGL2 plugin is only added if we're compiling to WASM
+        #[cfg(target_arch = "wasm32")]
+        app.add_plugin(bevy_webgl2::WebGL2Plugin);
+
+        app
+        // All the materials of the game NEED to be added before everything else
+        .add_startup_system(setup_materials.system())
+        // The cameras also need to be added first as well
+        .add_startup_system(setup_cameras.system())
+        .add_startup_system(setup_default_controls.system())
+
+        // Initialize InGame
+        .add_system_set(
+            SystemSet::on_enter(AppState::InGame)
+                .with_system(setup_game_ui.system())
+                .with_system(draw_map.system())
+                .with_system(setup_players.system())
+                // Set the mouse coordinates initially
+                .with_system(set_mouse_coords.system())
+
+        )
+
+        // Run every tick when InGame
+        .add_system_set(
+            // Anything that needs to run at a set framerate goes here (so basically everything in game)
+            SystemSet::on_update(AppState::InGame)
+                // Timers should be ticked first
+                .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
+                .with_system(bots.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(shoot.system().label(InputFromPlayer))
+                .with_system(set_mouse_coords.system().label(InputFromPlayer))
+                .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+                .with_system(dead_players.system().after("move_objects").label("dead_players"))
+                .with_system(log_system.system().after("dead_players"))
+                .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
+                .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
+        )
+
+        .add_system_set(
+            SystemSet::on_enter(AppState::MainMenu)
+                .with_system(setup_main_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::MainMenu)
+                .with_system(main_menu_system.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_exit(AppState::MainMenu)
+                .with_system(exit_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_enter(AppState::Settings)
+                .with_system(setup_settings.system())
+
+        )
+
+        .add_system_set(
+            SystemSet::on_update(AppState::Settings)
+                .with_system(settings_system.system())
+
+        )
+
+
+        .add_system_set(
+            SystemSet::on_exit(AppState::Settings)
+                .with_system(exit_menu.system())
+                .with_system(remove_selected.system())
+
+        )
+
+        .run();
+}
+
+//TODO: Turn RequestedMovement into an event
+// Move objects will first validate whether a movement can be done, and if so move them
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>, mut logs: ResMut<GameLogs>, asset_server: Res<AssetServer>) {
+    let desired_ticks_per_second: f32 = 60.0;
+
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _visibility) in player_movements.iter_mut() {
+        if movement.speed != 0.0 && *health != Health(0){
+            // Only lets you move if the movement doesn't bump into a wall
+            let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
+            // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
+            let next_potential_pos = object.translation + (next_potential_movement * desired_ticks_per_second * time.delta_seconds());
+
+            if !map.collision(next_potential_pos, sprite.size, 0) {
+                object.translation = next_potential_pos;
+
+                match movement_type {
+                    // The object moves one frame, and then stops
+                    MovementType::SingleFrame => {
+                        movement.speed = 0.0;
+
+                    },
+
+                    MovementType::StopAfterDistance(distance_to_stop_at) => {
+                        // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
+                        // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
+                        distance_traveled.0 += movement.speed.abs() * desired_ticks_per_second * time.delta_seconds();
+
+                        if distance_traveled.0 >= *distance_to_stop_at {
+                            movement.speed = 0.0;
 
                         }
+                    },
+                }
+
+            } else {
+                movement.speed = 0.0;
+
+            }
+        }
+    }
+
+    for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage) in projectile_movements.iter_mut() {
+        if movement.speed != 0.0 {
+            // Only lets you move if the movement doesn't bump into a wall
+            let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
+            // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
+            let next_potential_pos = object.translation + (next_potential_movement * 60.0 * time.delta_seconds());
+
+            let mut player_collision = false;
+
+            // Check to see if a player-projectile collision takes place
+            for (player, _, _, _, player_sprite, player_id, mut health, mut visibility) in player_movements.iter_mut() {
+                // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
+                // Checks that players aren't already dead as well lol
+                if collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 && *health != Health(0) {
+                    if (health.0 as i8 - damage.0 as i8) < 0 {
+                        health.0 = 0;
+
+                        logs.0.insert(0,
+                            GameLog {
+                                text: TextSection {
+                                    value: format!("Player {} got murked\n", player_id.0 + 1),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 35.0,
+                                        color: Color::WHITE,
+                                    }
+                                },
+                                timer: Timer::from_seconds(8.0, false),
+
+                            }
+                        );
+
+                        visibility.is_visible = false;
+
+                    } else {
+                        health.0 -= damage.0;
 
                     }
+
+                    player_collision = true;
+                    break;
+
                 }
 
-                if let false = clicked_on_button { self.view.selected_button = None }
             }
 
+            if !map.collision(next_potential_pos, sprite.size, damage.0) && !player_collision {
+                object.translation = next_potential_pos;
 
-            if !keys_pressed.is_empty() && self.view.selected_button.is_some() {
-                let button = self.view.selected_button.as_ref().unwrap();
+                // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
+                // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
+                // The speedball's weapon speeds up and gets bigger
+                if *projectile_type == ProjectileType::Speedball {
+                    movement.speed *= 1.1;
+                    sprite.size *= 1.03;
 
-                if button.contents() == *"Up Button" {
-                    self.view.selected_button = None;
-                    self.controls.up =  *keys_pressed.last().unwrap();
+                    if damage.0 <= 75 {
+                        damage.0 += (distance_traveled.0 / 60.0 ) as u8;
 
-                } else if button.contents() == *"Down Button" {
-                    self.view.selected_button = None;
-                    self.controls.down =  *keys_pressed.last().unwrap();
-
-                } else if button.contents() == *"Left Button" {
-                    self.view.selected_button = None;
-                    self.controls.left =  *keys_pressed.last().unwrap();
-
-                } else if button.contents() == *"Right Button" {
-                    self.view.selected_button = None;
-                    self.controls.right =  *keys_pressed.last().unwrap();
-
-                } else if button.contents() == *"Use Ability Button" {
-                    self.view.selected_button = None;
-                    self.controls.use_ability =  *keys_pressed.last().unwrap();
-
-                } else if button.contents() == *"Reload Button" {
-                    self.view.selected_button = None;
-                    self.controls.reload =  *keys_pressed.last().unwrap();
+                    }
 
                 }
+
+                match movement_type {
+                    // The object moves one frame, and then stops
+                    MovementType::SingleFrame => {
+                        movement.speed = 0.0;
+
+                    },
+
+                    MovementType::StopAfterDistance(distance_to_stop_at) => {
+                        // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
+                        // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
+                        distance_traveled.0 += movement.speed.abs() * 60.0 * time.delta_seconds();
+
+                        if distance_traveled.0 >= *distance_to_stop_at {
+                            movement.speed = 0.0;
+
+                        }
+                    },
+                }
+
+            } else {
+                movement.speed = 0.0;
+
             }
         }
     }
 
-    //TODO: Please for the love of god refactor this
-
-    fn draw_settings(&mut self, ctx: &mut ggez::Context) {
-        graphics::clear(ctx, (0, 0, 0).into());
-        self.view.buttons.clear();
-        self.view.button_texts.clear();
-
-        let screen_coords = Rect { x: 0.0, y: 0.0, w: graphics::window(ctx).inner_size().width as f32, h: graphics::window(ctx).inner_size().height as f32 };
-        let up_button = (
-            Point2 {
-                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
-                y: physical_to_logical(ctx, 0.0, screen_coords.h / 4.0)[1]
-            }, 75, 30, (255, 255, 255, 255));
-
-        let down_button = (
-            Point2 {
-                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
-                y: physical_to_logical(ctx, 0.0, screen_coords.h / 3.5 + 25.0)[1]
-            }, 75, 30, (255, 255, 255, 255));
-
-        let left_button = (
-            Point2 {
-                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
-                y: physical_to_logical(ctx, 0.0, screen_coords.h / 3.0 + 50.0)[1]
-            }, 75, 30, (255, 255, 255, 255));
-
-        let right_button = (
-            Point2 {
-                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
-                y: physical_to_logical(ctx, 0.0, screen_coords.h / 2.5 + 50.0)[1]
-            }, 75, 30, (255, 255, 255, 255));
-
-        let use_ability_button = (
-            Point2 {
-                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
-                y: physical_to_logical(ctx, 0.0, screen_coords.h / 2.0 + 25.0)[1]
-            }, 75, 30, (255, 255, 255, 255));
-
-        let reload_button = (
-            Point2 {
-                x: physical_to_logical(ctx, screen_coords.w / 2.0 - 25.0, 0.0)[0],
-                y: physical_to_logical(ctx, 0.0, screen_coords.h / 1.5 - 40.0)[1]
-            }, 75, 30, (255, 255, 255, 255));
-
-
-        let up_button_text = match &self.view.selected_button {
-            Some(text) => {
-                if text.contents() == *"Up Button" {
-                    text.clone()
-
-                } else {
-                    Text::new(TextFragment::new(format!("Up Button: {}", self.controls.up.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
-
-                }
-
-            },
-            None => Text::new(TextFragment::new(format!("Up Button: {}", self.controls.up.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
-        };
-
-        let down_button_text = match &self.view.selected_button {
-            Some(text) => {
-                if text.contents() == *"Down Button" {
-                    text.clone()
-
-                } else {
-                    Text::new(TextFragment::new(format!("Down Button: {}", self.controls.down.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
-
-                }
-
-            },
-            None => Text::new(TextFragment::new(format!("Down Button: {}", self.controls.down.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
-        };
-
-        let left_button_text = match &self.view.selected_button {
-            Some(text) => {
-                if text.contents() == *"Left Button" {
-                    text.clone()
-
-                } else {
-                    Text::new(TextFragment::new(format!("Left Button: {}", self.controls.left.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
-
-                }
-
-            },
-            None => Text::new(TextFragment::new(format!("Left Button: {}", self.controls.left.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
-        };
-
-        let right_button_text = match &self.view.selected_button {
-            Some(text) => {
-                if text.contents() == *"Right Button" {
-                    text.clone()
-
-                } else {
-                    Text::new(TextFragment::new(format!("Right Button: {}", self.controls.right.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
-
-                }
-
-            },
-            None => Text::new(TextFragment::new(format!("Right Button: {}", self.controls.right.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
-        };
-
-        let use_ability_button_text = match &self.view.selected_button {
-            Some(text) => {
-                if text.contents() == *"Use Ability Button" {
-                    text.clone()
-
-                } else {
-                    Text::new(TextFragment::new(format!("Use Ability Button: {}", self.controls.use_ability.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
-
-                }
-
-            },
-            None => Text::new(TextFragment::new(format!("Use Ability Button: {}", self.controls.use_ability.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
-        };
-
-        let reload_button_text = match &self.view.selected_button {
-            Some(text) => {
-                if text.contents() == *"Reload Button" {
-                    text.clone()
-
-                } else {
-                    Text::new(TextFragment::new(format!("Reload Button: {}", self.controls.reload.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0)))
-
-                }
-
-            },
-            None => Text::new(TextFragment::new(format!("Reload Button: {}", self.controls.reload.to_uppercase())).scale(PxScale::from(14.5)).color(graphics::Color::from_rgb(0, 0, 0))),
-        };
-
-        let back_button = (
-            Point2 {
-                x: 15.0,
-                y: 15.0,
-            }, 50, 20, (255, 255, 255, 255));
-
-        let back_text = Text::new(TextFragment::new("Back").scale(PxScale::from(18.0)).color(graphics::Color::from_rgb(0, 0, 0)));
-
-        self.view.add_button(up_button, up_button_text);
-        self.view.add_button(down_button, down_button_text);
-        self.view.add_button(left_button, left_button_text);
-        self.view.add_button(right_button, right_button_text);
-        self.view.add_button(use_ability_button, use_ability_button_text);
-        self.view.add_button(reload_button, reload_button_text);
-
-        self.view.add_button(back_button, back_text);
-
-        let settings_text = TextFragment::new("Settings").scale(PxScale::from(24.0));
-
-        let mut settings_text = Text::new(settings_text);
-        settings_text.set_bounds(Point2 {x: 150.0, y: 100.0 }, Align::Center);
-
-        let color = graphics::Color::from_rgb(255, 255, 255);
-        let vec_size_back = (back_button.1 as usize) *  (back_button.2 as usize) * 4;
-        let vec_size_button = up_button.1 as usize * up_button.2 as usize * 4;
-
-
-        self.rect_spritebatch.entry((back_button.1 as u8, back_button.2 as u8, back_button.3)).or_insert_with(|| SpriteBatch::new(
-            Image::from_rgba8(
-                ctx,
-                back_button.1 as u16,
-                back_button.2 as u16,
-                &generate_image_from_rgba8(color, vec_size_back),
-            ).unwrap())
-        );
-
-        self.rect_spritebatch.entry((up_button.1 as u8, up_button.2 as u8, color.into())).or_insert_with(|| SpriteBatch::new(
-            Image::from_rgba8(
-                ctx,
-                up_button.1 as u16,
-                up_button.2 as u16,
-                &generate_image_from_rgba8(color, vec_size_button),
-            ).unwrap())
-        );
-
-        for (pos, w, h, color) in &self.view.buttons {
-            self.rect_spritebatch.get_mut(&(*w, *h, *color)).unwrap().add(DrawParam::default().dest(*pos));
+    // Remove all stopped bullets
+    for object in projectile_movements.iter_mut() {
+        if object.2.speed == 0.0 {
+            commands.entity(object.0).despawn_recursive();
 
         }
-
-
-        for (_, spritebatch) in self.rect_spritebatch.iter_mut() {
-            graphics::draw(ctx, spritebatch, DrawParam::default().dest(Point2 {x: 0.0, y: 0.0}) ).unwrap();
-            spritebatch.clear();
-
-        }
-
-        for (coords, text) in &self.view.button_texts {
-            graphics::draw(ctx, text, DrawParam::default().dest(*coords)).unwrap();
-        }
-
-        graphics::draw(ctx, &settings_text, DrawParam::default().dest(Point2 {x : physical_to_logical(ctx, screen_coords.w / 2.0 - 50.0, 0.0)[0], y: physical_to_logical(ctx, 0.0, screen_coords.h / 5.0)[1]})).unwrap();
-
-        graphics::present(ctx).unwrap();
     }
 
-    /*fn update_game_start_screen(&mut self, ctx: &mut ggez::Context) {
-
-    }
-
-    fn draw_game_start_screen(&mut self, ctx: &mut ggez::Context) {
-
-    }*/
 }
 
-impl event::EventHandler for MainState {
-    fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        self.time = current_time();
+// This system just deals respawning players
+fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer), With<PlayerID>>, game_mode: Res<GameMode>) {
+    for (mut health, mut visibility, mut respawn_timer) in players.iter_mut() {
+        if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch {
+            health.0 = 100;
+            respawn_timer.0.reset();
+            visibility.is_visible = true;
 
-
-        match self.view.view_screen {
-            ViewScreen::StartScreen => MainState::draw_start_screen(self, ctx),
-            ViewScreen::Game => MainState::draw_game(self, ctx),
-            ViewScreen::Settings => MainState::draw_settings(self, ctx),
-            //ViewScreen::GameStartScreen => MainState::draw_game_start_screen(self, ctx),
-        };
-
-        Ok(())
+        }
 
     }
 
-    fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        match self.view.view_screen {
-            ViewScreen::StartScreen => MainState::update_start_screen(self, ctx),
-            ViewScreen::Settings => MainState::update_settings(self, ctx),
-            ViewScreen::Game => MainState::update_game(self, ctx),
-            //ViewScreen::GameStartScreen => MainState::update_game_start_screen(self, ctx),
-        };
+}
 
-        Ok(())
+/// This system ticks all the `Timer` components on entities within the scene
+/// using bevy's `Time` resource to get the delta between each update.
+// Also adds ability charge to each player
+fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>) {
+    for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in timers.iter_mut() {
+        time_since_last_shot.0.tick(time.delta());
+        ability_charge.0.tick(time.delta());
+
+        // If the player is reloading
+        if time_since_start_reload.reloading {
+            time_since_start_reload.timer.tick(time.delta());
+
+        }
+
+        if using_ability.0 {
+            ability_completed.0.tick(time.delta());
+
+        }
+
+        if *health == Health(0) && *game_mode == GameMode::Deathmatch {
+            respawn_timer.0.tick(time.delta());
+
+        }
+
+        for game_log in logs.0.iter_mut() {
+            game_log.timer.tick(time.delta());
+
+        }
     }
 }
 
-pub fn main() -> ggez::GameResult { 
+fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
+    for (coords, sprite, id, mut requested_movement, speed) in player_query.iter_mut() {
+        if *id == PlayerID(1) {
+            let res = bounce(coords.translation, sprite.size, requested_movement.angle, &mut map);
 
-    let cb = ggez::ContextBuilder::new("game", "William Batista + Luke Gaston")
-    .window_mode (
-        WindowMode {
-            // Resolution is always 1080p
-            width: 1152.0,
-            height: 648.0,
-            maximized: false,
-            fullscreen_type: FullscreenType::Windowed,
-            borderless: false,
-            min_width: 1152.0,
-            max_width: 1920.0,
-            min_height: 648.0,
-            max_height: 1080.0,
-            resizable: true,
-            visible: true,
-    })
-    .backend (
-        // MacOS doesn't support OpenGL 4.5
-        if std::env::consts::OS != "macos" {
-            Backend::OpenGL {
-                major: 4,
-                minor: 5,
-            }
+            requested_movement.angle = res;
+            requested_movement.speed = speed.0;
+
+        }
+
+    }
+
+}
+
+fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
+    mut t: QuerySet<(
+        Query<&mut Text, With<AmmoText>>,
+        Query<&mut Text, With<AbilityChargeText>>
+    )>
+) {
+    let mut ammo_in_mag = 0;
+    let mut max_ammo = 0;
+
+    let mut ability_charge_percent = 0.0;
+
+    let mut reloading = false;
+
+    for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer) in query.iter() {
+        if *id == PlayerID(0) {
+            ammo_in_mag = (*player_ammo_count).0;
+            max_ammo = (*player_max_ammo).0;
+
+            ability_charge_percent = ability_charge.0.percent() * 100.0;
+
+            reloading = reload_timer.reloading;
+
+            break;
+
+        }
+    }
+
+    let mut ammo_text = t.q0_mut().single_mut().unwrap();
+    let mut ammo_pos = ammo_style.single_mut().unwrap();
+
+    if !reloading {
+        ammo_text.sections[0].value = ammo_in_mag.to_string();
+        ammo_text.sections[1].value = " / ".to_string();
+        ammo_text.sections[2].value = max_ammo.to_string();
+
+        ammo_pos.position.left = Val::Percent(90.0);
+
+    } else {
+        ammo_text.sections[0].value = "Reloading...".to_string();
+        ammo_text.sections[1].value = "".to_string();
+        ammo_text.sections[2].value = "".to_string();
+
+        // Since the Reloading text is pretty big, I need to shift it left slightly
+        ammo_pos.position.left = Val::Percent(83.0);
+
+    }
+
+    let mut ability_charge_text = t.q1_mut().single_mut().unwrap();
+    ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
+
+    let ability_charge_percent = ability_charge_percent as u8;
+
+    if ability_charge_percent < 50 {
+        ability_charge_text.sections[0].style.color = Color::RED;
+
+    } else if (50..100).contains(&ability_charge_percent) {
+        ability_charge_text.sections[0].style.color = Color::YELLOW;
+
+    } else if ability_charge_percent == 100 {
+        ability_charge_text.sections[0].style.color = Color::GREEN;
+
+    }
+
+}
+
+fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>) {
+    if logs.0.len() >= 9 {
+        logs.0.pop();
+
+    }
+
+    let mut text_vec = Vec::with_capacity(10);
+
+    let mut num_of_pops: u8 = 0;
+
+    for log in logs.0.iter().rev() {
+        if !log.timer.finished() {
+            let mut text = log.text.clone();
+            text.style.color.set_a(log.timer.percent_left());
+
+            text_vec.push(text);
+
         } else {
-            Backend::OpenGL {
-                major: 3,
-                minor: 2,
-            }
+            num_of_pops += 1;
+
         }
-    );
-    
-    let cb = cb.window_setup(
-        WindowSetup {
-        title: "A game by the beacon boys".to_string(),
-        // 8x antialiasing for a block game lol
-        samples: NumSamples::Eight,
-        // Vsync to make the framerate look pretty
-        vsync: true,
-        icon: String::new(),
-        srgb: true,
-    });
-    
-    let (ctx, event_loop) = cb.build()?;
-
-    let map_bytes = Asset::get("map1.custom").unwrap();
-
-
-    let state = MainState::new(Map::from_bin(&map_bytes));
-    event::run(ctx, event_loop, state)
-    
-}
-
-// The image size is in bytes, and generally should be equal to the length of the image * the width * 4
-fn generate_image_from_rgba8(color: graphics::Color, image_size: usize) -> Vec<u8> {
-    if image_size % 4 != 0 {
-        //Probably should use a better solution then just straight up panicking
-        panic!("Make sure you read the instructions for the image size!");
 
     }
 
-    let mut bytes_vec: Vec<u8> = Vec::with_capacity(image_size);
-    let rgba = color.to_rgba();
-
-    let r = rgba.0;
-    let g = rgba.1;
-    let b = rgba.2;
-    let a = rgba.3;
-
-    while bytes_vec.len() != bytes_vec.capacity() {
-        bytes_vec.push(r);
-        bytes_vec.push(g);
-        bytes_vec.push(b);
-        bytes_vec.push(a);
+    while num_of_pops != 0 {
+        logs.0.pop();
+        num_of_pops -= 1;
 
     }
 
-    bytes_vec
-}
+    game_log.single_mut().unwrap().sections = text_vec;
 
-//TODO: Maybe move non-drawing scripts to a secondary file?
-fn check_user_input(ctx: &ggez::Context) -> (Vec<char>, [bool; 3], objects::Point2) {
-    let mut keys_pressed: Vec<char> = Vec::new();
-    let mut mouse_pressed: [bool; 3] = [false; 3];
-
-    let logical_mouse_coords = physical_to_logical(ctx, mouse::position(ctx).x, mouse::position(ctx).y);
-
-    let mouse_coords = objects::Point2 { x: logical_mouse_coords[0], y: logical_mouse_coords[1]};
-
-    if mouse::button_pressed(ctx, mouse::MouseButton::Left) {
-        mouse_pressed[0] = true;
-
-    }
-
-    // Totally not autgenerated code
-    if is_key_pressed(ctx, KeyCode::A) {
-            keys_pressed.push('a');
-    }
-    if is_key_pressed(ctx, KeyCode::B) {
-            keys_pressed.push('b');
-    }
-    if is_key_pressed(ctx, KeyCode::C) {
-            keys_pressed.push('c');
-    }
-    if is_key_pressed(ctx, KeyCode::D) {
-            keys_pressed.push('d');
-    }
-    if is_key_pressed(ctx, KeyCode::E) {
-            keys_pressed.push('e');
-    }
-    if is_key_pressed(ctx, KeyCode::F) {
-            keys_pressed.push('f');
-    }
-    if is_key_pressed(ctx, KeyCode::G) {
-            keys_pressed.push('g');
-    }
-    if is_key_pressed(ctx, KeyCode::H) {
-            keys_pressed.push('h');
-    }
-    if is_key_pressed(ctx, KeyCode::I) {
-            keys_pressed.push('i');
-    }
-    if is_key_pressed(ctx, KeyCode::J) {
-            keys_pressed.push('j');
-    }
-    if is_key_pressed(ctx, KeyCode::K) {
-            keys_pressed.push('k');
-    }
-    if is_key_pressed(ctx, KeyCode::L) {
-            keys_pressed.push('l');
-    }
-    if is_key_pressed(ctx, KeyCode::M) {
-            keys_pressed.push('m');
-    }
-    if is_key_pressed(ctx, KeyCode::N) {
-            keys_pressed.push('n');
-    }
-    if is_key_pressed(ctx, KeyCode::O) {
-            keys_pressed.push('o');
-    }
-    if is_key_pressed(ctx, KeyCode::P) {
-            keys_pressed.push('p');
-    }
-    if is_key_pressed(ctx, KeyCode::Q) {
-            keys_pressed.push('q');
-    }
-    if is_key_pressed(ctx, KeyCode::R) {
-            keys_pressed.push('r');
-    }
-    if is_key_pressed(ctx, KeyCode::S) {
-            keys_pressed.push('s');
-    }
-    if is_key_pressed(ctx, KeyCode::T) {
-            keys_pressed.push('t');
-    }
-    if is_key_pressed(ctx, KeyCode::U) {
-            keys_pressed.push('u');
-    }
-    if is_key_pressed(ctx, KeyCode::V) {
-            keys_pressed.push('v');
-    }
-    if is_key_pressed(ctx, KeyCode::W) {
-            keys_pressed.push('w');
-    }
-    if is_key_pressed(ctx, KeyCode::X) {
-            keys_pressed.push('x');
-    }
-    if is_key_pressed(ctx, KeyCode::Y) {
-            keys_pressed.push('y');
-    }
-    if is_key_pressed(ctx, KeyCode::Z) {
-            keys_pressed.push('z');
-    }
-    if is_key_pressed(ctx, KeyCode::A) {
-            keys_pressed.push('a');
-    }
-    if is_key_pressed(ctx, KeyCode::B) {
-            keys_pressed.push('b');
-    }
-    if is_key_pressed(ctx, KeyCode::C) {
-            keys_pressed.push('c');
-    }
-    if is_key_pressed(ctx, KeyCode::D) {
-            keys_pressed.push('d');
-    }
-    if is_key_pressed(ctx, KeyCode::E) {
-            keys_pressed.push('e');
-    }
-    if is_key_pressed(ctx, KeyCode::F) {
-            keys_pressed.push('f');
-    }
-    if is_key_pressed(ctx, KeyCode::G) {
-            keys_pressed.push('g');
-    }
-    if is_key_pressed(ctx, KeyCode::H) {
-            keys_pressed.push('h');
-    }
-    if is_key_pressed(ctx, KeyCode::I) {
-            keys_pressed.push('i');
-    }
-    if is_key_pressed(ctx, KeyCode::J) {
-            keys_pressed.push('j');
-    }
-    if is_key_pressed(ctx, KeyCode::K) {
-            keys_pressed.push('k');
-    }
-    if is_key_pressed(ctx, KeyCode::L) {
-            keys_pressed.push('l');
-    }
-    if is_key_pressed(ctx, KeyCode::M) {
-            keys_pressed.push('m');
-    }
-    if is_key_pressed(ctx, KeyCode::N) {
-            keys_pressed.push('n');
-    }
-    if is_key_pressed(ctx, KeyCode::O) {
-            keys_pressed.push('o');
-    }
-    if is_key_pressed(ctx, KeyCode::P) {
-            keys_pressed.push('p');
-    }
-    if is_key_pressed(ctx, KeyCode::Q) {
-            keys_pressed.push('q');
-    }
-    if is_key_pressed(ctx, KeyCode::R) {
-            keys_pressed.push('r');
-    }
-    if is_key_pressed(ctx, KeyCode::S) {
-            keys_pressed.push('s');
-    }
-    if is_key_pressed(ctx, KeyCode::T) {
-            keys_pressed.push('t');
-    }
-    if is_key_pressed(ctx, KeyCode::U) {
-            keys_pressed.push('u');
-    }
-    if is_key_pressed(ctx, KeyCode::V) {
-            keys_pressed.push('v');
-    }
-    if is_key_pressed(ctx, KeyCode::W) {
-            keys_pressed.push('w');
-    }
-    if is_key_pressed(ctx, KeyCode::X) {
-            keys_pressed.push('x');
-    }
-    if is_key_pressed(ctx, KeyCode::Y) {
-            keys_pressed.push('y');
-    }
-    if is_key_pressed(ctx, KeyCode::Z) {
-            keys_pressed.push('z');
-    }
-    if is_key_pressed(ctx, KeyCode::Right) {
-            keys_pressed.push('→');
-    }
-    if is_key_pressed(ctx, KeyCode::Left) {
-            keys_pressed.push('←');
-    }
-    if is_key_pressed(ctx, KeyCode::Up) {
-            keys_pressed.push('↑');
-    }
-    if is_key_pressed(ctx, KeyCode::Down) {
-            keys_pressed.push('↓');
-    }
-    if is_key_pressed(ctx, KeyCode::Space) {
-            keys_pressed.push(' ');
-    }
-
-    (keys_pressed, mouse_pressed, mouse_coords)
-}
-
-fn physical_to_logical(ctx: &ggez::Context, x: f32, y: f32) -> [f32; 2] {
-    let screen_rect = graphics::screen_coordinates(ctx);
-    let size = graphics::window(ctx).inner_size();
-
-    let logical_x = (x / (size.width  as f32)) * screen_rect.w + screen_rect.x;
-    let logical_y = (y / (size.height as f32)) * screen_rect.h + screen_rect.y;
-
-
-    [logical_x, logical_y]
 }
