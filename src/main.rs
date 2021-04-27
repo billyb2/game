@@ -10,6 +10,12 @@ mod player_input;
 mod player_attributes;
 mod setup_systems;
 
+#[cfg(feature = "native")]
+mod net;
+
+#[cfg(feature = "web")]
+mod net_wasm;
+
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
 
@@ -23,6 +29,12 @@ use menus::*;
 use player_attributes::*;
 use system_labels::*;
 use setup_systems::*;
+
+#[cfg(feature = "native")]
+use net::*;
+
+#[cfg(feature = "web")]
+use net_wasm::*;
 
 pub struct GameCamera;
 
@@ -209,6 +221,7 @@ fn main() {
                 .with_system(setup_players.system())
                 // Set the mouse coordinates initially
                 .with_system(set_mouse_coords.system())
+                .with_system(test_connection.system())
 
         )
 

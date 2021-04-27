@@ -20,12 +20,24 @@ panic = "abort"
 bevy = { git = "https://github.com/bevyengine/bevy", default-features = false }
 bevy_webgl2 = { version = "0.5", optional=true }
 
+# Using datachannel for native builds, web-sys for WASM
+datachannel = { version = "0.5", optional=true }
+
+wasm-bindgen = { version = "0.2.69", optional = true }
+web-sys = { version = "0.3.45", features = ["MessageEvent", "RtcPeerConnection",   "RtcSignalingState",   "RtcSdpType",   "RtcSessionDescriptionInit", "RtcPeerConnectionIceEvent",   "RtcIceCandidate",   "RtcDataChannel",   "RtcDataChannelEvent"], optional = true }
+js-sys = { version = "0.3.46", optional = true }
+wasm-bindgen-futures = { version = "0.4.19", optional = true }
+crossbeam-channel = { version = "0.5", optional = true }
+
+async-std = { version = "1" }
+
 # Using a pull request of lz4_flex that supports frame (de)compression, since currently the main lz4_flex does not
 lz4_flex = { git = "https://github.com/arthurprs/lz4_flex", branch = "dict", default-features = false, features = ["checked-decode", "std", "frame"] }
 crc32fast = "1"
 # Gotta use an older version of winit
 winit = { version = "0.24.0" }
 rand = { version = "0.8" }
+
 
 #Other platform stuff:
 [features]
@@ -39,10 +51,16 @@ native = [
   # Since literally every modern CPU has SIMD support, I think it's fine to enable it for rand
   # For WASM, however, SIMD support is currently behind a feature flag for Firefox, and older versions of Chrome don't have it at all, so we should definetly just use SIMD for PC
   "rand/simd_support",
+  "datachannel",
+  "crossbeam-channel",
 ]
 
 web = [
   "bevy_webgl2",
+  "wasm-bindgen",
+  "js-sys",
+  "web-sys",
+  "wasm-bindgen-futures",
 ]
 
 # A patch to get the latest git version of Bevy (with all new features and performance improvements) onto bevy_webgl2
