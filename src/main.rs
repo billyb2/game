@@ -159,7 +159,7 @@ fn main() {
         app.insert_resource(Msaa { samples: 1 });
 
         // Since text looks like garbage in browsers without antialiasing, it's higher for WASM by default
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(feature = "web")]
         app.insert_resource(Msaa { samples: 8 });
 
         app.insert_resource( WindowDescriptor {
@@ -170,7 +170,7 @@ fn main() {
         });
 
         // I want the screen size to be smaller on wasm
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(feature = "web")]
         app.insert_resource( WindowDescriptor {
             title: String::from("Necrophaser"),
             vsync: true,
@@ -203,7 +203,7 @@ fn main() {
         .add_event::<AbilityEvent>();
 
         //The WebGL2 plugin is only added if we're compiling to WASM
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(feature = "web")]
         app.add_plugin(bevy_webgl2::WebGL2Plugin);
 
         app

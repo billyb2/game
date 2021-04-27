@@ -5,16 +5,18 @@ Please follow the instructions below in order, while it seems complicated, it ma
 ## Instructions
 ### Windows
 - Please install [VS2019 Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16)
+- [Install CMake](https://cmake.org/download/)
 - `cargo install -f cargo-binutils`
 - `rustup component add llvm-tools-preview`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 ### Arch/Manjaro Linux
-- `sudo pacman -Syu clang lld libx11 pkgconf alsa-lib`
+- `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 ### MacOS
 MacOS, of course, does not have a working LLD linker (thanks Apple), though the ZLD linker is still faster than the default
+- [Install CMake](https://cmake.org/download/)
 - `brew install michaeleisel/zld/zld`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`

@@ -63,6 +63,17 @@ dependencies = ["build-native-release"]
 command = "basic-http-server"
 dependencies = ["build-web", "basic-http-server"]
 
+[tasks.check-native]
+args = ["clippy", "--features", "native", "--", "-D", "warnings"]
+command = "cargo"
+
+[tasks.check-web]
+args = ["clippy", "--features", "web", "--", "-D", "warnings"]
+command = "cargo"
+
+[tasks.check]
+dependencies = ["check-web", "check-native"]
+
 [tasks.serve-debug]
 command = "basic-http-server"
 dependencies = ["build-web-debug", "basic-http-server"]
