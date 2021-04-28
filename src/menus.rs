@@ -113,7 +113,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
         if keyboard_input.just_pressed(KeyCode::Escape) {
             app_state.set(AppState::MainMenu).unwrap();
-            keyboard_input.clear();
+            keyboard_input.update();
 
         } else if selected_key_button.0.is_some() {
             if let Some(key) = keyboard_input.get_just_pressed().last() {

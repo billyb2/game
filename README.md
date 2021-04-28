@@ -3,6 +3,8 @@
 Please follow the instructions below in order, while it seems complicated, it makes having builds for web and native PC's very easy.
 
 ## Instructions
+### Firstly, install Rust and clone this repo using `git clone --recursive` instead of the usual `git clone`
+
 ### Windows
 - Please install [VS2019 Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16)
 - [Install CMake](https://cmake.org/download/)

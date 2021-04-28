@@ -30,12 +30,12 @@ command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.build-web]
-args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "--no-typescript", "${CARGO_WASM_PATH}"]
+args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "${CARGO_WASM_PATH}"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web", "wasm-bindgen-cli"]
 
 [tasks.build-web-debug]
-args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "--no-typescript", "${CARGO_WASM_PATH}"]
+args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "${CARGO_WASM_PATH}"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-debug", "wasm-bindgen-cli"]
 
@@ -68,7 +68,7 @@ args = ["clippy", "--features", "native", "--", "-D", "warnings"]
 command = "cargo"
 
 [tasks.check-web]
-args = ["clippy", "--features", "web", "--", "-D", "warnings"]
+args = ["clippy", "--features", "web", "--target", "wasm32-unknown-unknown", "--", "-D", "warnings"]
 command = "cargo"
 
 [tasks.check]

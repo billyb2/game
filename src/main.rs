@@ -10,12 +10,9 @@ mod player_input;
 mod player_attributes;
 mod setup_systems;
 
-#[cfg(feature = "native")]
 mod net;
 
-#[cfg(feature = "web")]
-mod net_wasm;
-
+use bevy_networking_turbulence::{NetworkingPlugin, NetworkEvent};
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
 
@@ -30,11 +27,7 @@ use player_attributes::*;
 use system_labels::*;
 use setup_systems::*;
 
-#[cfg(feature = "native")]
 use net::*;
-
-#[cfg(feature = "web")]
-use net_wasm::*;
 
 pub struct GameCamera;
 
@@ -155,6 +148,13 @@ pub enum GameMode {
 
 fn main() {
     let mut app = App::build();
+
+        #[cfg(feature = "web")]
+        {
+            console_log::init_with_level(log::Level::Debug).expect("cannot initialize console_log");
+            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+        };
+
         // Antialiasing
         app.insert_resource(Msaa { samples: 1 });
 
@@ -197,6 +197,8 @@ fn main() {
         .insert_resource(GameLogs::new())
 
         .add_plugins(DefaultPlugins)
+        .add_plugin(NetworkingPlugin::default())
+        .add_event::<NetworkEvent>()
 
         // Adds some possible events, like reloading and using your ability
         .add_event::<ReloadEvent>()
@@ -212,16 +214,21 @@ fn main() {
         // The cameras also need to be added first as well
         .add_startup_system(setup_cameras.system())
         .add_startup_system(setup_default_controls.system())
+        .add_startup_system(setup_networking.system());
+
+        #[cfg(feature = "web")]
+        app.add_system(send_packets.system());
+
+        app.add_system(handle_packets.system());
 
         // Initialize InGame
-        .add_system_set(
+        app.add_system_set(
             SystemSet::on_enter(AppState::InGame)
                 .with_system(setup_game_ui.system())
                 .with_system(draw_map.system())
                 .with_system(setup_players.system())
                 // Set the mouse coordinates initially
                 .with_system(set_mouse_coords.system())
-                .with_system(test_connection.system())
 
         )
 
