@@ -47,7 +47,9 @@ To build for the WASM (Web ASseMbly), run:
 `cargo make serve`
 
 To run a debug WASM build (not recommended since the performance is horrible), run:
-`cargo make serve-debug`
+`cargo make serve-fast`
+
+I only recommend debug builds if you want to very quickly check a change:
 
 ## Before pushing your Git commit
 

@@ -1,3 +1,5 @@
+cargo-features = ["named-profiles"]
+
 [package]
 name = "game"
 version = "0.1.0"
@@ -14,6 +16,10 @@ opt-level = 1
 debug = 0
 lto = "fat"
 codegen-units = 1
+panic = "abort"
+
+[profile.fast-web]
+inherits = "dev"
 panic = "abort"
 
 [dependencies]

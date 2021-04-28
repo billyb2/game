@@ -20,39 +20,39 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", version = "0.2.69"}
 
 [tasks.cargo-build-web]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--release"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--release", "-Z", "unstable-options"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
-[tasks.cargo-build-web-debug]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web"]
+[tasks.cargo-build-web-fast]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "fast-web", "-Z", "unstable-options"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.build-web]
-args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "${CARGO_WASM_PATH}"]
+args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "${CARGO_WASM_PATH}"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web", "wasm-bindgen-cli"]
 
-[tasks.build-web-debug]
-args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "${CARGO_WASM_PATH}"]
+[tasks.build-web-fast]
+args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/fast-web/game.wasm"]
 command = "wasm-bindgen"
-dependencies = ["cargo-build-web-debug", "wasm-bindgen-cli"]
+dependencies = ["cargo-build-web-fast", "wasm-bindgen-cli"]
 
 [tasks.build-native]
-args = ["build", "--features", "native"]
+args = ["build", "--features", "native", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.build-native-release]
-args = ["build", "--features", "native", "--release"]
+args = ["build", "--features", "native", "--release", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.build-native-fast]
-args = ["build", "--features", "native", "--features", "bevy/dynamic"]
+args = ["build", "--features", "native", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run]
-args = ["run", "--features", "native", "--features", "bevy/dynamic"]
+args = ["run", "--features", "native", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run-release]
@@ -63,12 +63,16 @@ dependencies = ["build-native-release"]
 command = "basic-http-server"
 dependencies = ["build-web", "basic-http-server"]
 
+[tasks.serve-fast]
+command = "basic-http-server"
+dependencies = ["build-web-fast", "basic-http-server"]
+
 [tasks.check-native]
-args = ["clippy", "--features", "native", "--", "-D", "warnings"]
+args = ["clippy", "--features", "native", "--", "-D", "warnings", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.check-web]
-args = ["clippy", "--features", "web", "--target", "wasm32-unknown-unknown", "--", "-D", "warnings"]
+args = ["clippy", "--features", "web", "--target", "wasm32-unknown-unknown", "-Z", "unstable-options", "--", "-D", "warnings"]
 command = "cargo"
 
 [tasks.check]
