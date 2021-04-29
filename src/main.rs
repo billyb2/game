@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-mod bots;
+//mod bots;
 mod components;
 mod system_labels;
 mod map;
@@ -12,11 +12,11 @@ mod setup_systems;
 
 mod net;
 
-use bevy_networking_turbulence::{NetworkingPlugin, NetworkEvent};
+use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
 
-use bots::*;
+//use bots::*;
 use map::*;
 use player_input::*;
 use helper_functions::collide;
@@ -199,7 +199,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(NetworkingPlugin::default())
         .add_event::<NetworkEvent>()
-
         // Adds some possible events, like reloading and using your ability
         .add_event::<ReloadEvent>()
         .add_event::<AbilityEvent>();
@@ -215,11 +214,6 @@ fn main() {
         .add_startup_system(setup_cameras.system())
         .add_startup_system(setup_default_controls.system())
         .add_startup_system(setup_networking.system());
-
-        #[cfg(feature = "web")]
-        app.add_system(send_packets.system());
-
-        app.add_system(handle_packets.system());
 
         // Initialize InGame
         app.add_system_set(
@@ -238,7 +232,8 @@ fn main() {
             SystemSet::on_update(AppState::InGame)
                 // Timers should be ticked first
                 .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
-                .with_system(bots.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(handle_packets.system().label(InputFromPlayer).before("player_attr"))
+                //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shoot.system().label(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer))
@@ -250,9 +245,15 @@ fn main() {
                 .with_system(log_system.system().after("dead_players"))
                 .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
                 .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
-        )
+        );
 
-        .add_system_set(
+        #[cfg(feature = "web")]
+        app.add_system_set(
+            SystemSet::on_update(AppState::InGame)
+                .with_system(send_packets.system())
+        );
+
+        app.add_system_set(
             SystemSet::on_enter(AppState::MainMenu)
                 .with_system(setup_main_menu.system())
 
@@ -336,7 +337,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let next_potential_pos = object.translation + (next_potential_movement * 60.0 * time.delta_seconds());
+            let next_potential_pos = object.translation + (next_potential_movement * desired_ticks_per_second * time.delta_seconds());
 
             let mut player_collision = false;
 
@@ -447,7 +448,7 @@ fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>) {
+fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
     for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in timers.iter_mut() {
         time_since_last_shot.0.tick(time.delta());
         ability_charge.0.tick(time.delta());
@@ -472,10 +473,12 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
             game_log.timer.tick(time.delta());
 
         }
+
+        ready_to_send_packet.0.tick(time.delta());
     }
 }
 
-fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
+/*fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
     for (coords, sprite, id, mut requested_movement, speed) in player_query.iter_mut() {
         if *id == PlayerID(1) {
             let res = bounce(coords.translation, sprite.size, requested_movement.angle, &mut map);
@@ -487,7 +490,7 @@ fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedM
 
     }
 
-}
+}*/
 
 fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
     mut t: QuerySet<(
