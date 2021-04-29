@@ -144,8 +144,8 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
     for object in map.objects.iter() {
         if object.player_spawn {
             commands
-                .spawn_bundle(Player::new(i, Ability::Engineer))
-                .insert_bundle(Gun::new(Model::BurstRifle, Ability::Engineer))
+                .spawn_bundle(Player::new(i, Ability::Phase))
+                .insert_bundle(Gun::new(Model::AssaultRifle, Ability::Phase))
                 .insert_bundle(SpriteBundle {
                     material: materials.phase.clone(),
                     sprite: Sprite::new(Vec2::new(15.0, 15.0)),
@@ -163,68 +163,39 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
     commands.insert_resource(ClearColor(Color::BLACK));
 
     commands
-        .spawn_bundle(TextBundle {
+        .spawn_bundle(NodeBundle {
             style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Relative,
-                position: Rect {
-                    left: Val::Percent(40.0),
-                    top: Val::Percent(0.0),
+                margin: Rect {
+                   left: Val::Auto,
+                   right: Val::Auto,
 
                     ..Default::default()
                 },
-
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "Necrophaser".to_string(),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 75.0,
-                            color: Color::GOLD,
-                        },
-                    },
-                ],
-                ..Default::default()
-            },
-            ..Default::default()
-
-        });
-
-    commands
-        .spawn_bundle(ButtonBundle {
-            style: Style {
-                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-                // center button
-                position: Rect {
-                    left: Val::Percent(20.0),
-                    bottom: Val::Percent(14.0),
-
-                    ..Default::default()
-                },
-                align_self: AlignSelf::Center,
-                // horizontally center child text
                 justify_content: JustifyContent::Center,
-                // vertically center child text
+                align_content: AlignContent::Center,
                 align_items: AlignItems::Center,
+
                 ..Default::default()
             },
-            material: button_materials.normal.clone(),
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
             ..Default::default()
+
         })
-        .with_children(|parent| {
-        parent
-            .spawn_bundle(TextBundle {
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
                 text: Text {
                     sections: vec![
                         TextSection {
-                            value: "Play".to_string(),
+                            value: "Necrophaser".to_string(),
                             style: TextStyle {
                                 font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 55.0,
-                                color: Color::WHITE,
+                                font_size: 80.0,
+                                color: Color::GOLD,
                             },
                         },
                     ],
@@ -234,47 +205,118 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
             });
 
-        });
-
-    commands
-        .spawn_bundle(ButtonBundle {
+            // Only PC's can host games
+            #[cfg(feature = "native")]
+            node_parent.spawn_bundle(ButtonBundle {
             style: Style {
-                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-                // center button
-                position: Rect {
-                    left: Val::Percent(8.15),
-                    bottom: Val::Percent(7.0),
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                margin: Rect {
+                    bottom: Val::Percent(10.0),
 
                     ..Default::default()
                 },
-                align_self: AlignSelf::Center,
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
-                align_items: AlignItems::Center,
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
                 ..Default::default()
             },
             material: button_materials.normal.clone(),
             ..Default::default()
-        })
-        .with_children(|parent| {
-        parent
-            .spawn_bundle(TextBundle {
-                text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: "Settings".to_string(),
-                            style: TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 45.0,
-                                color: Color::WHITE,
-                            },
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Play (Host)"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
                         },
-                    ],
+                        ..Default::default()
+
+                });
+            });
+
+            // Only WASM can join games
+            #[cfg(feature = "web")]
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                margin: Rect {
+                    bottom: Val::Percent(10.0),
+
                     ..Default::default()
                 },
-                ..Default::default()
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
 
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Play (Join)"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Settings"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                })
+                .insert(KeyBindingButtons::Down);
             });
 
         });
@@ -283,7 +325,6 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
 }
 
-//TODO: Replace all UI stuff with somethings similar to setup_settings, since it's a good example of how to use a proper flexbox, like using NodeBundles and stuff
 pub fn setup_settings(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>, keybindings: Res<KeyBindings>) {
     commands.insert_resource(ClearColor(Color::BLACK));
     commands

@@ -1,9 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use crate::PlayerID;
-//use crate::helper_functions::slice_to_u32;
-
-use serde::{Deserialize, Serialize};
 
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
@@ -34,17 +31,16 @@ const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSett
     packet_buffer_size: 1024,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct ClientMessage([f32; 2]);
-
 pub struct ReadyToSendPacket(pub Timer);
 
 pub struct OtherPlayerHandle(Option<ConnectionHandle>);
 
-pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>) {
+pub struct Hosting(pub bool);
+
+pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) {
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
-            .register::<ClientMessage>(CLIENT_STATE_MESSAGE_SETTINGS)
+            .register::<[f32; 2]>(CLIENT_STATE_MESSAGE_SETTINGS)
             .unwrap();
 
     });
@@ -53,58 +49,57 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
     commands.spawn().insert(OtherPlayerHandle(None));
 
+    let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
+
     #[cfg(feature = "native")]
-    {
+    if hosting.0 {
         //let ip_address = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
 
         // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
-        let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
 
         println!("Listening on {:?}", &socket_address);
         net.listen(socket_address);
 
-    };
+    }
 
     #[cfg(feature = "web")]
-    {
-        let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
+    if !hosting.0 {
         log::info!("Net: Connecting to {:?}", socket_address);
         println!("Connecting to {:?}", socket_address);
 
+        net.connect(socket_address);
 
-        //while net.connections.len() < 1 {
-            net.connect(socket_address);
-
-        //}
-
-    };
+    }
 }
 
 #[cfg(feature = "web")]
-pub fn send_packets(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
-    // Rate limiting so that the game sends 66 updates every second
-    if ready_to_send_packet.0.finished() {
-        log::info!("Net: Sending packet!");
+pub fn send_packets(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, hosting: Res<Hosting>) {
+    if !hosting.0 {
+        // Rate limiting so that the game sends 66 updates every second
+        if ready_to_send_packet.0.finished() {
+            log::info!("Net: Sending packet!");
+            println!("Sending packet");
 
-        let mut x: f32 = 0.0;
-        let mut y: f32 = 0.0;
+            let mut x: f32 = 0.0;
+            let mut y: f32 = 0.0;
 
-        for (transform, id) in players.iter() {
-            if *id == PlayerID(0) {
-                x = transform.translation.x;
-                y = transform.translation.y;
+            for (transform, id) in players.iter() {
+                if *id == PlayerID(0) {
+                    x = transform.translation.x;
+                    y = transform.translation.y;
 
-                break;
+                    break;
+
+                }
 
             }
 
+            //let bytes = [x.to_be_bytes(), y.to_be_bytes()].concat();
+
+            net.broadcast_message([x, y]);
+            ready_to_send_packet.0.reset();
+
         }
-
-        //let bytes = [x.to_be_bytes(), y.to_be_bytes()].concat();
-
-        net.broadcast_message(ClientMessage([x, y]));
-        ready_to_send_packet.0.reset();
-
     }
 
 }
@@ -115,9 +110,9 @@ pub fn handle_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut
 
         let channels = connection.channels().unwrap();
 
-        while let Some(m) = channels.recv::<ClientMessage>() {
-                let x = m.0[0];
-                let y = m.0[1];
+        while let Some(m) = channels.recv::<[f32; 2]>() {
+                let x = m[0];
+                let y = m[1];
 
                 for (mut transform, id) in players.iter_mut() {
                     if *id == PlayerID(1) {
@@ -139,7 +134,7 @@ pub fn handle_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut
         if let Some(handle_2) = other_player_handle.single_mut().unwrap().0 {
             for (transform, id) in players.iter_mut() {
                 if *id == PlayerID(0) {
-                    net.send_message(handle_2, ClientMessage([transform.translation.x, transform.translation.y])).unwrap();
+                    net.send_message(handle_2, [transform.translation.x, transform.translation.y]).unwrap();
 
                 }
             }

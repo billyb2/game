@@ -1497,7 +1497,6 @@ dependencies = [
  "log",
  "lz4_flex",
  "rand 0.8.3",
- "serde",
  "winit",
 ]
 

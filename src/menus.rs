@@ -1,5 +1,7 @@
 use bevy::prelude::*;
+
 use crate::*;
+use crate::net::Hosting;
 
 pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
     for (interaction, mut material, children) in interaction_query.iter_mut() {
@@ -185,16 +187,29 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
     }
 }
 
-pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
+pub fn main_menu_system(mut commands: Commands, button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
     for (interaction, mut material, children) in interaction_query.iter_mut() {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         match *interaction {
             Interaction::Clicked => {
-                if text == &String::from("Play") {
+                // Only native builds can host
+                #[cfg(feature = "native")]
+                if text == &String::from("Play (Host)") {
                     app_state.set(AppState::InGame).unwrap();
+                    commands.insert_resource(Hosting(true));
 
-                } else if text == &String::from("Settings") {
+                }
+
+                // Only WASM builds can join
+                #[cfg(feature = "web")]
+                if text == &String::from("Play (Join)") {
+                    app_state.set(AppState::InGame).unwrap();
+                    commands.insert_resource(Hosting(false));
+
+                }
+
+                if text == &String::from("Settings") {
                     app_state.set(AppState::Settings).unwrap();
 
                 }

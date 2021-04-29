@@ -194,9 +194,9 @@ fn main() {
         // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
         .insert_resource(GameMode::Deathmatch)
-        .insert_resource(GameLogs::new())
+        .insert_resource(GameLogs::new());
 
-        .add_plugins(DefaultPlugins)
+        app.add_plugins(DefaultPlugins)
         .add_plugin(NetworkingPlugin::default())
         .add_event::<NetworkEvent>()
         // Adds some possible events, like reloading and using your ability
@@ -212,8 +212,8 @@ fn main() {
         .add_startup_system(setup_materials.system())
         // The cameras also need to be added first as well
         .add_startup_system(setup_cameras.system())
-        .add_startup_system(setup_default_controls.system())
-        .add_startup_system(setup_networking.system());
+        .add_startup_system(setup_default_controls.system());
+        //.add_startup_system();
 
         // Initialize InGame
         app.add_system_set(
@@ -223,12 +223,12 @@ fn main() {
                 .with_system(setup_players.system())
                 // Set the mouse coordinates initially
                 .with_system(set_mouse_coords.system())
+                .with_system(setup_networking.system())
 
         )
 
         // Run every tick when InGame
         .add_system_set(
-            // Anything that needs to run at a set framerate goes here (so basically everything in game)
             SystemSet::on_update(AppState::InGame)
                 // Timers should be ticked first
                 .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
@@ -250,7 +250,8 @@ fn main() {
         #[cfg(feature = "web")]
         app.add_system_set(
             SystemSet::on_update(AppState::InGame)
-                .with_system(send_packets.system())
+                .with_system(send_packets.system().label(InputFromPlayer).before("player_attr"))
+
         );
 
         app.add_system_set(
