@@ -49,7 +49,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
     commands.spawn().insert(OtherPlayerHandle(None));
 
-    let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
+    let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 23)), SERVER_PORT);
 
     #[cfg(feature = "native")]
     if hosting.0 {
@@ -73,7 +73,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 }
 
 #[cfg(feature = "web")]
-pub fn send_packets(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, hosting: Res<Hosting>) {
+pub fn send_location(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, hosting: Res<Hosting>) {
     if !hosting.0 {
         // Rate limiting so that the game sends 66 updates every second
         if ready_to_send_packet.0.finished() {

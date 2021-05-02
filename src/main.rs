@@ -116,6 +116,24 @@ pub struct ButtonMaterials {
 // The mouse's position in 2D world coordinates
 pub struct MousePosition(Vec2);
 
+#[derive(Clone, Copy, Debug)]
+pub struct ShootEvent {
+    start_pos: Vec3,
+    player_id: u8,
+    pos_direction: Vec2,
+    health: u8,
+    model: Model,
+    max_distance: f32,
+    recoil_range: f32,
+    speed: f32,
+    projectile_type: ProjectileType,
+    damage: Damage,
+    player_ability: Ability,
+    size: Vec2,
+    reloading: bool,
+
+}
+
 #[derive(Debug)]
 pub struct KeyBindings {
     pub up: KeyCode,
@@ -201,6 +219,7 @@ fn main() {
         .add_event::<NetworkEvent>()
         // Adds some possible events, like reloading and using your ability
         .add_event::<ReloadEvent>()
+        .add_event::<ShootEvent>()
         .add_event::<AbilityEvent>();
 
         //The WebGL2 plugin is only added if we're compiling to WASM
@@ -232,11 +251,12 @@ fn main() {
             SystemSet::on_update(AppState::InGame)
                 // Timers should be ticked first
                 .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
+                .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
                 .with_system(handle_packets.system().label(InputFromPlayer).before("player_attr"))
                 //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
-                .with_system(shoot.system().label(InputFromPlayer))
-                .with_system(set_mouse_coords.system().label(InputFromPlayer))
+                .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
+                .with_system(spawn_projectile.system().label(InputFromPlayer).after("shoot"))
                 .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
@@ -250,7 +270,7 @@ fn main() {
         #[cfg(feature = "web")]
         app.add_system_set(
             SystemSet::on_update(AppState::InGame)
-                .with_system(send_packets.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(send_location.system().label(InputFromPlayer).before("player_attr"))
 
         );
 
@@ -294,6 +314,7 @@ fn main() {
 
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
+// Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>, mut logs: ResMut<GameLogs>, asset_server: Res<AssetServer>) {
     let desired_ticks_per_second: f32 = 60.0;
 

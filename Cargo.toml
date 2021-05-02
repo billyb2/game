@@ -20,7 +20,6 @@ panic = "abort"
 
 [profile.fast-web]
 inherits = "dev"
-panic = "abort"
 
 [dependencies]
 bevy = { version = "0.5", default-features = false }
