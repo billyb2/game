@@ -1,10 +1,11 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::prelude::*;
+
 use crate::helper_functions::collide;
 use crate::helper_functions::slice_to_u32;
-use crc32fast::Hasher;
 
+use crc32fast::Hasher;
 use lz4_flex::frame::decompress;
 
 #[derive(Bundle, Copy, Clone)]

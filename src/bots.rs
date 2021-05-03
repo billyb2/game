@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::map::Map;
 
-// The first item of the tuple is the requested movement of the player
+// The returned value is the requested movement angle of the player
 
 pub fn bounce(player_coords: Vec3, player_size: Vec2, current_direction: f32, map: &mut Map) -> f32 {
     let movement_radius = Vec3::new(7.0, 0.0, 0.0);

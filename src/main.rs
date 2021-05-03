@@ -254,6 +254,7 @@ fn main() {
                 // Timers should be ticked first
                 .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
+                .with_system(send_location.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(handle_movement_packets.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
                 //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
@@ -268,13 +269,6 @@ fn main() {
                 .with_system(log_system.system().after("dead_players"))
                 .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
                 .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
-        );
-
-        #[cfg(feature = "web")]
-        app.add_system_set(
-            SystemSet::on_update(AppState::InGame)
-                .with_system(send_location.system().label(InputFromPlayer).before("player_attr"))
-
         );
 
         app.add_system_set(
