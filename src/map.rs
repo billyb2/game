@@ -28,7 +28,9 @@ pub struct Map {
 
 impl MapObject {
     fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: u8) -> bool {
-        if collide(self.coords, self.size, other_object_coords, other_object_size) && self.collidable {
+        // Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
+        if self.collidable && collide(self.coords, self.size, other_object_coords, other_object_size) {
+            // Damagable objects take damage
             if self.health.is_some() {
                 if self.health.unwrap() as i16 - damage as i16 <= 0 {
                     self.health = Some(0);
@@ -66,9 +68,10 @@ impl Map {
         //Decompress the map
         let mut bytes: Vec<u8> = decompress(compressed_bytes).unwrap();
 
-       //Unallocates all the extra memory
+       //Unallocates all the extra capacity
        bytes.shrink_to_fit();
 
+        // The first few bytes of the map are metadata, like the dimensions of the map, its background color, etc.
         let map_width = slice_to_u32(&bytes[0..=3]) * 5;
         let map_height = slice_to_u32(&bytes[4..=7]) * 5;
         let background_color = Color::rgb_u8(bytes[8], bytes[9], bytes[10]);
@@ -79,6 +82,7 @@ impl Map {
         let mut crc32: u32 = 0;
         let mut data_end_index = 0;
 
+        // Iterates through each 22 byte binary map object
         while i < bytes.len() - 22 {
             let x = (slice_to_u32(&bytes[i..=(i + 3)])) as f32;
             let y = (slice_to_u32(&bytes[(i + 4)..=(i + 7)])) as f32;
@@ -92,6 +96,7 @@ impl Map {
                     size: Vec2::new(width, height),
                     player_spawn: matches!(bytes[(i + 16)], 255),
                     collidable: matches!(bytes[(i + 17)], 255),
+                    // This will eventually become a real image, eventually :(
                     color: Color::rgba_u8(bytes[i + 18], bytes[i + 19], bytes[i + 20], bytes[i + 21]),
                     health: match bytes[i + 22] {
                         0 => None,
@@ -100,7 +105,7 @@ impl Map {
                 }
             );
 
-            // Look for an entirely null map object, indicating the end of the data and the beginning of the CRC32
+            // Look for an entirely null map object, indicating the end of the map object data and the beginning of the CRC32
             if bytes[(i + 22)..=(i + 43)] == [0; 22] {
                 crc32 = slice_to_u32(&bytes[(i + 44)..=(i + 47)]);
                 data_end_index = i + 43;
@@ -119,6 +124,7 @@ impl Map {
 
         }
 
+        // Performs a CRC32 hash of the file, and compares it to the CRC32 given
         let mut hasher = Hasher::new();
         hasher.update(&bytes[0..=data_end_index]);
 
@@ -140,6 +146,7 @@ impl Map {
         let mut i = 0;
         let mut collided = false;
 
+        // The collision function just iterates throuhg each map object within the map, and runs the collide function within
         while i != self.objects.len() {
             if self.objects[i].collision(other_object_coords, other_object_size, damage) {
                 if self.objects[i].health == Some(0) {
@@ -170,7 +177,7 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 
     let mut i = 0;
 
-    while i < (*map).objects.len() {
+    while i != (*map).objects.len() {
         let map_coords = (*map).objects[i].coords;
         let map_object_size =  (*map).objects[i].size;
         let color = (*map).objects[i].color;
@@ -197,6 +204,7 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             }
         };
 
+        // Spawn a new map sprite
         commands
             .spawn_bundle(SpriteBundle {
                 material: color.clone(),
