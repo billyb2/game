@@ -16,6 +16,8 @@ use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
 
+use serde::{Deserialize, Serialize};
+
 //use bots::*;
 use map::*;
 use player_input::*;
@@ -44,7 +46,7 @@ pub enum AppState {
 }
 
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum ProjectileType {
     Regular,
     Speedball,
@@ -116,7 +118,7 @@ pub struct ButtonMaterials {
 // The mouse's position in 2D world coordinates
 pub struct MousePosition(Vec2);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ShootEvent {
     start_pos: Vec3,
     player_id: u8,
@@ -124,7 +126,7 @@ pub struct ShootEvent {
     health: u8,
     model: Model,
     max_distance: f32,
-    recoil_range: f32,
+    recoil_vec: Vec<f32>,
     speed: f32,
     projectile_type: ProjectileType,
     damage: Damage,
@@ -252,11 +254,12 @@ fn main() {
                 // Timers should be ticked first
                 .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
-                .with_system(handle_packets.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(handle_movement_packets.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
                 //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
-                .with_system(spawn_projectile.system().label(InputFromPlayer).after("shoot"))
+                .with_system(spawn_projectile.system().label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
                 .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))

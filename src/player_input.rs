@@ -103,10 +103,37 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &PlayerID, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>, mut net: ResMut<NetworkResource>,) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &PlayerID, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>) {
     for (bursting, transform, id, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer) in query.iter() {
         if *id == PlayerID(0) {
             if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
+                let mut rng = rand::thread_rng();
+
+                // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
+                // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
+                let mut recoil_vec: Vec<f32> = if *model == Model::Shotgun {
+                    Vec::with_capacity(12)
+
+                } else {
+                    Vec::with_capacity(1)
+
+                };
+
+                // Fill the recoil_vec to capacity
+                while recoil_vec.len() < recoil_vec.capacity() {
+                    let recoil =
+                        if recoil_range.0 == 0.0 {
+                            0.0
+
+                        } else {
+                            rng.gen_range(-recoil_range.0..recoil_range.0)
+
+                    };
+
+                    recoil_vec.push(recoil);
+
+                }
+
                 let event = ShootEvent {
                     start_pos: transform.translation,
                     player_id: id.0,
@@ -114,7 +141,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                     health: health.0,
                     model: *model,
                     max_distance: max_distance.0,
-                    recoil_range: recoil_range.0,
+                    recoil_vec,
                     speed: speed.0,
                     projectile_type: *projectile_type,
                     damage:*damage,
@@ -126,7 +153,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                 };
 
                 shoot_event.send(event);
-                //net.broadcast_message(event);
 
             }
             break;
@@ -137,7 +163,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&PlayerID, &mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&PlayerID, &mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>) {
     for ev in shoot_event.iter() {
         if ev.health != 0 {
             let angle = get_angle(ev.pos_direction.x, ev.pos_direction.y, ev.start_pos.x, ev.start_pos.y);
@@ -146,74 +172,57 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
             let mut speed = ev.speed;
 
-            let mut num_of_bullets = 1;
-
             let player_id = ev.player_id;
 
             for (id, mut bursting, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
-                // Checks that player 1 can shoot, and isnt reloading
-                if id.0 == player_id {
-                    if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading {
-                        shooting = true;
+                // Checks that said player can shoot, and isnt reloading
+                if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading  && id.0 == player_id {
+                    shooting = true;
+                    net.broadcast_message((*ev).clone());
 
-                        if ev.model == Model::Shotgun {
-                            num_of_bullets = 12;
+                     if ev.model == Model::BurstRifle {
+                        if !bursting.0 {
+                            bursting.0 = true;
+                            time_since_last_shot.0.set_duration(Duration::from_millis(45));
 
-                        } else if ev.model == Model::BurstRifle {
-                            if !bursting.0 {
-                                bursting.0 = true;
-                                time_since_last_shot.0.set_duration(Duration::from_millis(45));
+                        } else if ammo_in_mag.0 % 3 == 0 {
+                            bursting.0 = false;
+                            shooting = false;
 
-                            } else if ammo_in_mag.0 % 3 == 0 {
-                                bursting.0 = false;
-                                shooting = false;
-
-                                time_since_last_shot.0.set_duration(Duration::from_millis(500));
-
-                            }
+                            time_since_last_shot.0.set_duration(Duration::from_millis(500));
 
                         }
-
-
-                        if shooting {
-                            ammo_in_mag.0 -= 1;
-
-                        }
-
-                        time_since_last_shot.0.reset();
-
-                    } else if ammo_in_mag.0 == 0 {
-                        // Reload automatically if the player tries to shoot with no ammo
-                        ev_reload.send(ReloadEvent);
 
                     }
 
 
-                    // Bullets need to travel "backwards" when moving to the left
-                    if ev.pos_direction.x <= ev.start_pos.x {
-                        speed = -speed;
+                    if shooting {
+                        ammo_in_mag.0 -= 1;
 
                     }
 
-                    break;
+                    time_since_last_shot.0.reset();
+
+                } else if ammo_in_mag.0 == 0 && id.0 == 0{
+                    // Reload automatically if the player tries to shoot with no ammo
+                    ev_reload.send(ReloadEvent);
 
                 }
 
+
+                // Bullets need to travel "backwards" when moving to the left
+                if ev.pos_direction.x <= ev.start_pos.x {
+                    speed = -speed;
+
+                }
+
+                break;
+
+
             }
 
-            if shooting {
-                let mut rng = rand::thread_rng();
-
-                for _ in 0..num_of_bullets {
-                    let recoil =
-                        if ev.recoil_range == 0.0 {
-                            0.0
-
-                        } else {
-                            rng.gen_range(-ev.recoil_range..ev.recoil_range)
-
-                    };
-
+            if shooting || player_id != 0 {
+                for recoil in &ev.recoil_vec {
                     let movement = RequestedMovement::new(angle + recoil, speed);
 
                     let material =

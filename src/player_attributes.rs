@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::components::*;
 use crate::ProjectileType;
@@ -45,7 +46,7 @@ impl Player {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Ability {
     Stim,
     Phase,
@@ -69,7 +70,7 @@ pub struct RespawnTimer(pub Timer);
 pub struct UsingAbility(pub bool);
 
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Model {
     Pistol,
     Shotgun,

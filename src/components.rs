@@ -1,4 +1,5 @@
 use bevy::core::Timer;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
 pub enum MovementType {
@@ -37,7 +38,7 @@ impl RequestedMovement {
 #[derive(Debug, PartialEq)]
 pub struct Health(pub u8);
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Damage(pub u8);
 
 #[derive(Debug, PartialEq)]
