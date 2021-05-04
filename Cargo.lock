@@ -983,16 +983,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "console_log"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "501a375961cef1a0d44767200e66e4a559283097e91d0730b1d75dfb2f8a1494"
-dependencies = [
- "log",
- "web-sys",
-]
-
-[[package]]
 name = "copyless"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1491,10 +1481,7 @@ dependencies = [
  "bevy",
  "bevy_networking_turbulence",
  "bevy_webgl2",
- "console_error_panic_hook",
- "console_log",
  "crc32fast",
- "log",
  "lz4_flex",
  "rand 0.8.3",
  "serde",
@@ -3584,9 +3571,9 @@ dependencies = [
 
 [[package]]
 name = "webrtc-unreliable"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26c5be03542fb53be825c466d2b17d4061fc8d6624fff6ee510da39b9279d9f6"
+checksum = "3648e9d5b973b97bd9c91423a7d03d7196fcc0c41e210cac55449a5d43c29fb5"
 dependencies = [
  "async-io",
  "byteorder",
@@ -3597,7 +3584,7 @@ dependencies = [
  "http",
  "log",
  "openssl",
- "rand 0.7.3",
+ "rand 0.8.3",
 ]
 
 [[package]]

@@ -67,8 +67,8 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
         //let ip_address = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
 
         // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
-
         println!("Listening on {:?}", &socket_address);
+
         net.listen(socket_address);
 
     }
@@ -76,7 +76,6 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     // Currently, only web builds can join (until we add UDP servers)
     #[cfg(feature = "web")]
     if !hosting.0 {
-        log::info!("Net: Connecting to {:?}", socket_address);
         println!("Connecting to {:?}", socket_address);
 
         net.connect(socket_address);

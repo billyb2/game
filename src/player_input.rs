@@ -201,23 +201,23 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                     }
 
+                    // Bullets need to travel "backwards" when moving to the left
+                    if ev.pos_direction.x <= ev.start_pos.x {
+                        speed = -speed;
+
+                    }
+
                     time_since_last_shot.0.reset();
+
+                    break;
 
                 } else if ammo_in_mag.0 == 0 && id.0 == 0{
                     // Reload automatically if the player tries to shoot with no ammo
                     ev_reload.send(ReloadEvent);
 
-                }
-
-
-                // Bullets need to travel "backwards" when moving to the left
-                if ev.pos_direction.x <= ev.start_pos.x {
-                    speed = -speed;
+                    break;
 
                 }
-
-                break;
-
 
             }
 

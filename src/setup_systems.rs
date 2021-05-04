@@ -1,5 +1,6 @@
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use bevy::prelude::*;
+use rand::Rng;
 
 use crate::*;
 
@@ -14,7 +15,10 @@ use crate::*;
 
 pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.insert_resource(Skins {
-        phase: materials.add(Color::rgb_u8(100, 242, 84).into()),
+        phase: materials.add(Color::rgb_u8(229, 2, 146).into()),
+        engineer: materials.add(Color::rgb_u8(237, 166, 35).into()),
+        stim: materials.add(Color::rgb_u8(63, 239, 35).into()),
+        wall: materials.add(Color::rgb_u8(43, 36, 244).into()),
 
     });
 
@@ -141,13 +145,23 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map>) {
     let mut i: u8 = 0;
 
+    let mut rng = rand::thread_rng();
+
     for object in map.objects.iter() {
         if object.player_spawn {
+            let ability: Ability = rng.gen();
+
             commands
-                .spawn_bundle(Player::new(i, Ability::Phase))
-                .insert_bundle(Gun::new(Model::AssaultRifle, Ability::Phase))
+                .spawn_bundle(Player::new(i, ability))
+                .insert_bundle(Gun::new(Model::BurstRifle, ability))
                 .insert_bundle(SpriteBundle {
-                    material: materials.phase.clone(),
+                    material: match ability {
+                        Ability::Phase => materials.phase.clone(),
+                        Ability::Engineer => materials.engineer.clone(),
+                        Ability::Stim => materials.stim.clone(),
+                        Ability::Wall => materials.wall.clone(),
+
+                    },
                     sprite: Sprite::new(Vec2::new(15.0, 15.0)),
                     transform: Transform::from_translation(object.coords),
                     ..Default::default()

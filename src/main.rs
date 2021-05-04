@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-//mod bots;
+mod bots;
 mod components;
 mod system_labels;
 mod map;
@@ -18,7 +18,7 @@ use bevy::sprite::SpriteSettings;
 
 use serde::{Deserialize, Serialize};
 
-//use bots::*;
+use bots::*;
 use map::*;
 use player_input::*;
 use helper_functions::collide;
@@ -98,6 +98,9 @@ impl Projectile {
 
 pub struct Skins {
     phase: Handle<ColorMaterial>,
+    engineer: Handle<ColorMaterial>,
+    stim: Handle<ColorMaterial>,
+    wall: Handle<ColorMaterial>,
 
 }
 
@@ -171,8 +174,7 @@ fn main() {
 
         #[cfg(feature = "web")]
         {
-            console_log::init_with_level(log::Level::Debug).expect("cannot initialize console_log");
-            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
         };
 
         // Antialiasing
@@ -257,7 +259,7 @@ fn main() {
                 .with_system(send_location.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(handle_movement_packets.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
-                //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(bots.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
                 .with_system(spawn_projectile.system().label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
@@ -497,9 +499,9 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
     }
 }
 
-/*fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
+fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
     for (coords, sprite, id, mut requested_movement, speed) in player_query.iter_mut() {
-        if *id == PlayerID(1) {
+        if *id == PlayerID(2) {
             let res = bounce(coords.translation, sprite.size, requested_movement.angle, &mut map);
 
             requested_movement.angle = res;
@@ -509,7 +511,7 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
 
     }
 
-}*/
+}
 
 fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
     mut t: QuerySet<(
