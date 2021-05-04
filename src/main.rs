@@ -107,6 +107,7 @@ pub struct Skins {
 pub struct ProjectileMaterials {
     pub regular: Handle<ColorMaterial>,
     pub speedball: Handle<ColorMaterial>,
+    // The engineer's bullets are a different color
     pub engineer: Handle<ColorMaterial>,
 
 }

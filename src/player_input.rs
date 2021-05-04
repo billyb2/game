@@ -175,6 +175,12 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
             let player_id = ev.player_id;
 
             for (id, mut bursting, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
+                // Bullets need to travel "backwards" when moving to the left
+                if ev.pos_direction.x <= ev.start_pos.x {
+                    speed = -speed;
+
+                }
+
                 // Checks that said player can shoot, and isnt reloading
                 if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading  && id.0 == player_id {
                     shooting = true;
@@ -198,12 +204,6 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                     if shooting {
                         ammo_in_mag.0 -= 1;
-
-                    }
-
-                    // Bullets need to travel "backwards" when moving to the left
-                    if ev.pos_direction.x <= ev.start_pos.x {
-                        speed = -speed;
 
                     }
 

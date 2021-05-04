@@ -27,7 +27,9 @@ bevy = { git = "https://github.com/bevyengine/bevy", rev = "3af3334cfeb551782cc5
 # Allows for building bevy to the web
 bevy_webgl2 = { version = "0.5", optional=true }
 # Using a PR of bevy_networking_turbulence that works with the latest version of Bevy
-bevy_networking_turbulence = { git = "https://github.com/phuoc-thanh/bevy_networking_turbulence", branch = "dev", default-features = false, features = ["use-webrtc"] }
+# I also used my PR of said PR to use the latest version of naia, which fixes a bug that doesn't allow WebRTC to work in Firefox
+bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "dev", default-features = false, features = ["use-webrtc"] }
+
 # Used for sending structs over networks easily and efficiently
 serde = { version = "1", features = ["derive"] }
 
@@ -65,9 +67,6 @@ bevy = { git = "https://github.com/bevyengine/bevy", rev = "3af3334cfeb551782cc5
 bevy_ecs = { git = "https://github.com/bevyengine/bevy", rev = "3af3334cfeb551782cc5b33389d6a9898908e170", default-features = false }
 bevy_app = { git = "https://github.com/bevyengine/bevy", rev = "3af3334cfeb551782cc5b33389d6a9898908e170", default-features = false }
 bevy_tasks = { git = "https://github.com/bevyengine/bevy", rev = "3af3334cfeb551782cc5b33389d6a9898908e170", default-features = false }
-
-naia-client-socket = { path = "deps/naia-socket/client" }
-naia-server-socket = { path = "deps/naia-socket/server" }
 
 [package.metadata.android]
 build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
