@@ -2,8 +2,8 @@
 
 Please follow the instructions below in order, while it seems complicated, it makes having builds for web and native PC's very easy.
 
-## Instructions
-### Firstly, install Rust and clone this repo using `git clone --recursive` instead of the usual `git clone`
+## Pre-build Instructions
+### Firstly, install [Rust](https://www.rust-lang.org/tools/install)
 
 ### Windows
 - Please install [VS2019 Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16)
@@ -29,6 +29,7 @@ The nightly compiler allows us to use unstable Rust optimizations for both faste
 
 `cargo-make` allows us to use custom build configurations for the web and for native builds.
 
+## Instructions for running / building
 
 To run the game in development mode (with very very fast build times), run:
 `cargo make run`
@@ -43,8 +44,11 @@ Thanks to `bevy_webgl2`, this game can run on the web! When running the game, ex
 
 I'd recommend using Chrome (or Chromium based browsers like Brave) for testing WASM builds. The performance on Firefox is pretty bad (30 fps) without messing with flags, and even then it's still slightly worse than Chrome.
 
-To build for the WASM (Web ASseMbly), run:
+To build for WASM (Web ASseMbly), run:
 `cargo make serve`
+
+To make a very optimized build for WASM (slow build times, fast run times), run:
+`cargo make serve-release`
 
 To run a debug WASM build (not recommended since the performance is horrible), run:
 `cargo make serve-fast`
@@ -53,5 +57,4 @@ I only recommend debug builds if you want to very quickly check a change:
 
 ## Before pushing your Git commit
 
-Please try running `cargo make serve` and verifying that WASM builds and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later.
-
+Please try running `cargo make serve-fast` and verifying that WASM builds and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later.

@@ -17,10 +17,15 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 
 [tasks.wasm-bindgen-cli]
 #Gotta install a slightly older verson of wasm-bindgen-cli
-install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", version = "0.2.69"}
+install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help"}
 
-[tasks.cargo-build-web]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--release", "-Z", "unstable-options"]
+[tasks.cargo-build-web-release]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "release-web", "-Z", "unstable-options"]
+command = "cargo"
+dependencies = ["install-target-wasm32-unknown-unknown"]
+
+[tasks.cargo-build-web-opt]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "opt-web", "-Z", "unstable-options"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
@@ -29,10 +34,15 @@ args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--p
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
-[tasks.build-web]
-args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "${CARGO_WASM_PATH}"]
+[tasks.build-web-release]
+args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/release/game.wasm"]
 command = "wasm-bindgen"
-dependencies = ["cargo-build-web", "wasm-bindgen-cli"]
+dependencies = ["cargo-build-web-release", "wasm-bindgen-cli"]
+
+[tasks.build-web-opt]
+args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/opt-web/game.wasm"]
+command = "wasm-bindgen"
+dependencies = ["cargo-build-web-opt", "wasm-bindgen-cli"]
 
 [tasks.build-web-fast]
 args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/fast-web/game.wasm"]
@@ -61,7 +71,15 @@ dependencies = ["build-native-release"]
 
 [tasks.serve]
 command = "basic-http-server"
-dependencies = ["build-web", "basic-http-server"]
+dependencies = ["build-web-opt", "basic-http-server"]
+
+[tasks.serve-release]
+command = "basic-http-server"
+dependencies = ["build-web-release", "basic-http-server"]
+
+[tasks.serve-opt]
+command = "basic-http-server"
+dependencies = ["build-web-opt", "basic-http-server"]
 
 [tasks.serve-fast]
 command = "basic-http-server"
