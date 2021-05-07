@@ -31,8 +31,9 @@ impl Player {
             id: PlayerID(id),
             health: Health(100),
             speed: match ability {
-                Ability::Stim => PlayerSpeed(13.5),
-                _ => PlayerSpeed(12.5),
+                // Stim players have a faster default running speed
+                Ability::Stim => PlayerSpeed(13.0),
+                _ => PlayerSpeed(11.0),
             },
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
@@ -177,11 +178,11 @@ impl Gun {
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
-                Model::Pistol => Speed(12.0),
-                Model::Shotgun => Speed(11.0),
-                Model::Speedball => Speed(0.25),
-                Model::BurstRifle => Speed(12.0),
-                Model::AssaultRifle => Speed(12.0),
+                Model::Pistol => Speed(15.0),
+                Model::Shotgun => Speed(14.0),
+                Model::Speedball => Speed(0.5),
+                Model::BurstRifle => Speed(15.0),
+                Model::AssaultRifle => Speed(16.0),
 
             },
             projectile_size: Size::new(5.0, 5.0),

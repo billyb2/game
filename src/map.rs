@@ -1,12 +1,14 @@
 #![allow(clippy::type_complexity)]
 
+use std::io::Read;
+
 use bevy::prelude::*;
 
 use crate::helper_functions::collide;
 use crate::helper_functions::slice_to_u32;
 
 use crc32fast::Hasher;
-use lz4_flex::frame::decompress;
+use lz4_flex::frame::FrameDecoder;
 
 #[derive(Bundle, Copy, Clone)]
 pub struct MapObject {
@@ -67,7 +69,15 @@ impl Map {
 
     pub fn from_bin(compressed_bytes: &[u8]) -> Map {
         //Decompress the map
-        let mut bytes: Vec<u8> = decompress(compressed_bytes).unwrap();
+        let mut bytes: Vec<u8> = Vec::with_capacity(500);
+
+        let mut decoder = FrameDecoder::new(compressed_bytes);
+
+        decoder.read_to_end(&mut bytes).unwrap();
+
+        // Just dropping the FrameDecoder to save a little bit of memroy
+        std::mem::drop(decoder);
+
 
        //Unallocates all the extra capacity
        bytes.shrink_to_fit();

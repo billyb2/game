@@ -143,11 +143,11 @@ var customMapFormat = {
                     if (layer.objectAt(i) != null) {
                         let object = layer.objectAt(i);
 
-                        let x = object.x * 5;
-                        let y = object.y * 5;
+                        let x = object.x * 5.0 * (4.0/3.0);
+                        let y = object.y * 5.0 * (4.0/3.0);
 
-                        let width = object.width * 5;
-                        let height = object.height * 5;
+                        let width = object.width * 5.0 * (4.0/3.0);
+                        let height = object.height * 5.0 * (4.0/3.0);
 
                         let player_spawn = object.property("player_spawn");
                         let player_collidable = object.property("player_collidable");

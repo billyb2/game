@@ -15,16 +15,20 @@ pub fn move_camera(
     mut q: QuerySet<(
         Query<&mut Transform, With<GameCamera>>,
         Query<(&Transform, &PlayerID, Changed<Transform>)>)
-    >) {
+    >,
+    my_player_id: Res<MyPlayerID>
+    ) {
     let mut x =  q.q0_mut().single_mut().unwrap().translation.x;
     let mut y =  q.q0_mut().single_mut().unwrap().translation.y;
 
 
-    for (player, id, _) in q.q1_mut().iter_mut() {
-        if id.0 == 0 {
-            x = player.translation.x;
-            y= player.translation.y;
+     if let Some(my_id) = &my_player_id.0 {
+        for (player, id, _) in q.q1_mut().iter_mut() {
+                if id.0 == my_id.0 {
+                    x = player.translation.x;
+                    y= player.translation.y;
 
+            }
         }
     }
 
@@ -34,7 +38,7 @@ pub fn move_camera(
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>) {
+pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>) {
     let mut angle = None;
 
     if keyboard_input.pressed(keybindings.left) && angle.is_none() {
@@ -90,177 +94,187 @@ pub fn player_1_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Q
     }
 
     // Only do a change event if a key has been pressed
-    if let Some(angle) = angle {
-        for (mut requested_movement, id, speed) in query.iter_mut() {
-            if id.0 == 0 {
-                requested_movement.angle = angle;
-                requested_movement.speed = speed.0;
+    if let Some(my_id) = &my_player_id.0 {
+        if let Some(angle) = angle {
+            for (mut requested_movement, id, speed) in query.iter_mut() {
+                if id.0 == my_id.0 {
+                    requested_movement.angle = angle;
+                    requested_movement.speed = speed.0;
+
+                    break;
+
+                }
+            }
+        }
+    }
+}
+
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &PlayerID, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>, my_player_id: Res<MyPlayerID>) {
+    for (bursting, transform, id, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer) in query.iter() {
+        if let Some(my_id)= &my_player_id.0 {
+            if id.0 == my_id.0 {
+                if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
+                    let mut rng = rand::thread_rng();
+
+                    // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
+                    // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
+                    let mut recoil_vec: Vec<f32> = if *model == Model::Shotgun {
+                        Vec::with_capacity(12)
+
+                    } else {
+                        Vec::with_capacity(1)
+
+                    };
+
+                    // Fill the recoil_vec to capacity
+                    while recoil_vec.len() < recoil_vec.capacity() {
+                        let recoil =
+                            if recoil_range.0 == 0.0 {
+                                0.0
+
+                            } else {
+                                rng.gen_range(-recoil_range.0..recoil_range.0)
+
+                        };
+
+                        recoil_vec.push(recoil);
+
+                    }
+
+                    let event = ShootEvent {
+                        start_pos: transform.translation,
+                        player_id: id.0,
+                        pos_direction: mouse_pos.0,
+                        health: health.0,
+                        model: *model,
+                        max_distance: max_distance.0,
+                        recoil_vec,
+                        speed: speed.0,
+                        projectile_type: *projectile_type,
+                        damage:*damage,
+                        player_ability: *player_ability,
+                        size: Vec2::new(size.width, size.height),
+                        reloading: reload_timer.reloading,
+
+
+                    };
+
+                    shoot_event.send(event);
+
+                }
 
                 break;
 
             }
         }
-    }
-}
-
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &PlayerID, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>) {
-    for (bursting, transform, id, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer) in query.iter() {
-        if *id == PlayerID(0) {
-            if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
-                let mut rng = rand::thread_rng();
-
-                // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
-                // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
-                let mut recoil_vec: Vec<f32> = if *model == Model::Shotgun {
-                    Vec::with_capacity(12)
-
-                } else {
-                    Vec::with_capacity(1)
-
-                };
-
-                // Fill the recoil_vec to capacity
-                while recoil_vec.len() < recoil_vec.capacity() {
-                    let recoil =
-                        if recoil_range.0 == 0.0 {
-                            0.0
-
-                        } else {
-                            rng.gen_range(-recoil_range.0..recoil_range.0)
-
-                    };
-
-                    recoil_vec.push(recoil);
-
-                }
-
-                let event = ShootEvent {
-                    start_pos: transform.translation,
-                    player_id: id.0,
-                    pos_direction: mouse_pos.0,
-                    health: health.0,
-                    model: *model,
-                    max_distance: max_distance.0,
-                    recoil_vec,
-                    speed: speed.0,
-                    projectile_type: *projectile_type,
-                    damage:*damage,
-                    player_ability: *player_ability,
-                    size: Vec2::new(size.width, size.height),
-                    reloading: reload_timer.reloading,
-
-
-                };
-
-                shoot_event.send(event);
-
-            }
-            break;
-
-        }
 
     }
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&PlayerID, &mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>) {
-    for ev in shoot_event.iter() {
-        if ev.health != 0 {
-            let angle = get_angle(ev.pos_direction.x, ev.pos_direction.y, ev.start_pos.x, ev.start_pos.y);
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&PlayerID, &mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>) {
+    if let Some(my_id)= &my_player_id.0 {
+        for ev in shoot_event.iter() {
+            if ev.health != 0 {
+                let angle = get_angle(ev.pos_direction.x, ev.pos_direction.y, ev.start_pos.x, ev.start_pos.y);
 
-            let mut shooting = false;
+                let mut shooting = false;
 
-            let mut speed = ev.speed;
+                let mut speed = ev.speed;
 
-            let player_id = ev.player_id;
+                let player_id = ev.player_id;
 
-            for (id, mut bursting, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
-                // Bullets need to travel "backwards" when moving to the left
-                if ev.pos_direction.x <= ev.start_pos.x {
-                    speed = -speed;
+                for (id, mut bursting, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
+                    // Bullets need to travel "backwards" when moving to the left
+                    if ev.pos_direction.x <= ev.start_pos.x {
+                        speed = -speed;
 
-                }
+                    }
 
-                // Checks that said player can shoot, and isnt reloading
-                if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading  && id.0 == player_id {
-                    shooting = true;
-                    net.broadcast_message((*ev).clone());
+                    // Checks that said player can shoot, and isnt reloading
+                    if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading  && id.0 == player_id {
+                        shooting = true;
+                        net.broadcast_message((*ev).clone());
 
-                     if ev.model == Model::BurstRifle {
-                        if !bursting.0 {
-                            bursting.0 = true;
-                            time_since_last_shot.0.set_duration(Duration::from_millis(45));
+                        if ev.model == Model::BurstRifle {
+                            if !bursting.0 {
+                                bursting.0 = true;
+                                time_since_last_shot.0.set_duration(Duration::from_millis(45));
 
-                        } else if ammo_in_mag.0 % 3 == 0 {
-                            bursting.0 = false;
-                            shooting = false;
+                            } else if ammo_in_mag.0 % 3 == 0 {
+                                bursting.0 = false;
+                                shooting = false;
 
-                            time_since_last_shot.0.set_duration(Duration::from_millis(500));
+                                time_since_last_shot.0.set_duration(Duration::from_millis(500));
+
+                            }
 
                         }
 
+
+                        if shooting {
+                            ammo_in_mag.0 -= 1;
+
+                        }
+
+                        time_since_last_shot.0.reset();
+
+                        break;
+
+                    } else if ammo_in_mag.0 == 0 && id.0 == my_id.0 {
+                        // Reload automatically if the player tries to shoot with no ammo
+                        ev_reload.send(ReloadEvent);
+
+                        break;
+
                     }
-
-
-                    if shooting {
-                        ammo_in_mag.0 -= 1;
-
-                    }
-
-                    time_since_last_shot.0.reset();
-
-                    break;
-
-                } else if ammo_in_mag.0 == 0 && id.0 == 0{
-                    // Reload automatically if the player tries to shoot with no ammo
-                    ev_reload.send(ReloadEvent);
-
-                    break;
 
                 }
 
-            }
+                if shooting || player_id != my_id.0 {
+                    for recoil in &ev.recoil_vec {
+                        let movement = RequestedMovement::new(angle + recoil, speed);
 
-            if shooting || player_id != 0 {
-                for recoil in &ev.recoil_vec {
-                    let movement = RequestedMovement::new(angle + recoil, speed);
+                        let material =
+                            if ev.player_ability == Ability::Engineer {
+                                materials.engineer.clone()
 
-                    let material =
-                        if ev.player_ability == Ability::Engineer {
-                            materials.engineer.clone()
+                            } else if ev.projectile_type == ProjectileType::Regular {
+                                materials.regular.clone()
 
-                        } else if ev.projectile_type == ProjectileType::Regular {
-                            materials.regular.clone()
+                            } else {
+                                materials.speedball.clone()
 
-                        } else {
-                            materials.speedball.clone()
+                            };
 
-                        };
-
-                    commands
-                        .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
-                        .insert_bundle(SpriteBundle {
-                            material,
-                            sprite: Sprite::new(Vec2::new(5.0, 5.0)),
-                            transform: Transform::from_xyz(ev.start_pos.x + 2.5, ev.start_pos.y + 2.5, 0.0),
-                            ..Default::default()
-                        });
+                        commands
+                            .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
+                            .insert_bundle(SpriteBundle {
+                                material,
+                                sprite: Sprite::new(Vec2::new(5.0 * (4.0/3.0), 5.0 * (4.0/3.0))),
+                                transform: Transform::from_xyz(ev.start_pos.x + 5.0, ev.start_pos.y + 5.0, 0.0),
+                                ..Default::default()
+                            });
+                    }
                 }
             }
         }
+
     }
 }
 
-pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>) {
+pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>, my_player_id: Res<MyPlayerID>) {
     // Only start a reload if the reload event is read
-    for _ in ev_reload.iter() {
-        for (ammo_in_mag, max_ammo, id, mut reload_timer) in query.iter_mut() {
-            if *id == PlayerID(0) && ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
-                reload_timer.reloading = true;
-                reload_timer.timer.reset();
+    if let Some(my_id)= &my_player_id.0 {
+        for _ in ev_reload.iter() {
+            for (ammo_in_mag, max_ammo, id, mut reload_timer) in query.iter_mut() {
+                if id.0 == my_id.0 && ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
+                    reload_timer.reloading = true;
+                    reload_timer.timer.reset();
+
+                }
 
             }
-
         }
     }
 }

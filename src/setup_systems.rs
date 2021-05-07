@@ -147,6 +147,8 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
 
     let mut rng = rand::thread_rng();
 
+    let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(255);
+
     for object in map.objects.iter() {
         if object.player_spawn {
             let ability: Ability = rng.gen();
@@ -162,15 +164,22 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
                         Ability::Wall => materials.wall.clone(),
 
                     },
-                    sprite: Sprite::new(Vec2::new(15.0, 15.0)),
+                    sprite: Sprite::new(Vec2::new(20.0, 20.0)),
                     transform: Transform::from_translation(object.coords),
                     ..Default::default()
                 });
 
-                i += 1;
+            if i != 0 {
+                availabie_player_ids.push(PlayerID(i));
+
+            }
+
+            i += 1;
 
         }
     }
+
+    commands.insert_resource(availabie_player_ids);
 }
 
 pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {
@@ -607,4 +616,19 @@ pub fn setup_default_controls(mut commands: Commands) {
         reload: KeyCode::R,
 
     });
+}
+
+pub fn setup_id(mut commands: Commands, hosting: Res<Hosting>) {
+    #[cfg(feature = "native")]
+    if hosting.0 {
+        commands.insert_resource(MyPlayerID(Some(PlayerID(0))));
+
+    }
+
+    #[cfg(feature = "web")]
+    if !hosting.0 {
+        commands.insert_resource(MyPlayerID(None));
+
+    }
+
 }

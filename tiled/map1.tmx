@@ -4,8 +4,8 @@
   <export target="map1.custom" format="custom"/>
  </editorsettings>
  <tileset firstgid="1" source="player.tsx"/>
- <tileset firstgid="2" source="map_objects.tsx"/>
- <tileset firstgid="5" source="floor.tsx"/>
+ <tileset firstgid="1" source="map_objects.tsx"/>
+ <tileset firstgid="1" source="floor.tsx"/>
  <objectgroup id="8" name="Object Layer 1">
   <object id="53" x="0" y="230" width="180" height="50">
    <properties>

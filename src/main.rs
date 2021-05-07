@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)]
 
-mod bots;
+//mod bots;
 mod components;
 mod system_labels;
 mod map;
@@ -18,7 +18,7 @@ use bevy::sprite::SpriteSettings;
 
 use serde::{Deserialize, Serialize};
 
-use bots::*;
+//use bots::*;
 use map::*;
 use player_input::*;
 use helper_functions::collide;
@@ -170,6 +170,8 @@ pub enum GameMode {
 
 }
 
+pub struct MyPlayerID(Option<PlayerID>);
+
 fn main() {
     let mut app = App::build();
 
@@ -216,6 +218,7 @@ fn main() {
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
         // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
+        .insert_resource(MyPlayerID(None))
         .insert_resource(GameMode::Deathmatch)
         .insert_resource(GameLogs::new());
 
@@ -242,12 +245,14 @@ fn main() {
         // Initialize InGame
         app.add_system_set(
             SystemSet::on_enter(AppState::InGame)
+                .label("setup_game_stuff")
                 .with_system(setup_game_ui.system())
                 .with_system(draw_map.system())
                 .with_system(setup_players.system())
                 // Set the mouse coordinates initially
                 .with_system(set_mouse_coords.system())
-                .with_system(setup_networking.system())
+                .with_system(setup_networking.system().label("setup_networking"))
+                .with_system(setup_id.system().system().label("setup_id"))
 
         )
 
@@ -255,13 +260,13 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(AppState::InGame)
                 // Timers should be ticked first
-                .with_system(timer_system.system().before("player_attr").before(InputFromPlayer))
+                .with_system(tick_timers.system().before("player_attr").before(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
                 .with_system(send_location.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(handle_movement_packets.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
-                .with_system(bots.system().label(InputFromPlayer).before("player_attr"))
-                .with_system(player_1_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
+                //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(my_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
                 .with_system(spawn_projectile.system().label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
                 .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
@@ -272,6 +277,21 @@ fn main() {
                 .with_system(log_system.system().after("dead_players"))
                 .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
                 .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
+        );
+
+        #[cfg(feature = "native")]
+        app.add_system_set(
+            SystemSet::on_update(AppState::InGame)
+                .with_system(handle_server_commands.system())
+
+        );
+
+        #[cfg(feature = "web")]
+        app.add_system_set(
+            SystemSet::on_update(AppState::InGame)
+                .with_system(handle_client_commands.system().before("player_attr").before(InputFromPlayer))
+                .with_system(request_id.system())
+
         );
 
         app.add_system_set(
@@ -470,7 +490,7 @@ fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
+fn tick_timers(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
     for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in timers.iter_mut() {
         time_since_last_shot.0.tick(time.delta());
         ability_charge.0.tick(time.delta());
@@ -497,10 +517,11 @@ fn timer_system(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abi
         }
 
         ready_to_send_packet.0.tick(time.delta());
+
     }
 }
 
-fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
+/*fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
     for (coords, sprite, id, mut requested_movement, speed) in player_query.iter_mut() {
         if *id == PlayerID(2) {
             let res = bounce(coords.translation, sprite.size, requested_movement.angle, &mut map);
@@ -512,7 +533,7 @@ fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedM
 
     }
 
-}
+}*/
 
 fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
     mut t: QuerySet<(

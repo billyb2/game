@@ -3,6 +3,9 @@ use bevy::math::{Vec2, Vec3};
 use std::f32::consts::PI;
 use std::convert::TryInto;
 
+#[cfg(feature = "native")]
+use std::net::UdpSocket;
+
 pub fn slice_to_u32(data: &[u8]) -> u32 {
     debug_assert!(data.len() == 4);
 
@@ -29,6 +32,21 @@ pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     }  else {
             PI
 
+    }
+}
+
+#[cfg(feature = "native")]
+pub fn get_available_port(ip: &str) -> Option<u16> {
+    (8000..9000).find(|port| port_is_available(ip, *port))
+}
+
+#[cfg(feature = "native")]
+fn port_is_available(ip: &str, port: u16) -> bool {
+    match UdpSocket::bind((ip, port)) {
+        Ok(_) => {
+            true
+        }
+        Err(_) => false,
     }
 }
 
