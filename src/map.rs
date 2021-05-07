@@ -25,7 +25,7 @@ pub struct MapObject {
 pub struct Map {
     pub objects: Vec<MapObject>,
     pub background_color: Color,
-    pub size: Size,
+    pub size: Vec2,
 
 }
 
@@ -61,7 +61,7 @@ impl Map {
     pub fn new(objects: Vec<MapObject>, size: [f32; 2], background_color: Color) -> Map {
         Map {
             objects,
-            size: Size::new(size[0],  size[1]),
+            size: Vec2::new(size[0], size[1]),
             background_color,
 
         }

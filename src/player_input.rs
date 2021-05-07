@@ -88,13 +88,14 @@ pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(
 
     }
 
-    if keyboard_input.pressed(keybindings.use_ability) {
-        ev_use_ability.send(AbilityEvent);
-
-    }
-
     // Only do a change event if a key has been pressed
     if let Some(my_id) = &my_player_id.0 {
+        if keyboard_input.pressed(keybindings.use_ability) {
+            ev_use_ability.send(AbilityEvent(my_id.0));
+
+        }
+
+
         if let Some(angle) = angle {
             for (mut requested_movement, id, speed) in query.iter_mut() {
                 if id.0 == my_id.0 {
@@ -277,91 +278,95 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
     }
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility), With<PlayerID>>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>) {
-    for _ in ev_use_ability.iter() {
-        for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, mut using_ability) in query.iter_mut() {
-            if ability_charge.0.finished() {
-                match ability {
-                    Ability::Wall => {
-                        if requested_movement.speed != 0.0 {
-                            let color = Color::rgb_u8(255, 255, 0);
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, my_player_id: Res<MyPlayerID>) {
+    if let Some(my_id) = &my_player_id.0 {
+        for _ in ev_use_ability.iter() {
+            for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, mut using_ability, id) in query.iter_mut() {
+                if ability_charge.0.finished() && id.0 == my_id.0 {
+                    match ability {
+                        Ability::Wall => {
+                            if requested_movement.speed != 0.0 {
+                                let color = Color::rgb_u8(255, 255, 0);
 
-                            let color_handle: Handle<ColorMaterial> = {
-                                let mut color_to_return = None;
+                                let color_handle: Handle<ColorMaterial> = {
+                                    let mut color_to_return = None;
 
-                                for (id, material_to_return) in materials.iter() {
-                                    if color == material_to_return.color {
-                                        color_to_return = Some(materials.get_handle(id));
+                                    for (id, material_to_return) in materials.iter() {
+                                        if color == material_to_return.color {
+                                            color_to_return = Some(materials.get_handle(id));
+
+                                        }
 
                                     }
 
-                                }
 
+                                    if let Some(color) = color_to_return {
+                                        color
 
-                                if let Some(color) = color_to_return {
-                                    color
+                                    } else {
+                                        materials.add(color.into())
 
-                                } else {
-                                    materials.add(color.into())
-
-                                }
-                            };
-
-                            let coords = transform.translation + Vec3::new(25.0 * requested_movement.angle.cos(), 25.0 * requested_movement.angle.sin(), 0.0);
-
-                            let size =
-                                if requested_movement.angle.abs() == PI / 2.0 {
-                                    Vec2::new(50.0, 25.0)
-
-                                } else {
-                                    Vec2::new(25.0, 50.0)
-
+                                    }
                                 };
 
+                                let coords = transform.translation + Vec3::new(25.0 * requested_movement.angle.cos(), 25.0 * requested_movement.angle.sin(), 0.0);
 
-                            commands
-                                .spawn_bundle(SpriteBundle {
-                                    material: color_handle.clone(),
-                                    sprite: Sprite::new(size),
-                                    transform: Transform {
-                                        translation: coords,
+                                let size =
+                                    if requested_movement.angle.abs() == PI / 2.0 {
+                                        Vec2::new(50.0, 25.0)
+
+                                    } else {
+                                        Vec2::new(25.0, 50.0)
+
+                                    };
+
+
+                                commands
+                                    .spawn_bundle(SpriteBundle {
+                                        material: color_handle.clone(),
+                                        sprite: Sprite::new(size),
+                                        transform: Transform {
+                                            translation: coords,
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
-                                    },
-                                    ..Default::default()
-                                })
-                                .insert(WallMarker(coords));
+                                    })
+                                    .insert(WallMarker(coords));
 
-                            map.objects.push(
-                                MapObject {
-                                    coords,
-                                    size,
-                                    color,
-                                    collidable: true,
-                                    player_spawn: false,
-                                    health: Some(30),
+                                map.objects.push(
+                                    MapObject {
+                                        coords,
+                                        size,
+                                        color,
+                                        collidable: true,
+                                        player_spawn: false,
+                                        health: Some(30),
 
-                                }
-                            );
+                                    }
+                                );
 
+                                ability_charge.0.reset();
+
+                            }
+                        },
+                        Ability::Phase => {
+                            requested_movement.speed += 500.0;
                             ability_charge.0.reset();
 
-                        }
-                    },
-                    Ability::Phase => {
-                        requested_movement.speed += 500.0;
-                        ability_charge.0.reset();
+                        },
+                        Ability::Stim => {
+                            if !using_ability.0 && ability_charge.0.finished() {
+                                speed.0 *= 2.0;
+                                ability_completed.0.reset();
+                                using_ability.0 = true;
 
-                    },
-                    Ability::Stim => {
-                        if !using_ability.0 && ability_charge.0.finished() {
-                            speed.0 *= 2.0;
-                            ability_completed.0.reset();
-                            using_ability.0 = true;
-
-                        }
-                    },
-                    _ => {},
+                            }
+                        },
+                        _ => {},
+                    }
                 }
+
+                break;
             }
         }
     }

@@ -79,7 +79,7 @@ SOFTWARE.
 pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_size: Vec2) -> bool {
     // A bounding box collision test between two rectangles
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
-    // It basical;y just adjusts the rectangles before doing a rectangle-rectangle collision test
+    // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
 
     let a_min = rect1_coords.truncate() - rect1_size / 2.0;
     let a_max = rect1_coords.truncate() + rect1_size / 2.0;
@@ -94,5 +94,21 @@ pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_s
         && a_max.y > b_min.y
 
     }
+
+}
+
+pub fn out_of_bounds(rect_coords: Vec3, rect_size: Vec2, map_size: Vec2) -> bool {
+    let a_min = rect_coords.truncate() - rect_size / 2.0;
+    let a_max = rect_coords.truncate() + rect_size / 2.0;
+
+    {
+        a_min.x <= 0.0
+        // Gotta make the y coordinates negative due to the funky way Bevy uses coordinates
+        || -a_min.y <= 0.0
+        || a_max.x >= map_size.x
+        || -a_max.y >= map_size.y
+
+    }
+
 
 }

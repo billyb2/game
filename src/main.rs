@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 //use bots::*;
 use map::*;
 use player_input::*;
-use helper_functions::collide;
+use helper_functions::{collide, out_of_bounds};
 
 use components::*;
 use menus::*;
@@ -348,7 +348,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let next_potential_pos = object.translation + (next_potential_movement * desired_ticks_per_second * time.delta_seconds());
 
-            if !map.collision(next_potential_pos, sprite.size, 0) {
+            if !map.collision(next_potential_pos, sprite.size, 0)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
                 object.translation = next_potential_pos;
 
                 match movement_type {

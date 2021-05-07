@@ -110,8 +110,8 @@ var customMapFormat = {
     write: function(map, fileName) {
         let array = [];
 
-        let map_width = map.width * 5;
-        let map_height = map.height * 5;
+        let map_width = map.width * 5.0 * (4.0/3.0);
+        let map_height = map.height * 5.0 * (4.0/3.0);
 
         array.push((map_width & 0xff000000) >> 24);
         array.push((map_width & 0x00ff0000) >> 16);
@@ -148,6 +148,16 @@ var customMapFormat = {
 
                         let width = object.width * 5.0 * (4.0/3.0);
                         let height = object.height * 5.0 * (4.0/3.0);
+
+                        if ((x + width) > map_width) {
+                            map_width = x + width;
+
+                        }
+
+                        if ((y + height) > map_height) {
+                            map_height = y + height;
+
+                        }
 
                         let player_spawn = object.property("player_spawn");
                         let player_collidable = object.property("player_collidable");
