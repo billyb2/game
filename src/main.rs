@@ -172,6 +172,8 @@ pub enum GameMode {
 
 pub struct MyPlayerID(Option<PlayerID>);
 
+pub struct LogEvent(String);
+
 fn main() {
     let mut app = App::build();
 
@@ -228,7 +230,8 @@ fn main() {
         // Adds some possible events, like reloading and using your ability
         .add_event::<ReloadEvent>()
         .add_event::<ShootEvent>()
-        .add_event::<AbilityEvent>();
+        .add_event::<AbilityEvent>()
+        .add_event::<LogEvent>();
 
         //The WebGL2 plugin is only added if we're compiling to WASM
         #[cfg(feature = "web")]
@@ -335,7 +338,7 @@ fn main() {
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>, mut logs: ResMut<GameLogs>, asset_server: Res<AssetServer>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>, mut log_event: EventWriter<LogEvent>) {
     let desired_ticks_per_second: f32 = 60.0;
 
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _visibility) in player_movements.iter_mut() {
@@ -390,23 +393,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                 if collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 && *health != Health(0) {
                     if (health.0 as i8 - damage.0 as i8) < 0 {
                         health.0 = 0;
-
-                        logs.0.insert(0,
-                            GameLog {
-                                text: TextSection {
-                                    value: format!("Player {} got murked\n", player_id.0 + 1),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 35.0,
-                                        color: Color::WHITE,
-                                    }
-                                },
-                                timer: Timer::from_seconds(8.0, false),
-
-                            }
-                        );
-
                         visibility.is_visible = false;
+
+                        log_event.send(LogEvent(format!("Player {} got murked", player_id.0 + 1)));
 
                     } else {
                         health.0 -= damage.0;
@@ -535,74 +524,96 @@ fn tick_timers(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abil
 
 }*/
 
+//TODO: Change this to seperate queries using Without
 fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
     mut t: QuerySet<(
         Query<&mut Text, With<AmmoText>>,
         Query<&mut Text, With<AbilityChargeText>>
-    )>
+    )>,
+    my_player_id: Res<MyPlayerID>
 ) {
-    let mut ammo_in_mag = 0;
-    let mut max_ammo = 0;
+    if let Some(my_id) = &my_player_id.0 {
+        let mut ammo_in_mag = 0;
+        let mut max_ammo = 0;
 
-    let mut ability_charge_percent = 0.0;
+        let mut ability_charge_percent = 0.0;
 
-    let mut reloading = false;
+        let mut reloading = false;
 
-    for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer) in query.iter() {
-        if *id == PlayerID(0) {
-            ammo_in_mag = (*player_ammo_count).0;
-            max_ammo = (*player_max_ammo).0;
+        for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer) in query.iter() {
+            if id.0 == my_id.0 {
+                ammo_in_mag = (*player_ammo_count).0;
+                max_ammo = (*player_max_ammo).0;
 
-            ability_charge_percent = ability_charge.0.percent() * 100.0;
+                ability_charge_percent = ability_charge.0.percent() * 100.0;
 
-            reloading = reload_timer.reloading;
+                reloading = reload_timer.reloading;
 
-            break;
+                break;
+
+            }
+        }
+
+        let mut ammo_text = t.q0_mut().single_mut().unwrap();
+        let mut ammo_pos = ammo_style.single_mut().unwrap();
+
+        if !reloading {
+            ammo_text.sections[0].value = ammo_in_mag.to_string();
+            ammo_text.sections[1].value = " / ".to_string();
+            ammo_text.sections[2].value = max_ammo.to_string();
+
+            ammo_pos.position.left = Val::Percent(90.0);
+
+        } else {
+            ammo_text.sections[0].value = "Reloading...".to_string();
+            ammo_text.sections[1].value = "".to_string();
+            ammo_text.sections[2].value = "".to_string();
+
+            // Since the Reloading text is pretty big, I need to shift it left slightly
+            ammo_pos.position.left = Val::Percent(83.0);
 
         }
-    }
 
-    let mut ammo_text = t.q0_mut().single_mut().unwrap();
-    let mut ammo_pos = ammo_style.single_mut().unwrap();
+        let mut ability_charge_text = t.q1_mut().single_mut().unwrap();
+        ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
 
-    if !reloading {
-        ammo_text.sections[0].value = ammo_in_mag.to_string();
-        ammo_text.sections[1].value = " / ".to_string();
-        ammo_text.sections[2].value = max_ammo.to_string();
+        let ability_charge_percent = ability_charge_percent as u8;
 
-        ammo_pos.position.left = Val::Percent(90.0);
+        if ability_charge_percent < 50 {
+            ability_charge_text.sections[0].style.color = Color::RED;
 
-    } else {
-        ammo_text.sections[0].value = "Reloading...".to_string();
-        ammo_text.sections[1].value = "".to_string();
-        ammo_text.sections[2].value = "".to_string();
+        } else if (50..100).contains(&ability_charge_percent) {
+            ability_charge_text.sections[0].style.color = Color::YELLOW;
 
-        // Since the Reloading text is pretty big, I need to shift it left slightly
-        ammo_pos.position.left = Val::Percent(83.0);
+        } else if ability_charge_percent == 100 {
+            ability_charge_text.sections[0].style.color = Color::GREEN;
+
+        }
 
     }
-
-    let mut ability_charge_text = t.q1_mut().single_mut().unwrap();
-    ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
-
-    let ability_charge_percent = ability_charge_percent as u8;
-
-    if ability_charge_percent < 50 {
-        ability_charge_text.sections[0].style.color = Color::RED;
-
-    } else if (50..100).contains(&ability_charge_percent) {
-        ability_charge_text.sections[0].style.color = Color::YELLOW;
-
-    } else if ability_charge_percent == 100 {
-        ability_charge_text.sections[0].style.color = Color::GREEN;
-
-    }
-
 }
 
-fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>) {
-    if logs.0.len() >= 9 {
-        logs.0.pop();
+fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
+    for log_text in log_event.iter() {
+        if logs.0.len() >= 9 {
+            logs.0.pop();
+
+        }
+
+        logs.0.insert(0,
+            GameLog {
+                text: TextSection {
+                    value: format!("{}\n", log_text.0.clone()),
+                    style: TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 35.0,
+                        color: Color::WHITE,
+                    }
+                },
+                timer: Timer::from_seconds(8.0, false),
+
+            }
+        );
 
     }
 

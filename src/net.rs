@@ -3,6 +3,9 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use crate::{MyPlayerID, PlayerID, ShootEvent};
 
 #[cfg(feature = "native")]
+use crate::LogEvent;
+
+#[cfg(feature = "native")]
 use crate::helper_functions::get_available_port;
 
 use bevy_networking_turbulence::*;
@@ -280,7 +283,7 @@ pub fn request_id(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut net:
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut log_event: EventWriter<LogEvent>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
         let mut ids_to_send: Vec<(u32, u8)> = Vec::with_capacity(255);
@@ -289,11 +292,10 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
             let channels = connection.channels().unwrap();
 
             while let Some(command) = channels.recv::<[u8; 2]>() {
-                println!("Received command: {:?}", command);
-
                 // Send a PlayerID back
                 if command[0] == 0 {
                     if let Some(id) = available_ids.last() {
+                        println!("A player joined");
                         ids_to_send.push((*handle, id.0));
                         available_ids.pop();
 
@@ -311,7 +313,8 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
             let message: [u8; 2] = [0, *id];
 
             net.send_message(*handle, message).unwrap();
-            println!("Sending id: {} to {}", id, handle);
+
+            log_event.send(LogEvent(format!("Player {} has joined!", message[1] + 1)));
 
         }
     }

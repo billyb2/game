@@ -612,7 +612,7 @@ pub fn setup_default_controls(mut commands: Commands) {
         left: KeyCode::A,
         right: KeyCode::D,
 
-        use_ability: KeyCode::E,
+        use_ability: KeyCode::Q,
         reload: KeyCode::R,
 
     });

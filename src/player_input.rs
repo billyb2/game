@@ -149,7 +149,11 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                         model: *model,
                         max_distance: max_distance.0,
                         recoil_vec,
-                        speed: speed.0,
+                        // Bullets need to travel "backwards" when moving to the left
+                        speed: match mouse_pos.0.x <= transform.translation.x {
+                            true => -speed.0,
+                            false => speed.0,
+                        },
                         projectile_type: *projectile_type,
                         damage:*damage,
                         player_ability: *player_ability,
@@ -180,17 +184,11 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let mut shooting = false;
 
-                let mut speed = ev.speed;
+                let speed = ev.speed;
 
                 let player_id = ev.player_id;
 
                 for (id, mut bursting, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
-                    // Bullets need to travel "backwards" when moving to the left
-                    if ev.pos_direction.x <= ev.start_pos.x {
-                        speed = -speed;
-
-                    }
-
                     // Checks that said player can shoot, and isnt reloading
                     if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading  && id.0 == player_id {
                         shooting = true;
@@ -312,13 +310,13 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                             let coords = transform.translation + Vec3::new(25.0 * requested_movement.angle.cos(), 25.0 * requested_movement.angle.sin(), 0.0);
 
                             let size =
-                            if requested_movement.angle.abs() == PI / 2.0 {
-                                Vec2::new(50.0, 25.0)
+                                if requested_movement.angle.abs() == PI / 2.0 {
+                                    Vec2::new(50.0, 25.0)
 
-                            } else {
-                                Vec2::new(25.0, 50.0)
+                                } else {
+                                    Vec2::new(25.0, 50.0)
 
-                            };
+                                };
 
 
                             commands
@@ -330,7 +328,8 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                         ..Default::default()
                                     },
                                     ..Default::default()
-                                });
+                                })
+                                .insert(WallMarker(coords));
 
                             map.objects.push(
                                 MapObject {

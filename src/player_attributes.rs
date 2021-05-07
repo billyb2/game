@@ -66,7 +66,7 @@ impl Distribution<Ability> for Standard {
             2 => Ability::Wall,
             3 => Ability::Engineer,
             // This can't happen, but I need it for the match arm
-            _ => Ability::Stim,
+            _ => Ability::Engineer,
 
         }
     }
@@ -87,6 +87,9 @@ pub struct RespawnTimer(pub Timer);
 
 #[derive(Debug)]
 pub struct UsingAbility(pub bool);
+
+// Used to know what sprites to destroy when destroying a Wall
+pub struct WallMarker(pub Vec3);
 
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
