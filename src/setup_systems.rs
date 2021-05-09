@@ -622,7 +622,7 @@ pub fn setup_id(mut commands: Commands, hosting: Res<Hosting>) {
     #[cfg(feature = "native")]
     if hosting.0 {
         commands.insert_resource(MyPlayerID(Some(PlayerID(0))));
-m
+
     }
 
     #[cfg(feature = "web")]
