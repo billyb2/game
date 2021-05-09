@@ -30,6 +30,7 @@ use system_labels::*;
 use setup_systems::*;
 
 use net::*;
+use rand::{thread_rng, Rng};
 
 pub struct GameCamera;
 
@@ -395,7 +396,17 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                         health.0 = 0;
                         visibility.is_visible = false;
 
-                        log_event.send(LogEvent(format!("Player {} got murked", player_id.0 + 1)));
+                        let mut rng = rand::thread_rng();
+                        let pog = rng.gen_range(0..2);
+                        if pog == 0 {
+                            log_event.send(LogEvent(format!("Player {} got murked", player_id.0 + 1)));
+                        } else if pog == 1 {
+                            log_event.send(LogEvent(format!("Player {} got gulaged", player_id.0 + 1)));
+                        } else {
+                            log_event.send(LogEvent(format!("Player {} got sent to the shadow realm", player_id.0 + 1)));
+                        }
+
+                        // log_event.send(LogEvent(format!("Player {} got murked", player_id.0 + 1)));
 
                     } else {
                         health.0 -= damage.0;
