@@ -13,3 +13,5 @@
 /.idea/
 
 /game_logic/target
+
+/src/map.xml
