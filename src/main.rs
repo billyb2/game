@@ -397,7 +397,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                         visibility.is_visible = false;
 
                         let mut rng = rand::thread_rng();
-                        let pog = rng.gen_range(0..2);
+                        let pog = rng.gen_range(0..3);
                         if pog == 0 {
                             log_event.send(LogEvent(format!("Player {} got murked", player_id.0 + 1)));
                         } else if pog == 1 {
