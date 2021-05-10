@@ -294,7 +294,7 @@ fn main() {
         app.add_system_set(
             SystemSet::on_update(AppState::InGame)
                 .with_system(handle_client_commands.system().before("player_attr").before(InputFromPlayer))
-                .with_system(request_id.system())
+                .with_system(request_player_info.system())
 
         );
 

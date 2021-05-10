@@ -35,7 +35,7 @@ command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.build-web-release]
-args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/release/game.wasm"]
+args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/release-web/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-release", "wasm-bindgen-cli"]
 

@@ -1,9 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+#[cfg(feature = "web")]
+use std::ops::DerefMut;
 
-use crate::{MyPlayerID, PlayerID, ShootEvent};
+use crate::{Ability, MyPlayerID, PlayerID, ShootEvent};
 
 #[cfg(feature = "native")]
 use crate::LogEvent;
+
+#[cfg(feature = "web")]
+use crate::Skins;
 
 #[cfg(feature = "native")]
 use crate::helper_functions::get_available_port;
@@ -51,7 +56,8 @@ const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettin
     packet_buffer_size: 64,
 };
 
-const ID_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+// When requesting or sending meta data about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
+const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 2,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -73,9 +79,13 @@ const ID_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 64,
 };
 
+// A timer of around 15 miliseconds, thatshould be sent (instead of flooding)
 pub struct ReadyToSendPacket(pub Timer);
 
+// A resource stating whether or not the player is hosting
 pub struct Hosting(pub bool);
+
+pub struct SetAbility(bool);
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 enum GameCommand {
@@ -109,12 +119,13 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .unwrap();
 
         builder
-            .register::<[u8; 2]>(ID_MESSAGE_SETTINGS)
+            .register::<[u8; 2]>(INFO_MESSAGE_SETTINGS)
             .unwrap();
 
     });
 
     commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), false)));
+    commands.insert_resource(SetAbility(false));
 
     let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
 
@@ -136,7 +147,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
         };
 
-        net.listen(socket_address, webrtc_listen_addr, webrtc_listen_addr);
+        net.listen(socket_address, Some(webrtc_listen_addr), Some(webrtc_listen_addr));
 
     }
 
@@ -167,7 +178,6 @@ pub fn send_location(mut net: ResMut<NetworkResource>, players: Query<(&Transfor
             }
 
             ready_to_send_packet.0.reset();
-
         }
     }
 }
@@ -243,11 +253,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
                     shoot_event.send(event);
 
                 }
-
             }
-
-
-
         }
 
         #[cfg(feature = "native")]
@@ -262,80 +268,122 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
 
 #[cfg(feature = "web")]
-pub fn request_id(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
+pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>) {
     // Every 5 seconds, the client requests an ID from the host server until it gets one
-    if !hosting.0 && my_player_id.0.is_none() && ready_to_send_packet.0.finished() {
+    console_log!("Net: Ability set: {}", my_player_id.0.is_some());
+
+    if !hosting.0 && my_player_id.0.is_none() && ready_to_send_packet.0.finished() && !ability_set.0 {
         console_log!("Net: Sending command");
 
-        ready_to_send_packet.0.set_duration(Duration::from_secs(5));
 
-        let message: [u8; 2] = [0; 2];
+        let request_id_message: [u8; 2] = [0; 2];
+        net.broadcast_message(request_id_message);
 
-        net.broadcast_message(message);
-
+        ready_to_send_packet.0.set_duration(Duration::from_secs(7));
         ready_to_send_packet.0.reset();
 
-    } else if hosting.0 {
-        // Once the client gets an ID, it starts sending location data every 15 miliseconds
+    } else if my_player_id.0.is_some() && ability_set.0 {
+        // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
         ready_to_send_packet.0.set_duration(Duration::from_millis(15));
+
 
     }
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut log_event: EventWriter<LogEvent>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut log_event: EventWriter<LogEvent>, players: Query<(&PlayerID, &Ability)>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
-        let mut ids_to_send: Vec<(u32, u8)> = Vec::with_capacity(255);
+        let mut messages_to_send: Vec<(u32, [u8; 2])> = Vec::with_capacity(255);
 
         for (handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
             while let Some(command) = channels.recv::<[u8; 2]>() {
-                // Send a PlayerID back
+                // Send a player ID as well as an ability back
                 if command[0] == 0 {
-                    if let Some(id) = available_ids.last() {
-                        println!("A player joined");
-                        ids_to_send.push((*handle, id.0));
+                    if let Some(player_id) = available_ids.last() {
+                        println!("Player {} has joined!", player_id.0 + 1);
+                        log_event.send(LogEvent(format!("Player {} has joined!", player_id.0 + 1)));
+
+                        // Sending back the player id
+                        messages_to_send.push((*handle, [0, player_id.0]));
+
+                        // Sending back the player ability
+                        for (id, ability) in players.iter() {
+                            if id.0 == player_id.0 {
+                                println!("Sending ability");
+                                messages_to_send.push((*handle, [1, (*ability).into()]));
+
+                                break;
+
+                            }
+                        }
+
                         available_ids.pop();
 
                     } else {
                         println!("Lobby full");
 
                     }
+                // Respond to the player's ability request
+                } else if command[0] == 1 {
+                    let player_id = command[1];
+
+                    for (id, ability) in players.iter() {
+                        if id.0 == player_id {
+                            messages_to_send.push((*handle, [1, (*ability).into()]));
+
+                        }
+                    }
                 }
             }
         }
 
-        ids_to_send.shrink_to_fit();
+        messages_to_send.shrink_to_fit();
 
-        for (handle, id) in ids_to_send.iter() {
-            let message: [u8; 2] = [0, *id];
-
-            net.send_message(*handle, message).unwrap();
-
-            log_event.send(LogEvent(format!("Player {} has joined!", message[1] + 1)));
+        for (handle, message) in messages_to_send.iter() {
+            net.send_message(*handle, *message).unwrap();
 
         }
     }
 }
 
 #[cfg(feature = "web")]
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>) {
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, materials: Res<Skins>) {
     if !hosting.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
             while let Some(command) = channels.recv::<[u8; 2]>() {
                 // The set player ID command
-                console_log!("Net: Got command: {:?}", command);
-
                 if command[0] == 0 {
                     let id = command[1];
-                    console_log!("Net: Got ID!");
 
                     my_player_id.0 = Some(PlayerID(id));
 
+
+                } else if command[0] == 1 {
+                    let player_ability: Ability = command[1].into();
+
+                    for (id, mut ability, mut color) in players.iter_mut() {
+                        if id.0 == my_player_id.0.as_ref().unwrap().0 {
+                            *ability.deref_mut() = player_ability;
+                            ability_set.0 = true;
+
+                            *color.deref_mut() = match player_ability {
+                                Ability::Phase => materials.phase.clone(),
+                                Ability::Engineer => materials.engineer.clone(),
+                                Ability::Stim => materials.stim.clone(),
+                                Ability::Wall => materials.wall.clone(),
+
+                            };
+
+                            break;
+
+                        }
+
+                    }
 
                 }
             }

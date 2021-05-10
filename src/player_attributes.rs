@@ -1,3 +1,5 @@
+use std::convert::From;
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +56,35 @@ pub enum Ability {
     Phase,
     Wall,
     Engineer, //Should be default
+}
+
+impl From<u8> for Ability {
+    fn from(ability: u8)  -> Self {
+        match ability {
+            0 => Ability::Stim,
+            1 => Ability::Phase,
+            2 => Ability::Wall,
+            3 => Ability::Engineer,
+            _ => Ability::Engineer,
+
+        }
+
+    }
+
+}
+
+impl From<Ability> for u8 {
+    fn from(ability: Ability)  -> Self {
+        match ability {
+            Ability::Stim => 0,
+            Ability::Phase => 1,
+            Ability::Wall => 2,
+            Ability::Engineer => 3,
+
+        }
+
+    }
+
 }
 
 impl Distribution<Ability> for Standard {

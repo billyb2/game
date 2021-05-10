@@ -492,8 +492,8 @@ dependencies = [
 
 [[package]]
 name = "bevy_networking_turbulence"
-version = "0.2.0"
-source = "git+https://github.com/billyb2/bevy_networking_turbulence?branch=dev#12b09650dc4dc2004db3a7fcea7b13fb6b8a36f8"
+version = "0.3.0"
+source = "git+https://github.com/smokku/bevy_networking_turbulence?branch=master#79d48295d7fc5cda4131c422731465ebf6037740"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -1611,9 +1611,9 @@ dependencies = [
 
 [[package]]
 name = "gfx-backend-metal"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96a809b746d8063ade971cfb3f188e2b0d655926979823d80be7590390f4b911"
+checksum = "340895ad544ba46433acb3bdabece0ef16f2dbedc030adbd7c9eaf2839fbed41"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -2057,7 +2057,7 @@ dependencies = [
 [[package]]
 name = "lz4_flex"
 version = "0.7.5"
-source = "git+https://github.com/arthurprs/lz4_flex?branch=dict#bbeb18fbefb615802a4759a42f110c8ea7933a14"
+source = "git+https://github.com/arthurprs/lz4_flex?branch=dict#44d882e172b4434b00ece3ba5ef71ecc6723d493"
 dependencies = [
  "twox-hash",
 ]
@@ -3337,9 +3337,9 @@ checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 
 [[package]]
 name = "url"
-version = "2.2.1"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ccd964113622c8e9322cfac19eb1004a07e636c545f325da085d5cdde6f1f8b"
+checksum = "a507c383b2d33b5fc35d1861e77e6b383d158b2da5e14fe51b83dfedf6fd578c"
 dependencies = [
  "form_urlencoded",
  "idna",
@@ -3578,9 +3578,9 @@ dependencies = [
 
 [[package]]
 name = "wgpu"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f07667388164ad75066dcbab46e295abd8204fd9a6dc057704b8d703837d12a8"
+checksum = "215fd50e66f794bd16683e7e0e0b9b53be265eb10fdf02276caf5de3e5743fcf"
 dependencies = [
  "arrayvec",
  "js-sys",

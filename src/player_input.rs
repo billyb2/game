@@ -363,10 +363,11 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                             }
                         },
                         _ => {},
-                    }
-                }
+                    };
 
-                break;
+                    break;
+
+                }
             }
         }
     }
