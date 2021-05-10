@@ -10,30 +10,43 @@ use crate::*;
 use crate::components::*;
 use crate::player_attributes::*;
 
+#[cfg(feature = "web")]
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
+
 // This just keeps the camera in sync with the player
-pub fn move_camera(
-    mut q: QuerySet<(
-        Query<&mut Transform, With<GameCamera>>,
-        Query<(&Transform, &PlayerID, Changed<Transform>)>)
-    >,
-    my_player_id: Res<MyPlayerID>
-    ) {
-    let mut x =  q.q0_mut().single_mut().unwrap().translation.x;
-    let mut y =  q.q0_mut().single_mut().unwrap().translation.y;
-
-
+//TODO: Make MapSize its own resource
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, mut players: Query<(&Transform, &PlayerID, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, map: Res<Map>) {
      if let Some(my_id) = &my_player_id.0 {
-        for (player, id, _) in q.q1_mut().iter_mut() {
-                if id.0 == my_id.0 {
-                    x = player.translation.x;
-                    y= player.translation.y;
+        for (player, id, sprite) in players.iter_mut() {
+            if id.0 == my_id.0 {
+                let mut x = player.translation.x - sprite.size.x / 2.0;
+                let mut y = player.translation.y + sprite.size.y / 2.0;
 
+                if x - window.width / 2.0 < 0.0 {
+                    x = window.width / 2.0;
+
+                } else if x + window.width / 2.0 > map.size.x {
+                    x = map.size.x - window.width / 2.0;
+
+                }
+
+                if -y - window.height / 2.0 < 0.0 {
+                    y = -window.height / 2.0;
+
+                } else if -y + window.height / 2.0 > map.size.y {
+                    y = -map.size.y + window.height / 2.0;
+
+                }
+
+                camera.single_mut().unwrap().translation.x = x;
+                camera.single_mut().unwrap().translation.y = y;
+
+                break;
             }
         }
     }
-
-    q.q0_mut().single_mut().unwrap().translation.x = x;
-    q.q0_mut().single_mut().unwrap().translation.y = y;
 }
 
 
