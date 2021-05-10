@@ -18,6 +18,9 @@ use bevy::sprite::SpriteSettings;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "web")]
+use wasm_bindgen::prelude::*;
+
 //use bots::*;
 use map::*;
 use player_input::*;
@@ -31,6 +34,17 @@ use setup_systems::*;
 
 use net::*;
 use rand::Rng;
+
+const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
+
+// Sets up logging for WASM
+#[wasm_bindgen]
+#[cfg(feature = "web")]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+
+}
 
 pub struct GameCamera;
 
@@ -186,10 +200,6 @@ fn main() {
         // Antialiasing
         app.insert_resource(Msaa { samples: 1 });
 
-        // Since text looks like garbage in browsers without antialiasing, it's higher for WASM by default
-        #[cfg(feature = "web")]
-        app.insert_resource(Msaa { samples: 8 });
-
         app.insert_resource( WindowDescriptor {
             title: String::from("Necrophaser"),
             vsync: true,
@@ -340,14 +350,26 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>, mut log_event: EventWriter<LogEvent>) {
-    let desired_ticks_per_second: f32 = 60.0;
-
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _visibility) in player_movements.iter_mut() {
         if movement.speed != 0.0 && *health != Health(0){
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let next_potential_pos = object.translation + (next_potential_movement * desired_ticks_per_second * time.delta_seconds());
+            let mut lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+
+            // Phase shifts screw up w lag compensation
+            if movement.speed < 500.0 {
+                if lag_compensation > 30.0 {
+                    lag_compensation = 30.0;
+
+                }
+
+            } else {
+                lag_compensation = 1.0;
+
+            }
+
+            let next_potential_pos = object.translation + (next_potential_movement * lag_compensation);
 
             if !map.collision(next_potential_pos, sprite.size, 0)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
                 object.translation = next_potential_pos;
@@ -362,7 +384,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.0 += movement.speed.abs() * desired_ticks_per_second * time.delta_seconds();
+                        distance_traveled.0 += movement.speed.abs() * DESIRED_TICKS_PER_SECOND * time.delta_seconds();
 
                         if distance_traveled.0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
@@ -383,7 +405,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let next_potential_pos = object.translation + (next_potential_movement * desired_ticks_per_second * time.delta_seconds());
+            let next_potential_pos = object.translation + (next_potential_movement * DESIRED_TICKS_PER_SECOND * time.delta_seconds());
 
             let mut player_collision = false;
 

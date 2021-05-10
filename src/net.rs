@@ -8,7 +8,7 @@ use crate::{Ability, MyPlayerID, PlayerID, ShootEvent};
 use crate::LogEvent;
 
 #[cfg(feature = "web")]
-use crate::Skins;
+use crate::{Skins, log};
 
 #[cfg(feature = "native")]
 use crate::helper_functions::get_available_port;
@@ -18,9 +18,6 @@ use bevy::prelude::*;
 use bevy::utils::Duration;
 
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "web")]
-use wasm_bindgen::prelude::*;
 
 const SERVER_PORT: u16 = 9363;
 
@@ -61,23 +58,28 @@ const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 2,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
-            bandwidth: 256,
+            bandwidth: 8,
             recv_window_size: 2048,
             send_window_size: 2048,
             burst_bandwidth: 2048,
             init_send: 1024,
             wakeup_time: Duration::from_millis(50),
             initial_rtt: Duration::from_millis(200),
-            // The ID request times out after 10 seconds
+            // Info requests time out after 10 seconds
             max_rtt: Duration::from_secs(10),
             rtt_update_factor: 0.1,
             rtt_resend_factor: 1.5,
         },
         max_message_len: 128,
     },
-    message_buffer_size: 64,
-    packet_buffer_size: 64,
+    message_buffer_size: 8,
+    packet_buffer_size: 8,
 };
+
+#[cfg(feature = "web")]
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
 
 // A timer of around 15 miliseconds, thatshould be sent (instead of flooding)
 pub struct ReadyToSendPacket(pub Timer);
@@ -91,20 +93,6 @@ pub struct SetAbility(bool);
 enum GameCommand {
     RequestID,
 
-}
-
-// Sets up logging for WASM
-#[wasm_bindgen]
-#[cfg(feature = "web")]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-
-}
-
-#[cfg(feature = "web")]
-macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
 
 pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) {

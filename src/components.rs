@@ -82,4 +82,4 @@ pub struct ReloadTime(pub f32);
 pub struct ReloadEvent;
 
 #[derive(Clone, Debug)]
-pub struct AbilityEvent(pub u8);
+pub struct AbilityEvent;
