@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 #[cfg(feature = "web")]
 use std::ops::DerefMut;
 
-use crate::{Ability, MyPlayerID, PlayerID, ShootEvent};
+use crate::{Ability, AppState, MyPlayerID, PlayerID, ShootEvent};
 
 #[cfg(feature = "native")]
 use crate::LogEvent;
@@ -95,7 +95,7 @@ enum GameCommand {
 
 }
 
-pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) {
+pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut _app_state: ResMut<State<AppState>>) {
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
@@ -136,6 +136,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
         };
 
         net.listen(socket_address, Some(webrtc_listen_addr), Some(webrtc_listen_addr));
+        _app_state.set(AppState::InGame).unwrap();
 
     }
 
@@ -256,7 +257,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
 
 #[cfg(feature = "web")]
-pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>) {
+pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>) {
     // Every 5 seconds, the client requests an ID from the host server until it gets one
     console_log!("Net: Ability set: {}", my_player_id.0.is_some());
 
@@ -273,6 +274,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
     } else if my_player_id.0.is_some() && ability_set.0 {
         // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
         ready_to_send_packet.0.set_duration(Duration::from_millis(15));
+        app_state.set(AppState::InGame).unwrap();
 
 
     }
@@ -350,6 +352,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
                     my_player_id.0 = Some(PlayerID(id));
 
+                    break;
 
                 } else if command[0] == 1 {
                     let player_ability: Ability = command[1].into();

@@ -54,6 +54,7 @@ struct GameLogText;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
+    Connecting,
     MainMenu,
     InGame,
     Settings,
@@ -254,19 +255,35 @@ fn main() {
         // The cameras also need to be added first as well
         .add_startup_system(setup_cameras.system())
         .add_startup_system(setup_default_controls.system());
-        //.add_startup_system();
+
+        app.add_system_set(
+            SystemSet::on_enter(AppState::Connecting)
+                .with_system(setup_players.system())
+                .with_system(setup_networking.system())
+                .with_system(setup_id.system())
+                .with_system(setup_connection_menu.system())
+
+        );
+
+        app.add_system_set(
+            SystemSet::on_update(AppState::Connecting)
+                .with_system(tick_timers.system())
+
+        );
+
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Connecting)
+                .with_system(exit_menu.system())
+
+        );
 
         // Initialize InGame
         app.add_system_set(
             SystemSet::on_enter(AppState::InGame)
-                .label("setup_game_stuff")
                 .with_system(setup_game_ui.system())
-                .with_system(draw_map.system())
-                .with_system(setup_players.system())
                 // Set the mouse coordinates initially
                 .with_system(set_mouse_coords.system())
-                .with_system(setup_networking.system().label("setup_networking"))
-                .with_system(setup_id.system().system().label("setup_id"))
+                .with_system(draw_map.system())
 
         )
 
@@ -302,9 +319,16 @@ fn main() {
 
         #[cfg(feature = "web")]
         app.add_system_set(
+            SystemSet::on_update(AppState::Connecting)
+                .with_system(request_player_info.system())
+                .with_system(handle_client_commands.system())
+
+        );
+
+        #[cfg(feature = "web")]
+        app.add_system_set(
             SystemSet::on_update(AppState::InGame)
                 .with_system(handle_client_commands.system().before("player_attr").before(InputFromPlayer))
-                .with_system(request_player_info.system())
 
         );
 

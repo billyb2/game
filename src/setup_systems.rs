@@ -605,6 +605,55 @@ pub fn setup_settings(mut commands: Commands, asset_server: Res<AssetServer>, bu
 
 }
 
+pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(ClearColor(Color::BLACK));
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexEnd,
+                margin: Rect {
+                   left: Val::Auto,
+                   right: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::Center,
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: "Connecting, please wait...".to_string(),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 80.0,
+                                color: Color::WHITE,
+                            },
+                        },
+                    ],
+                    ..Default::default()
+                },
+                ..Default::default()
+
+            });
+
+        });
+}
+
 pub fn setup_default_controls(mut commands: Commands) {
     commands.insert_resource(KeyBindings {
         up: KeyCode::W,

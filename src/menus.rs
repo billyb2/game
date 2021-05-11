@@ -196,7 +196,7 @@ pub fn main_menu_system(mut commands: Commands, button_materials: Res<ButtonMate
                 // Only native builds can host
                 #[cfg(feature = "native")]
                 if text == &String::from("Play (Host)") {
-                    app_state.set(AppState::InGame).unwrap();
+                    app_state.set(AppState::Connecting).unwrap();
                     commands.insert_resource(Hosting(true));
 
                 }
@@ -204,7 +204,7 @@ pub fn main_menu_system(mut commands: Commands, button_materials: Res<ButtonMate
                 // Only WASM builds can join
                 #[cfg(feature = "web")]
                 if text == &String::from("Play (Join)") {
-                    app_state.set(AppState::InGame).unwrap();
+                    app_state.set(AppState::Connecting).unwrap();
                     commands.insert_resource(Hosting(false));
 
                 }
