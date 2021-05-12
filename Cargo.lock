@@ -1323,9 +1323,9 @@ dependencies = [
 
 [[package]]
 name = "fsevent"
-version = "2.0.2"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97f347202c95c98805c216f9e1df210e8ebaec9fdb2365700a43c10797a35e63"
+checksum = "fc2022c30489008b13a36cd488d4bca1db92ff610310efb96c8919733dcaddd8"
 dependencies = [
  "bitflags",
  "fsevent-sys",
@@ -1333,9 +1333,9 @@ dependencies = [
 
 [[package]]
 name = "fsevent-sys"
-version = "3.0.2"
+version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77a29c77f1ca394c3e73a9a5d24cfcabb734682d9634fc398f2204a63c994120"
+checksum = "a5decf3b2dae6345f20356d6656a4ecda6abd24ecc102d15fcdcaa594fcefabf"
 dependencies = [
  "libc",
 ]
@@ -2059,7 +2059,7 @@ dependencies = [
 [[package]]
 name = "lz4_flex"
 version = "0.7.5"
-source = "git+https://github.com/arthurprs/lz4_flex?branch=dict#7071c5ca16e9c43b996e78ce969f1ce97aad3bc7"
+source = "git+https://github.com/arthurprs/lz4_flex?branch=dict#61149c9c5e958229d7e11cd2748b55cf42ebfecb"
 dependencies = [
  "twox-hash",
 ]

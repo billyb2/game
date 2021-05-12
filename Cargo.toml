@@ -21,6 +21,8 @@ panic = "abort"
 [profile.fast-web]
 inherits = "dev"
 panic = "abort"
+# Since web builds run like garbage, using a higher optimization level is nice
+opt-level = 2
 
 [profile.opt-web]
 inherits = "release"
@@ -50,7 +52,7 @@ crc32fast = { version = "1", features = ["nightly"] }
 
 # Gotta use an older version of winit
 winit = { version = "0.24.0" }
-# Enabling nightly allows using some nightly optimizations
+# Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
 
 
@@ -73,7 +75,7 @@ web = [
   "wasm-bindgen",
 ]
 
-# A patch to get the latest git version of Bevy (with all new features and performance improvements) onto bevy_webgl2 and bevy_networking_turbulence
+# A patch to get the latest git version of Bevy (with all new features and performance improvements) onto bevy_networking_turbulence
 [patch.crates-io]
 bevy = { git = "https://github.com/bevyengine/bevy", default-features = false }
 # The bevy_* patches are specifically for bevy_networking_turbulence
