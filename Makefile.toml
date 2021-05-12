@@ -92,6 +92,7 @@ command = "cargo"
 [tasks.check-web]
 args = ["clippy", "--features", "web", "--target", "wasm32-unknown-unknown", "-Z", "unstable-options", "--", "-D", "warnings"]
 command = "cargo"
+dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.check]
 dependencies = ["check-web", "check-native"]

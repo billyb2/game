@@ -3,11 +3,13 @@
 
 [target.x86_64-unknown-linux-gnu]
 linker = "/usr/bin/clang"
-rustflags = ["-Clink-arg=-fuse-ld=lld", "-Zshare-generics=y"]
+# The enabled target features are included in every CPU since 2008 for Intel and 2011 for AMD
+# Once compilation on Windows works, we should do the same for it
+rustflags = ["-Clink-arg=-fuse-ld=lld", "-Zshare-generics=y", "-Ctarget-feature=+sse3,+avx"]
 
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld", "-Zshare-generics=y", "-Csplit-debuginfo=unpacked"]
 
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
-rustflags = ["-Zshare-generics=y"]
+rustflags = ["-Zshare-generics=false"]
