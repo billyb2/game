@@ -104,7 +104,7 @@ pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(
     // Only do a change event if a key has been pressed
     if let Some(my_id) = &my_player_id.0 {
         if keyboard_input.pressed(keybindings.use_ability) {
-            ev_use_ability.send(AbilityEvent);
+            ev_use_ability.send(AbilityEvent(my_id.0));
 
         }
 
@@ -294,100 +294,110 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
     }
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, my_player_id: Res<MyPlayerID>) {
-    for _ in ev_use_ability.iter() {
-        for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, mut using_ability, id) in query.iter_mut() {
-            #[cfg(feature = "web")]
-            console_log!("Ability: {:?} \n Ability finished: {:?}", ability, ability_charge.0.finished());
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>) {
+    if let Some(my_id)= &my_player_id.0 {
+        for ev_id in ev_use_ability.iter() {
+            for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, mut using_ability, id) in query.iter_mut() {
+                #[cfg(feature = "web")]
+                console_log!("Ability: {:?} \n Ability finished: {:?}", ability, ability_charge.0.finished());
 
-            if ability_charge.0.finished() && id.0 == my_player_id.0.as_ref().unwrap().0 {
-                match ability {
-                    Ability::Wall => {
-                        if requested_movement.speed != 0.0 {
-                            let color = Color::rgb_u8(255, 255, 0);
+                // Events that come from other players dont need to wait for ability charge to finish
+                if id.0 == ev_id.0 && (ability_charge.0.finished() || ev_id.0 != my_id.0) {
+                    match ability {
+                        Ability::Wall => {
+                            if requested_movement.speed != 0.0 || ev_id.0 != my_id.0 {
+                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
 
-                            let color_handle: Handle<ColorMaterial> = {
-                                let mut color_to_return = None;
+                                let message: (u8, [f32; 3]) = (my_id.0, message_array);
 
-                                for (id, material_to_return) in materials.iter() {
-                                    if color == material_to_return.color {
-                                        color_to_return = Some(materials.get_handle(id));
+                                if ev_id.0 == my_id.0 {
+                                    net.broadcast_message(message);
+
+                                }
+
+                                let color = Color::rgb_u8(255, 255, 0);
+
+                                let color_handle: Handle<ColorMaterial> = {
+                                    let mut color_to_return = None;
+
+                                    for (id, material_to_return) in materials.iter() {
+                                        if color == material_to_return.color {
+                                            color_to_return = Some(materials.get_handle(id));
+
+                                        }
 
                                     }
 
-                                }
+                                    match color_to_return {
+                                        Some(color) => color,
+                                        None => materials.add(color.into())
 
-
-                                if let Some(color) = color_to_return {
-                                    color
-
-                                } else {
-                                    materials.add(color.into())
-
-                                }
-                            };
-
-                            let coords = transform.translation + Vec3::new(25.0 * requested_movement.angle.cos(), 25.0 * requested_movement.angle.sin(), 0.0);
-
-                            let size =
-                                if requested_movement.angle.abs() == PI / 2.0 {
-                                    Vec2::new(50.0, 25.0)
-
-                                } else {
-                                    Vec2::new(25.0, 50.0)
+                                    }
 
                                 };
 
+                                let coords = transform.translation + Vec3::new(25.0 * requested_movement.angle.cos(), 25.0 * requested_movement.angle.sin(), 0.0);
 
-                            commands
-                                .spawn_bundle(SpriteBundle {
-                                    material: color_handle.clone(),
-                                    sprite: Sprite::new(size),
-                                    transform: Transform {
-                                        translation: coords,
+                                let size =
+                                    if requested_movement.angle.abs() == PI / 2.0 {
+                                        Vec2::new(50.0, 25.0)
+
+                                    } else {
+                                        Vec2::new(25.0, 50.0)
+
+                                    };
+
+
+                                commands
+                                    .spawn_bundle(SpriteBundle {
+                                        material: color_handle.clone(),
+                                        sprite: Sprite::new(size),
+                                        transform: Transform {
+                                            translation: coords,
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
-                                    },
-                                    ..Default::default()
-                                })
-                                .insert(WallMarker(coords));
+                                    })
+                                    .insert(WallMarker(coords));
 
-                            map.objects.push(
-                                MapObject {
-                                    coords,
-                                    size,
-                                    color,
-                                    collidable: true,
-                                    player_spawn: false,
-                                    health: Some(30),
+                                map.objects.push(
+                                    MapObject {
+                                        coords,
+                                        size,
+                                        color,
+                                        collidable: true,
+                                        player_spawn: false,
+                                        health: Some(30),
 
-                                }
-                            );
+                                    }
+                                );
+
+                                ability_charge.0.reset();
+
+                            }
+                        },
+                        Ability::Phase => {
+                            requested_movement.speed += 500.0;
+                            #[cfg(feature = "web")]
+                            console_log!("Phase speed: {}", requested_movement.speed);
 
                             ability_charge.0.reset();
 
-                        }
-                    },
-                    Ability::Phase => {
-                        requested_movement.speed += 500.0;
-                        #[cfg(feature = "web")]
-                        console_log!("Phase speed: {}", requested_movement.speed);
+                        },
+                        Ability::Stim => {
+                            if !using_ability.0 && ability_charge.0.finished() {
+                                speed.0 *= 2.0;
+                                ability_completed.0.reset();
+                                using_ability.0 = true;
 
-                        ability_charge.0.reset();
+                            }
+                        },
+                        _ => {},
+                    };
 
-                    },
-                    Ability::Stim => {
-                        if !using_ability.0 && ability_charge.0.finished() {
-                            speed.0 *= 2.0;
-                            ability_completed.0.reset();
-                            using_ability.0 = true;
+                    break;
 
-                        }
-                    },
-                    _ => {},
-                };
-
-                break;
-
+                }
             }
         }
     }

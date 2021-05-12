@@ -13,12 +13,32 @@ pub enum MovementType {
 #[derive(Debug, PartialEq)]
 pub struct DistanceTraveled(pub f32);
 
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct RequestedMovement {
     // Angle is in radians
     pub angle: f32,
     pub speed: f32,
     // How much damage the bullets do to players or the environment
+
+}
+
+impl From<[f32; 2]> for RequestedMovement {
+    fn from(arr: [f32; 2])  -> Self {
+        RequestedMovement {
+            angle: arr[0],
+            speed: arr[1]
+
+        }
+
+    }
+
+}
+
+impl From<RequestedMovement> for [f32; 2] {
+    fn from(requested_movement: RequestedMovement)  -> Self {
+        [requested_movement.angle, requested_movement.speed]
+
+    }
 
 }
 
@@ -82,4 +102,4 @@ pub struct ReloadTime(pub f32);
 pub struct ReloadEvent;
 
 #[derive(Clone, Debug)]
-pub struct AbilityEvent;
+pub struct AbilityEvent(pub u8);

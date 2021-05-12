@@ -16,40 +16,20 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 #Gotta install a slightly older verson of wasm-bindgen-cli
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.74"}
 
-[tasks.sccache]
-env = { "CARGO_MAKE_RUST_SCRIPT_PROVIDER" = "rust-script" }
-script_runner = "@rust"
-script = '''
-use std::process::{Command, Stdio};
-
-match Command::new("sccache").stdout(Stdio::null()).args(&["--help"]).spawn() {
-	// Do nothing if sccache is already installed
-	Ok(_) => (),
-
-	// If sccache isnt installed, then install it
-	Err(_) => {
-		println!("Installing sccache...");
-		Command::new("cargo").args(&["install", "sccache"]).spawn().unwrap();
-
-	},
-}
-'''
-
-
 [tasks.cargo-build-web-release]
 args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "release-web", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown", "sccache"]
+dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt]
 args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "opt-web", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown", "sccache"]
+dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast]
 args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "fast-web", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown", "sccache"]
+dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.build-web-release]
 args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/release-web/game.wasm"]
@@ -69,26 +49,22 @@ dependencies = ["cargo-build-web-fast", "wasm-bindgen-cli"]
 [tasks.build-native]
 args = ["build", "--features", "native", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["sccache"]
 
 [tasks.build-native-release]
 args = ["build", "--features", "native", "--release", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["sccache"]
 
 [tasks.build-native-fast]
 args = ["build", "--features", "native", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["sccache"]
 
 [tasks.run]
 args = ["run", "--features", "native", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["sccache"]
 
 [tasks.run-release]
 command = "${CARGO_TARGET_DIR}/release/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
-dependencies = ["build-native-release", "sccache"]
+dependencies = ["build-native-release"]
 
 [tasks.serve]
 command = "basic-http-server"
@@ -109,12 +85,12 @@ dependencies = ["build-web-fast", "basic-http-server"]
 [tasks.check-native]
 args = ["clippy", "--features", "native", "--", "-D", "warnings", "-Z", "unstable-options"]
 command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown", "sccache"]
+dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.check-web]
 args = ["clippy", "--features", "web", "--target", "wasm32-unknown-unknown", "-Z", "unstable-options", "--", "-D", "warnings"]
 command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown", "sccache"]
+dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.check]
 dependencies = ["check-web", "check-native"]

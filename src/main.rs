@@ -303,6 +303,7 @@ fn main() {
                 .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(handle_wall_packets.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
                 .with_system(dead_players.system().after("move_objects").label("dead_players"))
                 .with_system(log_system.system().after("dead_players"))
@@ -383,8 +384,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             // Phase shifts screw up w lag compensation
             if movement.speed < 500.0 {
-                if lag_compensation > 30.0 {
-                    lag_compensation = 30.0;
+                if lag_compensation > 60.0 {
+                    lag_compensation = 60.0;
 
                 }
 

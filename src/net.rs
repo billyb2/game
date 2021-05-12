@@ -3,6 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::ops::DerefMut;
 
 use crate::{Ability, AppState, MyPlayerID, PlayerID, ShootEvent};
+use crate::components::{AbilityEvent, RequestedMovement};
 
 #[cfg(feature = "native")]
 use crate::LogEvent;
@@ -16,8 +17,6 @@ use crate::helper_functions::get_available_port;
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::utils::Duration;
-
-use serde::{Deserialize, Serialize};
 
 const SERVER_PORT: u16 = 9363;
 
@@ -53,9 +52,31 @@ const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettin
     packet_buffer_size: 64,
 };
 
+// Some abilities, such as the wall, need to send a message over the network, so this does that here
+const WALL_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+    channel: 2,
+    channel_mode: MessageChannelMode::Reliable {
+        reliability_settings: ReliableChannelSettings {
+            bandwidth: 256,
+            recv_window_size: 2048,
+            send_window_size: 2048,
+            burst_bandwidth: 2048,
+            init_send: 1024,
+            wakeup_time: Duration::from_millis(15),
+            initial_rtt: Duration::from_millis(160),
+            max_rtt: Duration::from_secs(4),
+            rtt_update_factor: 0.1,
+            rtt_resend_factor: 1.5,
+        },
+        max_message_len: 128,
+    },
+    message_buffer_size: 64,
+    packet_buffer_size: 64,
+};
+
 // When requesting or sending meta data about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
 const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
-    channel: 2,
+    channel: 3,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
             bandwidth: 8,
@@ -89,12 +110,6 @@ pub struct Hosting(pub bool);
 
 pub struct SetAbility(bool);
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-enum GameCommand {
-    RequestID,
-
-}
-
 pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut _app_state: ResMut<State<AppState>>) {
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
@@ -108,6 +123,10 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
         builder
             .register::<[u8; 2]>(INFO_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<(u8, [f32; 3])>(WALL_MESSAGE_SETTINGS)
             .unwrap();
 
     });
@@ -201,6 +220,54 @@ pub fn handle_movement_packets(mut net: ResMut<NetworkResource>, mut players: Qu
 
                 }
 
+            }
+        }
+
+    }
+
+    // Broadcast the location of all players to everyone
+    #[cfg(feature = "native")]
+    for m in messages_to_send.iter() {
+        net.broadcast_message(*m);
+
+    }
+}
+
+pub fn handle_wall_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>) {
+    #[cfg(feature = "native")]
+    let mut messages_to_send: Vec<(u8, [f32; 3])> = Vec::with_capacity(255);
+
+    if let Some(my_id) = &my_player_id.0 {
+        for (_handle, connection) in net.connections.iter_mut() {
+            let channels = connection.channels().unwrap();
+
+            while let Some((player_id, [player_x, player_y, angle])) = channels.recv::<(u8, [f32; 3])>() {
+                if player_id != my_id.0 {
+                    // The host broadcasts the locations of all other players
+                    #[cfg(feature = "native")]
+                    if _hosting.0 {
+                        messages_to_send.push((player_id, [player_x, player_y, angle]))
+
+                    }
+
+                    for (mut transform, mut requested_movement, id) in players.iter_mut() {
+                        if id.0 == player_id {
+                            transform.translation.x = player_x;
+                            transform.translation.y = player_y;
+
+                            requested_movement.angle = angle;
+                            ev_use_ability.send(AbilityEvent(player_id));
+
+                            #[cfg(feature = "web")]
+                            console_log!("Got wall");
+                            println!("Got wall");
+
+
+                            break;
+
+                        }
+                    }
+                }
             }
         }
 
