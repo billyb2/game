@@ -193,11 +193,6 @@ pub struct LogEvent(String);
 fn main() {
     let mut app = App::build();
 
-        #[cfg(feature = "web")]
-        {
-
-        };
-
         // Antialiasing
         app.insert_resource(Msaa { samples: 1 });
 
@@ -298,6 +293,7 @@ fn main() {
                 .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
                 //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(my_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(set_player_sprite_direction.system().after(InputFromPlayer))
                 .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
                 .with_system(spawn_projectile.system().label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
                 .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))

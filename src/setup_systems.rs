@@ -13,12 +13,21 @@ use crate::*;
 
 }
 
-pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
+pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
+    //TODO: Use a spritesheet
+    // The gorgeous assets are made by Shelby
+    let wall_sprite= asset_server.load("player_sprites/wall.png");
+    let stim_sprite= asset_server.load("player_sprites/stim.png");
+    let engineer_sprite = asset_server.load("player_sprites/engineer.png");
+    let phase_sprite = asset_server.load("player_sprites/phase.png");
+
+    asset_server.watch_for_changes().unwrap();
+
     commands.insert_resource(Skins {
-        phase: materials.add(Color::rgb_u8(229, 2, 146).into()),
-        engineer: materials.add(Color::rgb_u8(237, 166, 35).into()),
-        stim: materials.add(Color::rgb_u8(63, 239, 35).into()),
-        wall: materials.add(Color::rgb_u8(43, 36, 244).into()),
+        phase: materials.add(phase_sprite.into()),
+        engineer: materials.add(engineer_sprite.into()),
+        stim: materials.add(stim_sprite.into()),
+        wall: materials.add(wall_sprite.into()),
 
     });
 
@@ -147,7 +156,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
 
     let mut rng = rand::thread_rng();
 
-    let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(255);
+    let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
 
     for object in map.objects.iter() {
         if object.player_spawn {
@@ -164,7 +173,12 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
                         Ability::Wall => materials.wall.clone(),
 
                     },
-                    sprite: Sprite::new(Vec2::new(20.0, 20.0)),
+                    sprite: Sprite {
+                        size: Vec2::new(60.0, 60.0),
+                        flip_x: true,
+                        resize_mode: SpriteResizeMode::Manual,
+                        ..Default::default()
+                    },
                     transform: Transform::from_translation(object.coords),
                     ..Default::default()
                 });

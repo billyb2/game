@@ -149,6 +149,14 @@ var customMapFormat = {
                         let width = object.width * 5.0 * (4.0/3.0);
                         let height = object.height * 5.0 * (4.0/3.0);
 
+                        let player_spawn = object.property("player_spawn");
+                        let player_collidable = object.property("player_collidable");
+
+                        let red = object.property("red");
+                        let green = object.property("green");
+                        let blue = object.property("blue");
+                        let alpha = object.property("alpha");
+
                         if ((x + width) > map_width) {
                             map_width = x + width;
 
@@ -158,14 +166,6 @@ var customMapFormat = {
                             map_height = y + height;
 
                         }
-
-                        let player_spawn = object.property("player_spawn");
-                        let player_collidable = object.property("player_collidable");
-
-                        let red = object.property("red");
-                        let green = object.property("green");
-                        let blue = object.property("blue");
-                        let alpha = object.property("alpha");
 
                         // x coor
                         array.push((x & 0xff000000) >> 24);

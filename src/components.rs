@@ -22,26 +22,6 @@ pub struct RequestedMovement {
 
 }
 
-impl From<[f32; 2]> for RequestedMovement {
-    fn from(arr: [f32; 2])  -> Self {
-        RequestedMovement {
-            angle: arr[0],
-            speed: arr[1]
-
-        }
-
-    }
-
-}
-
-impl From<RequestedMovement> for [f32; 2] {
-    fn from(requested_movement: RequestedMovement)  -> Self {
-        [requested_movement.angle, requested_movement.speed]
-
-    }
-
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Speed(pub f32);
 

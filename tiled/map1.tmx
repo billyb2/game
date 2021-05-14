@@ -127,7 +127,7 @@
     <property name="red" type="int" value="255"/>
    </properties>
   </object>
-  <object id="95" x="180" y="227" width="3" height="3">
+  <object id="95" x="185" y="225" width="3" height="3">
    <properties>
     <property name="alpha" type="int" value="0"/>
     <property name="blue" type="int" value="0"/>
@@ -137,7 +137,7 @@
     <property name="red" type="int" value="0"/>
    </properties>
   </object>
-  <object id="96" x="317" y="230" width="3" height="3">
+  <object id="96" x="310" y="230" width="3" height="3">
    <properties>
     <property name="alpha" type="int" value="0"/>
     <property name="blue" type="int" value="0"/>

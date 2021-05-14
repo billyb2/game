@@ -426,7 +426,7 @@ pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut T
 }
 
 
-pub fn set_mouse_coords(mut commands: Commands, wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>> ) {
+pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition> ) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = camera.single().unwrap();
 
@@ -447,6 +447,22 @@ pub fn set_mouse_coords(mut commands: Commands, wnds: Res<Windows>, camera: Quer
     // apply the camera transform
     let pos_wld = camera_transform.compute_matrix() * p.extend(0.0).extend(1.0);
 
-    commands.insert_resource(MousePosition(pos_wld.into()));
+    mouse_pos.0 = pos_wld.into();
+
+}
+
+pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut player_query: Query<(&mut Sprite, &Transform, &PlayerID)>) {
+    if let Some(my_id) = &my_player_id.0 {
+    for (mut sprite, transform, id) in player_query.iter_mut() {
+        if id.0 == my_id.0 {
+            sprite.flip_x = mouse_pos.0.x >= transform.translation.x;
+
+            break;
+
+        }
+
+    }
+
+    }
 
 }

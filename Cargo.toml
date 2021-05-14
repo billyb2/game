@@ -12,6 +12,9 @@ debug = 0
 # Bevy currently doesn't support 2d sprite batching, which is horrific, so I need to use a slightly higher optimization level
 opt-level = 1
 
+[profile.dev-windows]
+inherits = "dev"
+
 [profile.release]
 debug = 0
 lto = "fat"
@@ -30,6 +33,20 @@ lto = false
 codegen-units = 32
 
 [profile.release-web]
+inherits = "release"
+
+[profile.fast-web-simd]
+inherits = "dev"
+panic = "abort"
+# Since web builds run like garbage, using a higher optimization level is nice
+opt-level = 2
+
+[profile.opt-web-simd]
+inherits = "release"
+lto = false
+codegen-units = 32
+
+[profile.release-web-simd]
 inherits = "release"
 
 [dependencies]
@@ -56,17 +73,16 @@ winit = { version = "0.24.0" }
 rand = { version = "0.8", features = ["nightly"] }
 
 
-#Other platform stuff:
 [features]
 default = [
   "bevy/bevy_winit",
   "bevy/render",
+  "bevy/png"
 ]
 
 native = [
   "bevy/bevy_wgpu",
   # Since literally every modern CPU has SIMD support, I think it's fine to enable it for rand
-  # For WASM, however, SIMD support is currently behind a feature flag for Firefox, and older versions of Chrome don't have it at all, so we should definetly just use SIMD for PC
   "rand/simd_support",
 ]
 
