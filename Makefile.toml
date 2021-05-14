@@ -17,17 +17,35 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.74"}
 
 [tasks.cargo-build-web-release]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "release-web", "-Z", "unstable-options"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "opt-web", "-Z", "unstable-options"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "opt-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "fast-web", "-Z", "unstable-options"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "fast-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+command = "cargo"
+dependencies = ["install-target-wasm32-unknown-unknown"]
+
+[tasks.cargo-build-web-release-simd]
+env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory" }
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "release-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+command = "cargo"
+dependencies = ["install-target-wasm32-unknown-unknown"]
+
+[tasks.cargo-build-web-opt-simd]
+env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory" }
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "opt-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+command = "cargo"
+dependencies = ["install-target-wasm32-unknown-unknown"]
+
+[tasks.cargo-build-web-fast-simd]
+env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory" }
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--profile", "fast-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
@@ -45,6 +63,21 @@ dependencies = ["cargo-build-web-opt", "wasm-bindgen-cli"]
 args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/fast-web/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-fast", "wasm-bindgen-cli"]
+
+[tasks.build-web-release-simd]
+args = ["--out-dir", "target/", "--out-name", "wasm-simd", "--target", "web", "target/wasm32-unknown-unknown/release-web-simd/game.wasm"]
+command = "wasm-bindgen"
+dependencies = ["cargo-build-web-release-simd", "wasm-bindgen-cli"]
+
+[tasks.build-web-opt-simd]
+args = ["--out-dir", "target/", "--out-name", "wasm-simd", "--target", "web", "target/wasm32-unknown-unknown/opt-web-simd/game.wasm"]
+command = "wasm-bindgen"
+dependencies = ["cargo-build-web-opt-simd", "wasm-bindgen-cli"]
+
+[tasks.build-web-fast-simd]
+args = ["--out-dir", "target/", "--out-name", "wasm-simd", "--target", "web", "target/wasm32-unknown-unknown/fast-web-simd/game.wasm"]
+command = "wasm-bindgen"
+dependencies = ["cargo-build-web-fast-simd", "wasm-bindgen-cli"]
 
 [tasks.build-native]
 args = ["build", "--features", "native", "-Z", "unstable-options"]
@@ -68,19 +101,19 @@ dependencies = ["build-native-release"]
 
 [tasks.serve]
 command = "basic-http-server"
-dependencies = ["build-web-opt", "basic-http-server"]
+dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
 
 [tasks.serve-release]
 command = "basic-http-server"
-dependencies = ["build-web-release", "basic-http-server"]
+dependencies = ["build-web-release", "build-web-release-simd", "basic-http-server"]
 
 [tasks.serve-opt]
 command = "basic-http-server"
-dependencies = ["build-web-opt", "basic-http-server"]
+dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
 
 [tasks.serve-fast]
 command = "basic-http-server"
-dependencies = ["build-web-fast", "basic-http-server"]
+dependencies = ["build-web-fast", "build-web-fast-simd", "basic-http-server"]
 
 [tasks.check-native]
 args = ["clippy", "--features", "native", "--", "-D", "warnings", "-Z", "unstable-options"]
@@ -95,6 +128,3 @@ dependencies = ["install-target-wasm32-unknown-unknown"]
 [tasks.check]
 dependencies = ["check-web", "check-native"]
 
-[tasks.serve-debug]
-command = "basic-http-server"
-dependencies = ["build-web-debug", "basic-http-server"]
