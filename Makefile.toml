@@ -115,6 +115,10 @@ dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
 command = "basic-http-server"
 dependencies = ["build-web-fast", "build-web-fast-simd", "basic-http-server"]
 
+[tasks.serve-fast-simd]
+command = "basic-http-server"
+dependencies = ["build-web-fast-simd", "basic-http-server"]
+
 [tasks.check-native]
 args = ["clippy", "--features", "native", "--", "-D", "warnings", "-Z", "unstable-options"]
 command = "cargo"

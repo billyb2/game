@@ -56,6 +56,7 @@ pub enum Ability {
     Phase,
     Wall,
     Engineer, //Should be default
+    Hacker,
 }
 
 impl From<u8> for Ability {
@@ -65,6 +66,7 @@ impl From<u8> for Ability {
             1 => Ability::Phase,
             2 => Ability::Wall,
             3 => Ability::Engineer,
+            4 => Ability::Hacker,
             _ => Ability::Engineer,
 
         }
@@ -80,6 +82,7 @@ impl From<Ability> for u8 {
             Ability::Phase => 1,
             Ability::Wall => 2,
             Ability::Engineer => 3,
+            Ability::Hacker => 4,
 
         }
 
@@ -89,13 +92,14 @@ impl From<Ability> for u8 {
 
 impl Distribution<Ability> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Ability {
-        let rand_num: u8 = rng.gen_range(0..=3);
+        let rand_num: u8 = rng.gen_range(0..=4);
 
         match rand_num {
             0 => Ability::Stim,
             1 => Ability::Phase,
             2 => Ability::Wall,
             3 => Ability::Engineer,
+            4 => Ability::Hacker,
             // This can't happen, but I need it for the match arm
             _ => Ability::Engineer,
 

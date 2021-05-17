@@ -12,6 +12,8 @@ mod setup_systems;
 
 mod net;
 
+use std::collections::BTreeSet;
+
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::sprite::SpriteSettings;
@@ -117,13 +119,13 @@ pub struct Skins {
     engineer: Handle<ColorMaterial>,
     stim: Handle<ColorMaterial>,
     wall: Handle<ColorMaterial>,
+    hacker: Handle<ColorMaterial>,
 
 }
 
 pub struct ProjectileMaterials {
     pub regular: Handle<ColorMaterial>,
     pub speedball: Handle<ColorMaterial>,
-    // The engineer's bullets are a different color
     pub engineer: Handle<ColorMaterial>,
 
 }
@@ -189,6 +191,8 @@ pub enum GameMode {
 pub struct MyPlayerID(Option<PlayerID>);
 
 pub struct LogEvent(String);
+
+pub struct OnlinePlayerIDs(BTreeSet<u8>);
 
 fn main() {
     let mut app = App::build();
@@ -299,7 +303,7 @@ fn main() {
                 .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
-                .with_system(handle_wall_packets.system().label(InputFromPlayer).label("player_attr"))
+                .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
                 .with_system(dead_players.system().after("move_objects").label("dead_players"))
                 .with_system(log_system.system().after("dead_players"))

@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 #[cfg(feature = "web")]
 use std::ops::DerefMut;
 
-use crate::{Ability, AppState, MyPlayerID, PlayerID, ShootEvent};
+use crate::*;
 use crate::components::{AbilityEvent, RequestedMovement};
 
 #[cfg(feature = "native")]
@@ -126,7 +126,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .unwrap();
 
         builder
-            .register::<(u8, [f32; 3])>(WALL_MESSAGE_SETTINGS)
+            .register::<([u8; 2], [f32; 3])>(WALL_MESSAGE_SETTINGS)
             .unwrap();
 
     });
@@ -190,7 +190,7 @@ pub fn send_location(mut net: ResMut<NetworkResource>, players: Query<(&Transfor
     }
 }
 
-pub fn handle_movement_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>) {
+pub fn handle_movement_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<(u8, [f32; 2])> = Vec::with_capacity(255);
 
@@ -199,6 +199,8 @@ pub fn handle_movement_packets(mut net: ResMut<NetworkResource>, mut players: Qu
             let channels = connection.channels().unwrap();
 
             while let Some((player_id, [x, y])) = channels.recv::<(u8, [f32; 2])>() {
+                online_player_ids.0.insert(player_id);
+
                 if player_id != my_id.0 {
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
@@ -233,35 +235,50 @@ pub fn handle_movement_packets(mut net: ResMut<NetworkResource>, mut players: Qu
     }
 }
 
-pub fn handle_wall_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<(u8, [f32; 3])> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<([u8; 2], [f32; 3])> = Vec::with_capacity(255);
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
-            while let Some((player_id, [player_x, player_y, angle])) = channels.recv::<(u8, [f32; 3])>() {
+            while let Some(([player_id, ability], [player_x, player_y, angle])) = channels.recv::<([u8; 2], [f32; 3])>() {
+                online_player_ids.0.insert(player_id);
+
                 if player_id != my_id.0 {
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
                     if _hosting.0 {
-                        messages_to_send.push((player_id, [player_x, player_y, angle]))
+                        messages_to_send.push(([player_id, ability], [player_x, player_y, angle]))
 
                     }
 
-                    for (mut transform, mut requested_movement, id) in players.iter_mut() {
-                        if id.0 == player_id {
+                }
+
+                let ability: Ability = ability.into();
+
+                if player_id != my_id.0 || ability == Ability::Hacker {
+                    for (mut ammo_in_mag, mut transform, mut requested_movement, id) in players.iter_mut() {
+                        if id.0 == player_id && ability != Ability::Hacker {
                             transform.translation.x = player_x;
                             transform.translation.y = player_y;
 
                             requested_movement.angle = angle;
-                            ev_use_ability.send(AbilityEvent(player_id));
+
+                            if ability ==Ability::Wall {
+                                ev_use_ability.send(AbilityEvent(player_id));
+
+                            }
+
+                            break;
+
+                        } else if ability == Ability::Hacker && id.0 == player_id {
+                            ev_use_ability.send(AbilityEvent(my_id.0));
+                            ammo_in_mag.0 = 0;
 
                             #[cfg(feature = "web")]
-                            console_log!("Got wall");
-                            println!("Got wall");
-
+                            console_log!("Ive been hacked");
 
                             break;
 
@@ -270,7 +287,6 @@ pub fn handle_wall_packets(mut net: ResMut<NetworkResource>, mut players: Query<
                 }
             }
         }
-
     }
 
     // Broadcast the location of all players to everyone
@@ -281,7 +297,7 @@ pub fn handle_wall_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     }
 }
 
-pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<(&mut Transform, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>) {
+pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<(&mut Transform, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(255);
 
@@ -290,6 +306,8 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
             let channels = connection.channels().unwrap();
 
             while let Some(event) = channels.recv::<ShootEvent>() {
+                online_player_ids.0.insert(event.player_id);
+
                 if my_id.0 !=  event.player_id {
                     for (mut transform, id) in players.iter_mut() {
                         if event.player_id == id.0 {
@@ -348,7 +366,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut log_event: EventWriter<LogEvent>, players: Query<(&PlayerID, &Ability)>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut log_event: EventWriter<LogEvent>, players: Query<(&PlayerID, &Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
         let mut messages_to_send: Vec<(u32, [u8; 2])> = Vec::with_capacity(255);
@@ -360,6 +378,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                 // Send a player ID as well as an ability back
                 if command[0] == 0 {
                     if let Some(player_id) = available_ids.last() {
+                        online_player_ids.0.insert(player_id.0);
                         println!("Player {} has joined!", player_id.0 + 1);
                         log_event.send(LogEvent(format!("Player {} has joined!", player_id.0 + 1)));
 
@@ -407,7 +426,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 }
 
 #[cfg(feature = "web")]
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, materials: Res<Skins>) {
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, materials: Res<Skins>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     if !hosting.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
@@ -418,6 +437,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                     let id = command[1];
 
                     my_player_id.0 = Some(PlayerID(id));
+                    online_player_ids.0.insert(id);
 
                     break;
 
@@ -434,6 +454,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                                 Ability::Engineer => materials.engineer.clone(),
                                 Ability::Stim => materials.stim.clone(),
                                 Ability::Wall => materials.wall.clone(),
+                                Ability::Hacker => materials.wall.clone(),
 
                             };
 

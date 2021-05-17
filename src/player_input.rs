@@ -3,6 +3,8 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 use rand::Rng;
+use rand::seq::SliceRandom;
+
 
 use crate::helper_functions::get_angle;
 
@@ -294,7 +296,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
     }
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>) {
     if let Some(my_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
             for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, mut using_ability, id) in query.iter_mut() {
@@ -308,7 +310,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                             if requested_movement.speed != 0.0 || ev_id.0 != my_id.0 {
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
 
-                                let message: (u8, [f32; 3]) = (my_id.0, message_array);
+                                let message: ([u8; 2], [f32; 3]) = ([my_id.0, Ability::Wall.into()], message_array);
 
                                 if ev_id.0 == my_id.0 {
                                     net.broadcast_message(message);
@@ -392,7 +394,38 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                             }
                         },
-                        _ => {},
+                        Ability::Hacker => {
+                            let mut potential_players_to_be_hacked: Vec<u8> = Vec::with_capacity(255);
+
+                            for id in online_player_ids.0.iter() {
+                                if *id != my_id.0 {
+                                    potential_players_to_be_hacked.push(*id);
+
+                                }
+                            }
+
+                            let mut rng = rand::thread_rng();
+
+                            if !potential_players_to_be_hacked.is_empty() {
+                                // Get a random player that isn't the current player
+                                let player_to_be_hacked: u8 = *potential_players_to_be_hacked.choose(&mut rng).unwrap();
+
+                                let message: ([u8; 2], [f32; 3]) = ([player_to_be_hacked, Ability::Hacker.into()], [transform.translation.x, transform.translation.y, 0.0]);
+
+                                // The hacker ability literally does "hacks", by sending a packet that pretends to be the hacked player using their ability
+                                println!("{:?}", online_player_ids.0);
+                                println!("{:?}", player_to_be_hacked);
+                                println!("{:?}", message);
+                                net.broadcast_message(message);
+
+
+                                ability_charge.0.reset();
+
+                            }
+
+                        },
+                        // The engineer ability is passive, so when the use ability button is pressed nothing happens
+                        Ability::Engineer => {},
                     };
 
                     break;

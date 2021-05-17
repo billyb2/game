@@ -1,4 +1,6 @@
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
+use std::collections::BTreeSet;
+
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -16,6 +18,7 @@ use crate::*;
 pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
     //TODO: Use a spritesheet
     // The gorgeous assets are made by Shelby
+    let hacker_sprite= asset_server.load("player_sprites/hacker.png");
     let wall_sprite= asset_server.load("player_sprites/wall.png");
     let stim_sprite= asset_server.load("player_sprites/stim.png");
     let engineer_sprite = asset_server.load("player_sprites/engineer.png");
@@ -28,6 +31,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         engineer: materials.add(engineer_sprite.into()),
         stim: materials.add(stim_sprite.into()),
         wall: materials.add(wall_sprite.into()),
+        hacker: materials.add(hacker_sprite.into()),
 
     });
 
@@ -157,6 +161,8 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
     let mut rng = rand::thread_rng();
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
+    let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
+    online_player_ids.insert(0);
 
     for object in map.objects.iter() {
         if object.player_spawn {
@@ -171,6 +177,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
                         Ability::Engineer => materials.engineer.clone(),
                         Ability::Stim => materials.stim.clone(),
                         Ability::Wall => materials.wall.clone(),
+                        Ability::Hacker => materials.hacker.clone(),
 
                     },
                     sprite: Sprite {
@@ -194,6 +201,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
     }
 
     commands.insert_resource(availabie_player_ids);
+    commands.insert_resource(OnlinePlayerIDs(online_player_ids));
 }
 
 pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {
