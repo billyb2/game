@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![allow(clippy::type_complexity)]
+
 use bevy::core::Timer;
 use serde::{Deserialize, Serialize};
 

@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![allow(clippy::type_complexity)]
+
 use bevy::math::{Vec2, Vec3};
 
 use std::f32::consts::PI;

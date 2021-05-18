@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![allow(clippy::type_complexity)]
+
 use bevy::prelude::*;
 
 use crate::*;

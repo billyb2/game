@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![allow(clippy::type_complexity)]
+
 use std::convert::From;
 
 use bevy::prelude::*;
@@ -41,7 +44,15 @@ impl Player {
             movement_type: MovementType::SingleFrame,
             distance_traveled: DistanceTraveled(0.0),
             ability,
-            ability_charge: AbilityCharge(Timer::from_seconds(5.0, false)),
+            ability_charge: match ability {
+                Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
+                Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
+                Ability::Phase => AbilityCharge(Timer::from_seconds(5.0, false)),
+                Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
+                Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
+
+            },
+            // Stim lasts 3 seconds
             ability_completed: AbilityCompleted(Timer::from_seconds(3.0, false)),
             using_ability: UsingAbility(false),
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false))
@@ -97,7 +108,8 @@ impl Distribution<Ability> for Standard {
         match rand_num {
             0 => Ability::Stim,
             1 => Ability::Phase,
-            2 => Ability::Wall,
+            // Wall bad
+            //2 => Ability::Wall,
             3 => Ability::Engineer,
             4 => Ability::Hacker,
             // This can't happen, but I need it for the match arm
@@ -134,6 +146,55 @@ pub enum Model {
     Speedball,
     BurstRifle,
     AssaultRifle,
+
+}
+
+impl From<u8> for Model {
+    fn from(model: u8)  -> Self {
+        match model {
+            0 => Model::Pistol,
+            1 => Model::Shotgun,
+            2 => Model::Speedball,
+            3 => Model::BurstRifle,
+            4 => Model::AssaultRifle,
+            _ => Model::Pistol,
+
+        }
+
+    }
+
+}
+
+impl From<Model> for u8 {
+    fn from(model: Model)  -> Self {
+        match model {
+            Model::Pistol=> 0,
+            Model::Shotgun => 1,
+            Model::Speedball=> 2,
+            Model::BurstRifle => 3,
+            Model::AssaultRifle => 4,
+
+        }
+
+    }
+
+}
+
+impl Distribution<Model> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Model {
+        let rand_num: u8 = rng.gen_range(0..=4);
+
+        match rand_num {
+            0 => Model::Pistol,
+            1 => Model::Shotgun,
+            2 => Model::Speedball,
+            3 => Model::BurstRifle,
+            4 => Model::AssaultRifle,
+            // Can't happen
+            _ => Model::Pistol,
+
+        }
+    }
 }
 
 
@@ -169,7 +230,7 @@ impl Gun {
             },
             time_since_start_reload: TimeSinceStartReload {
                 timer: match model {
-                    Model::Pistol => Timer::from_seconds(2.0, false),
+                    Model::Pistol => Timer::from_seconds(1.0, false),
                     Model::Shotgun => Timer::from_seconds(5.0, false),
                     Model::Speedball => Timer::from_seconds(3.0, false),
                     Model::BurstRifle => Timer::from_seconds(3.25, false),
@@ -196,8 +257,8 @@ impl Gun {
 
             },
             max_distance: match model {
-                Model::Pistol => MaxDistance(900.0),
-                Model::Shotgun => MaxDistance(300.0),
+                Model::Pistol => MaxDistance(1250.0),
+                Model::Shotgun => MaxDistance(700.0),
                 Model::Speedball => MaxDistance(3000.0),
                 Model::BurstRifle => MaxDistance(1000.0),
                 Model::AssaultRifle => MaxDistance(1000.0),
@@ -216,21 +277,21 @@ impl Gun {
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
-                Model::Pistol => Speed(15.0),
-                Model::Shotgun => Speed(14.0),
-                Model::Speedball => Speed(0.5),
-                Model::BurstRifle => Speed(15.0),
-                Model::AssaultRifle => Speed(16.0),
+                Model::Pistol => Speed(20.0),
+                Model::Shotgun => Speed(16.0),
+                Model::Speedball => Speed(0.7),
+                Model::BurstRifle => Speed(17.0),
+                Model::AssaultRifle => Speed(18.0),
 
             },
-            projectile_size: Size::new(5.0, 5.0),
+            projectile_size: Size::new(6.0, 6.0),
 
             damage: match model {
                 Model::Pistol => Damage(45),
-                Model::Shotgun => Damage(25),
+                Model::Shotgun => Damage(6),
                 Model::Speedball => Damage(1),
-                Model::BurstRifle => Damage(13),
-                Model::AssaultRifle => Damage(15),
+                Model::BurstRifle => Damage(15),
+                Model::AssaultRifle => Damage(13),
 
             },
             // The bursting component only matters for burst rifles

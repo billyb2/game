@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![allow(clippy::type_complexity)]
+
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 #[cfg(feature = "web")]
 use std::ops::DerefMut;
@@ -52,7 +55,7 @@ const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettin
     packet_buffer_size: 64,
 };
 
-// Some abilities, such as the wall, need to send a message over the network, so this does that here
+// Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here
 const WALL_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 2,
     channel_mode: MessageChannelMode::Reliable {
@@ -114,7 +117,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
-            .register::<(u8, [f32; 2])>(CLIENT_STATE_MESSAGE_SETTINGS)
+            .register::<([u8; 2], bool, [f32; 2])>(CLIENT_STATE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -170,14 +173,14 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     }
 }
 
-pub fn send_location(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &Sprite, &Health, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>) {
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
         // Only start sending packets when your ID is set
         if ready_to_send_packet.0.finished() {
-            for (transform, id) in players.iter() {
+            for (transform, sprite, health, id) in players.iter() {
                 if id.0 == my_id.0 {
-                    net.broadcast_message((my_id.0, [transform.translation.x, transform.translation.y]));
+                    net.broadcast_message(([my_id.0, health.0], sprite.flip_x, [transform.translation.x, transform.translation.y]));
 
                     break;
 
@@ -190,38 +193,50 @@ pub fn send_location(mut net: ResMut<NetworkResource>, players: Query<(&Transfor
     }
 }
 
-pub fn handle_movement_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &mut Health, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut death_event: EventWriter<DeathEvent>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<(u8, [f32; 2])> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<([u8; 2], bool, [f32; 2])> = Vec::with_capacity(255);
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
-            while let Some((player_id, [x, y])) = channels.recv::<(u8, [f32; 2])>() {
+            while let Some(([player_id, player_health], flip_x, [x, y])) = channels.recv::<([u8; 2], bool, [f32; 2])>() {
                 online_player_ids.0.insert(player_id);
 
-                if player_id != my_id.0 {
-                    // The host broadcasts the locations of all other players
-                    #[cfg(feature = "native")]
-                    if _hosting.0 {
-                        messages_to_send.push((player_id, [x, y]))
-
-                    }
-
-                    // Set the location of any local players to the location given
-                    for (mut transform, id) in players.iter_mut() {
-                        if id.0 == player_id {
-                            transform.translation.x = x;
-                            transform.translation.y = y;
-
-                            break;
-
-                        }
-                    }
+                // The host broadcasts the locations of all other players
+                #[cfg(feature = "native")]
+                if _hosting.0 {
+                    messages_to_send.push(([player_id, player_health], flip_x, [x, y]))
 
                 }
 
+                // Set the location of any local players to the location given
+                for (mut transform, mut sprite, mut health, id) in players.iter_mut() {
+                    if id.0 == player_id {
+                        sprite.flip_x = flip_x;
+
+                        // When the game receives conflicting messaging on what the true health of a player is, it picks the lowest one
+                        if (player_health < health.0 || health.0 == 0 && player_health == 100) && !(player_health == 0 && health.0 == 0) {
+                            health.0 = player_health;
+
+                            if health.0 == 0 {
+                                death_event.send(DeathEvent(player_id));
+
+                            }
+
+                        }
+
+                        if player_id != my_id.0 {
+                            transform.translation.x = x;
+                            transform.translation.y = y;
+
+                        }
+
+                        break;
+
+                    }
+                }
             }
         }
 
@@ -276,9 +291,6 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
                         } else if ability == Ability::Hacker && id.0 == player_id {
                             ev_use_ability.send(AbilityEvent(my_id.0));
                             ammo_in_mag.0 = 0;
-
-                            #[cfg(feature = "web")]
-                            console_log!("Ive been hacked");
 
                             break;
 
@@ -366,7 +378,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut log_event: EventWriter<LogEvent>, players: Query<(&PlayerID, &Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, players: Query<(&PlayerID, &Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
         let mut messages_to_send: Vec<(u32, [u8; 2])> = Vec::with_capacity(255);
@@ -454,7 +466,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                                 Ability::Engineer => materials.engineer.clone(),
                                 Ability::Stim => materials.stim.clone(),
                                 Ability::Wall => materials.wall.clone(),
-                                Ability::Hacker => materials.wall.clone(),
+                                Ability::Hacker => materials.hacker.clone(),
 
                             };
 

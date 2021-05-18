@@ -103,6 +103,10 @@ dependencies = ["build-native-release"]
 command = "basic-http-server"
 dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
 
+[tasks.serve-simd]
+command = "basic-http-server"
+dependencies = ["build-web-opt-simd", "basic-http-server"]
+
 [tasks.serve-release]
 command = "basic-http-server"
 dependencies = ["build-web-release", "build-web-release-simd", "basic-http-server"]

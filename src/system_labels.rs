@@ -1,3 +1,5 @@
+#![deny(clippy::all)]
+
 use bevy::prelude::*;
 
  //Anything that moves an object

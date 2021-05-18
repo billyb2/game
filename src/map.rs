@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
 use std::io::Read;

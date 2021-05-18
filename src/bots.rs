@@ -1,4 +1,7 @@
+#![deny(clippy::all)]
 #![allow(unused_assignments)]
+#![allow(clippy::type_complexity)]
+
 use std::f32::consts::PI;
 use bevy::prelude::*;
 

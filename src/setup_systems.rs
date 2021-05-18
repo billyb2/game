@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![allow(clippy::type_complexity)]
+
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::collections::BTreeSet;
 
@@ -130,6 +133,38 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(AbilityChargeText);
 
+    // Text saying the player's health
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Percent(80.0),
+                    top: Val::Percent(12.5),
+
+                    ..Default::default()
+                },
+
+                ..Default::default()
+            },
+            text: Text {
+                sections: vec![
+                    TextSection {
+                        value: "Health: 0%".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 45.0,
+                            color: Color::GREEN,
+                        },
+                    },
+                ],
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(HealthText);
+
     // Text saying the game log charge
     commands
         .spawn_bundle(TextBundle {
@@ -167,10 +202,11 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
     for object in map.objects.iter() {
         if object.player_spawn {
             let ability: Ability = rng.gen();
+            let gun_model: Model = rng.gen();
 
             commands
                 .spawn_bundle(Player::new(i, ability))
-                .insert_bundle(Gun::new(Model::BurstRifle, ability))
+                .insert_bundle(Gun::new(gun_model, ability))
                 .insert_bundle(SpriteBundle {
                     material: match ability {
                         Ability::Phase => materials.phase.clone(),

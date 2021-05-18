@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
 //mod bots;
@@ -7,7 +8,7 @@ mod map;
 mod helper_functions;
 mod menus;
 mod player_input;
-mod player_attributes;
+mod player_attr;
 mod setup_systems;
 
 mod net;
@@ -30,7 +31,7 @@ use helper_functions::{collide, out_of_bounds};
 
 use components::*;
 use menus::*;
-use player_attributes::*;
+use player_attr::*;
 use system_labels::*;
 use setup_systems::*;
 
@@ -53,6 +54,7 @@ pub struct GameCamera;
 struct AmmoText;
 struct AbilityChargeText;
 struct GameLogText;
+struct HealthText;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -192,6 +194,8 @@ pub struct MyPlayerID(Option<PlayerID>);
 
 pub struct LogEvent(String);
 
+pub struct DeathEvent(u8);
+
 pub struct OnlinePlayerIDs(BTreeSet<u8>);
 
 fn main() {
@@ -242,6 +246,7 @@ fn main() {
         .add_event::<ReloadEvent>()
         .add_event::<ShootEvent>()
         .add_event::<AbilityEvent>()
+        .add_event::<DeathEvent>()
         .add_event::<LogEvent>();
 
         //The WebGL2 plugin is only added if we're compiling to WASM
@@ -292,8 +297,8 @@ fn main() {
                 // Timers should be ticked first
                 .with_system(tick_timers.system().before("player_attr").before(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
-                .with_system(send_location.system().label(InputFromPlayer).before("player_attr"))
-                .with_system(handle_movement_packets.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(send_stats.system().label(InputFromPlayer).before("player_attr"))
+                .with_system(handle_stat_packets.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
                 //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
                 .with_system(my_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
@@ -305,6 +310,7 @@ fn main() {
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+                .with_system(death_event_system.system().after("move_objects").after(InputFromPlayer).before("dead_players"))
                 .with_system(dead_players.system().after("move_objects").label("dead_players"))
                 .with_system(log_system.system().after("dead_players"))
                 .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
@@ -374,8 +380,8 @@ fn main() {
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>,mut map: ResMut<Map>, time: Res<Time>, mut log_event: EventWriter<LogEvent>) {
-    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _visibility) in player_movements.iter_mut() {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>) {
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health) in player_movements.iter_mut() {
         if movement.speed != 0.0 && health.0 != 0 {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -435,26 +441,14 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            for (player, _, _, _, player_sprite, player_id, mut health, mut visibility) in player_movements.iter_mut() {
+            for (player, _, _, _, player_sprite, player_id, mut health) in player_movements.iter_mut() {
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
-                if collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 && *health != Health(0) {
+                // Check to see if a player-projectile collision takes place
+                if health.0 > 0 && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 {
                     if (health.0 as i8 - damage.0 as i8) < 0 {
                         health.0 = 0;
-                        visibility.is_visible = false;
-
-                        let mut rng = rand::thread_rng();
-                        let num = rng.gen_range(0..=2);
-
-                        let message = match num {
-                            0 => format!("Player {} got murked", player_id.0 + 1),
-                            1 => format!("Player {} got gulaged", player_id.0 + 1),
-                            2 => format!("Player {} got sent to the shadow realm", player_id.0 + 1),
-                            _ => String::new(),
-
-                        };
-
-                        log_event.send(LogEvent(message));
+                        death_event.send(DeathEvent(player_id.0));
 
                     } else {
                         health.0 -= damage.0;
@@ -521,6 +515,33 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
 }
 
+fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &PlayerID)>, mut log_event: EventWriter<LogEvent>) {
+    for ev in death_events.iter() {
+        let mut rng = rand::thread_rng();
+        let num = rng.gen_range(0..=2);
+
+        let message = match num {
+            0 => format!("Player {} got murked", ev.0 + 1),
+            1 => format!("Player {} got gulaged", ev.0 + 1),
+            2 => format!("Player {} got sent to the shadow realm", ev.0 + 1),
+            _ => String::new(),
+
+        };
+
+        for (mut visible, id) in players.iter_mut() {
+            if id.0 == ev.0 {
+                visible.is_visible = false;
+                break;
+
+            }
+
+        }
+
+        log_event.send(LogEvent(message));
+
+    }
+}
+
 // This system just deals respawning players
 fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer), With<PlayerID>>, game_mode: Res<GameMode>) {
     for (mut health, mut visibility, mut respawn_timer) in players.iter_mut() {
@@ -554,7 +575,7 @@ fn tick_timers(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abil
 
         }
 
-        if *health == Health(0) && *game_mode == GameMode::Deathmatch {
+        if health.0 == 0 && *game_mode == GameMode::Deathmatch {
             respawn_timer.0.tick(time.delta());
 
         }
@@ -584,10 +605,11 @@ fn tick_timers(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abil
 }*/
 
 //TODO: Change this to seperate queries using Without
-fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
+fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
     mut t: QuerySet<(
         Query<&mut Text, With<AmmoText>>,
-        Query<&mut Text, With<AbilityChargeText>>
+        Query<&mut Text, With<AbilityChargeText>>,
+        Query<&mut Text, With<HealthText>>,
     )>,
     my_player_id: Res<MyPlayerID>
 ) {
@@ -598,8 +620,9 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
         let mut ability_charge_percent = 0.0;
 
         let mut reloading = false;
+        let mut health = 0;
 
-        for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer) in query.iter() {
+        for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer, player_health) in query.iter() {
             if id.0 == my_id.0 {
                 ammo_in_mag = (*player_ammo_count).0;
                 max_ammo = (*player_max_ammo).0;
@@ -607,6 +630,7 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
                 ability_charge_percent = ability_charge.0.percent() * 100.0;
 
                 reloading = reload_timer.reloading;
+                health = player_health.0;
 
                 break;
 
@@ -648,6 +672,9 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
             ability_charge_text.sections[0].style.color = Color::GREEN;
 
         }
+
+        let mut health_text = t.q2_mut().single_mut().unwrap();
+        health_text.sections[0].value = format!("Health: {}%", health);
 
     }
 }

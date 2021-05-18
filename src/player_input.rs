@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![allow(clippy::type_complexity)]
+
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
@@ -10,7 +13,7 @@ use crate::helper_functions::get_angle;
 
 use crate::*;
 use crate::components::*;
-use crate::player_attributes::*;
+use crate::player_attr::*;
 
 #[cfg(feature = "web")]
 macro_rules! console_log {
@@ -296,6 +299,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>) {
     if let Some(my_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
@@ -338,14 +342,14 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                                 };
 
-                                let coords = transform.translation + Vec3::new(25.0 * requested_movement.angle.cos(), 25.0 * requested_movement.angle.sin(), 0.0);
+                                let coords = transform.translation + Vec3::new(100.0 * requested_movement.angle.cos(), 100.0 * requested_movement.angle.sin(), 0.0);
 
                                 let size =
                                     if requested_movement.angle.abs() == PI / 2.0 {
-                                        Vec2::new(50.0, 25.0)
+                                        Vec2::new(100.0, 25.0)
 
                                     } else {
-                                        Vec2::new(25.0, 50.0)
+                                        Vec2::new(25.0, 100.0)
 
                                     };
 
