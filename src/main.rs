@@ -17,7 +17,8 @@ use std::collections::BTreeSet;
 
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
-use bevy::sprite::SpriteSettings;
+#[cfg(feature = "native")]
+use bevy::render::draw::OutsideFrustum;
 
 use serde::{Deserialize, Serialize};
 
@@ -221,13 +222,8 @@ fn main() {
             ..Default::default()
 
         });
-        // Sprite culling doesn't render sprites outside of the camera viewport when enabled
-        // It's fairly buggy when rendering many many  sprites (thousands) at the same time, however
-        // Frustum culling also doesn't work with more than 1 camera, so it needs to be disabled for split screen
-        // Though it does give a performance boost, especially where there are many sprites to render
-        // Currently it's disabled, since we use the UI camera and the game camera
-        app.insert_resource(SpriteSettings { frustum_culling_enabled: false })
 
+        app
         //Start in the main menu
         .add_state(AppState::MainMenu)
 
@@ -259,6 +255,13 @@ fn main() {
         // The cameras also need to be added first as well
         .add_startup_system(setup_cameras.system())
         .add_startup_system(setup_default_controls.system());
+
+        // Sprite culling
+        #[cfg(feature = "native")]
+        app.add_system_to_stage(
+            CoreStage::PostUpdate,
+            sprite_culling.system(),
+        );
 
         app.add_system_set(
             SystemSet::on_enter(AppState::Connecting)
@@ -366,7 +369,6 @@ fn main() {
 
         )
 
-
         .add_system_set(
             SystemSet::on_exit(AppState::Settings)
                 .with_system(exit_menu.system())
@@ -380,7 +382,7 @@ fn main() {
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, &mut DistanceTraveled, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>) {
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health) in player_movements.iter_mut() {
         if movement.speed != 0.0 && health.0 != 0 {
             // Only lets you move if the movement doesn't bump into a wall
@@ -415,9 +417,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.0 += movement.speed.abs() * DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+                        distance_traveled.as_mut().unwrap().0 += movement.speed.abs() * DESIRED_TICKS_PER_SECOND * time.delta_seconds();
 
-                        if distance_traveled.0 >= *distance_to_stop_at {
+                        if distance_traveled.as_ref().unwrap().0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
 
                         }
@@ -473,7 +475,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     sprite.size *= 1.03;
 
                     if damage.0 <= 75 {
-                        damage.0 += (distance_traveled.0 / 60.0 ) as u8;
+                        damage.0 += (distance_traveled.as_ref().unwrap().0  / 60.0 ) as u8;
 
                     }
 
@@ -489,9 +491,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.0 += movement.speed.abs() * 60.0 * time.delta_seconds();
+                        distance_traveled.as_mut().unwrap().0  += movement.speed.abs() * 60.0 * time.delta_seconds();
 
-                        if distance_traveled.0 >= *distance_to_stop_at {
+                        if distance_traveled.as_ref().unwrap().0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
 
                         }
@@ -728,5 +730,69 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
     }
 
     game_log.single_mut().unwrap().sections = text_vec;
+
+}
+
+#[cfg(feature = "native")]
+struct Rect {
+    position: Vec2,
+    size: Vec2,
+}
+
+#[cfg(feature = "native")]
+impl Rect {
+    #[inline]
+    pub fn is_intersecting(&self, other: Rect) -> bool {
+        self.position.distance(other.position) < (self.get_radius() + other.get_radius())
+    }
+
+    #[inline]
+    pub fn get_radius(&self) -> f32 {
+        let half_size = self.size / Vec2::splat(2.0);
+        (half_size.x.powf(2.0) + half_size.y.powf(2.0)).sqrt()
+    }
+}
+
+// Sprite culling doesn't render sprites outside of the camera viewport when enabled
+// Culling doesn't work for WASM builds, atm
+// Adapted from Bevy, https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/frustum_culling.rs
+/*
+MIT License
+
+Copyright (c) 2020 Carter Anderson
+*/
+
+#[cfg(feature = "native")]
+fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCamera>>, query: Query<(Entity, &Transform, &Sprite), Without<GameCamera>>, wnds: Res<Windows>, culled_sprites: Query<&OutsideFrustum, With<Sprite>>) {
+    let wnd = wnds.get_primary().unwrap();
+    let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+    let camera = camera.single().unwrap();
+
+    let camera_size = window_size * camera.scale.truncate();
+
+    let rect = Rect {
+        position: camera.translation.truncate(),
+        size: camera_size,
+    };
+
+    for (entity, transform, sprite)  in query.iter() {
+        let sprite_rect = Rect {
+            position: transform.translation.truncate(),
+            size: sprite.size,
+        };
+
+        if rect.is_intersecting(sprite_rect) {
+            if culled_sprites.get(entity).is_ok() {
+                commands.entity(entity).remove::<OutsideFrustum>();
+
+            }
+
+        } else if culled_sprites.get(entity).is_err() {
+            commands.entity(entity).insert(OutsideFrustum);
+
+        }
+
+    }
 
 }

@@ -21,7 +21,6 @@ pub struct Player {
     pub speed: PlayerSpeed,
     pub requested_movement: RequestedMovement,
     pub movement_type: MovementType,
-    pub distance_traveled: DistanceTraveled,
     pub ability: Ability,
     pub ability_charge: AbilityCharge,
     pub ability_completed: AbilityCompleted,
@@ -37,12 +36,11 @@ impl Player {
             health: Health(100),
             speed: match ability {
                 // Stim players have a faster default running speed
-                Ability::Stim => PlayerSpeed(13.0),
+                Ability::Stim => PlayerSpeed(12.0),
                 _ => PlayerSpeed(11.0),
             },
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
-            distance_traveled: DistanceTraveled(0.0),
             ability,
             ability_charge: match ability {
                 Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),

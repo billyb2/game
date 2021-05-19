@@ -5,6 +5,8 @@
 use std::collections::BTreeSet;
 
 use bevy::prelude::*;
+use bevy::prelude::Rect;
+
 use rand::Rng;
 
 use crate::*;
