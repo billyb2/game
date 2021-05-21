@@ -9,8 +9,6 @@ edition = "2018"
 [profile.dev]
 # Since neither me or Luke uses a debugger, turning off debug info should speed up compile times
 debug = 0
-# Bevy currently doesn't support 2d sprite batching, which is horrific, so I need to use a slightly higher optimization level
-opt-level = 1
 
 [profile.dev-windows]
 inherits = "dev"
@@ -49,6 +47,21 @@ codegen-units = 32
 [profile.release-web-simd]
 inherits = "release"
 
+
+# In order to have Bevy run a little faster, it's compiled with a slightly higher optimization level. This is done instead of optimizing the entire crate in order to have faster build times, while not having the game eat CPU
+[profile.dev.package.bevy]
+opt-level = 1
+
+[profile.dev.package.bevy_render]
+opt-level = 1
+
+[profile.dev.package.bevy_ecs]
+opt-level = 1
+
+[profile.dev.package.bevy_app]
+opt-level = 1
+
+
 [dependencies]
 # The bevy game engine
 bevy = { git = "https://github.com/bevyengine/bevy", default-features = false }
@@ -67,6 +80,7 @@ serde = { version = "1", features = ["derive"] }
 #LZ4 is a very fast compression algorithm
 lz4_flex = { version = "0.8", default-features = false, features = ["checked-decode", "frame"] }
 # CRC32 is a very fast hashing algorithm for verifying files
+# Nightly is enabled to do some optimizations
 crc32fast = { version = "1", features = ["nightly"] }
 
 # Idk why, but build always fails if winit isn't included as a dep
