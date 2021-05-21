@@ -2,6 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::core::Timer;
+use bevy::math::Vec2;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq)]
@@ -39,10 +40,10 @@ impl RequestedMovement {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Health(pub u8);
+pub struct Health(pub f32);
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub struct Damage(pub u8);
+pub struct Damage(pub f32);
 
 #[derive(Debug, PartialEq)]
 pub struct PlayerID(pub u8);
@@ -55,6 +56,9 @@ pub struct ProjectileIdent(pub u8);
 // Gun stuff
 #[derive(Clone, Debug)]
 pub struct TimeSinceLastShot(pub Timer);
+
+#[derive(Clone, Debug)]
+pub struct DestructionTimer(pub Timer);
 
 #[derive(Clone, Debug)]
 pub struct TimeSinceStartReload {
@@ -86,3 +90,12 @@ pub struct ReloadEvent;
 
 #[derive(Clone, Debug)]
 pub struct AbilityEvent(pub u8);
+
+#[derive(Clone, Debug)]
+pub struct DespawnWhenDead {
+    pub health: f32,
+    pub coords: Vec2,
+
+}
+
+pub struct WallMarker;

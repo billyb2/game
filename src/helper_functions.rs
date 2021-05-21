@@ -1,3 +1,4 @@
+// A variety of (mostly math) functions that don't really fit anywhere, but are pretty useful
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
@@ -97,6 +98,15 @@ pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_s
         && a_max.y > b_min.y
 
     }
+
+}
+
+pub fn collide_rect_circle(rect_coords: Vec3, rect_size: Vec2, circle_coords: Vec3, radius: f32) -> bool {
+    let delta_x = circle_coords.x - f32::max(rect_coords.x - (rect_size.x / 2.0), f32::min(circle_coords.x, rect_coords.x + (rect_size.x / 2.0)));
+    let delta_y = circle_coords.y - f32::max(rect_coords.y - (rect_size.y / 2.0), f32::min(circle_coords.y, rect_coords.y + (rect_size.y / 2.0)));
+
+    (delta_x.powi(2) + delta_y.powi(2)) < (radius / 2.0).powi(2)
+
 
 }
 

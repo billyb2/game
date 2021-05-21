@@ -14,12 +14,12 @@ mod setup_systems;
 mod net;
 
 use std::collections::BTreeSet;
+use std::ops::DerefMut;
 
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
-
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "web")]
@@ -71,6 +71,8 @@ pub enum AppState {
 pub enum ProjectileType {
     Regular,
     Speedball,
+    Molotov,
+    MolotovFire,
 
 }
 
@@ -123,6 +125,7 @@ pub struct Skins {
     stim: Handle<ColorMaterial>,
     wall: Handle<ColorMaterial>,
     hacker: Handle<ColorMaterial>,
+    inferno: Handle<ColorMaterial>,
 
 }
 
@@ -130,6 +133,8 @@ pub struct ProjectileMaterials {
     pub regular: Handle<ColorMaterial>,
     pub speedball: Handle<ColorMaterial>,
     pub engineer: Handle<ColorMaterial>,
+    pub molotov: Handle<ColorMaterial>,
+    pub molotov_fire: Handle<ColorMaterial>,
 
 }
 
@@ -148,7 +153,7 @@ pub struct ShootEvent {
     start_pos: Vec3,
     player_id: u8,
     pos_direction: Vec2,
-    health: u8,
+    health: f32,
     model: Model,
     max_distance: f32,
     recoil_vec: Vec<f32>,
@@ -242,6 +247,7 @@ fn main() {
         .add_event::<ReloadEvent>()
         .add_event::<ShootEvent>()
         .add_event::<AbilityEvent>()
+        .add_event::<DespawnWhenDead>()
         .add_event::<DeathEvent>()
         .add_event::<LogEvent>();
 
@@ -313,6 +319,7 @@ fn main() {
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+                .with_system(despawn_dead_stuff.system().after("move_objects"))
                 .with_system(death_event_system.system().after("move_objects").after(InputFromPlayer).before("dead_players"))
                 .with_system(dead_players.system().after("move_objects").label("dead_players"))
                 .with_system(log_system.system().after("dead_players"))
@@ -382,9 +389,10 @@ fn main() {
 //TODO: Turn RequestedMovement into an event
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &ProjectileType, &ProjectileIdent, &mut Damage), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>) {
+#[allow(clippy::too_many_arguments)]
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>) {
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health) in player_movements.iter_mut() {
-        if movement.speed != 0.0 && health.0 != 0 {
+        if movement.speed != 0.0 && health.0 != 0.0 {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
@@ -404,7 +412,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             let next_potential_pos = object.translation + (next_potential_movement * lag_compensation);
 
-            if !map.collision(next_potential_pos, sprite.size, 0)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
+            if !map.collision(next_potential_pos, sprite.size, 0.0).0  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
                 object.translation = next_potential_pos;
 
                 match movement_type {
@@ -433,8 +441,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
         }
     }
 
-    for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage) in projectile_movements.iter_mut() {
-        if movement.speed != 0.0 {
+    for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage, _, _) in projectile_movements.iter_mut() {
+        if movement.speed != 0.0 || *projectile_type == ProjectileType::MolotovFire {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
@@ -447,9 +455,10 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
-                if health.0 > 0 && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 {
-                    if (health.0 as i8 - damage.0 as i8) <= 0 {
-                        health.0 = 0;
+
+                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size)) || (*projectile_type == ProjectileType::MolotovFire && crate::helper_functions::collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                    if (health.0 - damage.0) <= 0.0 {
+                        health.0 = 0.0;
                         death_event.send(DeathEvent(player_id.0));
 
                     } else {
@@ -464,7 +473,18 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             }
 
-            if !map.collision(next_potential_pos, sprite.size, damage.0) && !player_collision {
+            let (wall_collision, health_and_coords) = map.collision(next_potential_pos, sprite.size, damage.0);
+
+            if let Some((health, coords)) = health_and_coords {
+                wall_event.send(DespawnWhenDead {
+                    health,
+                    coords,
+
+                });
+
+            }
+
+            if !wall_collision && !player_collision {
                 object.translation = next_potential_pos;
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
@@ -474,8 +494,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     movement.speed *= 1.1;
                     sprite.size *= 1.03;
 
-                    if damage.0 <= 75 {
-                        damage.0 += (distance_traveled.as_ref().unwrap().0  / 60.0 ) as u8;
+                    if damage.0 <= 75.0 {
+                        damage.0 += distance_traveled.as_ref().unwrap().0  / 60.0;
 
                     }
 
@@ -508,13 +528,44 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
     }
 
     // Remove all stopped bullets
-    for object in projectile_movements.iter_mut() {
-        if object.2.speed == 0.0 {
-            commands.entity(object.0).despawn_recursive();
+    for (entity, _, req_mov, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, destruction_timer) in projectile_movements.iter_mut() {
+        if req_mov.speed == 0.0 {
+            if *projectile_type == ProjectileType::Molotov {
+                // Once the molotov reaches it's destination, or hits a player, it becomes molotov fire
+                *projectile_type.deref_mut() = ProjectileType::MolotovFire;
+                *material.deref_mut() = materials.molotov_fire.clone();
+                sprite.deref_mut().size = Vec2::new(200.0, 200.0);
+                // Does 75 damage every second (since there are 60 frames per second)
+                // This might seem excessive, but most players have the sense to run if they catch on fire, so the high damage done forces them to take the fire as a threat instead of just running through it to engage the slow and weak Inferno
+                damage.deref_mut().0 = 75.0 / 60.0;
+                commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(3.0, false)));
 
+
+            } else if *projectile_type != ProjectileType::MolotovFire || destruction_timer.unwrap().0.finished() {
+                    commands.entity(entity).despawn_recursive();
+
+            }
         }
     }
+}
 
+// Despawns anything that should be gotten rid of when it's health dies
+fn despawn_dead_stuff(mut commands: Commands, mut wall_event: EventReader<DespawnWhenDead>, mut walls: Query<(Entity, &mut Health, &Transform), With<WallMarker>>) {
+    for ev in wall_event.iter() {
+        for (entity, mut health, transform) in walls.iter_mut() {
+            if ev.coords == transform.translation.truncate() {
+                if ev.health != 0.0 {
+                    health.0 = ev.health;
+
+                } else {
+                    commands.entity(entity).despawn_recursive();
+
+                }
+
+                break;
+            }
+        }
+    }
 }
 
 fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &PlayerID)>, mut log_event: EventWriter<LogEvent>) {
@@ -548,7 +599,7 @@ fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Qu
 fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer), With<PlayerID>>, game_mode: Res<GameMode>) {
     for (mut health, mut visibility, mut respawn_timer) in players.iter_mut() {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch {
-            health.0 = 100;
+            health.0 = 100.0;
             respawn_timer.0.reset();
             visibility.is_visible = true;
 
@@ -561,8 +612,8 @@ fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn tick_timers(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
-    for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in timers.iter_mut() {
+fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
+    for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in player_timers.iter_mut() {
         time_since_last_shot.0.tick(time.delta());
         ability_charge.0.tick(time.delta());
 
@@ -577,7 +628,7 @@ fn tick_timers(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abil
 
         }
 
-        if health.0 == 0 && *game_mode == GameMode::Deathmatch {
+        if health.0 == 0.0 && *game_mode == GameMode::Deathmatch {
             respawn_timer.0.tick(time.delta());
 
         }
@@ -589,6 +640,10 @@ fn tick_timers(time: Res<Time>, mut timers: Query<(&mut AbilityCharge, &mut Abil
 
         ready_to_send_packet.0.tick(time.delta());
 
+    }
+
+    for mut destruction_timer in projectile_timers.iter_mut() {
+        destruction_timer.0.tick(time.delta());
     }
 }
 
@@ -622,7 +677,7 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
         let mut ability_charge_percent = 0.0;
 
         let mut reloading = false;
-        let mut health = 0;
+        let mut health = 0.0;
 
         for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer, player_health) in query.iter() {
             if id.0 == my_id.0 {
@@ -676,7 +731,7 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
         }
 
         let mut health_text = t.q2_mut().single_mut().unwrap();
-        health_text.sections[0].value = format!("Health: {}%", health);
+        health_text.sections[0].value = format!("Health: {:.0}%", health);
 
     }
 }

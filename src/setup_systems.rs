@@ -28,6 +28,9 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let stim_sprite= asset_server.load("player_sprites/stim.png");
     let engineer_sprite = asset_server.load("player_sprites/engineer.png");
     let phase_sprite = asset_server.load("player_sprites/phase.png");
+    let inferno_sprite = asset_server.load("player_sprites/inferno.png");
+
+    let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
 
     asset_server.watch_for_changes().unwrap();
 
@@ -37,6 +40,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         stim: materials.add(stim_sprite.into()),
         wall: materials.add(wall_sprite.into()),
         hacker: materials.add(hacker_sprite.into()),
+        inferno: materials.add(inferno_sprite.into()),
 
     });
 
@@ -44,6 +48,8 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
         speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
         engineer: materials.add(Color::rgb_u8(255, 0, 200).into()),
+        molotov: materials.add(Color::rgb_u8(232, 35, 0).into()),
+        molotov_fire: materials.add(molotov_fire_sprite.into()),
 
     });
 
@@ -216,6 +222,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
                         Ability::Stim => materials.stim.clone(),
                         Ability::Wall => materials.wall.clone(),
                         Ability::Hacker => materials.hacker.clone(),
+                        Ability::Inferno => materials.inferno.clone(),
 
                     },
                     sprite: Sprite {

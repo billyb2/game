@@ -117,7 +117,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
-            .register::<([u8; 2], bool, [f32; 2])>(CLIENT_STATE_MESSAGE_SETTINGS)
+            .register::<(u8, f32, bool, [f32; 2])>(CLIENT_STATE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -180,7 +180,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, 
         if ready_to_send_packet.0.finished() {
             for (transform, sprite, health, id) in players.iter() {
                 if id.0 == my_id.0 {
-                    net.broadcast_message(([my_id.0, health.0], sprite.flip_x, [transform.translation.x, transform.translation.y]));
+                    net.broadcast_message((my_id.0, health.0, sprite.flip_x, [transform.translation.x, transform.translation.y]));
 
                     break;
 
@@ -195,19 +195,19 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, 
 
 pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &mut Health, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut death_event: EventWriter<DeathEvent>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<([u8; 2], bool, [f32; 2])> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<(u8, f32, bool, [f32; 2])> = Vec::with_capacity(255);
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
-            while let Some(([player_id, player_health], flip_x, [x, y])) = channels.recv::<([u8; 2], bool, [f32; 2])>() {
+            while let Some((player_id, player_health, flip_x, [x, y])) = channels.recv::<(u8, f32, bool, [f32; 2])>() {
                 online_player_ids.0.insert(player_id);
 
                 // The host broadcasts the locations of all other players
                 #[cfg(feature = "native")]
                 if _hosting.0 {
-                    messages_to_send.push(([player_id, player_health], flip_x, [x, y]))
+                    messages_to_send.push((player_id, player_health, flip_x, [x, y]))
 
                 }
 
@@ -217,10 +217,11 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
                         sprite.flip_x = flip_x;
 
                         // When the game receives conflicting messaging on what the true health of a player is, it picks the lowest one
-                        if (player_health < health.0 || health.0 == 0 && player_health == 100) && !(player_health == 0 && health.0 == 0) {
+                        // The epsilon thing is done since strict comparisons of floating points greater than 100 can be funky and fail
+                        if (player_health < health.0 || health.0 == 0.0 && (player_health - 100.0).abs() < f32::EPSILON) && !(player_health == 0.0 && health.0 == 0.0) {
                             health.0 = player_health;
 
-                            if health.0 == 0 {
+                            if health.0 == 0.0 {
                                 death_event.send(DeathEvent(player_id));
 
                             }
@@ -467,6 +468,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                                 Ability::Stim => materials.stim.clone(),
                                 Ability::Wall => materials.wall.clone(),
                                 Ability::Hacker => materials.hacker.clone(),
+                                Ability::Inferno => materials.inferno.clone(),
 
                             };
 

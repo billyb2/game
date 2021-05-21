@@ -174,7 +174,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                             false => speed.0,
                         },
                         projectile_type: *projectile_type,
-                        damage:*damage,
+                        damage: *damage,
                         player_ability: *player_ability,
                         size: Vec2::new(size.width, size.height),
                         reloading: reload_timer.reloading,
@@ -198,7 +198,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
 pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&PlayerID, &mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>) {
     if let Some(my_id)= &my_player_id.0 {
         for ev in shoot_event.iter() {
-            if ev.health != 0 {
+            if ev.health != 0.0 {
                 let angle = get_angle(ev.pos_direction.x, ev.pos_direction.y, ev.start_pos.x, ev.start_pos.y);
 
                 let mut shooting = false;
@@ -207,7 +207,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let player_id = ev.player_id;
 
-                if player_id == my_id.0 {
+                if player_id == my_id.0 && ev.projectile_type != ProjectileType::Molotov {
                     for (id, mut bursting, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
                         // Checks that said player can shoot, and isnt reloading
                         if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading  && id.0 == player_id {
@@ -249,6 +249,10 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                     }
 
+                } else if ev.projectile_type == ProjectileType::Molotov {
+                    shooting = true;
+                    net.broadcast_message((*ev).clone());
+
                 }
 
                 if shooting || player_id != my_id.0 {
@@ -259,11 +263,14 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             if ev.player_ability == Ability::Engineer {
                                 materials.engineer.clone()
 
-                            } else if ev.projectile_type == ProjectileType::Regular {
-                                materials.regular.clone()
-
                             } else {
-                                materials.speedball.clone()
+                                match ev.projectile_type {
+                                    ProjectileType::Regular => materials.regular.clone(),
+                                    ProjectileType::Speedball => materials.speedball.clone(),
+                                    ProjectileType::Molotov => materials.molotov.clone(),
+                                    ProjectileType::MolotovFire => materials.molotov_fire.clone(),
+
+                                }
 
                             };
 
@@ -300,10 +307,10 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &mut UsingAbility, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>) {
     if let Some(my_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
-            for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, mut using_ability, id) in query.iter_mut() {
+            for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, health, mut using_ability, model, reload_timer, id) in query.iter_mut() {
                 #[cfg(feature = "web")]
                 console_log!("Ability: {:?} \n Ability finished: {:?}", ability, ability_charge.0.finished());
 
@@ -353,6 +360,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                                     };
 
+                                let health_of_wall: f32 = 300.0;
 
                                 commands
                                     .spawn_bundle(SpriteBundle {
@@ -364,7 +372,8 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                         },
                                         ..Default::default()
                                     })
-                                    .insert(WallMarker(coords));
+                                    .insert(Health(health_of_wall))
+                                    .insert(WallMarker);
 
                                 map.objects.push(
                                     MapObject {
@@ -373,7 +382,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                         color,
                                         collidable: true,
                                         player_spawn: false,
-                                        health: Some(30),
+                                        health: Some(health_of_wall),
 
                                     }
                                 );
@@ -430,6 +439,36 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         },
                         // The engineer ability is passive, so when the use ability button is pressed nothing happens
                         Ability::Engineer => {},
+                        // Inferno throws a molotov that lights an area on fire for a few seconds
+                        Ability::Inferno => {
+                            let projectile_speed: f32 = 6.0;
+
+                            let event = ShootEvent {
+                                start_pos: transform.translation,
+                                player_id: id.0,
+                                pos_direction: mouse_pos.0,
+                                health: health.0,
+                                model: *model,
+                                max_distance: mouse_pos.0.distance(transform.translation.truncate()),
+                                recoil_vec: vec![0.0],
+                                // Bullets need to travel "backwards" when moving to the left
+                                speed: match mouse_pos.0.x <= transform.translation.x {
+                                    true => -projectile_speed,
+                                    false => projectile_speed,
+                                },
+                                projectile_type: ProjectileType::Molotov,
+                                damage: Damage(5.0),
+                                player_ability: Ability::Inferno,
+                                size: Vec2::new(3.0, 3.0),
+                                reloading: reload_timer.reloading,
+
+                            };
+
+                            shoot_event.send(event);
+
+                            ability_charge.0.reset();
+
+                        },
                     };
 
                     break;

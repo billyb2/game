@@ -33,10 +33,11 @@ impl Player {
     pub fn new(id: u8, ability: Ability) -> Player {
         Player {
             id: PlayerID(id),
-            health: Health(100),
+            health: Health(100.0),
             speed: match ability {
                 // Stim players have a faster default running speed
                 Ability::Stim => PlayerSpeed(12.0),
+                Ability::Inferno => PlayerSpeed(8.0),
                 _ => PlayerSpeed(11.0),
             },
             requested_movement: RequestedMovement::new(0.0, 0.0),
@@ -48,6 +49,7 @@ impl Player {
                 Ability::Phase => AbilityCharge(Timer::from_seconds(5.0, false)),
                 Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
                 Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
+                Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
 
             },
             // Stim lasts 3 seconds
@@ -66,6 +68,7 @@ pub enum Ability {
     Wall,
     Engineer, //Should be default
     Hacker,
+    Inferno,
 }
 
 impl From<u8> for Ability {
@@ -76,6 +79,7 @@ impl From<u8> for Ability {
             2 => Ability::Wall,
             3 => Ability::Engineer,
             4 => Ability::Hacker,
+            5 => Ability::Inferno,
             _ => Ability::Engineer,
 
         }
@@ -92,6 +96,7 @@ impl From<Ability> for u8 {
             Ability::Wall => 2,
             Ability::Engineer => 3,
             Ability::Hacker => 4,
+            Ability::Inferno => 5,
 
         }
 
@@ -101,15 +106,15 @@ impl From<Ability> for u8 {
 
 impl Distribution<Ability> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Ability {
-        let rand_num: u8 = rng.gen_range(0..=4);
+        let rand_num: u8 = rng.gen_range(0..=5);
 
         match rand_num {
             0 => Ability::Stim,
             1 => Ability::Phase,
-            // Wall bad
-            //2 => Ability::Wall,
+            2 => Ability::Wall,
             3 => Ability::Engineer,
             4 => Ability::Hacker,
+            5 => Ability::Inferno,
             // This can't happen, but I need it for the match arm
             _ => Ability::Engineer,
 
@@ -132,10 +137,6 @@ pub struct RespawnTimer(pub Timer);
 
 #[derive(Debug)]
 pub struct UsingAbility(pub bool);
-
-// Used to know what sprites to destroy when destroying a Wall
-pub struct WallMarker(pub Vec3);
-
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Model {
@@ -285,11 +286,11 @@ impl Gun {
             projectile_size: Size::new(6.0, 6.0),
 
             damage: match model {
-                Model::Pistol => Damage(45),
-                Model::Shotgun => Damage(6),
-                Model::Speedball => Damage(1),
-                Model::BurstRifle => Damage(15),
-                Model::AssaultRifle => Damage(13),
+                Model::Pistol => Damage(45.0),
+                Model::Shotgun => Damage(6.0),
+                Model::Speedball => Damage(1.0),
+                Model::BurstRifle => Damage(15.0),
+                Model::AssaultRifle => Damage(13.0),
 
             },
             // The bursting component only matters for burst rifles
@@ -301,15 +302,22 @@ impl Gun {
             // Cut the reload time in half
             gun.time_since_start_reload.timer.set_duration(gun.time_since_start_reload.timer.duration() / 2);
 
+            // The recoil of engineers is higher
+            gun.recoil_range.0 *= 1.25;
+
             // Increase the speed
-            gun.projectile_speed.0 *= 1.25;
+            gun.projectile_speed.0 *= 1.2;
 
             // Increase the size of speedball slightly
             if gun.model == Model::Speedball {
-                gun.projectile_size *= 1.25;
+                gun.projectile_size *= 1.2;
 
             }
 
+
+        } else if ability == Ability::Inferno {
+            // Inferno's bullets do less damage to make up for the fact that his fire does so much
+            gun.damage.0 *= 0.6;
 
         }
 

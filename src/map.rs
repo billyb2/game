@@ -5,6 +5,9 @@ use std::io::Read;
 
 use bevy::prelude::*;
 
+use crate::Health;
+use crate::components::WallMarker;
+
 use crate::helper_functions::collide;
 use crate::helper_functions::slice_to_u32;
 
@@ -18,7 +21,7 @@ pub struct MapObject {
     pub color: Color,
     pub collidable: bool,
     pub player_spawn: bool,
-    pub health: Option<u8>,
+    pub health: Option<f32>,
 
 }
 
@@ -31,13 +34,13 @@ pub struct Map {
 }
 
 impl MapObject {
-    fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: u8) -> bool {
+    fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: f32) -> bool {
         // Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
         if self.collidable && collide(self.coords, self.size, other_object_coords, other_object_size) {
             // Damagable objects take damage
             if self.health.is_some() {
                 if self.health.unwrap() as i16 - damage as i16 <= 0 {
-                    self.health = Some(0);
+                    self.health = Some(0.0);
 
                 } else {
                     self.health = Some(self.health.unwrap() - damage);
@@ -112,7 +115,7 @@ impl Map {
                     color: Color::rgba_u8(bytes[i + 18], bytes[i + 19], bytes[i + 20], bytes[i + 21]),
                     health: match bytes[i + 22] {
                         0 => None,
-                        _ => Some(bytes[i + 22]),
+                        _ => Some(bytes[i + 22] as f32),
                     },
                 }
             );
@@ -154,15 +157,23 @@ impl Map {
 
     }
 
-     pub fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: u8) -> bool {
+    // Returns the health of a wall if they have health
+     pub fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: f32) -> (bool, Option<(f32, Vec2)>) {
         let mut i = 0;
         let mut collided = false;
+
+        let mut health_and_coords = None;
 
         // The collision function just iterates throuhg each map object within the map, and runs the collide function within
         while i != self.objects.len() {
             if self.objects[i].collision(other_object_coords, other_object_size, damage) {
-                if self.objects[i].health == Some(0) {
-                    self.objects.remove(i);
+                if let Some(health) = self.objects[i].health {
+                    health_and_coords = Some((health, self.objects[i].coords.truncate()));
+
+                    if health == 0.0 {
+                        self.objects.remove(i);
+
+                    }
 
                 }
 
@@ -175,7 +186,7 @@ impl Map {
             }
         }
 
-        collided
+        (collided, health_and_coords)
 
      }
 
@@ -226,7 +237,9 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
                     ..Default::default()
                 },
                 ..Default::default()
-            });
+            })
+            .insert(Health(100.0))
+            .insert(WallMarker);
 
         i += 1;
     }
