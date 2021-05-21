@@ -448,7 +448,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
                 if health.0 > 0 && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size) && player_id.0 != shot_from.0 {
-                    if (health.0 as i8 - damage.0 as i8) < 0 {
+                    if (health.0 as i8 - damage.0 as i8) <= 0 {
                         health.0 = 0;
                         death_event.send(DeathEvent(player_id.0));
 
