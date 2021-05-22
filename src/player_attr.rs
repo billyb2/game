@@ -31,12 +31,13 @@ pub struct Player {
 
 impl Player {
     pub fn new(id: u8, ability: Ability) -> Player {
-        Player {
+        let mut player = Player {
             id: PlayerID(id),
             health: Health(100.0),
             speed: match ability {
                 // Stim players have a faster default running speed
                 Ability::Stim => PlayerSpeed(12.0),
+                // Inferno players move slower to make up for their massive fire damage
                 Ability::Inferno => PlayerSpeed(8.0),
                 _ => PlayerSpeed(11.0),
             },
@@ -57,7 +58,12 @@ impl Player {
             using_ability: UsingAbility(false),
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false))
 
-        }
+        };
+
+        // The ability charge is ready on game start
+        finish_timer(&mut player.ability_charge.0);
+
+        player
     }
 }
 
@@ -323,5 +329,11 @@ impl Gun {
 
         gun
     }
+
+}
+
+
+fn finish_timer(timer: &mut Timer){
+    timer.set_elapsed(timer.duration());
 
 }

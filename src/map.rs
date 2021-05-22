@@ -107,7 +107,7 @@ impl Map {
             objects.push(
                 MapObject {
                     // Gotta adjust for Bevy's coordinate system center being at (0, 0)
-                    coords: Vec3::new(x, -y, 0.0) + Vec3::new(width / 2.0, -height / 2.0, 0.0),
+                    coords: Vec3::new(x, -y, 0.0) + Vec3::new(width / 2.0, -height / 2.0, 1.0),
                     size: Vec2::new(width, height),
                     player_spawn: matches!(bytes[(i + 16)], 255),
                     collidable: matches!(bytes[(i + 17)], 255),

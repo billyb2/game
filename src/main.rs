@@ -593,7 +593,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
     }
 
     // Finally, light any molotovs on fire that need to be lit
-    for (entity, proj_coords, req_mov, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, _) in projectile_movements.iter_mut() {
+    for (entity, proj_coords, _, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, _) in projectile_movements.iter_mut() {
         if *projectile_type == ProjectileType::MolotovLiquid {
             let mut i = 0;
 
@@ -601,16 +601,17 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                 let potential_molotov = molotovs_to_be_lit_on_fire[i];
 
                 if proj_coords.translation.truncate() == potential_molotov.0 && sprite.size.x == potential_molotov.1 {
-                    println!("Molotov lit!");
                     // Does 75 damage every second (since there are 60 frames per second)
                     // This might seem excessive, but most players have the sense to run if they catch on fire, so the high damage done forces them to take the fire as a threat instead of just running through it to engage the slow and weak Inferno
                     // Once the molotov is hit by a bullet, it becomes molotov fire
 
                     *projectile_type.deref_mut() = ProjectileType::MolotovFire;
                     *material.deref_mut() = materials.molotov_fire.clone();
-                    damage.deref_mut().0 = 75.0 / 60.0;
-                    commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(3.0, false)));
+                    damage.deref_mut().0 = 75.0 / 60.0;sprite.deref_mut().size = Vec2::new(175.0, 175.0);
+                    sprite.deref_mut().size = Vec2::new(250.0, 250.0);
+                    commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
 
+                    molotovs_to_be_lit_on_fire.remove(i);
                     break;
 
 
