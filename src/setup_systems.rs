@@ -29,6 +29,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let engineer_sprite = asset_server.load("player_sprites/engineer.png");
     let phase_sprite = asset_server.load("player_sprites/phase.png");
     let inferno_sprite = asset_server.load("player_sprites/inferno.png");
+    let cloak_sprite = asset_server.load("player_sprites/cloak.png");
 
     let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
     let molotov_liquid_sprite = asset_server.load("projectile_sprites/molotov_liquid.png");
@@ -42,6 +43,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         wall: materials.add(wall_sprite.into()),
         hacker: materials.add(hacker_sprite.into()),
         inferno: materials.add(inferno_sprite.into()),
+        cloak: materials.add(cloak_sprite.into()),
 
     });
 
@@ -225,6 +227,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
                         Ability::Wall => materials.wall.clone(),
                         Ability::Hacker => materials.hacker.clone(),
                         Ability::Inferno => materials.inferno.clone(),
+                        Ability::Cloak => materials.cloak.clone(),
 
                     },
                     sprite: Sprite {

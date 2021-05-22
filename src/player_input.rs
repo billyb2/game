@@ -308,10 +308,16 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut Time
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &PlayerID)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map: ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
+query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload,
+              &PlayerID, &mut Visible)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map:
+ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>) {
     if let Some(my_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
-            for (transform, mut requested_movement, ability, mut ability_charge, mut ability_completed, mut speed, health, mut using_ability, model, reload_timer, id) in query.iter_mut() {
+            for (transform, mut requested_movement, ability, mut ability_charge, mut
+            ability_completed, mut speed, health, mut using_ability, model, reload_timer, id, mut
+            visible) in query.iter_mut() {
                 #[cfg(feature = "web")]
                 console_log!("Ability: {:?} \n Ability finished: {:?}", ability, ability_charge.0.finished());
 
@@ -470,6 +476,24 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                             ability_charge.0.reset();
 
                         },
+                        Ability::Cloak => {
+                            if !using_ability.0 && ability_charge.0.finished() {
+                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+
+                                let message: ([u8; 2], [f32; 3]) = ([my_id.0, Ability::Cloak.into
+                                ()], message_array);
+
+                                if ev_id.0 == my_id.0 {
+                                    net.broadcast_message(message);
+
+                                }
+
+                                visible.is_visible = false;
+                                ability_completed.0.reset();
+                                using_ability.0 = true;
+                            }
+
+                        },
                     };
 
                     break;
@@ -480,8 +504,11 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
     }
 }
 
-pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut AbilityCharge, &mut PlayerSpeed)>) {
-    for (mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability, mut using_ability, mut ability_charge, mut speed) in query.iter_mut() {
+pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
+TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
+AbilityCharge, &mut PlayerSpeed, & mut Visible)>) {
+    for (mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
+        mut using_ability, mut ability_charge, mut speed, mut visible) in query.iter_mut() {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -493,6 +520,9 @@ pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut T
         if using_ability.0 && ability_completed.0.finished() {
             if *ability == Ability::Stim {
                 speed.0 /= 2.0;
+
+            } else if *ability == Ability::Cloak {
+                visible.is_visible = true;
 
             }
 

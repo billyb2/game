@@ -56,7 +56,7 @@ const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettin
 };
 
 // Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here
-const WALL_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 2,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -129,7 +129,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .unwrap();
 
         builder
-            .register::<([u8; 2], [f32; 3])>(WALL_MESSAGE_SETTINGS)
+            .register::<([u8; 2], [f32; 3])>(ABILITY_MESSAGE_SETTINGS)
             .unwrap();
 
     });
@@ -193,7 +193,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, 
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &mut Health, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut death_event: EventWriter<DeathEvent>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &mut Health, &PlayerID, &mut Visible, &Ability)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut death_event: EventWriter<DeathEvent>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<(u8, f32, bool, [f32; 2])> = Vec::with_capacity(255);
 
@@ -212,13 +212,17 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
                 }
 
                 // Set the location of any local players to the location given
-                for (mut transform, mut sprite, mut health, id) in players.iter_mut() {
+                for (mut transform, mut sprite, mut health, id, mut visible, ability) in players.iter_mut() {
                     if id.0 == player_id {
                         sprite.flip_x = flip_x;
 
                         // When the game receives conflicting messaging on what the true health of a player is, it picks the lowest one
                         // The epsilon thing is done since strict comparisons of floating points greater than 100 can be funky and fail
                         if (player_health < health.0 || health.0 == 0.0 && (player_health - 100.0).abs() < f32::EPSILON) && !(player_health == 0.0 && health.0 == 0.0) {
+                            if *ability == Ability::Cloak && !visible.is_visible {
+                                visible.is_visible = true;
+                            }
+
                             health.0 = player_health;
 
                             if health.0 == 0.0 {
@@ -251,7 +255,12 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut
+                                                                                    AmmoInMag,
+                                                                                    &mut
+                                                                                    Transform,
+                                                                                    &mut
+                                                                                    RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], [f32; 3])> = Vec::with_capacity(255);
 
@@ -282,9 +291,11 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                             requested_movement.angle = angle;
 
-                            if ability ==Ability::Wall {
+                            if ability == Ability::Wall {
                                 ev_use_ability.send(AbilityEvent(player_id));
 
+                            } else if ability == Ability::Cloak {
+                                ev_use_ability.send(AbilityEvent(player_id));
                             }
 
                             break;
@@ -469,6 +480,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                                 Ability::Wall => materials.wall.clone(),
                                 Ability::Hacker => materials.hacker.clone(),
                                 Ability::Inferno => materials.inferno.clone(),
+                                Ability::Cloak => materials.cloak.clone(),
 
                             };
 

@@ -51,10 +51,15 @@ impl Player {
                 Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
                 Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
                 Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
-
+                Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
             },
             // Stim lasts 3 seconds
-            ability_completed: AbilityCompleted(Timer::from_seconds(3.0, false)),
+            ability_completed: match ability {
+                Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
+                Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
+                // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
+                _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
+            },
             using_ability: UsingAbility(false),
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false))
 
@@ -75,6 +80,7 @@ pub enum Ability {
     Engineer, //Should be default
     Hacker,
     Inferno,
+    Cloak,
 }
 
 impl From<u8> for Ability {
@@ -86,6 +92,7 @@ impl From<u8> for Ability {
             3 => Ability::Engineer,
             4 => Ability::Hacker,
             5 => Ability::Inferno,
+            6 => Ability::Cloak,
             _ => Ability::Engineer,
 
         }
@@ -103,6 +110,7 @@ impl From<Ability> for u8 {
             Ability::Engineer => 3,
             Ability::Hacker => 4,
             Ability::Inferno => 5,
+            Ability::Cloak => 6,
 
         }
 
@@ -112,19 +120,10 @@ impl From<Ability> for u8 {
 
 impl Distribution<Ability> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Ability {
-        let rand_num: u8 = rng.gen_range(0..=5);
+        let rand_num: u8 = rng.gen_range(0..=6);
+        let ability: Ability = rand_num.into();
 
-        match rand_num {
-            0 => Ability::Stim,
-            1 => Ability::Phase,
-            2 => Ability::Wall,
-            3 => Ability::Engineer,
-            4 => Ability::Hacker,
-            5 => Ability::Inferno,
-            // This can't happen, but I need it for the match arm
-            _ => Ability::Engineer,
-
-        }
+        ability
     }
 }
 

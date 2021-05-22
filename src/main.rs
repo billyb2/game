@@ -127,6 +127,7 @@ pub struct Skins {
     wall: Handle<ColorMaterial>,
     hacker: Handle<ColorMaterial>,
     inferno: Handle<ColorMaterial>,
+    cloak: Handle<ColorMaterial>,
 
 }
 
@@ -392,10 +393,10 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
-    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability) in player_movements.iter_mut() {
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible) in player_movements.iter_mut() {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -460,12 +461,16 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            for (player, _, _, _, player_sprite, player_id, mut health, _) in player_movements.iter_mut() {
+            for (player, _, _, _, player_sprite, player_id, mut health, ability, mut visible) in player_movements.iter_mut() {
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
 
                 if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                    if *ability == Ability::Cloak && !visible.is_visible {
+                        visible.is_visible = true;
+                    }
+
                     if (health.0 - damage.0) <= 0.0 {
                         health.0 = 0.0;
                         death_event.send(DeathEvent(player_id.0));
@@ -563,7 +568,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // Firstly, find if the player ID is that of an inferno
             let mut ability = None;
             
-            for (_, _, _, _, _, player_id, _, player_ability) in player_movements.iter_mut() {
+            for (_, _, _, _, _, player_id, _, player_ability, _visible) in player_movements.iter_mut() {
                 if player_id.0 == shot_from.0 {
                     ability = Some(*player_ability);
                     break;
