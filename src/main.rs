@@ -28,7 +28,7 @@ use wasm_bindgen::prelude::*;
 //use bots::*;
 use map::*;
 use player_input::*;
-use helper_functions::{collide, out_of_bounds};
+use helper_functions::{collide, collide_rect_circle, out_of_bounds};
 
 use components::*;
 use menus::*;
@@ -73,6 +73,7 @@ pub enum ProjectileType {
     Speedball,
     Molotov,
     MolotovFire,
+    MolotovLiquid,
 
 }
 
@@ -135,6 +136,7 @@ pub struct ProjectileMaterials {
     pub engineer: Handle<ColorMaterial>,
     pub molotov: Handle<ColorMaterial>,
     pub molotov_fire: Handle<ColorMaterial>,
+    pub molotov_liquid: Handle<ColorMaterial>,
 
 }
 
@@ -390,8 +392,10 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>) {
-    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health) in player_movements.iter_mut() {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>) {
+    let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
+
+    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability) in player_movements.iter_mut() {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -442,7 +446,12 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
     }
 
     for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage, _, _) in projectile_movements.iter_mut() {
-        if movement.speed != 0.0 || *projectile_type == ProjectileType::MolotovFire {
+        if movement.speed != 0.0 || *projectile_type == ProjectileType::MolotovFire || *projectile_type == ProjectileType::MolotovLiquid {
+                if *projectile_type == ProjectileType::MolotovLiquid {
+                    liquid_molotovs.push((object.translation.truncate(), sprite.size.x));
+
+                }
+
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
@@ -451,12 +460,12 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            for (player, _, _, _, player_sprite, player_id, mut health) in player_movements.iter_mut() {
+            for (player, _, _, _, player_sprite, player_id, mut health, _) in player_movements.iter_mut() {
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
 
-                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size)) || (*projectile_type == ProjectileType::MolotovFire && crate::helper_functions::collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
                     if (health.0 - damage.0) <= 0.0 {
                         health.0 = 0.0;
                         death_event.send(DeathEvent(player_id.0));
@@ -527,25 +536,92 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
         }
     }
 
+
     // Remove all stopped bullets
-    for (entity, _, req_mov, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, destruction_timer) in projectile_movements.iter_mut() {
+    for (entity, _, req_mov, _, _, mut sprite, mut projectile_type, _, _, mut material, destruction_timer) in projectile_movements.iter_mut() {
         if req_mov.speed == 0.0 {
             if *projectile_type == ProjectileType::Molotov {
-                // Once the molotov reaches it's destination, or hits a player, it becomes molotov fire
-                *projectile_type.deref_mut() = ProjectileType::MolotovFire;
-                *material.deref_mut() = materials.molotov_fire.clone();
-                sprite.deref_mut().size = Vec2::new(200.0, 200.0);
-                // Does 75 damage every second (since there are 60 frames per second)
-                // This might seem excessive, but most players have the sense to run if they catch on fire, so the high damage done forces them to take the fire as a threat instead of just running through it to engage the slow and weak Inferno
-                damage.deref_mut().0 = 75.0 / 60.0;
-                commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(3.0, false)));
+                // Once the molotov reaches it's destination, or hits a player, it becomes molotov liquid, waiting to be lit by an Inferno
+                *projectile_type.deref_mut() = ProjectileType::MolotovLiquid;
+                *material.deref_mut() = materials.molotov_liquid.clone();
+                sprite.deref_mut().size = Vec2::new(175.0, 175.0);
+                // Molotov liquid disappears after a little while
+                commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
 
-
-            } else if *projectile_type != ProjectileType::MolotovFire || destruction_timer.unwrap().0.finished() {
-                    commands.entity(entity).despawn_recursive();
+            } else if *projectile_type != ProjectileType::MolotovLiquid && *projectile_type != ProjectileType::MolotovFire || ((*projectile_type == ProjectileType::MolotovLiquid || *projectile_type == ProjectileType::MolotovFire) && destruction_timer.unwrap().0.finished()) {
+                commands.entity(entity).despawn_recursive();
 
             }
         }
+    }
+
+    let mut molotovs_to_be_lit_on_fire: Vec<(Vec2, f32)> = Vec::with_capacity(5);
+
+    // Find molotovs that are to be lit on fire
+    for (_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) in projectile_movements.iter_mut() {
+        if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
+            // Firstly, find if the player ID is that of an inferno
+            let mut ability = None;
+            
+            for (_, _, _, _, _, player_id, _, player_ability) in player_movements.iter_mut() {
+                if player_id.0 == shot_from.0 {
+                    ability = Some(*player_ability);
+                    break;
+
+                }
+
+            }
+
+            let ability = ability.unwrap();
+
+            // Only Infernos can light molotovs
+            if ability != Ability::Inferno {
+                break;
+
+            }
+
+            for (coords, radius) in liquid_molotovs.iter() {
+                if collide_rect_circle(proj_coords.translation, sprite.size, coords.extend(0.0), *radius) {
+                    molotovs_to_be_lit_on_fire.push((*coords, *radius));
+
+                }
+
+            }
+
+        }
+
+    }
+
+    // Finally, light any molotovs on fire that need to be lit
+    for (entity, proj_coords, req_mov, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, _) in projectile_movements.iter_mut() {
+        if *projectile_type == ProjectileType::MolotovLiquid {
+            let mut i = 0;
+
+            while i < molotovs_to_be_lit_on_fire.len() {
+                let potential_molotov = molotovs_to_be_lit_on_fire[i];
+
+                if proj_coords.translation.truncate() == potential_molotov.0 && sprite.size.x == potential_molotov.1 {
+                    println!("Molotov lit!");
+                    // Does 75 damage every second (since there are 60 frames per second)
+                    // This might seem excessive, but most players have the sense to run if they catch on fire, so the high damage done forces them to take the fire as a threat instead of just running through it to engage the slow and weak Inferno
+                    // Once the molotov is hit by a bullet, it becomes molotov fire
+
+                    *projectile_type.deref_mut() = ProjectileType::MolotovFire;
+                    *material.deref_mut() = materials.molotov_fire.clone();
+                    damage.deref_mut().0 = 75.0 / 60.0;
+                    commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(3.0, false)));
+
+                    break;
+
+
+                }
+
+                i += 1;
+
+            }
+
+        }
+
     }
 }
 

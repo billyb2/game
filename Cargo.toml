@@ -120,6 +120,3 @@ bevy_tasks = { git = "https://github.com/bevyengine/bevy", default-features = fa
 build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
 target_sdk_version = 29
 min_sdk_version = 16
-
-# This is simply so that CircleCI will work
-net.git-fetch-with-cli = true

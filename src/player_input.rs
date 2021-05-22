@@ -269,6 +269,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::Speedball => materials.speedball.clone(),
                                     ProjectileType::Molotov => materials.molotov.clone(),
                                     ProjectileType::MolotovFire => materials.molotov_fire.clone(),
+                                    ProjectileType::MolotovLiquid => materials.molotov_liquid.clone(),
 
                                 }
 

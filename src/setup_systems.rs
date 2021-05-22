@@ -31,6 +31,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let inferno_sprite = asset_server.load("player_sprites/inferno.png");
 
     let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
+    let molotov_liquid_sprite = asset_server.load("projectile_sprites/molotov_liquid.png");
 
     asset_server.watch_for_changes().unwrap();
 
@@ -50,6 +51,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         engineer: materials.add(Color::rgb_u8(255, 0, 200).into()),
         molotov: materials.add(Color::rgb_u8(232, 35, 0).into()),
         molotov_fire: materials.add(molotov_fire_sprite.into()),
+        molotov_liquid: materials.add(molotov_liquid_sprite.into()),
 
     });
 
