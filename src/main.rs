@@ -1,16 +1,18 @@
 #![feature(variant_count)]
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
+use bevy::{
+    prelude::*,
+    reflect::TypeUuid,
+    render::{
+        pipeline::{PipelineDescriptor, RenderPipeline},
+        render_graph::{RenderGraph, RenderResourcesNode},
+        renderer::RenderResources,
+        shader::ShaderStages,
+    },
+};
 
-//mod bots;
-mod components;
-mod system_labels;
-mod map;
-mod helper_functions;
-mod menus;
-mod player_input;
-mod player_attr;
-mod setup_systems;
+use bevy::render::camera::Camera;
 
 mod net;
 
@@ -52,6 +54,10 @@ extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     pub fn log(s: &str);
 
+#[derive(RenderResources, Default, TypeUuid)]
+#[uuid = "463e4b8a-d555-4fc2-ba9f-4c880063ba92"]
+struct MousePos {
+    value: Vec3,
 }
 
 pub struct GameCamera;
@@ -70,6 +76,10 @@ pub enum AppState {
     InGame,
     Settings,
 
+#[derive(RenderResources, Default, TypeUuid)]
+#[uuid = "463e4c8b-d555-4fc2-ba9f-4c880063ba92"]
+struct WindowSize {
+    value: Vec2,
 }
 
 
@@ -768,78 +778,35 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
     )>,
     my_player_id: Res<MyPlayerID>
 ) {
-    if let Some(my_id) = &my_player_id.0 {
-        let mut ammo_in_mag = 0;
-        let mut max_ammo = 0;
+    let mut star = Mesh::new(bevy::render::pipeline::PrimitiveTopology::TriangleList);
 
-        let mut ability_charge_percent = 0.0;
+    let wnd = wnds.get_primary().unwrap();
 
-        let mut reloading = false;
-        let mut health = 0.0;
-
-        for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer, player_health) in query.iter() {
-            if id.0 == my_id.0 {
-                ammo_in_mag = (*player_ammo_count).0;
-                max_ammo = (*player_max_ammo).0;
-
-                ability_charge_percent = ability_charge.0.percent() * 100.0;
-
-                reloading = reload_timer.reloading;
-                health = player_health.0;
-
-                break;
-
-            }
-        }
-
-        let mut ammo_text = t.q0_mut().single_mut().unwrap();
-        let mut ammo_pos = ammo_style.single_mut().unwrap();
-
-        if !reloading {
-            ammo_text.sections[0].value = ammo_in_mag.to_string();
-            ammo_text.sections[1].value = " / ".to_string();
-            ammo_text.sections[2].value = max_ammo.to_string();
-
-            ammo_pos.position.left = Val::Percent(90.0);
-
-        } else {
-            ammo_text.sections[0].value = "Reloading...".to_string();
-            ammo_text.sections[1].value = "".to_string();
-            ammo_text.sections[2].value = "".to_string();
-
-            // Since the Reloading text is pretty big, I need to shift it left slightly
-            ammo_pos.position.left = Val::Percent(83.0);
-
-        }
-
-        let mut ability_charge_text = t.q1_mut().single_mut().unwrap();
-        ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
-
-        let ability_charge_percent = ability_charge_percent as u8;
-
-        if ability_charge_percent < 50 {
-            ability_charge_text.sections[0].style.color = Color::RED;
-
-        } else if (50..100).contains(&ability_charge_percent) {
-            ability_charge_text.sections[0].style.color = Color::YELLOW;
-
-        } else if ability_charge_percent == 100 {
-            ability_charge_text.sections[0].style.color = Color::GREEN;
-
-        }
-
-        let mut health_text = t.q2_mut().single_mut().unwrap();
-        health_text.sections[0].value = format!("Health: {:.0}%", health);
+    let mut v_pos = vec![[0.0, 0.0, 0.0]];
+    for i in 0..10 {
+        // Angle of each vertex is 1/10 of TAU, plus PI/2 for positioning vertex 0
+        let a = std::f32::consts::FRAC_PI_2 - i as f32 * std::f32::consts::TAU / 10.0;
+        // Radius of internal vertices (2, 4, 6, 8, 10) is 100, it's 200 for external
+        let r = (1 - i % 2) as f32 * 100.0 + 100.0;
+        // Add the vertex coordinates
+        v_pos.push([r * a.cos(), r * a.sin(), 0.0]);
 
     }
-}
 
-fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
-    for log_text in log_event.iter() {
-        if logs.0.len() >= 9 {
-            logs.0.pop();
+    let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+        // Vertex shaders are run once for every vertex in the mesh.
+        // Each vertex can have attributes associated to it (e.g. position,
+        // color, texture mapping). The output of a shader is per-vertex.
+        vertex: asset_server.load::<Shader, _>("shaders/light.vert"),
+        // Fragment shaders are run for each pixel belonging to a triangle on
+        // the screen. Their output is per-pixel.
+        fragment: Some(asset_server.load::<Shader, _>("shaders/light.frag")),
+    }));
 
-        }
+    render_graph.add_system_node(
+        "mouse_pos",
+        RenderResourcesNode::<MousePos>::new(true),
+    );
 
         logs.0.insert(0,
             GameLog {
@@ -854,12 +821,12 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
                 },
                 timer: Timer::from_seconds(8.0, false),
 
-            }
-        );
+    star.set_attribute(Mesh::ATTRIBUTE_POSITION, v_pos);
 
-    }
+    let mut v_color = vec![[0.0, 0.0, 0.0]];
 
-    let mut text_vec = Vec::with_capacity(10);
+    v_color.extend_from_slice(&[[1.0, 1.0, 0.0]; 10]);
+    star.set_attribute("Vertex_Color", v_color);
 
     let mut num_of_pops: u8 = 0;
 
@@ -876,6 +843,7 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
         }
 
     }
+    star.set_indices(Some(bevy::render::mesh::Indices::U32(indices)));
 
     while num_of_pops != 0 {
         logs.0.pop();
@@ -921,9 +889,12 @@ Copyright (c) 2020 Carter Anderson
 #[cfg(feature = "native")]
 fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCamera>>, query: Query<(Entity, &Transform, &Sprite), Without<GameCamera>>, wnds: Res<Windows>, culled_sprites: Query<&OutsideFrustum, With<Sprite>>) {
     let wnd = wnds.get_primary().unwrap();
-    let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
 
-    let camera = camera.single().unwrap();
+    // the default orthographic projection is in pixels from the center;
+    // just undo the translation
+    let cursor_pos = match wnd.cursor_position() {
+        Some(pos) => pos,
+        None => Vec2::ZERO,
 
     let camera_size = window_size * camera.scale.truncate();
 
@@ -938,17 +909,12 @@ fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCam
             size: sprite.size,
         };
 
-        if rect.is_intersecting(sprite_rect) {
-            if culled_sprites.get(entity).is_ok() {
-                commands.entity(entity).remove::<OutsideFrustum>();
+    // apply the camera transform
+    let mut pos_wld: Vec3 = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0)).into();
+    pos_wld.z = 0.0;
+    pos_wld.y = wnd.height() - pos_wld.y;
 
-            }
+    let mut mouse_pos = query.single_mut().unwrap();
 
-        } else if culled_sprites.get(entity).is_err() {
-            commands.entity(entity).insert(OutsideFrustum);
-
-        }
-
-    }
-
+    mouse_pos.value = pos_wld;
 }
