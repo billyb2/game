@@ -323,7 +323,7 @@ fn main() {
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
-                .with_system(despawn_dead_stuff.system().after("move_objects"))
+                .with_system(despawn_destroyed_walls.system().after("move_objects"))
                 .with_system(death_event_system.system().after("move_objects").after(InputFromPlayer).before("dead_players"))
                 .with_system(dead_players.system().after("move_objects").label("dead_players"))
                 .with_system(log_system.system().after("dead_players"))
@@ -633,8 +633,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
     }
 }
 
-// Despawns anything that should be gotten rid of when it's health dies
-fn despawn_dead_stuff(mut commands: Commands, mut wall_event: EventReader<DespawnWhenDead>, mut walls: Query<(Entity, &mut Health, &Transform), With<WallMarker>>) {
+// Despawns walls that have been destroyed
+fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventReader<DespawnWhenDead>, mut walls: Query<(Entity, &mut Health, &Transform), With<WallMarker>>) {
     for ev in wall_event.iter() {
         for (entity, mut health, transform) in walls.iter_mut() {
             if ev.coords == transform.translation.truncate() {
@@ -833,7 +833,8 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
                     value: format!("{}\n", log_text.0.clone()),
                     style: TextStyle {
                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                        font_size: 35.0,
+                        // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
+                        font_size: 35.0 * (20.0 / log_text.0.len() as f32),
                         color: Color::WHITE,
                     }
                 },
@@ -851,8 +852,8 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
     for log in logs.0.iter().rev() {
         if !log.timer.finished() {
             let mut text = log.text.clone();
+            // Sets the transparency of the text
             text.style.color.set_a(log.timer.percent_left());
-
             text_vec.push(text);
 
         } else {
@@ -868,7 +869,9 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
 
     }
 
-    game_log.single_mut().unwrap().sections = text_vec;
+    let mut game_log = game_log.single_mut().unwrap();
+
+    game_log.sections = text_vec;
 
 }
 

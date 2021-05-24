@@ -94,7 +94,8 @@ rand = { version = "0.8", features = ["nightly"] }
 default = [
   "bevy/bevy_winit",
   "bevy/render",
-  "bevy/png"
+  "bevy/png",
+  "native",
 ]
 
 native = [

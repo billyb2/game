@@ -283,14 +283,13 @@ impl Gun {
                 Model::ClusterShotgun => MaxDistance(275.0),
 
             },
-
             // The recoil range is in radians
             recoil_range: match model {
                 Model::Shotgun => RecoilRange(0.2),
                 Model::Speedball => RecoilRange(0.0),
                 Model::BurstRifle => RecoilRange(0.025),
                 Model::SubmachineGun => RecoilRange(0.12),
-                Model::ClusterShotgun => RecoilRange(0.03),
+                Model::ClusterShotgun => RecoilRange(0.07),
                 _ => RecoilRange(0.075),
 
             },
@@ -305,7 +304,7 @@ impl Gun {
                 Model::BurstRifle => Speed(17.0),
                 Model::AssaultRifle => Speed(18.0),
                 Model::SubmachineGun => Speed(16.0),
-                Model::ClusterShotgun => Speed(14.0),
+                Model::ClusterShotgun => Speed(11.0),
 
             },
             projectile_size: match model {
