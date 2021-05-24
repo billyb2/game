@@ -140,6 +140,9 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                     let mut recoil_vec: Vec<f32> = if *model == Model::Shotgun {
                         Vec::with_capacity(12)
 
+                    } else if *model == Model::ClusterShotgun {
+                        Vec::with_capacity(6)
+
                     } else {
                         Vec::with_capacity(1)
 

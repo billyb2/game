@@ -155,7 +155,7 @@ pub enum Model {
     BurstRifle,
     AssaultRifle,
     SubmachineGun,
-    //ClusterShotgun,
+    ClusterShotgun,
 
 }
 
@@ -170,7 +170,7 @@ impl From<u8> for Model {
             3 => Model::BurstRifle,
             4 => Model::AssaultRifle,
             5 => Model::SubmachineGun,
-            //6 => Model::ClusterShotgun,
+            6 => Model::ClusterShotgun,
             _ => Model::Pistol,
 
         }
@@ -188,7 +188,7 @@ impl From<Model> for u8 {
             Model::BurstRifle => 3,
             Model::AssaultRifle => 4,
             Model::SubmachineGun => 5,
-            //Model::ClusterShotgun => 6,
+            Model::ClusterShotgun => 6,
 
         }
 
@@ -230,21 +230,23 @@ impl Gun {
             model,
             time_since_last_shot: match model {
                 Model::Pistol => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
-                Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
+                Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(0.8, false)),
                 Model::Speedball => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
                 Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
                 Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.12, false)),
                 Model::SubmachineGun => TimeSinceLastShot(Timer::from_seconds(0.07, false)),
+                Model::ClusterShotgun => TimeSinceLastShot(Timer::from_seconds(1.3, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
                 timer: match model {
                     Model::Pistol => Timer::from_seconds(1.0, false),
-                    Model::Shotgun => Timer::from_seconds(5.0, false),
+                    Model::Shotgun => Timer::from_seconds(4.0, false),
                     Model::Speedball => Timer::from_seconds(3.0, false),
                     Model::BurstRifle => Timer::from_seconds(3.25, false),
                     Model::AssaultRifle => Timer::from_seconds(3.75, false),
                     Model::SubmachineGun => Timer::from_seconds(2.0, false),
+                    Model::ClusterShotgun => Timer::from_seconds(4.0, false),
 
                 },
                 reloading: false,
@@ -258,6 +260,7 @@ impl Gun {
                 Model::BurstRifle => AmmoInMag(21),
                 Model::AssaultRifle => AmmoInMag(25),
                 Model::SubmachineGun => AmmoInMag(35),
+                Model::ClusterShotgun => AmmoInMag(5),
 
             },
             max_ammo: match model {
@@ -267,6 +270,7 @@ impl Gun {
                 Model::BurstRifle => MaxAmmo(21),
                 Model::AssaultRifle => MaxAmmo(25),
                 Model::SubmachineGun => MaxAmmo(35),
+                Model::ClusterShotgun => MaxAmmo(5),
 
             },
             max_distance: match model {
@@ -276,14 +280,17 @@ impl Gun {
                 Model::BurstRifle => MaxDistance(1000.0),
                 Model::AssaultRifle => MaxDistance(1000.0),
                 Model::SubmachineGun => MaxDistance(600.0),
+                Model::ClusterShotgun => MaxDistance(275.0),
 
             },
 
+            // The recoil range is in radians
             recoil_range: match model {
                 Model::Shotgun => RecoilRange(0.2),
                 Model::Speedball => RecoilRange(0.0),
                 Model::BurstRifle => RecoilRange(0.025),
                 Model::SubmachineGun => RecoilRange(0.12),
+                Model::ClusterShotgun => RecoilRange(0.03),
                 _ => RecoilRange(0.075),
 
             },
@@ -298,6 +305,7 @@ impl Gun {
                 Model::BurstRifle => Speed(17.0),
                 Model::AssaultRifle => Speed(18.0),
                 Model::SubmachineGun => Speed(16.0),
+                Model::ClusterShotgun => Speed(14.0),
 
             },
             projectile_size: match model {
@@ -313,6 +321,8 @@ impl Gun {
                 Model::BurstRifle => Damage(15.0),
                 Model::AssaultRifle => Damage(13.0),
                 Model::SubmachineGun => Damage(7.5),
+                Model::ClusterShotgun => Damage(17.0),
+
 
             },
             // The bursting component only matters for burst rifles
