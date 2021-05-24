@@ -255,12 +255,7 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut
-                                                                                    AmmoInMag,
-                                                                                    &mut
-                                                                                    Transform,
-                                                                                    &mut
-                                                                                    RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], [f32; 3])> = Vec::with_capacity(255);
 
@@ -291,11 +286,9 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                             requested_movement.angle = angle;
 
-                            if ability == Ability::Wall {
+                            if ability == Ability::Wall || ability == Ability::Cloak {
                                 ev_use_ability.send(AbilityEvent(player_id));
 
-                            } else if ability == Ability::Cloak {
-                                ev_use_ability.send(AbilityEvent(player_id));
                             }
 
                             break;

@@ -1,3 +1,4 @@
+#![feature(variant_count)]
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
@@ -469,6 +470,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                 if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
                     if *ability == Ability::Cloak && !visible.is_visible {
                         visible.is_visible = true;
+
                     }
 
                     if (health.0 - damage.0) <= 0.0 {

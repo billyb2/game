@@ -2,6 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use std::convert::From;
+use std::mem::variant_count;
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -81,7 +82,10 @@ pub enum Ability {
     Hacker,
     Inferno,
     Cloak,
+
 }
+
+const NUM_OF_ABILITIES: u8 = variant_count::<Ability>() as u8;
 
 impl From<u8> for Ability {
     fn from(ability: u8)  -> Self {
@@ -120,7 +124,7 @@ impl From<Ability> for u8 {
 
 impl Distribution<Ability> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Ability {
-        let rand_num: u8 = rng.gen_range(0..=6);
+        let rand_num: u8 = rng.gen_range(0..=NUM_OF_ABILITIES);
         let ability: Ability = rand_num.into();
 
         ability
@@ -150,8 +154,12 @@ pub enum Model {
     Speedball,
     BurstRifle,
     AssaultRifle,
+    SubmachineGun,
+    //ClusterShotgun,
 
 }
+
+const NUM_OF_GUN_MODELS: u8 = variant_count::<Model>() as u8;
 
 impl From<u8> for Model {
     fn from(model: u8)  -> Self {
@@ -161,6 +169,8 @@ impl From<u8> for Model {
             2 => Model::Speedball,
             3 => Model::BurstRifle,
             4 => Model::AssaultRifle,
+            5 => Model::SubmachineGun,
+            //6 => Model::ClusterShotgun,
             _ => Model::Pistol,
 
         }
@@ -177,6 +187,8 @@ impl From<Model> for u8 {
             Model::Speedball=> 2,
             Model::BurstRifle => 3,
             Model::AssaultRifle => 4,
+            Model::SubmachineGun => 5,
+            //Model::ClusterShotgun => 6,
 
         }
 
@@ -186,18 +198,10 @@ impl From<Model> for u8 {
 
 impl Distribution<Model> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Model {
-        let rand_num: u8 = rng.gen_range(0..=4);
+        let rand_num: u8 = rng.gen_range(0..=NUM_OF_GUN_MODELS);
+        let gun_model: Model = rand_num.into();
 
-        match rand_num {
-            0 => Model::Pistol,
-            1 => Model::Shotgun,
-            2 => Model::Speedball,
-            3 => Model::BurstRifle,
-            4 => Model::AssaultRifle,
-            // Can't happen
-            _ => Model::Pistol,
-
-        }
+        gun_model
     }
 }
 
@@ -229,7 +233,8 @@ impl Gun {
                 Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
                 Model::Speedball => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
                 Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
-                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.08, false)),
+                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.12, false)),
+                Model::SubmachineGun => TimeSinceLastShot(Timer::from_seconds(0.07, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -239,17 +244,20 @@ impl Gun {
                     Model::Speedball => Timer::from_seconds(3.0, false),
                     Model::BurstRifle => Timer::from_seconds(3.25, false),
                     Model::AssaultRifle => Timer::from_seconds(3.75, false),
+                    Model::SubmachineGun => Timer::from_seconds(2.0, false),
 
                 },
                 reloading: false,
 
             },
+            // Ammo in mag and max_ammo should match
             ammo_in_mag: match model {
                 Model::Pistol=> AmmoInMag(16),
                 Model::Shotgun => AmmoInMag(8),
                 Model::Speedball => AmmoInMag(6),
                 Model::BurstRifle => AmmoInMag(21),
                 Model::AssaultRifle => AmmoInMag(25),
+                Model::SubmachineGun => AmmoInMag(35),
 
             },
             max_ammo: match model {
@@ -258,6 +266,7 @@ impl Gun {
                 Model::Speedball => MaxAmmo(6),
                 Model::BurstRifle => MaxAmmo(21),
                 Model::AssaultRifle => MaxAmmo(25),
+                Model::SubmachineGun => MaxAmmo(35),
 
             },
             max_distance: match model {
@@ -266,6 +275,7 @@ impl Gun {
                 Model::Speedball => MaxDistance(3000.0),
                 Model::BurstRifle => MaxDistance(1000.0),
                 Model::AssaultRifle => MaxDistance(1000.0),
+                Model::SubmachineGun => MaxDistance(600.0),
 
             },
 
@@ -273,6 +283,7 @@ impl Gun {
                 Model::Shotgun => RecoilRange(0.2),
                 Model::Speedball => RecoilRange(0.0),
                 Model::BurstRifle => RecoilRange(0.025),
+                Model::SubmachineGun => RecoilRange(0.12),
                 _ => RecoilRange(0.075),
 
             },
@@ -286,9 +297,14 @@ impl Gun {
                 Model::Speedball => Speed(0.7),
                 Model::BurstRifle => Speed(17.0),
                 Model::AssaultRifle => Speed(18.0),
+                Model::SubmachineGun => Speed(16.0),
 
             },
-            projectile_size: Size::new(6.0, 6.0),
+            projectile_size: match model {
+                Model::SubmachineGun => Size::new(3.0, 3.0),
+                _ => Size::new(6.0, 6.0),
+
+            },
 
             damage: match model {
                 Model::Pistol => Damage(45.0),
@@ -296,6 +312,7 @@ impl Gun {
                 Model::Speedball => Damage(1.0),
                 Model::BurstRifle => Damage(15.0),
                 Model::AssaultRifle => Damage(13.0),
+                Model::SubmachineGun => Damage(7.5),
 
             },
             // The bursting component only matters for burst rifles
@@ -322,7 +339,7 @@ impl Gun {
 
         } else if ability == Ability::Inferno {
             // Inferno's bullets do less damage to make up for the fact that his fire does so much
-            gun.damage.0 *= 0.6;
+            gun.damage.0 *= 0.7;
 
         }
 

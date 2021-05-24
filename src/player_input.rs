@@ -456,6 +456,7 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
                                 pos_direction: mouse_pos.0,
                                 health: health.0,
                                 model: *model,
+                                // The distance that the bullet will travel is just the distance between the mouse and the player
                                 max_distance: mouse_pos.0.distance(transform.translation.truncate()),
                                 recoil_vec: vec![0.0],
                                 // Bullets need to travel "backwards" when moving to the left
