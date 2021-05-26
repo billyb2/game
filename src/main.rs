@@ -127,7 +127,7 @@ impl Projectile {
 }
 
 pub struct Skins {
-    phase: Handle<ColorMaterial>,
+    warp: Handle<ColorMaterial>,
     engineer: Handle<ColorMaterial>,
     stim: Handle<ColorMaterial>,
     wall: Handle<ColorMaterial>,
@@ -415,7 +415,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let mut lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
 
-            // Phase shifts screw up w lag compensation
+            // Warp shifts screw up w lag compensation
             if movement.speed < 500.0 {
                 if lag_compensation > 60.0 {
                     lag_compensation = 60.0;

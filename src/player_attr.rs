@@ -48,7 +48,7 @@ impl Player {
             ability_charge: match ability {
                 Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
                 Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
-                Ability::Phase => AbilityCharge(Timer::from_seconds(5.0, false)),
+                Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
                 Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
                 Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
                 Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
@@ -76,7 +76,7 @@ impl Player {
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Ability {
     Stim,
-    Phase,
+    Warp,
     Wall,
     Engineer, //Should be default
     Hacker,
@@ -91,7 +91,7 @@ impl From<u8> for Ability {
     fn from(ability: u8)  -> Self {
         match ability {
             0 => Ability::Stim,
-            1 => Ability::Phase,
+            1 => Ability::Warp,
             2 => Ability::Wall,
             3 => Ability::Engineer,
             4 => Ability::Hacker,
@@ -109,7 +109,7 @@ impl From<Ability> for u8 {
     fn from(ability: Ability)  -> Self {
         match ability {
             Ability::Stim => 0,
-            Ability::Phase => 1,
+            Ability::Warp => 1,
             Ability::Wall => 2,
             Ability::Engineer => 3,
             Ability::Hacker => 4,

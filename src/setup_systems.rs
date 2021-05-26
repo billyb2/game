@@ -27,7 +27,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let wall_sprite= asset_server.load("player_sprites/wall.png");
     let stim_sprite= asset_server.load("player_sprites/stim.png");
     let engineer_sprite = asset_server.load("player_sprites/engineer.png");
-    let phase_sprite = asset_server.load("player_sprites/phase.png");
+    let warp_sprite = asset_server.load("player_sprites/warp.png");
     let inferno_sprite = asset_server.load("player_sprites/inferno.png");
     let cloak_sprite = asset_server.load("player_sprites/cloak.png");
 
@@ -37,7 +37,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     asset_server.watch_for_changes().unwrap();
 
     commands.insert_resource(Skins {
-        phase: materials.add(phase_sprite.into()),
+        warp: materials.add(warp_sprite.into()),
         engineer: materials.add(engineer_sprite.into()),
         stim: materials.add(stim_sprite.into()),
         wall: materials.add(wall_sprite.into()),
@@ -274,7 +274,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
                 .insert_bundle(Gun::new(gun_model, ability))
                 .insert_bundle(SpriteBundle {
                     material: match ability {
-                        Ability::Phase => materials.phase.clone(),
+                        Ability::Warp => materials.warp.clone(),
                         Ability::Engineer => materials.engineer.clone(),
                         Ability::Stim => materials.stim.clone(),
                         Ability::Wall => materials.wall.clone(),

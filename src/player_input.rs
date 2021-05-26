@@ -444,10 +444,10 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
 
                             }
                         },
-                        Ability::Phase => {
+                        Ability::Warp => {
                             requested_movement.speed += 500.0;
                             #[cfg(feature = "web")]
-                            console_log!("Phase speed: {}", requested_movement.speed);
+                            console_log!("Warp speed: {}", requested_movement.speed);
 
                             ability_charge.0.reset();
 

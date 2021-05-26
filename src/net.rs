@@ -472,7 +472,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                             ability_set.0 = true;
 
                             *color.deref_mut() = match player_ability {
-                                Ability::Phase => materials.phase.clone(),
+                                Ability::Warp => materials.warp.clone(),
                                 Ability::Engineer => materials.engineer.clone(),
                                 Ability::Stim => materials.stim.clone(),
                                 Ability::Wall => materials.wall.clone(),
