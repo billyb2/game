@@ -193,7 +193,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, 
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &mut Health, &PlayerID, &mut Visible, &Ability)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut death_event: EventWriter<DeathEvent>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &mut Health, &PlayerID, &mut Visible, &Ability)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<(u8, f32, bool, [f32; 2])> = Vec::with_capacity(255);
 
@@ -203,6 +203,7 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
 
             while let Some((player_id, player_health, flip_x, [x, y])) = channels.recv::<(u8, f32, bool, [f32; 2])>() {
                 online_player_ids.0.insert(player_id);
+                deathmatch_score.0.insert(player_id, 0);
 
                 // The host broadcasts the locations of all other players
                 #[cfg(feature = "native")]
@@ -255,7 +256,7 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], [f32; 3])> = Vec::with_capacity(255);
 
@@ -265,6 +266,7 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
             while let Some(([player_id, ability], [player_x, player_y, angle])) = channels.recv::<([u8; 2], [f32; 3])>() {
                 online_player_ids.0.insert(player_id);
+                deathmatch_score.0.insert(player_id, 0);
 
                 if player_id != my_id.0 {
                     // The host broadcasts the locations of all other players
@@ -314,7 +316,7 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
     }
 }
 
-pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<(&mut Transform, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<(&mut Transform, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(255);
 
@@ -324,6 +326,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
             while let Some(event) = channels.recv::<ShootEvent>() {
                 online_player_ids.0.insert(event.player_id);
+                deathmatch_score.0.insert(event.player_id, 0);
 
                 if my_id.0 !=  event.player_id {
                     for (mut transform, id) in players.iter_mut() {
@@ -383,7 +386,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, players: Query<(&PlayerID, &Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, players: Query<(&PlayerID, &Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
         let mut messages_to_send: Vec<(u32, [u8; 2])> = Vec::with_capacity(255);
@@ -396,6 +399,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                 if command[0] == 0 {
                     if let Some(player_id) = available_ids.last() {
                         online_player_ids.0.insert(player_id.0);
+                        deathmatch_score.0.insert(player_id.0, 0);
                         println!("Player {} has joined!", player_id.0 + 1);
                         log_event.send(LogEvent(format!("Player {} has joined!", player_id.0 + 1)));
 
@@ -443,7 +447,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 }
 
 #[cfg(feature = "web")]
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, materials: Res<Skins>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, materials: Res<Skins>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     if !hosting.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
@@ -454,6 +458,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                     let id = command[1];
 
                     my_player_id.0 = Some(PlayerID(id));
+                    deathmatch_score.0.insert(id, 0);
                     online_player_ids.0.insert(id);
 
                     break;

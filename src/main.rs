@@ -21,7 +21,10 @@ use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
+
 use serde::{Deserialize, Serialize};
+
+use hashbrown::HashMap;
 
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
@@ -57,6 +60,8 @@ struct AmmoText;
 struct AbilityChargeText;
 struct GameLogText;
 struct HealthText;
+
+pub struct ScoreUI;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -178,6 +183,7 @@ pub struct KeyBindings {
     pub right: KeyCode,
     pub use_ability: KeyCode,
     pub reload: KeyCode,
+    pub show_score: KeyCode,
 
 }
 
@@ -189,6 +195,7 @@ pub enum KeyBindingButtons {
     Right,
     UseAbility,
     Reload,
+    ShowScore,
 }
 
 #[derive(Debug, PartialEq)]
@@ -199,6 +206,9 @@ pub enum GameMode {
     Deathmatch,
 
 }
+
+// The first item of the HashMap is the id of the playyer, the second is said player's score
+pub struct DeathmatchScore(HashMap<u8, u8>);
 
 pub struct MyPlayerID(Option<PlayerID>);
 
@@ -242,7 +252,8 @@ fn main() {
         .insert_resource(MousePosition(Vec2::new(0.0, 0.0)))
         .insert_resource(MyPlayerID(None))
         .insert_resource(GameMode::Deathmatch)
-        .insert_resource(GameLogs::new());
+        .insert_resource(GameLogs::new())
+        .insert_resource(DeathmatchScore(HashMap::with_capacity(256)));
 
         app.add_plugins(DefaultPlugins)
         .add_plugin(NetworkingPlugin::default())
@@ -394,7 +405,7 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible) in player_movements.iter_mut() {
@@ -476,6 +487,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     if (health.0 - damage.0) <= 0.0 {
                         health.0 = 0.0;
                         death_event.send(DeathEvent(player_id.0));
+                        // The player who shot the bullet has their score increased 
+                        *deathmatch_score.0.get_mut(&shot_from.0).unwrap() += 1;
+
 
                     } else {
                         health.0 -= damage.0;
@@ -876,15 +890,15 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
 }
 
 #[cfg(feature = "native")]
-struct Rect {
+struct MyRect {
     position: Vec2,
     size: Vec2,
 }
 
 #[cfg(feature = "native")]
-impl Rect {
+impl MyRect {
     #[inline]
-    pub fn is_intersecting(&self, other: Rect) -> bool {
+    pub fn is_intersecting(&self, other: MyRect) -> bool {
         self.position.distance(other.position) < (self.get_radius() + other.get_radius())
     }
 
@@ -913,13 +927,13 @@ fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCam
 
     let camera_size = window_size * camera.scale.truncate();
 
-    let rect = Rect {
+    let rect = MyRect {
         position: camera.translation.truncate(),
         size: camera_size,
     };
 
     for (entity, transform, sprite)  in query.iter() {
-        let sprite_rect = Rect {
+        let sprite_rect = MyRect {
             position: transform.translation.truncate(),
             size: sprite.size,
         };

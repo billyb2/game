@@ -43,6 +43,11 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
             }
 
+            if text.len() >= 6 && text[0..=4] == *"Score" && selected_key != &KeyBindingButtons::ShowScore {
+                *text = format!("Score: {:?}", keybindings.show_score);
+
+            }
+
         } else {
             if text.len() >= 3 && text[0..=1] == *"Up" {
                 *text = format!("Up: {:?}", keybindings.up);
@@ -73,6 +78,11 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                 *text = format!("Reload: {:?}", keybindings.reload);
 
             }
+
+            if text.len() >= 6 && text[0..=4] == *"Score" {
+                *text = format!("Score: {:?}", keybindings.show_score);
+
+            }
         }
 
         match *interaction {
@@ -100,6 +110,10 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                 } else if text[0..=5] == *"Reload" {
                     *text = "Reload:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Reload);
+
+                } else if text[0..=4] == *"Score" {
+                    *text = "Score:".to_string();
+                    selected_key_button.0 = Some(KeyBindingButtons::ShowScore);
 
                 }
 
@@ -179,6 +193,16 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
                         if text.len() >= 6 && text[0..=5] == *"Reload" {
                             *text = format!("Reload: {:?}", *key);
+
+                        }
+
+                    },
+                    KeyBindingButtons::ShowScore => {
+                        keybindings.show_score = *key;
+                        selected_key_button.0 = None;
+
+                        if text.len() >= 5 && text[0..=4] == *"Score" {
+                            *text = format!("Score: {:?}", *key);
 
                         }
 

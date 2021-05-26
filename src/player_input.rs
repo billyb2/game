@@ -56,7 +56,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, mut play
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>) {
+pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>) {
     let mut angle = None;
 
     if keyboard_input.pressed(keybindings.left) && angle.is_none() {
@@ -103,6 +103,49 @@ pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(
 
     if keyboard_input.pressed(keybindings.reload) {
         ev_reload.send(ReloadEvent);
+
+    }
+
+    if keyboard_input.just_pressed(keybindings.show_score) {
+        let (mut text, mut visible) = score_ui.single_mut().unwrap();
+
+        visible.is_visible = true;
+
+
+        for (player_id, kills) in score.0.iter() {
+            let singular_or_plural_kills = 
+                if *kills == 1 {
+                    "kill"
+
+                } else {
+                    "kills"
+
+                };
+
+            text.sections.push(
+                TextSection {
+                    value: format!("Player {}: {} {}\n", player_id + 1, kills, singular_or_plural_kills).to_string(),
+                    style: TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 45.0,
+                        color: Color::WHITE,
+                    },
+                }
+            );
+
+        }
+
+
+
+    } else if keyboard_input.just_released(keybindings.show_score) {
+        let (mut text, mut visible) = score_ui.single_mut().unwrap();
+
+        visible.is_visible = false;
+
+        while text.sections.len() != 1 {
+            text.sections.pop();
+
+        }
 
     }
 

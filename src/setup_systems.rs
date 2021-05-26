@@ -200,9 +200,60 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(GameLogText);
 
+    // Text saying the current score of all players in game
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexEnd,
+                margin: Rect {
+                   left: Val::Auto,
+                   right: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::Center,
+                align_content: AlignContent::Center,
+                align_items: AlignItems::FlexEnd,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: "Score\n".to_string(),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 45.0,
+                                color: Color::WHITE,
+                            },
+                        }
+                    ],
+                    ..Default::default()
+                },
+                visible: Visible {
+                    is_visible: false,
+
+                    ..Default::default()
+
+                },
+                ..Default::default()
+            })
+            .insert(ScoreUI);
+        });
+
 }
 
-pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map>) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     let mut i: u8 = 0;
 
     let mut rng = rand::thread_rng();
@@ -210,11 +261,13 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
     online_player_ids.insert(0);
+    deathmatch_score.0.insert(0, 0);
 
     for object in map.objects.iter() {
         if object.player_spawn {
             let ability: Ability = rng.gen();
-            let gun_model: Model = rng.gen();
+            //let gun_model: Model = rng.gen();
+            let gun_model = Model::ClusterShotgun;
 
             commands
                 .spawn_bundle(Player::new(i, ability))
@@ -735,6 +788,8 @@ pub fn setup_default_controls(mut commands: Commands) {
 
         use_ability: KeyCode::Q,
         reload: KeyCode::R,
+
+        show_score: KeyCode::Tab,
 
     });
 }
