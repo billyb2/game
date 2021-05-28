@@ -209,13 +209,13 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                     let event = ShootEvent {
                         start_pos: transform.translation,
                         player_id: id.0,
-                        pos_direction: mouse_pos.0,
+                        pos_direction: mouse_pos.value.truncate(),
                         health: health.0,
                         model: *model,
                         max_distance: max_distance.0,
                         recoil_vec,
                         // Bullets need to travel "backwards" when moving to the left
-                        speed: match mouse_pos.0.x <= transform.translation.x {
+                        speed: match mouse_pos.value.x <= transform.translation.x {
                             true => -speed.0,
                             false => speed.0,
                         },
@@ -499,14 +499,14 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
                             let event = ShootEvent {
                                 start_pos: transform.translation,
                                 player_id: id.0,
-                                pos_direction: mouse_pos.0,
+                                pos_direction: mouse_pos.value.truncate(),
                                 health: health.0,
                                 model: *model,
                                 // The distance that the bullet will travel is just the distance between the mouse and the player
-                                max_distance: mouse_pos.0.distance(transform.translation.truncate()),
+                                max_distance: mouse_pos.value.truncate().distance(transform.translation.truncate()),
                                 recoil_vec: vec![0.0],
                                 // Bullets need to travel "backwards" when moving to the left
-                                speed: match mouse_pos.0.x <= transform.translation.x {
+                                speed: match mouse_pos.value.x <= transform.translation.x {
                                     true => -projectile_speed,
                                     false => projectile_speed,
                                 },
@@ -601,7 +601,7 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
     // apply the camera transform
     let pos_wld = camera_transform.compute_matrix() * p.extend(0.0).extend(1.0);
 
-    mouse_pos.0 = pos_wld.into();
+    mouse_pos.value = pos_wld.into();
 
 }
 
@@ -609,7 +609,7 @@ pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res
     if let Some(my_id) = &my_player_id.0 {
     for (mut sprite, transform, id) in player_query.iter_mut() {
         if id.0 == my_id.0 {
-            sprite.flip_x = mouse_pos.0.x >= transform.translation.x;
+            sprite.flip_x = mouse_pos.value.x >= transform.translation.x;
 
             break;
 

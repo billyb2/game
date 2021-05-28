@@ -92,6 +92,9 @@ winit = { version = "0.25.0" }
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
 
+# Used to init variables once
+lazy_static = { version = "1" }
+
 
 [features]
 default = [

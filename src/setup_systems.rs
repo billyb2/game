@@ -7,9 +7,16 @@ use std::collections::BTreeSet;
 use bevy::prelude::*;
 use bevy::prelude::Rect;
 
+use bevy::render::{
+    pipeline::{PipelineDescriptor, RenderPipeline},
+    render_graph::{RenderGraph, RenderResourcesNode},
+    shader::ShaderStages,
+};
+
 use rand::Rng;
 
 use crate::*;
+use crate::shaders::*;
 
  pub fn setup_cameras(mut commands: Commands) {
     commands.spawn_bundle(UiCameraBundle::default());
@@ -23,29 +30,14 @@ use crate::*;
 pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
     //TODO: Use a spritesheet
     // The gorgeous assets are made by Shelby
-    let hacker_sprite= asset_server.load("player_sprites/hacker.png");
-    let wall_sprite= asset_server.load("player_sprites/wall.png");
-    let stim_sprite= asset_server.load("player_sprites/stim.png");
-    let engineer_sprite = asset_server.load("player_sprites/engineer.png");
-    let warp_sprite = asset_server.load("player_sprites/warp.png");
-    let inferno_sprite = asset_server.load("player_sprites/inferno.png");
-    let cloak_sprite = asset_server.load("player_sprites/cloak.png");
+    let default_sprite = asset_server.load("player_sprites/default.png");
 
     let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
     let molotov_liquid_sprite = asset_server.load("projectile_sprites/molotov_liquid.png");
 
     asset_server.watch_for_changes().unwrap();
 
-    commands.insert_resource(Skins {
-        warp: materials.add(warp_sprite.into()),
-        engineer: materials.add(engineer_sprite.into()),
-        stim: materials.add(stim_sprite.into()),
-        wall: materials.add(wall_sprite.into()),
-        hacker: materials.add(hacker_sprite.into()),
-        inferno: materials.add(inferno_sprite.into()),
-        cloak: materials.add(cloak_sprite.into()),
-
-    });
+    commands.insert_resource(Skin(materials.add(default_sprite.into())));
 
     commands.insert_resource(ProjectileMaterials {
         regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
@@ -253,7 +245,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 }
 
-pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, asset_server: Res<AssetServer>) {
     let mut i: u8 = 0;
 
     let mut rng = rand::thread_rng();
@@ -263,26 +255,68 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
     online_player_ids.insert(0);
     deathmatch_score.0.insert(0, 0);
 
+    asset_server.watch_for_changes().unwrap();
+
+    let wnd = wnds.get_primary().unwrap();
+
+    let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+        // Vertex shaders are run once for every vertex in the mesh.
+        // Each vertex can have attributes associated to it (e.g. position,
+        // color, texture mapping). The output of a shader is per-vertex.
+        vertex: asset_server.load::<Shader, _>("shaders/sprite.vert"),
+        // Fragment shaders are run for each pixel belonging to a triangle on
+        // the screen. Their output is per-pixel.
+        fragment: Some(asset_server.load::<Shader, _>("shaders/sprite.frag")),
+    }));
+
+    render_graph.add_system_node(
+        "mouse_position",
+        RenderResourcesNode::<MousePosition>::new(true),
+    );
+
+    render_graph.add_system_node(
+        "screen_dimensions",
+        RenderResourcesNode::<WindowSize>::new(true),
+    );
+
+    render_graph.add_system_node(
+        "helmet_color",
+        RenderResourcesNode::<HelmetColor>::new(true),
+    );
+
+    render_graph.add_system_node(
+        "inner_suit_color",
+        RenderResourcesNode::<InnerSuitColor>::new(true),
+    );
+
     for object in map.objects.iter() {
         if object.player_spawn {
             let ability: Ability = rng.gen();
             //let gun_model: Model = rng.gen();
             let gun_model = Model::ClusterShotgun;
 
+            let (helmet_color, inner_suit_color) = match ability {
+                Ability::Inferno => (HelmetColor { value: Vec3::new(231.0 / 255.0, 120.0 / 255.0, 1.0 / 255.0) }, InnerSuitColor { value: Vec3::new(232.0 / 255.0, 35.0 / 255.0, 0.0) }),
+
+                Ability::Engineer => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(238.0 / 255.0, 166.0 / 255.0, 34.0 / 255.0) }),
+
+                Ability::Hacker => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(107.0 / 255.0, 1.0 / 255.0, 1.0 / 255.0) }),
+
+                Ability::Warp => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(229.0 / 255.0, 2.0 / 255.0, 146.0 / 255.0) }),
+
+                Ability::Wall => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(43.0 / 255.0, 36.0 / 255.0, 245.0 / 255.0) }),
+
+                Ability::Stim => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(65.0 / 255.0, 238.0 / 255.0, 35.0 / 255.0) }),
+
+                Ability::Cloak => (HelmetColor { value: Vec3::new(97.0 / 255.0, 97.0 / 255.0, 97.0 / 255.0) }, InnerSuitColor { value: Vec3::new(158.0 / 255.0, 158.0 / 255.0, 158.0 / 255.0) }),
+
+            };
+
             commands
                 .spawn_bundle(Player::new(i, ability))
                 .insert_bundle(Gun::new(gun_model, ability))
                 .insert_bundle(SpriteBundle {
-                    material: match ability {
-                        Ability::Warp => materials.warp.clone(),
-                        Ability::Engineer => materials.engineer.clone(),
-                        Ability::Stim => materials.stim.clone(),
-                        Ability::Wall => materials.wall.clone(),
-                        Ability::Hacker => materials.hacker.clone(),
-                        Ability::Inferno => materials.inferno.clone(),
-                        Ability::Cloak => materials.cloak.clone(),
-
-                    },
+                    material: materials.0.clone(),
                     sprite: Sprite {
                         size: Vec2::new(60.0, 60.0),
                         flip_x: true,
@@ -290,8 +324,15 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skins>, map: Res<Map
                         ..Default::default()
                     },
                     transform: Transform::from_translation(object.coords),
+                    render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
+                        pipeline_handle.clone(),
+                    )]),
                     ..Default::default()
-                });
+                })
+                .insert(MousePosition { value: Vec3::new(0.0, 0.0, 0.0) })
+                .insert(WindowSize { value: Vec2::new(wnd.width(), wnd.height()) })
+                .insert(helmet_color)
+                .insert(inner_suit_color);
 
             if i != 0 {
                 availabie_player_ids.push(PlayerID(i));
