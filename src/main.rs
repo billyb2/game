@@ -778,29 +778,16 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
     )>,
     my_player_id: Res<MyPlayerID>
 ) {
-    let mut star = Mesh::new(bevy::render::pipeline::PrimitiveTopology::TriangleList);
-
     let wnd = wnds.get_primary().unwrap();
-
-    let mut v_pos = vec![[0.0, 0.0, 0.0]];
-    for i in 0..10 {
-        // Angle of each vertex is 1/10 of TAU, plus PI/2 for positioning vertex 0
-        let a = std::f32::consts::FRAC_PI_2 - i as f32 * std::f32::consts::TAU / 10.0;
-        // Radius of internal vertices (2, 4, 6, 8, 10) is 100, it's 200 for external
-        let r = (1 - i % 2) as f32 * 100.0 + 100.0;
-        // Add the vertex coordinates
-        v_pos.push([r * a.cos(), r * a.sin(), 0.0]);
-
-    }
 
     let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         // Vertex shaders are run once for every vertex in the mesh.
         // Each vertex can have attributes associated to it (e.g. position,
         // color, texture mapping). The output of a shader is per-vertex.
-        vertex: asset_server.load::<Shader, _>("shaders/light.vert"),
+        vertex: asset_server.load::<Shader, _>("shaders/sprite.vert"),
         // Fragment shaders are run for each pixel belonging to a triangle on
         // the screen. Their output is per-pixel.
-        fragment: Some(asset_server.load::<Shader, _>("shaders/light.frag")),
+        fragment: Some(asset_server.load::<Shader, _>("shaders/sprite.frag")),
     }));
 
     render_graph.add_system_node(
