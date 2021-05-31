@@ -308,7 +308,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         let movement = RequestedMovement::new(angle + recoil, speed);
 
                         let material =
-                            if ev.player_ability == Ability::Engineer {
+                            if ev.player_ability == Ability::Engineer && ev.model != Model::Flamethrower {
                                 materials.engineer.clone()
 
                             } else {

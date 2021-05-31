@@ -266,7 +266,7 @@ impl Gun {
                 Model::AssaultRifle => AmmoInMag(25),
                 Model::SubmachineGun => AmmoInMag(35),
                 Model::ClusterShotgun => AmmoInMag(5),
-                Model::Flamethrower => AmmoInMag(200),
+                Model::Flamethrower => AmmoInMag(30),
 
             },
             max_ammo: match model {
@@ -277,7 +277,7 @@ impl Gun {
                 Model::AssaultRifle => MaxAmmo(25),
                 Model::SubmachineGun => MaxAmmo(35),
                 Model::ClusterShotgun => MaxAmmo(5),
-                Model::Flamethrower => MaxAmmo(200),
+                Model::Flamethrower => MaxAmmo(30),
 
             },
             max_distance: match model {
