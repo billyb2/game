@@ -35,6 +35,11 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
     let molotov_liquid_sprite = asset_server.load("projectile_sprites/molotov_liquid.png");
 
+    let mut rng = rand::thread_rng();
+
+    let flame1 = rng.gen_range(200..=250);
+    let flame2 = rng.gen_range(100..=150);
+
     asset_server.watch_for_changes().unwrap();
 
     commands.insert_resource(Skin(materials.add(default_sprite.into())));
@@ -42,6 +47,9 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     commands.insert_resource(ProjectileMaterials {
         regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
         speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
+        flamethrower1: materials.add(Color::rgb_u8(flame1, 43, 9).into()),
+        flamethrower2: materials.add(Color::rgb_u8(221, flame2, 9).into()),
+        flamethrower3: materials.add(Color::rgb_u8(249, 249, 12).into()),
         engineer: materials.add(Color::rgb_u8(255, 0, 200).into()),
         molotov: materials.add(Color::rgb_u8(232, 35, 0).into()),
         molotov_fire: materials.add(molotov_fire_sprite.into()),
@@ -292,8 +300,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
     for object in map.objects.iter() {
         if object.player_spawn {
             let ability: Ability = rng.gen();
-            //let gun_model: Model = rng.gen();
-            let gun_model = Model::ClusterShotgun;
+            let gun_model: Model = rng.gen();
 
             let (helmet_color, inner_suit_color) = match ability {
                 Ability::Inferno => (HelmetColor { value: Vec3::new(231.0 / 255.0, 120.0 / 255.0, 1.0 / 255.0) }, InnerSuitColor { value: Vec3::new(232.0 / 255.0, 35.0 / 255.0, 0.0) }),

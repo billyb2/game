@@ -156,6 +156,7 @@ pub enum Model {
     AssaultRifle,
     SubmachineGun,
     ClusterShotgun,
+    Flamethrower,
 
 }
 
@@ -171,6 +172,7 @@ impl From<u8> for Model {
             4 => Model::AssaultRifle,
             5 => Model::SubmachineGun,
             6 => Model::ClusterShotgun,
+            7 => Model::Flamethrower,
             _ => Model::Pistol,
 
         }
@@ -189,6 +191,7 @@ impl From<Model> for u8 {
             Model::AssaultRifle => 4,
             Model::SubmachineGun => 5,
             Model::ClusterShotgun => 6,
+            Model::Flamethrower => 7,
 
         }
 
@@ -236,6 +239,7 @@ impl Gun {
                 Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.12, false)),
                 Model::SubmachineGun => TimeSinceLastShot(Timer::from_seconds(0.07, false)),
                 Model::ClusterShotgun => TimeSinceLastShot(Timer::from_seconds(1.3, false)),
+                Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -247,6 +251,7 @@ impl Gun {
                     Model::AssaultRifle => Timer::from_seconds(3.75, false),
                     Model::SubmachineGun => Timer::from_seconds(2.0, false),
                     Model::ClusterShotgun => Timer::from_seconds(4.0, false),
+                    Model::Flamethrower => Timer::from_seconds(2.0, false),
 
                 },
                 reloading: false,
@@ -261,6 +266,7 @@ impl Gun {
                 Model::AssaultRifle => AmmoInMag(25),
                 Model::SubmachineGun => AmmoInMag(35),
                 Model::ClusterShotgun => AmmoInMag(5),
+                Model::Flamethrower => AmmoInMag(200),
 
             },
             max_ammo: match model {
@@ -271,6 +277,7 @@ impl Gun {
                 Model::AssaultRifle => MaxAmmo(25),
                 Model::SubmachineGun => MaxAmmo(35),
                 Model::ClusterShotgun => MaxAmmo(5),
+                Model::Flamethrower => MaxAmmo(200),
 
             },
             max_distance: match model {
@@ -281,6 +288,7 @@ impl Gun {
                 Model::AssaultRifle => MaxDistance(1000.0),
                 Model::SubmachineGun => MaxDistance(600.0),
                 Model::ClusterShotgun => MaxDistance(275.0),
+                Model::Flamethrower => MaxDistance(200.0),
 
             },
             // The recoil range is in radians
@@ -295,6 +303,7 @@ impl Gun {
             },
             projectile_type: match model {
                 Model::Speedball => ProjectileType::Speedball,
+                Model::Flamethrower => ProjectileType::Flame,
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
@@ -305,6 +314,7 @@ impl Gun {
                 Model::AssaultRifle => Speed(18.0),
                 Model::SubmachineGun => Speed(16.0),
                 Model::ClusterShotgun => Speed(11.0),
+                Model::Flamethrower => Speed(30.0),
 
             },
             projectile_size: match model {
@@ -321,6 +331,7 @@ impl Gun {
                 Model::AssaultRifle => Damage(13.0),
                 Model::SubmachineGun => Damage(7.5),
                 Model::ClusterShotgun => Damage(17.0),
+                Model::Flamethrower => Damage(12.5),
 
 
             },

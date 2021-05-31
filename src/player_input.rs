@@ -249,6 +249,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let mut shooting = false;
 
+                let mut rng = rand::thread_rng();
+
                 let speed = ev.speed;
 
                 let player_id = ev.player_id;
@@ -310,12 +312,22 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 materials.engineer.clone()
 
                             } else {
+                                let num = rng.gen_range(0..=2);
+
+                                let flame_material = match num {
+                                    0 => materials.flamethrower1.clone(),
+                                    1 => materials.flamethrower2.clone(),
+                                    2 => materials.flamethrower3.clone(),
+                                    _ => materials.flamethrower1.clone(),
+                                };
+
                                 match ev.projectile_type {
                                     ProjectileType::Regular => materials.regular.clone(),
                                     ProjectileType::Speedball => materials.speedball.clone(),
                                     ProjectileType::Molotov => materials.molotov.clone(),
                                     ProjectileType::MolotovFire => materials.molotov_fire.clone(),
                                     ProjectileType::MolotovLiquid => materials.molotov_liquid.clone(),
+                                    ProjectileType::Flame => flame_material,
 
                                 }
 

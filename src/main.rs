@@ -81,6 +81,7 @@ pub enum AppState {
 pub enum ProjectileType {
     Regular,
     Speedball,
+    Flame,
     Molotov,
     MolotovFire,
     MolotovLiquid,
@@ -140,6 +141,9 @@ pub struct ProjectileMaterials {
     pub molotov_fire: Handle<ColorMaterial>,
     pub molotov_liquid: Handle<ColorMaterial>,
 
+    pub flamethrower1: Handle<ColorMaterial>,
+    pub flamethrower2: Handle<ColorMaterial>,
+    pub flamethrower3: Handle<ColorMaterial>,
 }
 
 pub struct ButtonMaterials {
@@ -537,6 +541,10 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
                     }
 
+                }
+
+                if *projectile_type == ProjectileType::Flame {
+                    sprite.size *= 1.5;
                 }
 
                 match movement_type {
