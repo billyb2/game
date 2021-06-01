@@ -1,4 +1,7 @@
 #![feature(variant_count)]
+#![feature(const_fn_union)]
+#![feature(const_fn_floating_point_arithmetic)]
+
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
@@ -71,6 +74,8 @@ pub struct ScoreUI;
 pub enum AppState {
     Connecting,
     MainMenu,
+    GameMenu,
+    CustomizePlayerMenu,
     InGame,
     Settings,
 
@@ -152,12 +157,20 @@ pub struct ButtonMaterials {
 
 }
 
+pub struct GameMenuButtonMaterials {
+    pub normal: Handle<ColorMaterial>,
+    pub hovered: Handle<ColorMaterial>,
+
+}
+
 
 // The mouse's position in world coordinates
+pub struct MousePosition(Vec2);
+
 #[derive(RenderResources, Default, TypeUuid)]
 #[uuid = "463e4b8a-d555-4fc2-ba9f-4c880063ba92"]
-pub struct MousePosition {
-    value: Vec3,
+pub struct ShaderMousePosition {
+    value: Vec2,
 }
 
 #[derive(RenderResources, Default, TypeUuid)]
@@ -230,6 +243,11 @@ pub struct OnlinePlayerIDs(BTreeSet<u8>);
 fn main() {
     let mut app = App::build();
 
+    let mut rng = rand::thread_rng();
+
+    let ability: Ability = rng.gen();
+    let gun_model: Model = rng.gen();
+
         // Antialiasing
         app.insert_resource(Msaa { samples: 1 });
 
@@ -258,10 +276,12 @@ fn main() {
         // Embed the map into the binary
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
         // Gotta initialize the mouse position with something, or else the game crashes
-        .insert_resource(MousePosition { value: Vec3::new(0.0, 0.0, 0.0) })
+        .insert_resource(MousePosition(Vec2::ZERO))
         .insert_resource(MyPlayerID(None))
         .insert_resource(GameMode::Deathmatch)
         .insert_resource(GameLogs::new())
+        .insert_resource(gun_model)
+        .insert_resource(ability)
         .insert_resource(DeathmatchScore(HashMap::with_capacity(256)));
 
         app.add_plugins(DefaultPlugins)
@@ -289,6 +309,7 @@ fn main() {
         .add_system(check_assets_ready.system());
 
         // Sprite culling
+        // For some reason, sprite culling fails on WASM
         #[cfg(feature = "native")]
         app.add_system_to_stage(
             CoreStage::PostUpdate,
@@ -330,7 +351,6 @@ fn main() {
         .add_system_set(
             SystemSet::on_update(AppState::InGame)
                 // Timers should be ticked first
-                .with_system(animate_shaders.system().before("player_attr").before(InputFromPlayer).before("shoot"))
                 .with_system(tick_timers.system().before("player_attr").before(InputFromPlayer))
                 .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
                 .with_system(send_stats.system().label(InputFromPlayer).before("player_attr"))
@@ -388,6 +408,36 @@ fn main() {
         )
         .add_system_set(
             SystemSet::on_exit(AppState::MainMenu)
+                .with_system(exit_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_enter(AppState::GameMenu)
+                .with_system(setup_game_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::GameMenu)
+                .with_system(game_menu_system.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_exit(AppState::GameMenu)
+                .with_system(exit_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_enter(AppState::CustomizePlayerMenu)
+                .with_system(setup_customize_menu.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_update(AppState::CustomizePlayerMenu)
+                .with_system(customize_menu_system.system())
+
+        )
+        .add_system_set(
+            SystemSet::on_exit(AppState::CustomizePlayerMenu)
                 .with_system(exit_menu.system())
 
         )

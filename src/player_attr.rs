@@ -85,7 +85,7 @@ pub enum Ability {
 
 }
 
-const NUM_OF_ABILITIES: u8 = variant_count::<Ability>() as u8;
+pub const NUM_OF_ABILITIES: u8 = variant_count::<Ability>() as u8;
 
 impl From<u8> for Ability {
     fn from(ability: u8)  -> Self {
@@ -160,7 +160,7 @@ pub enum Model {
 
 }
 
-const NUM_OF_GUN_MODELS: u8 = variant_count::<Model>() as u8;
+pub const NUM_OF_GUN_MODELS: u8 = variant_count::<Model>() as u8;
 
 impl From<u8> for Model {
     fn from(model: u8)  -> Self {

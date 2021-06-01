@@ -1,48 +1,46 @@
-#version 450
+#version 300 es
+precision highp float;
 
-layout(location = 0) in vec2 v_Uv;
+in vec2 v_Uv;
+out vec4 o_Target;
 
-layout(location = 0) out vec4 o_Target;
-
-layout(set = 1, binding = 0) uniform ColorMaterial_color {
+layout(std140) uniform ColorMaterial_color {
     vec4 Color;
 };
 
-layout(set = 2, binding = 2) uniform ShaderMousePosition_value {
+layout(std140) uniform ShaderMousePosition_value { // set = 2, binding = 2
     vec2 mouse_pos;
 };
 
-layout(set = 2, binding = 3) uniform HelmetColor_value {
+layout(std140) uniform HelmetColor_value { // set = 2, binding = 3
     vec3 helmet_color;
 };
 
-layout(set = 2, binding = 4) uniform InnerSuitColor_value {
+layout(std140) uniform InnerSuitColor_value { // set = 2, binding = 4
     vec3 inner_suit_color;
 };
 
-layout(set = 2, binding = 5) uniform WindowSize_value {
+layout(std140) uniform WindowSize_value { // set = 2, binding = 5
     vec2 screen_dimensions;
 };
 
 
 # ifdef COLORMATERIAL_TEXTURE 
-layout(set = 1, binding = 1) uniform texture2D ColorMaterial_texture;
-layout(set = 1, binding = 2) uniform sampler ColorMaterial_texture_sampler;
+uniform sampler2D ColorMaterial_texture;  // set = 1, binding = 1
 # endif
 
 //Lighting settings
 const float light_radius = 300.0;
 const float max_light_intensity = 1.0;
 
-//const vec4 default_helmet_color = vec4(96.0, 96.0, 96.0, 1.0);
-
 // Converts a color from sRGB gamma to linear light gamma
-vec4 color_encode(vec4 sRGB) {
-    bvec4 cutoff = lessThan(sRGB, vec4(0.04045));
-    vec4 higher = pow((sRGB + vec4(0.055))/vec4(1.055), vec4(2.4));
-    vec4 lower = sRGB/vec4(12.92);
+vec4 color_encode(vec4 color) {
+    vec3 linearRGB = color.rgb;
+    vec3 a = 12.92 * linearRGB;
+    vec3 b = 1.055 * pow(linearRGB, vec3(1.0 / 2.4)) - 0.055;
+    vec3 c = step(vec3(0.0031308), linearRGB);
 
-    return mix(higher, lower, cutoff);
+    return vec4(mix(a, b, c), color.a);
 }
 
 
@@ -96,7 +94,10 @@ void main() {
     // Don't mess with the transparent part of the sprites
     if (color.a != 0.0) {
         # ifdef COLORMATERIAL_TEXTURE
-            color *= texture(sampler2D(ColorMaterial_texture, ColorMaterial_texture_sampler),v_Uv);
+            color *= texture(
+                ColorMaterial_texture,
+                v_Uv
+            );
         # endif
         set_color_of_player(color);
         //add_lighting(color);

@@ -87,7 +87,10 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
         match *interaction {
             Interaction::Clicked => {
-                if text[0..=1] == *"Up" {
+                if text == "Back" {
+                    app_state.set(AppState::MainMenu).unwrap();
+
+                } else if text[0..=1] == *"Up" {
                     *text = "Up:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Up);
 
@@ -214,30 +217,119 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
     }
 }
 
-pub fn main_menu_system(mut commands: Commands, button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
+pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
     for (interaction, mut material, children) in interaction_query.iter_mut() {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         match *interaction {
             Interaction::Clicked => {
-                // Only native builds can host
-                #[cfg(feature = "native")]
-                if text == &String::from("Play (Host)") {
-                    app_state.set(AppState::Connecting).unwrap();
-                    commands.insert_resource(Hosting(true));
+                if text == "Play" {
+                    app_state.set(AppState::GameMenu).unwrap();
+
+                } else if text == "Settings"{
+                    app_state.set(AppState::Settings).unwrap();
 
                 }
 
-                // Only WASM builds can join
-                #[cfg(feature = "web")]
-                if text == &String::from("Play (Join)") {
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+
+            }
+        }
+    }
+}
+
+pub fn game_menu_system(mut commands: Commands, button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
+    for (interaction, mut material, children) in interaction_query.iter_mut() {
+        let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
+
+        match *interaction {
+            Interaction::Clicked => {
+                if text.len() >= 5 && &text[5..] == "game" {
                     app_state.set(AppState::Connecting).unwrap();
+                    #[cfg(feature = "native")]
+                    commands.insert_resource(Hosting(true));
+                    #[cfg(feature = "web")]
                     commands.insert_resource(Hosting(false));
 
+                } else if text == "Customize" {
+                    app_state.set(AppState::CustomizePlayerMenu).unwrap();
+
+                } else if text == "Back" {
+                    app_state.set(AppState::MainMenu).unwrap();
+
                 }
 
-                if text == &String::from("Settings") {
-                    app_state.set(AppState::Settings).unwrap();
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+
+            }
+        }
+    }
+}
+
+pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>) {
+    for (interaction, mut material, children) in interaction_query.iter_mut() {
+        let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
+
+        match *interaction {
+            Interaction::Clicked => {
+                if text.len() >= 7 && &text[..=6] == "Ability" {
+                    let current_ability_int: u8 = (*my_ability).into();
+
+                    match current_ability_int == NUM_OF_ABILITIES - 1 {
+                        true => {
+                            let new_ability: Ability = 0.into();
+                            *my_ability.deref_mut() = new_ability;
+                        },
+                        false => {
+                            let new_ability: Ability = (current_ability_int + 1).into();
+                            *my_ability.deref_mut() = new_ability;
+                        },
+
+
+                    };
+
+                    println!("{}", current_ability_int);
+
+
+                    *text = format!("Ability: {:?}", *my_ability);
+
+                } else if text.len() >= 3 && &text[..=2] == "Gun" {
+                    let current_gun_int: u8 = (*my_gun_model).into();
+
+                    match current_gun_int == NUM_OF_GUN_MODELS - 1 {
+                        true => {
+                            let new_gun_model: Model = 0.into();
+                            *my_gun_model.deref_mut() = new_gun_model;
+                        },
+                        false => {
+                            let new_gun_model: Model = (current_gun_int + 1).into();
+                            *my_gun_model.deref_mut() = new_gun_model;
+                        },
+
+
+                    };
+
+                    println!("{}", current_gun_int);
+
+                    *text = format!("Gun: {:?}", *my_gun_model);
+
+                } else if text == "Customize" {
+                    app_state.set(AppState::CustomizePlayerMenu).unwrap();
+
+                } else if text == "Back" {
+                    app_state.set(AppState::GameMenu).unwrap();
 
                 }
 

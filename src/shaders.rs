@@ -1,14 +1,12 @@
 use bevy::prelude::*;
 use bevy::asset::LoadState;
 use bevy::reflect::TypeUuid;
+
 use bevy::render::renderer::RenderResources;
 use bevy::render::pipeline::PipelineDescriptor;
 use bevy::render::shader::ShaderStages;
-use bevy::render::render_graph::RenderGraph;
 
-use lazy_static::lazy_static;
-
-use crate::*;
+use bevy::math::const_vec3;
 
 // The UUID is just random
 
@@ -19,6 +17,34 @@ pub struct HelmetColor {
 
 }
 
+impl HelmetColor {
+    pub const fn new(value: [u8; 3]) -> Self {
+        let new_values: [f32; 3] = {
+            let mut new_values: [f32; 3] = [0.0; 3];
+
+            let mut i = 0;
+
+            while i < value.len() {
+                let mut v: f32 = value[i] as f32;
+                v /= 255.0;
+
+                new_values[i] = v;
+
+                i += 1;
+
+            }
+
+            new_values
+
+        };
+        
+        Self {
+            value: const_vec3!(new_values),
+
+        }
+    }
+}
+
 #[derive(RenderResources, Default, TypeUuid)]
 #[uuid = "463e4c8b-d555-4fc2-ba9f-4c881163ba92"]
 pub struct InnerSuitColor {
@@ -26,44 +52,33 @@ pub struct InnerSuitColor {
 
 }
 
-// Need to adjust the position of the mouse for the shader (for  some reason, I'm unsure why)
-// Lazy satatic lets us do a little more than a const, except that it's run once at runtime instead of at compile time
-lazy_static! {
-    static ref ADJUSTMENT: Vec3 = Vec3::new(50.0, 25.0, 0.0);
+impl InnerSuitColor {
+    pub const fn new(value: [u8; 3]) -> Self {
+        let new_values: [f32; 3] = {
+            let mut new_values: [f32; 3] = [0.0; 3];
 
-}
+            let mut i = 0;
 
-pub fn animate_shaders(mut query: Query<&mut MousePosition>, wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>) {
-    // assuming there is exactly one main camera entity, so this is OK
-    let camera_transform = camera.single().unwrap();
+            while i < value.len() {
+                let mut v: f32 = value[i] as f32;
+                v /= 255.0;
 
-    // get the size of the window that the event is for
-    let wnd = wnds.get_primary().unwrap();
+                new_values[i] = v;
 
-    // the default orthographic projection is in pixels from the center;
-    // just undo the translation
-    let cursor_pos = match wnd.cursor_position() {
-        Some(pos) => pos,
-        None => Vec2::ZERO,
+                i += 1;
 
-    };
+            }
 
-    let p = cursor_pos;
+            new_values
 
-    // apply the camera transform
-    let mut pos_wld: Vec3 = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0)).into();
-    pos_wld.z = 0.0;
-    pos_wld.y = wnd.height() - pos_wld.y;
+        };
+        
+        Self {
+            value: const_vec3!(new_values),
 
-    pos_wld += *ADJUSTMENT;
-
-
-    for mut mouse_pos in query.iter_mut() {
-        mouse_pos.value = pos_wld;
-
+        }
     }
 }
-
 
 // All this is to keep hot shaders from crashing (see https://github.com/bevyengine/bevy/issues/1359)
 
@@ -77,6 +92,14 @@ pub struct AssetsLoading {
 pub fn setup_asset_loading(asset_server: Res<AssetServer>, mut commands: Commands,) {
     asset_server.watch_for_changes().unwrap();
 
+    #[cfg(feature = "web")]
+    commands.insert_resource(AssetsLoading {
+        loaded: false,
+        vertex_shader: asset_server.load::<Shader, _>("shaders/sprite_wasm.vert"),
+        fragment_shader: asset_server.load::<Shader, _>("shaders/sprite_wasm.frag"),
+    });
+
+    #[cfg(feature = "native")]
     commands.insert_resource(AssetsLoading {
         loaded: false,
         vertex_shader: asset_server.load::<Shader, _>("shaders/sprite.vert"),
@@ -89,8 +112,6 @@ pub fn check_assets_ready(
     asset_server: ResMut<AssetServer>,
     mut loading: ResMut<AssetsLoading>,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut render_graph: ResMut<RenderGraph>,
 ) {
     if loading.loaded {
         return;

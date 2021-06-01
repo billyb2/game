@@ -62,6 +62,14 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
 
     });
+
+    let game_button_color = Color::rgb(4.0 / 255.0, 221.0 / 255.0, 185.0 / 255.0);
+
+    commands.insert_resource(GameMenuButtonMaterials {
+        normal: materials.add(game_button_color.into()),
+        hovered: materials.add((game_button_color * (3.0 / 2.0)).into()),
+
+    });
 }
 
 pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -253,20 +261,56 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 }
 
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, asset_server: Res<AssetServer>) {
+pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
+    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
+    const INFERNO_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([232, 35, 0]);
+
+    const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const ENGINEER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([238, 166, 34]);
+
+    const HACKER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const HACKER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([107, 1, 1]);
+
+    const WARP_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const WARP_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([229, 2, 146]);
+
+    const WALL_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const WALL_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([43, 36, 245]);
+
+    const STIM_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const STIM_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([65, 238, 35]);
+
+    const CLOAK_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const CLOAK_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([158; 3]);
+
+    let (helmet_color, inner_suit_color) = match ability {
+        Ability::Inferno => (INFERNO_HELMET_COLOR, INFERNO_SUIT_COLOR),
+        Ability::Engineer => (ENGINEER_HELMET_COLOR, ENGINEER_SUIT_COLOR),
+        Ability::Hacker => (HACKER_HELMET_COLOR, HACKER_SUIT_COLOR),
+        Ability::Warp => (WARP_HELMET_COLOR, WARP_SUIT_COLOR),
+        Ability::Wall => (WALL_HELMET_COLOR, WALL_SUIT_COLOR),
+        Ability::Stim => (STIM_HELMET_COLOR, STIM_SUIT_COLOR),
+        Ability::Cloak => (CLOAK_HELMET_COLOR, CLOAK_SUIT_COLOR),
+
+    };
+
+    (helmet_color, inner_suit_color)
+
+}
+
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, asset_server: Res<AssetServer>, my_ability: Res<Ability>, my_gun_model: Res<Model>) {
     let mut i: u8 = 0;
 
-    let mut rng = rand::thread_rng();
+    //let mut rng = rand::thread_rng();
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
     online_player_ids.insert(0);
     deathmatch_score.0.insert(0, 0);
 
-    asset_server.watch_for_changes().unwrap();
-
     let wnd = wnds.get_primary().unwrap();
 
+    #[cfg(feature = "native")]
     let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         // Vertex shaders are run once for every vertex in the mesh.
         // Each vertex can have attributes associated to it (e.g. position,
@@ -277,9 +321,21 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
         fragment: Some(asset_server.load::<Shader, _>("shaders/sprite.frag")),
     }));
 
+    // Web builds (and stuff like android, etc) need to use a slightly different version of the GLSL shaders
+    #[cfg(feature = "web")]
+    let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+        // Vertex shaders are run once for every vertex in the mesh.
+        // Each vertex can have attributes associated to it (e.g. position,
+        // color, texture mapping). The output of a shader is per-vertex.
+        vertex: asset_server.load::<Shader, _>("shaders/sprite_wasm.vert"),
+        // Fragment shaders are run for each pixel belonging to a triangle on
+        // the screen. Their output is per-pixel.
+        fragment: Some(asset_server.load::<Shader, _>("shaders/sprite_wasm.frag")),
+    }));
+
     render_graph.add_system_node(
         "mouse_position",
-        RenderResourcesNode::<MousePosition>::new(true),
+        RenderResourcesNode::<ShaderMousePosition>::new(true),
     );
 
     render_graph.add_system_node(
@@ -299,25 +355,10 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
 
     for object in map.objects.iter() {
         if object.player_spawn {
-            let ability: Ability = rng.gen();
-            let gun_model: Model = rng.gen();
+            let ability = *my_ability;
+            let gun_model = *my_gun_model;
 
-            let (helmet_color, inner_suit_color) = match ability {
-                Ability::Inferno => (HelmetColor { value: Vec3::new(231.0 / 255.0, 120.0 / 255.0, 1.0 / 255.0) }, InnerSuitColor { value: Vec3::new(232.0 / 255.0, 35.0 / 255.0, 0.0) }),
-
-                Ability::Engineer => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(238.0 / 255.0, 166.0 / 255.0, 34.0 / 255.0) }),
-
-                Ability::Hacker => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(107.0 / 255.0, 1.0 / 255.0, 1.0 / 255.0) }),
-
-                Ability::Warp => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(229.0 / 255.0, 2.0 / 255.0, 146.0 / 255.0) }),
-
-                Ability::Wall => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(43.0 / 255.0, 36.0 / 255.0, 245.0 / 255.0) }),
-
-                Ability::Stim => (HelmetColor { value: Vec3::new(9.0 / 255.0, 145.0 / 255.0, 160.0 / 255.0) }, InnerSuitColor { value: Vec3::new(65.0 / 255.0, 238.0 / 255.0, 35.0 / 255.0) }),
-
-                Ability::Cloak => (HelmetColor { value: Vec3::new(97.0 / 255.0, 97.0 / 255.0, 97.0 / 255.0) }, InnerSuitColor { value: Vec3::new(158.0 / 255.0, 158.0 / 255.0, 158.0 / 255.0) }),
-
-            };
+            let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
             commands
                 .spawn_bundle(Player::new(i, ability))
@@ -336,7 +377,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
                     )]),
                     ..Default::default()
                 })
-                .insert(MousePosition { value: Vec3::new(0.0, 0.0, 0.0) })
+                .insert(ShaderMousePosition { value: Vec2::ZERO })
                 .insert(WindowSize { value: Vec2::new(wnd.width(), wnd.height()) })
                 .insert(helmet_color)
                 .insert(inner_suit_color);
@@ -402,7 +443,6 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
             });
 
             // Only PC's can host games
-            #[cfg(feature = "native")]
             node_parent.spawn_bundle(ButtonBundle {
             style: Style {
                 align_content: AlignContent::Center,
@@ -413,7 +453,7 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                     ..Default::default()
                 },
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+                size: Size::new(Val::Px(185.0), Val::Px(85.0)),
 
                 ..Default::default()
             },
@@ -426,47 +466,7 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                         text: Text {
                             sections: vec![
                                 TextSection {
-                                    value: String::from("Play (Host)"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
-                });
-            });
-
-            // Only WASM can join games
-            #[cfg(feature = "web")]
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                margin: Rect {
-                    bottom: Val::Percent(10.0),
-
-                    ..Default::default()
-                },
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Play (Join)"),
+                                    value: String::from("Play"),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
@@ -517,6 +517,357 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
         });
 
+
+}
+
+pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>) {
+    commands.insert_resource(ClearColor(Color::ORANGE));
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexStart,
+                margin: Rect {
+                   bottom: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::FlexEnd,
+                align_content: AlignContent::FlexStart,
+                align_items: AlignItems::FlexStart,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: String::from("Customize"),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 80.0,
+                                color: Color::WHITE,
+                            },
+                        },
+                    ],
+                    ..Default::default()
+                },
+                ..Default::default()
+
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                margin: Rect {
+                    bottom: Val::Percent(10.0),
+
+                    ..Default::default()
+                },
+                size: Size::new(Val::Px(275.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: format!("Ability: {:?}", *my_ability),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: format!("Gun: {:?}", *my_gun_model),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                })
+                .insert(KeyBindingButtons::Down);
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Back"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+        });
+
+
+}
+
+pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
+    commands.insert_resource(ClearColor(Color::ORANGE));
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexStart,
+                margin: Rect {
+                   bottom: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::FlexEnd,
+                align_content: AlignContent::FlexStart,
+                align_items: AlignItems::FlexStart,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: String::from("Play"),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 80.0,
+                                color: Color::WHITE,
+                            },
+                        },
+                    ],
+                    ..Default::default()
+                },
+                ..Default::default()
+
+            });
+
+            // Only PC's can host games
+            #[cfg(feature = "native")]
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                margin: Rect {
+                    bottom: Val::Percent(10.0),
+
+                    ..Default::default()
+                },
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Host game"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+            // Only WASM can join games
+            #[cfg(feature = "web")]
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                margin: Rect {
+                    bottom: Val::Percent(10.0),
+
+                    ..Default::default()
+                },
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Join game"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Customize"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                })
+                .insert(KeyBindingButtons::Down);
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Back"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+        });
 
 
 }
@@ -773,6 +1124,41 @@ pub fn setup_settings(mut commands: Commands, asset_server: Res<AssetServer>, bu
                 })
                 .insert(KeyBindingButtons::Reload);
             });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Back"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+
 
         });
 

@@ -7,7 +7,7 @@ authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgasto
 edition = "2018"
 
 [profile.dev]
-# Since neither me or Luke uses a debugger, turning off debug info should speed up compile times
+# Since neither me or Luke uses a debugger, turning off debug info should speed up compile times (although it does make debugging shaders a bit more difficult)
 debug = 0
 
 [profile.dev-windows]
@@ -71,7 +71,7 @@ bevy_webgl2 = { git = "https://github.com/gcoakes/bevy_webgl2/", branch = "winit
 # Using a PR of bevy_networking_turbulence that works with the latest version of Bevy
 bevy_networking_turbulence = { git = "https://github.com/smokku/bevy_networking_turbulence", branch = "master", default-features = false, features = ["use-webrtc"] }
 
-# A type of map that's very fast for key-value pairs up to 256
+# A faster hashmap
 hashbrown = { version = "0.11", features = ["nightly"] }
 
 # Logging
@@ -91,10 +91,6 @@ winit = { version = "0.25.0" }
 
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
-
-# Used to init variables once
-lazy_static = { version = "1" }
-
 
 [features]
 default = [

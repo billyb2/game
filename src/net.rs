@@ -12,7 +12,9 @@ use crate::components::{AbilityEvent, RequestedMovement};
 use crate::LogEvent;
 
 #[cfg(feature = "web")]
-use crate::{Skins, log};
+use crate::{Skin, log};
+#[cfg(feature = "web")]
+use crate::setup_systems::set_player_colors;
 
 #[cfg(feature = "native")]
 use crate::helper_functions::get_available_port;
@@ -125,7 +127,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .unwrap();
 
         builder
-            .register::<[u8; 2]>(INFO_MESSAGE_SETTINGS)
+            .register::<[u8; 3]>(INFO_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -362,18 +364,21 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
 
 #[cfg(feature = "web")]
-pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>) {
+pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>) {
     // Every 5 seconds, the client requests an ID from the host server until it gets one
     console_log!("Net: Ability set: {}", my_player_id.0.is_some());
 
     if !hosting.0 && my_player_id.0.is_none() && ready_to_send_packet.0.finished() && !ability_set.0 {
-        console_log!("Net: Sending command");
-
-
-        let request_id_message: [u8; 2] = [0; 2];
+        let request_id_message: [u8; 3] = [0; 3];
         net.broadcast_message(request_id_message);
 
         ready_to_send_packet.0.set_duration(Duration::from_secs(7));
+        ready_to_send_packet.0.reset();
+
+    } else if my_player_id.0.is_some() && !ability_set.0 {
+        let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
+        net.broadcast_message(set_ability_message);
+
         ready_to_send_packet.0.reset();
 
     } else if my_player_id.0.is_some() && ability_set.0 {
@@ -381,20 +386,19 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
         ready_to_send_packet.0.set_duration(Duration::from_millis(15));
         app_state.set(AppState::InGame).unwrap();
 
-
     }
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, players: Query<(&PlayerID, &Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
-        let mut messages_to_send: Vec<(u32, [u8; 2])> = Vec::with_capacity(255);
+        let mut messages_to_send: Vec<(u32, [u8; 3])> = Vec::with_capacity(255);
 
         for (handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
-            while let Some(command) = channels.recv::<[u8; 2]>() {
+            while let Some(command) = channels.recv::<[u8; 3]>() {
                 // Send a player ID as well as an ability back
                 if command[0] == 0 {
                     if let Some(player_id) = available_ids.last() {
@@ -404,18 +408,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                         log_event.send(LogEvent(format!("Player {} has joined!", player_id.0 + 1)));
 
                         // Sending back the player id
-                        messages_to_send.push((*handle, [0, player_id.0]));
-
-                        // Sending back the player ability
-                        for (id, ability) in players.iter() {
-                            if id.0 == player_id.0 {
-                                println!("Sending ability");
-                                messages_to_send.push((*handle, [1, (*ability).into()]));
-
-                                break;
-
-                            }
-                        }
+                        messages_to_send.push((*handle, [0, player_id.0, 0]));
 
                         available_ids.pop();
 
@@ -425,13 +418,23 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                     }
                 // Respond to the player's ability request
                 } else if command[0] == 1 {
-                    let player_id = command[1];
+                    let player_id = command[2];
+                    let player_ability: Ability = command[1].into();
 
-                    for (id, ability) in players.iter() {
+                    for (id, mut ability, mut helmet_color, mut inner_suit_color) in players.iter_mut() {
                         if id.0 == player_id {
-                            messages_to_send.push((*handle, [1, (*ability).into()]));
+                            *ability.deref_mut() = player_ability;
+
+                            let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
+
+                            *helmet_color.deref_mut() = new_helmet_color;
+                            *inner_suit_color.deref_mut() = new_inner_suit_color;
 
                         }
+
+                        // Send the abilities of all players
+                        messages_to_send.push((*handle, [1, (*ability).into(), player_id]));
+                        println!("{:?}", *ability)
                     }
                 }
             }
@@ -447,12 +450,12 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 }
 
 #[cfg(feature = "web")]
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, materials: Res<Skins>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     if !hosting.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
-            while let Some(command) = channels.recv::<[u8; 2]>() {
+            while let Some(command) = channels.recv::<[u8; 3]>() {
                 // The set player ID command
                 if command[0] == 0 {
                     let id = command[1];
@@ -466,23 +469,21 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                 } else if command[0] == 1 {
                     let player_ability: Ability = command[1].into();
 
-                    for (id, mut ability, mut color) in players.iter_mut() {
-                        if id.0 == my_player_id.0.as_ref().unwrap().0 {
+                    for (id, mut ability, mut helmet_color, mut inner_suit_color) in players.iter_mut() {
+                        if id.0 == command[2] {
                             *ability.deref_mut() = player_ability;
-                            ability_set.0 = true;
 
-                            *color.deref_mut() = match player_ability {
-                                Ability::Warp => materials.warp.clone(),
-                                Ability::Engineer => materials.engineer.clone(),
-                                Ability::Stim => materials.stim.clone(),
-                                Ability::Wall => materials.wall.clone(),
-                                Ability::Hacker => materials.hacker.clone(),
-                                Ability::Inferno => materials.inferno.clone(),
-                                Ability::Cloak => materials.cloak.clone(),
+                            let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
 
-                            };
+                            *helmet_color.deref_mut() = new_helmet_color;
+                            *inner_suit_color.deref_mut() = new_inner_suit_color;
 
-                            break;
+                            if let Some(my_player_id) = &my_player_id.0 {
+                                if id.0 == my_player_id.0 {
+                                    ability_set.0 = true;
+
+                                }
+                            }
 
                         }
 
