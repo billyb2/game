@@ -9,7 +9,7 @@ linker = "/usr/bin/clang"
 # 	Once compilation on Windows works, we should do the same for it
 
 # Stripping symbols is done to significantly reduce the binary size
-rustflags = ["-Clink-arg=-fuse-ld=lld", "-Zshare-generics=y", "-Zstrip=symbols", "-Ctarget-feature=+sse,+sse2,+ssse3,+sse4.1,+sse4.2,+sse4a,+avx,+avx2"]
+rustflags = ["-Clink-arg=-fuse-ld=lld", "-Zshare-generics=y", "-Zstrip=symbols", "-Ctarget-feature=+sse,+sse2,+ssse3,+sse4.1,+sse4.2,+sse4a,+avx,+avx2,+fma,+fma4"]
 
 [target.x86_64-apple-darwin]
 rustflags = ["-Clink-arg=-fuse-ld=/usr/local/bin/zld", "-Zshare-generics=y", "-Zstrip=symbols", "-Csplit-debuginfo=unpacked"]
@@ -19,4 +19,4 @@ linker = "rust-lld.exe"
 rustflags = ["-Zshare-generics=n", "-Zstrip=symbols"]
 
 [target.wasm32-unknown-unknown]
-rustflags = ["-Ctarget-feature=+bulk-memory"]
+rustflags = ["-Ctarget-feature=+bulk-memory,+nontrapping-fptoint"]

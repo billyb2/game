@@ -32,19 +32,19 @@ command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-release-simd]
-env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory" }
+env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
 args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt-simd]
-env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory" }
+env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
 args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast-simd]
-env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory" }
+env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
 args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]

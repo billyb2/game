@@ -692,7 +692,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
                     *projectile_type.deref_mut() = ProjectileType::MolotovFire;
                     *material.deref_mut() = materials.molotov_fire.clone();
-                    damage.deref_mut().0 = 75.0 / 60.0;sprite.deref_mut().size = Vec2::new(175.0, 175.0);
+                    damage.deref_mut().0 = 75.0 / 60.0;
                     sprite.deref_mut().size = Vec2::new(250.0, 250.0);
                     commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
 
