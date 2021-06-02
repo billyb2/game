@@ -298,6 +298,7 @@ impl Gun {
                 Model::BurstRifle => RecoilRange(0.025),
                 Model::SubmachineGun => RecoilRange(0.12),
                 Model::ClusterShotgun => RecoilRange(0.07),
+                Model::Flamethrower => RecoilRange(0.15),
                 _ => RecoilRange(0.075),
 
             },
@@ -314,7 +315,7 @@ impl Gun {
                 Model::AssaultRifle => Speed(18.0),
                 Model::SubmachineGun => Speed(16.0),
                 Model::ClusterShotgun => Speed(11.0),
-                Model::Flamethrower => Speed(30.0),
+                Model::Flamethrower => Speed(15.0),
 
             },
             projectile_size: match model {
@@ -331,7 +332,7 @@ impl Gun {
                 Model::AssaultRifle => Damage(13.0),
                 Model::SubmachineGun => Damage(7.5),
                 Model::ClusterShotgun => Damage(17.0),
-                Model::Flamethrower => Damage(12.5),
+                Model::Flamethrower => Damage(3.25),
 
 
             },

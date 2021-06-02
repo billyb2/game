@@ -180,14 +180,13 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
 
                     // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
                     // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
-                    let mut recoil_vec: Vec<f32> = if *model == Model::Shotgun {
-                        Vec::with_capacity(12)
 
-                    } else if *model == Model::ClusterShotgun {
-                        Vec::with_capacity(6)
-
-                    } else {
-                        Vec::with_capacity(1)
+                    // TODO: Make number of bullets into a part of the gun
+                    let mut recoil_vec: Vec<f32> = match *model {
+                        Model::Shotgun => Vec::with_capacity(12),
+                        Model::ClusterShotgun => Vec::with_capacity(6),
+                        Model::Flamethrower => Vec::with_capacity(5),
+                        _ => Vec::with_capacity(1),
 
                     };
 

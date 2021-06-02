@@ -591,10 +591,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
                     }
 
-                }
-
-                if *projectile_type == ProjectileType::Flame {
-                    sprite.size *= 1.5;
+                } else if *projectile_type == ProjectileType::Flame {
+                    sprite.size *= 1.3;
                 }
 
                 match movement_type {

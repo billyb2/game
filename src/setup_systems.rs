@@ -575,7 +575,7 @@ pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServe
 
                     ..Default::default()
                 },
-                size: Size::new(Val::Px(275.0), Val::Px(85.0)),
+                size: Size::new(Val::Px(350.0), Val::Px(85.0)),
 
                 ..Default::default()
             },
@@ -608,7 +608,7 @@ pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServe
                 align_content: AlignContent::Center,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+                size: Size::new(Val::Px(450.0), Val::Px(85.0)),
 
                 ..Default::default()
             },
