@@ -33,17 +33,6 @@ uniform sampler2D ColorMaterial_texture;  // set = 1, binding = 1
 const float light_radius = 300.0;
 const float max_light_intensity = 1.0;
 
-// Converts a color from sRGB gamma to linear light gamma
-vec4 color_encode(vec4 color) {
-    vec3 linearRGB = color.rgb;
-    vec3 a = 12.92 * linearRGB;
-    vec3 b = 1.055 * pow(linearRGB, vec3(1.0 / 2.4)) - 0.055;
-    vec3 c = step(vec3(0.0031308), linearRGB);
-
-    return vec4(mix(a, b, c), color.a);
-}
-
-
 // Light math
 void add_lighting(inout vec4 color) {
     // Init vars
@@ -94,10 +83,7 @@ void main() {
     // Don't mess with the transparent part of the sprites
     if (color.a != 0.0) {
         # ifdef COLORMATERIAL_TEXTURE
-            color *= texture(
-                ColorMaterial_texture,
-                v_Uv
-            );
+            color *= texture(ColorMaterial_texture, v_Uv);
         # endif
         set_color_of_player(color);
         //add_lighting(color);
@@ -105,5 +91,5 @@ void main() {
 
     }
 
-    o_Target = color_encode(color);
+    o_Target = color;
 }

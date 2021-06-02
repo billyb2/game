@@ -34,15 +34,13 @@ layout(set = 1, binding = 2) uniform sampler ColorMaterial_texture_sampler;
 const float light_radius = 300.0;
 const float max_light_intensity = 1.0;
 
-//const vec4 default_helmet_color = vec4(96.0, 96.0, 96.0, 1.0);
-
 // Converts a color from sRGB gamma to linear light gamma
-vec4 color_encode(vec4 sRGB) {
-    bvec4 cutoff = lessThan(sRGB, vec4(0.04045));
-    vec4 higher = pow((sRGB + vec4(0.055))/vec4(1.055), vec4(2.4));
-    vec4 lower = sRGB/vec4(12.92);
+vec4 color_encode(vec4 color) {
+    float r = color.r < 0.04045 ? (1.0 / 12.92) * color.r : pow((color.r + 0.055) * (1.0 / 1.055), 2.4);
+    float g = color.g < 0.04045 ? (1.0 / 12.92) * color.g : pow((color.g + 0.055) * (1.0 / 1.055), 2.4);
+    float b = color.b < 0.04045 ? (1.0 / 12.92) * color.b : pow((color.b + 0.055) * (1.0 / 1.055), 2.4);
 
-    return mix(higher, lower, cutoff);
+    return vec4(r, g, b, color.a);
 }
 
 
@@ -96,7 +94,7 @@ void main() {
     // Don't mess with the transparent part of the sprites
     if (color.a != 0.0) {
         # ifdef COLORMATERIAL_TEXTURE
-            color *= texture(sampler2D(ColorMaterial_texture, ColorMaterial_texture_sampler),v_Uv);
+            color *= texture(sampler2D(ColorMaterial_texture, ColorMaterial_texture_sampler), v_Uv);
         # endif
         set_color_of_player(color);
         //add_lighting(color);
