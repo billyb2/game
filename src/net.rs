@@ -2,8 +2,11 @@
 #![allow(clippy::type_complexity)]
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::collections::BTreeSet;
 #[cfg(feature = "web")]
 use std::ops::DerefMut;
+
+use hashbrown::HashMap;
 
 use crate::*;
 use crate::components::{AbilityEvent, RequestedMovement};
@@ -231,15 +234,14 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
             let channels = connection.channels().unwrap();
 
             while let Some((player_id, flip_x, [x, y])) = channels.recv::<(u8, bool, [f32; 2])>() {
-                online_player_ids.0.insert(player_id);
-                deathmatch_score.0.insert(player_id, 0);
-
                 // The host broadcasts the locations of all other players
                 #[cfg(feature = "native")]
                 if _hosting.0 {
                     messages_to_send.push((player_id, flip_x, [x, y]))
 
                 }
+
+                make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
 
                 // Set the location of any local players to the location given
                 for (mut transform, mut sprite, id) in players.iter_mut() {
@@ -278,9 +280,6 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
             let channels = connection.channels().unwrap();
 
             while let Some(([player_id, ability], [player_x, player_y, angle])) = channels.recv::<([u8; 2], [f32; 3])>() {
-                online_player_ids.0.insert(player_id);
-                deathmatch_score.0.insert(player_id, 0);
-
                 if player_id != my_id.0 {
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
@@ -294,6 +293,8 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
                 let ability: Ability = ability.into();
 
                 if player_id != my_id.0 || ability == Ability::Hacker {
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
+
                     for (mut ammo_in_mag, mut transform, mut requested_movement, id) in players.iter_mut() {
                         if id.0 == player_id && ability != Ability::Hacker {
                             transform.translation.x = player_x;
@@ -338,10 +339,9 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
             let channels = connection.channels().unwrap();
 
             while let Some(event) = channels.recv::<ShootEvent>() {
-                online_player_ids.0.insert(event.player_id);
-                deathmatch_score.0.insert(event.player_id, 0);
-
                 if my_id.0 !=  event.player_id {
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, event.player_id);
+
                     for (mut transform, id) in players.iter_mut() {
                         if event.player_id == id.0 {
                             transform.translation = event.start_pos;
@@ -373,7 +373,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
     }
 }
 
-pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<(&mut Health, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>) {
+pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Health, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], f32)> = Vec::with_capacity(255);
 
@@ -384,6 +384,9 @@ pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut shoot_event: 
             while let Some(([player_who_took_damage, player_who_fired_shot], damage)) = channels.recv::<([u8; 2], f32)>() {
                 // This isn't allowed to happen, since if if you receive a message saying that your player took damage, you sent said message
                 if my_id.0 != player_who_took_damage {
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_who_took_damage);
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_who_fired_shot);
+
                     for (mut health, id) in players.iter_mut() {
                         if player_who_took_damage == id.0 {
                             println!("Damage taken: {}", damage);
@@ -430,14 +433,14 @@ pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut shoot_event: 
 
 #[cfg(feature = "web")]
 pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>) {
-    // Every 5 seconds, the client requests an ID from the host server until it gets one
+    // Every few seconds, the client requests an ID from the host server until it gets one
     console_log!("Net: Ability set: {}", my_player_id.0.is_some());
 
     if !hosting.0 && my_player_id.0.is_none() && ready_to_send_packet.0.finished() && !ability_set.0 {
         let request_id_message: [u8; 3] = [0; 3];
         net.broadcast_message(request_id_message);
 
-        ready_to_send_packet.0.set_duration(Duration::from_secs(7));
+        ready_to_send_packet.0.set_duration(Duration::from_secs(11));
         ready_to_send_packet.0.reset();
 
     } else if my_player_id.0.is_some() && !ability_set.0 {
@@ -467,8 +470,8 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                 // Send a player ID as well as an ability back
                 if command[0] == 0 {
                     if let Some(player_id) = available_ids.last() {
-                        online_player_ids.0.insert(player_id.0);
-                        deathmatch_score.0.insert(player_id.0, 0);
+                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id.0);
+
                         println!("Player {} has joined!", player_id.0 + 1);
                         log_event.send(LogEvent(format!("Player {} has joined!", player_id.0 + 1)));
 
@@ -499,7 +502,6 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 
                         // Send the abilities of all players
                         messages_to_send.push((*handle, [1, (*ability).into(), player_id]));
-                        println!("{:?}", *ability)
                     }
                 }
             }
@@ -526,13 +528,15 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                     let id = command[1];
 
                     my_player_id.0 = Some(PlayerID(id));
-                    deathmatch_score.0.insert(id, 0);
-                    online_player_ids.0.insert(id);
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, id);
 
                     break;
 
+                // The set player ability command
                 } else if command[0] == 1 {
                     let player_ability: Ability = command[1].into();
+
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, command[2]);
 
                     for (id, mut ability, mut helmet_color, mut inner_suit_color) in players.iter_mut() {
                         if id.0 == command[2] {
@@ -558,4 +562,16 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
             }
         }
     }
+}
+
+// This function makes players that aren't online, online, if they aren't already
+// Basically, the function just checks if the player is in the online_player_ids BTreeSet, and if not, it inserts them into that and deathmatch score
+// This function should be run on pretty much any net function that receives an ID
+pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_ids: &mut BTreeSet<u8>, player_id: u8) {
+    if !online_player_ids.contains(&player_id) {
+        deathmatch_score.insert(player_id, 0);
+        online_player_ids.insert(player_id);
+
+    }
+
 }

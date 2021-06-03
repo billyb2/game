@@ -319,8 +319,6 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
                     };
 
-                    println!("{}", current_gun_int);
-
                     *text = format!("Gun: {:?}", *my_gun_model);
 
                 } else if text == "Customize" {

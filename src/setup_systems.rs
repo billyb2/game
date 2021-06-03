@@ -259,6 +259,57 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             .insert(ScoreUI);
         });
 
+    // The text saying that a player won the game
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexEnd,
+                margin: Rect {
+                   left: Val::Auto,
+                   right: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::Center,
+                align_content: AlignContent::Center,
+                align_items: AlignItems::FlexEnd,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: String::from("Player X won!"),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 45.0,
+                                color: Color::WHITE,
+                            },
+                        }
+                    ],
+                    ..Default::default()
+                },
+                visible: Visible {
+                    is_visible: false,
+
+                    ..Default::default()
+
+                },
+                ..Default::default()
+            })
+            .insert(ChampionText);
+        });
+
 }
 
 pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
@@ -298,7 +349,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 
 }
 
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, asset_server: Res<AssetServer>, my_ability: Res<Ability>, my_gun_model: Res<Model>, shader_assets: Res<AssetsLoading>) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, shader_assets: Res<AssetsLoading>) {
     let mut i: u8 = 0;
 
     //let mut rng = rand::thread_rng();
@@ -315,8 +366,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
         // Each vertex can have attributes associated to it (e.g. position,
         // color, texture mapping). The output of a shader is per-vertex.
         vertex: shader_assets.vertex_shader.clone(),
-        // Fragment shaders are run for each pixel belonging to a triangle on
-        // the screen. Their output is per-pixel.
+        // Fragment shaders are run for each pixel
         fragment: Some(shader_assets.fragment_shader.clone()),
     }));
 
@@ -340,6 +390,8 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
         RenderResourcesNode::<InnerSuitColor>::new(true),
     );
 
+    let mut living = true;
+
     for object in map.objects.iter() {
         if object.player_spawn {
             let ability = *my_ability;
@@ -348,7 +400,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
             let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
             commands
-                .spawn_bundle(Player::new(i, ability))
+                .spawn_bundle(Player::new(i, ability, living))
                 .insert_bundle(Gun::new(gun_model, ability))
                 .insert_bundle(SpriteBundle {
                     material: materials.0.clone(),
@@ -356,12 +408,19 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
                         size: Vec2::new(60.0, 60.0),
                         flip_x: true,
                         resize_mode: SpriteResizeMode::Manual,
+
+                        ..Default::default()
+                    },
+                    visible: Visible {
+                        is_visible: living,
+                        
                         ..Default::default()
                     },
                     transform: Transform::from_translation(object.coords),
                     render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
                         pipeline_handle.clone(),
                     )]),
+
                     ..Default::default()
                 })
                 .insert(ShaderMousePosition { value: Vec2::ZERO })
@@ -373,6 +432,8 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
                 availabie_player_ids.push(PlayerID(i));
 
             }
+
+            living = false;
 
             i += 1;
 

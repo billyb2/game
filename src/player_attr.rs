@@ -31,10 +31,13 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: u8, ability: Ability) -> Player {
+    pub fn new(id: u8, ability: Ability, living: bool) -> Player {
         let mut player = Player {
             id: PlayerID(id),
-            health: Health(100.0),
+            health: match living {
+                true => Health(100.0),
+                false => Health(0.0),
+            },
             speed: match ability {
                 // Stim players have a faster default running speed
                 Ability::Stim => PlayerSpeed(12.0),
@@ -54,7 +57,7 @@ impl Player {
                 Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
                 Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
             },
-            // Stim lasts 3 seconds
+            // The AbilityCompleted timer is just the duration of how long the ability lasts (if it has an affect over time)
             ability_completed: match ability {
                 Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
                 Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),

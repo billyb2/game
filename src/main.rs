@@ -19,7 +19,7 @@ mod shaders;
 mod net;
 
 use std::collections::BTreeSet;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
@@ -69,6 +69,7 @@ struct GameLogText;
 struct HealthText;
 
 pub struct ScoreUI;
+pub struct ChampionText;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -229,7 +230,7 @@ pub enum GameMode {
 
 }
 
-// The first item of the HashMap is the id of the playyer, the second is said player's score
+// The first item of the HashMap is the id of the player, the second is said player's score
 pub struct DeathmatchScore(HashMap<u8, u8>);
 
 pub struct MyPlayerID(Option<PlayerID>);
@@ -239,6 +240,9 @@ pub struct LogEvent(String);
 pub struct DeathEvent(u8);
 
 pub struct OnlinePlayerIDs(BTreeSet<u8>);
+
+// If a player gets a score of 15 kills, the game ends
+const SCORE_LIMIT: u8 = 15;
 
 fn main() {
     let mut app = App::build();
@@ -366,6 +370,7 @@ fn main() {
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+                .with_system(score_system.system().after(InputFromPlayer).after("move_objects"))
                 .with_system(handle_damage_packets.system().label("handle_damage").before("move_objects"))
                 .with_system(despawn_destroyed_walls.system().after("move_objects"))
                 .with_system(death_event_system.system().after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
@@ -766,9 +771,9 @@ fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Qu
 }
 
 // This system just deals respawning players
-fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer), With<PlayerID>>, game_mode: Res<GameMode>) {
-    for (mut health, mut visibility, mut respawn_timer) in players.iter_mut() {
-        if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch {
+fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>) {
+    for (mut health, mut visibility, mut respawn_timer, player_id) in players.iter_mut() {
+        if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains(&player_id.0) {
             health.0 = 100.0;
             respawn_timer.0.reset();
             visibility.is_visible = true;
@@ -777,6 +782,24 @@ fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer
 
     }
 
+}
+
+fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>) {
+    let deathmatch_score = &deathmatch_score.deref().0;
+
+    for (player_id, score) in deathmatch_score.iter() {
+        if *score >= SCORE_LIMIT {
+            let champion_string = format!("Player {} wins!", player_id + 1);
+            let (mut text, mut visible) = champion_text.single_mut().unwrap();
+
+            text.sections[0].value = champion_string;
+            visible.is_visible = true;
+
+
+
+        }
+
+    }
 }
 
 /// This system ticks all the `Timer` components on entities within the scene
@@ -838,8 +861,7 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID,
         Query<&mut Text, With<AbilityChargeText>>,
         Query<&mut Text, With<HealthText>>,
     )>,
-    my_player_id: Res<MyPlayerID>
-) {
+    my_player_id: Res<MyPlayerID>) {
     if let Some(my_id) = &my_player_id.0 {
         let mut ammo_in_mag = 0;
         let mut max_ammo = 0;
