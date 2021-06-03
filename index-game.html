@@ -51,6 +51,8 @@
   </script>
 
   <script type="module">
+    import init from './target/wasm.js'
+
     wasmFeatureDetect.bulkMemory().then(bulk_mem_supported => {
         wasmFeatureDetect.simd().then(simd_supported => {
         if (bulk_mem_supported) {
@@ -58,8 +60,8 @@
                 window.location.replace("index-game-simd.html");
 
             } else {
-                window.location.replace("index-game.html");
                 console.log("No SIMD support, using slower binary :(");
+                init()
 
             }
 

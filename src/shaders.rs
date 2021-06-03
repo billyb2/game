@@ -84,14 +84,15 @@ impl InnerSuitColor {
 
 #[derive(Default)]
 pub struct AssetsLoading {
-    vertex_shader: Handle<Shader>,
-    fragment_shader: Handle<Shader>,
+    pub vertex_shader: Handle<Shader>,
+    pub fragment_shader: Handle<Shader>,
     loaded: bool,
 }
 
 pub fn setup_asset_loading(asset_server: Res<AssetServer>, mut commands: Commands,) {
     asset_server.watch_for_changes().unwrap();
 
+    // Web builds use a slightly different shader language
     #[cfg(feature = "web")]
     commands.insert_resource(AssetsLoading {
         loaded: false,

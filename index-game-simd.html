@@ -51,22 +51,24 @@
   </script>
 
   <script type="module">
+    import init from './target/wasm-simd.js'
+
     wasmFeatureDetect.bulkMemory().then(bulk_mem_supported => {
         wasmFeatureDetect.simd().then(simd_supported => {
-        if (bulk_mem_supported) {
-            if (simd_supported) {
-                window.location.replace("index-game-simd.html");
+          if (bulk_mem_supported) {
+              if (simd_supported) {
+                console.log("SIMD supported, using faster binary :)");
+                init()
 
-            } else {
-                window.location.replace("index-game.html");
-                console.log("No SIMD support, using slower binary :(");
+              } else {
+                  window.location.replace("index-game.html");
 
-            }
+              }
 
-        } else {
-            alert("Please update your browser or use a more modern one! (Bulk memory operations are not supported in this browser)");
+          } else {
+              alert("Please update your browser or use a more modern one! (Bulk memory operations are not supported in this browser)");
 
-        }
+          }
 
         });
     });

@@ -12,7 +12,7 @@ use crate::components::{AbilityEvent, RequestedMovement};
 use crate::LogEvent;
 
 #[cfg(feature = "web")]
-use crate::{Skin, log};
+use crate::log;
 #[cfg(feature = "web")]
 use crate::setup_systems::set_player_colors;
 
@@ -102,6 +102,29 @@ const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 8,
 };
 
+// Damage is also reliable, with even more leeway since damage not registering is bad
+const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+    channel: 4,
+    channel_mode: MessageChannelMode::Reliable {
+        reliability_settings: ReliableChannelSettings {
+            bandwidth: 256,
+            recv_window_size: 2048,
+            send_window_size: 2048,
+            burst_bandwidth: 2048,
+            init_send: 1024,
+            wakeup_time: Duration::from_millis(15),
+            initial_rtt: Duration::from_millis(160),
+            // Damage won't register if ping is above 10 seconds
+            max_rtt: Duration::from_secs(10),
+            rtt_update_factor: 0.1,
+            rtt_resend_factor: 1.5,
+        },
+        max_message_len: 128,
+    },
+    message_buffer_size: 64,
+    packet_buffer_size: 64,
+};
+
 #[cfg(feature = "web")]
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
@@ -119,11 +142,15 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
-            .register::<(u8, f32, bool, [f32; 2])>(CLIENT_STATE_MESSAGE_SETTINGS)
+            .register::<(u8, bool, [f32; 2])>(CLIENT_STATE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
             .register::<ShootEvent>(PROJECTILE_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<([u8; 2], f32)>(DAMAGE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -175,14 +202,14 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     }
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &Sprite, &Health, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &Sprite, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>) {
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
         // Only start sending packets when your ID is set
         if ready_to_send_packet.0.finished() {
-            for (transform, sprite, health, id) in players.iter() {
+            for (transform, sprite, id) in players.iter() {
                 if id.0 == my_id.0 {
-                    net.broadcast_message((my_id.0, health.0, sprite.flip_x, [transform.translation.x, transform.translation.y]));
+                    net.broadcast_message((my_id.0, sprite.flip_x, [transform.translation.x, transform.translation.y]));
 
                     break;
 
@@ -195,45 +222,29 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, 
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &mut Health, &PlayerID, &mut Visible, &Ability)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<(u8, f32, bool, [f32; 2])> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<(u8, bool, [f32; 2])> = Vec::with_capacity(255);
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
-            while let Some((player_id, player_health, flip_x, [x, y])) = channels.recv::<(u8, f32, bool, [f32; 2])>() {
+            while let Some((player_id, flip_x, [x, y])) = channels.recv::<(u8, bool, [f32; 2])>() {
                 online_player_ids.0.insert(player_id);
                 deathmatch_score.0.insert(player_id, 0);
 
                 // The host broadcasts the locations of all other players
                 #[cfg(feature = "native")]
                 if _hosting.0 {
-                    messages_to_send.push((player_id, player_health, flip_x, [x, y]))
+                    messages_to_send.push((player_id, flip_x, [x, y]))
 
                 }
 
                 // Set the location of any local players to the location given
-                for (mut transform, mut sprite, mut health, id, mut visible, ability) in players.iter_mut() {
+                for (mut transform, mut sprite, id) in players.iter_mut() {
                     if id.0 == player_id {
                         sprite.flip_x = flip_x;
-
-                        // When the game receives conflicting messaging on what the true health of a player is, it picks the lowest one
-                        // The epsilon thing is done since strict comparisons of floating points greater than 100 can be funky and fail
-                        if (player_health < health.0 || health.0 == 0.0 && (player_health - 100.0).abs() < f32::EPSILON) && !(player_health == 0.0 && health.0 == 0.0) {
-                            if *ability == Ability::Cloak && !visible.is_visible {
-                                visible.is_visible = true;
-                            }
-
-                            health.0 = player_health;
-
-                            if health.0 == 0.0 {
-                                death_event.send(DeathEvent(player_id));
-
-                            }
-
-                        }
 
                         if player_id != my_id.0 {
                             transform.translation.x = x;
@@ -349,6 +360,60 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
                     shoot_event.send(event);
 
                 }
+            }
+        }
+
+        #[cfg(feature = "native")]
+        if _hosting.0 {
+            for m in messages_to_send.iter() {
+                net.broadcast_message((*m).clone());
+
+            }
+        }
+    }
+}
+
+pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<(&mut Health, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>) {
+    #[cfg(feature = "native")]
+    let mut messages_to_send: Vec<([u8; 2], f32)> = Vec::with_capacity(255);
+
+    if let Some(my_id) = &my_player_id.0 {
+        for (_handle, connection) in net.connections.iter_mut() {
+            let channels = connection.channels().unwrap();
+
+            while let Some(([player_who_took_damage, player_who_fired_shot], damage)) = channels.recv::<([u8; 2], f32)>() {
+                // This isn't allowed to happen, since if if you receive a message saying that your player took damage, you sent said message
+                if my_id.0 != player_who_took_damage {
+                    for (mut health, id) in players.iter_mut() {
+                        if player_who_took_damage == id.0 {
+                            println!("Damage taken: {}", damage);
+
+                            if (health.0 - damage) <= 0.0 {
+                                health.0 = 0.0;
+                                death_event.send(DeathEvent(player_who_took_damage));
+                                // The player who shot the bullet has their score increased 
+                                *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
+
+
+                            } else {
+                                health.0 -= damage;
+
+                            }
+
+                            break;
+
+                        }
+                    }
+
+                }
+
+                // The host broadcasts the shots fired of all other players
+                #[cfg(feature = "native")]
+                if _hosting.0 {
+                    messages_to_send.push(([player_who_took_damage, player_who_fired_shot], damage));
+
+                }
+
             }
         }
 

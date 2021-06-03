@@ -298,7 +298,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 
 }
 
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, asset_server: Res<AssetServer>, my_ability: Res<Ability>, my_gun_model: Res<Model>) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, asset_server: Res<AssetServer>, my_ability: Res<Ability>, my_gun_model: Res<Model>, shader_assets: Res<AssetsLoading>) {
     let mut i: u8 = 0;
 
     //let mut rng = rand::thread_rng();
@@ -310,27 +310,14 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
 
     let wnd = wnds.get_primary().unwrap();
 
-    #[cfg(feature = "native")]
     let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         // Vertex shaders are run once for every vertex in the mesh.
         // Each vertex can have attributes associated to it (e.g. position,
         // color, texture mapping). The output of a shader is per-vertex.
-        vertex: asset_server.load::<Shader, _>("shaders/sprite.vert"),
+        vertex: shader_assets.vertex_shader.clone(),
         // Fragment shaders are run for each pixel belonging to a triangle on
         // the screen. Their output is per-pixel.
-        fragment: Some(asset_server.load::<Shader, _>("shaders/sprite.frag")),
-    }));
-
-    // Web builds (and stuff like android, etc) need to use a slightly different version of the GLSL shaders
-    #[cfg(feature = "web")]
-    let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        // Vertex shaders are run once for every vertex in the mesh.
-        // Each vertex can have attributes associated to it (e.g. position,
-        // color, texture mapping). The output of a shader is per-vertex.
-        vertex: asset_server.load::<Shader, _>("shaders/sprite_wasm.vert"),
-        // Fragment shaders are run for each pixel belonging to a triangle on
-        // the screen. Their output is per-pixel.
-        fragment: Some(asset_server.load::<Shader, _>("shaders/sprite_wasm.frag")),
+        fragment: Some(shader_assets.fragment_shader.clone()),
     }));
 
     render_graph.add_system_node(

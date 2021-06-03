@@ -299,9 +299,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
 
                     };
-
-                    println!("{}", current_ability_int);
-
+                    
 
                     *text = format!("Ability: {:?}", *my_ability);
 

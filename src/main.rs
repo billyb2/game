@@ -366,8 +366,9 @@ fn main() {
                 .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
                 .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+                .with_system(handle_damage_packets.system().label("handle_damage").before("move_objects"))
                 .with_system(despawn_destroyed_walls.system().after("move_objects"))
-                .with_system(death_event_system.system().after("move_objects").after(InputFromPlayer).before("dead_players"))
+                .with_system(death_event_system.system().after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
                 .with_system(dead_players.system().after("move_objects").label("dead_players"))
                 .with_system(log_system.system().after("dead_players"))
                 .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
@@ -467,7 +468,7 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
     for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible) in player_movements.iter_mut() {
@@ -546,16 +547,23 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
                     }
 
-                    if (health.0 - damage.0) <= 0.0 {
-                        health.0 = 0.0;
-                        death_event.send(DeathEvent(player_id.0));
-                        // The player who shot the bullet has their score increased 
-                        *deathmatch_score.0.get_mut(&shot_from.0).unwrap() += 1;
+                    // Players can only do damage to other players if they receive a network event about it, if they don't, then damage can only happen to themselves
+                    if let Some(my_player_id) = &my_player_id.0 {
+                        if my_player_id.0 == player_id.0 {
+                            net.broadcast_message(([my_player_id.0, shot_from.0], damage.0));
+                            
+                            if (health.0 - damage.0) <= 0.0 {
+                                health.0 = 0.0;
+                                death_event.send(DeathEvent(player_id.0));
+                                // The player who shot the bullet has their score increased 
+                                *deathmatch_score.0.get_mut(&shot_from.0).unwrap() += 1;
 
+                            } else {
+                                health.0 -= damage.0;
 
-                    } else {
-                        health.0 -= damage.0;
+                            }
 
+                        }
                     }
 
                     player_collision = true;
