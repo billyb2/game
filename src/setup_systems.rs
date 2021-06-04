@@ -15,6 +15,8 @@ use bevy::render::{
 
 use rand::Rng;
 
+use hashbrown::HashMap;
+
 use crate::*;
 use crate::shaders::*;
 
@@ -356,6 +358,8 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
+    let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity(256);
+
     online_player_ids.insert(0);
     deathmatch_score.0.insert(0, 0);
 
@@ -399,7 +403,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
 
             let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
-            commands
+            let entity = commands
                 .spawn_bundle(Player::new(i, ability, living))
                 .insert_bundle(Gun::new(gun_model, ability))
                 .insert_bundle(SpriteBundle {
@@ -426,7 +430,10 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
                 .insert(ShaderMousePosition { value: Vec2::ZERO })
                 .insert(WindowSize { value: Vec2::new(wnd.width(), wnd.height()) })
                 .insert(helmet_color)
-                .insert(inner_suit_color);
+                .insert(inner_suit_color)
+                .id();
+
+            player_entities.insert(i, entity);
 
             if i != 0 {
                 availabie_player_ids.push(PlayerID(i));
@@ -442,6 +449,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
 
     commands.insert_resource(availabie_player_ids);
     commands.insert_resource(OnlinePlayerIDs(online_player_ids));
+    commands.insert_resource(player_entities);
 }
 
 pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {

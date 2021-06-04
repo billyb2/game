@@ -252,8 +252,9 @@ fn main() {
     let ability: Ability = rng.gen();
     let gun_model: Model = rng.gen();
 
+        app
         // Antialiasing
-        app.insert_resource(Msaa { samples: 1 });
+        .insert_resource(Msaa { samples: 1 });
 
         app.insert_resource( WindowDescriptor {
             title: String::from("Necrophaser"),
@@ -281,6 +282,7 @@ fn main() {
         .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
         // Gotta initialize the mouse position with something, or else the game crashes
         .insert_resource(MousePosition(Vec2::ZERO))
+        // Used to make searches through queries for 1 player much quicker, with some overhead in the beginning of the program
         .insert_resource(MyPlayerID(None))
         .insert_resource(GameMode::Deathmatch)
         .insert_resource(GameLogs::new())
@@ -473,10 +475,10 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
-    for (mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible) in player_movements.iter_mut() {
+    player_movements.for_each_mut(|(mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible)| {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
@@ -524,9 +526,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             }
         }
-    }
+    });
 
-    for (_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage, _, _) in projectile_movements.iter_mut() {
+    projectile_movements.for_each_mut(|(_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage, _, _)| {
         if movement.speed != 0.0 || *projectile_type == ProjectileType::MolotovFire || *projectile_type == ProjectileType::MolotovLiquid {
                 if *projectile_type == ProjectileType::MolotovLiquid {
                     liquid_molotovs.push((object.translation.truncate(), sprite.size.x));
@@ -541,7 +543,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            for (player, _, _, _, player_sprite, player_id, mut health, ability, mut visible) in player_movements.iter_mut() {
+            player_movements.for_each_mut(|(player, _, _, _, player_sprite, player_id, mut health, ability, mut visible) |{
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
@@ -572,11 +574,10 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     }
 
                     player_collision = true;
-                    break;
 
                 }
 
-            }
+            });
 
             let (wall_collision, health_and_coords) = map.collision(next_potential_pos, sprite.size, damage.0);
 
@@ -632,11 +633,11 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             }
         }
-    }
+    });
 
 
     // Remove all stopped bullets
-    for (entity, _, req_mov, _, _, mut sprite, mut projectile_type, _, _, mut material, destruction_timer) in projectile_movements.iter_mut() {
+    projectile_movements.for_each_mut(|(entity, _, req_mov, _, _, mut sprite, mut projectile_type, _, _, mut material, destruction_timer)| {
         if req_mov.speed == 0.0 {
             if *projectile_type == ProjectileType::Molotov {
                 // Once the molotov reaches it's destination, or hits a player, it becomes molotov liquid, waiting to be lit by an Inferno
@@ -651,35 +652,18 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             }
         }
-    }
+    });
 
     let mut molotovs_to_be_lit_on_fire: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
     // Find molotovs that are to be lit on fire
-    for (_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) in projectile_movements.iter_mut() {
+    projectile_movements.for_each_mut(|(_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) |{
         if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
             // Firstly, find if the player ID is that of an inferno
-            let mut ability = None;
-            
-            for (_, _, _, _, _, player_id, _, player_ability, _visible) in player_movements.iter_mut() {
-                if player_id.0 == shot_from.0 {
-                    ability = Some(*player_ability);
-                    break;
-
-                }
-
-            }
-
-            let ability = ability.unwrap();
-
-            // Only Infernos can light molotovs
-            if ability != Ability::Inferno {
-                break;
-
-            }
+            let (_, _, _, _, _, _, _, ability, _) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
-                if collide_rect_circle(proj_coords.translation, sprite.size, coords.extend(0.0), *radius) {
+                if collide_rect_circle(proj_coords.translation, sprite.size, coords.extend(0.0), *radius) && *ability == Ability::Inferno {
                     molotovs_to_be_lit_on_fire.push((*coords, *radius));
 
                 }
@@ -688,10 +672,10 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
         }
 
-    }
+    });
 
     // Finally, light any molotovs on fire that need to be lit
-    for (entity, proj_coords, _, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, _) in projectile_movements.iter_mut() {
+    projectile_movements.for_each_mut(|(entity, proj_coords, _, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, _) |{
         if *projectile_type == ProjectileType::MolotovLiquid {
             let mut i = 0;
 
@@ -721,7 +705,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
         }
 
-    }
+    });
 }
 
 // Despawns walls that have been destroyed
@@ -743,7 +727,7 @@ fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventReader<D
     }
 }
 
-fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &PlayerID)>, mut log_event: EventWriter<LogEvent>) {
+fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<&mut Visible>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     for ev in death_events.iter() {
         let mut rng = rand::thread_rng();
         let num = rng.gen_range(0..=2);
@@ -756,14 +740,8 @@ fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Qu
 
         };
 
-        for (mut visible, id) in players.iter_mut() {
-            if id.0 == ev.0 {
-                visible.is_visible = false;
-                break;
-
-            }
-
-        }
+        let mut visible = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
+        visible.is_visible = false;
 
         log_event.send(LogEvent(message));
 
@@ -795,49 +773,54 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
             text.sections[0].value = champion_string;
             visible.is_visible = true;
 
-
+            break;
 
         }
 
     }
+
+
 }
 
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
 fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
-    for (mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer) in player_timers.iter_mut() {
-        time_since_last_shot.0.tick(time.delta());
-        ability_charge.0.tick(time.delta());
+    let delta = time.delta();
+
+    player_timers.for_each_mut(|(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer)| {
+        time_since_last_shot.0.tick(delta);
+        ability_charge.0.tick(delta);
 
         // If the player is reloading
         if time_since_start_reload.reloading {
-            time_since_start_reload.timer.tick(time.delta());
+            time_since_start_reload.timer.tick(delta);
 
         }
 
         if using_ability.0 {
-            ability_completed.0.tick(time.delta());
+            ability_completed.0.tick(delta);
 
         }
 
         if health.0 == 0.0 && *game_mode == GameMode::Deathmatch {
-            respawn_timer.0.tick(time.delta());
+            respawn_timer.0.tick(delta);
 
         }
 
         for game_log in logs.0.iter_mut() {
-            game_log.timer.tick(time.delta());
+            game_log.timer.tick(delta);
 
         }
 
-        ready_to_send_packet.0.tick(time.delta());
+        ready_to_send_packet.0.tick(delta);
 
-    }
+    });
 
-    for mut destruction_timer in projectile_timers.iter_mut() {
-        destruction_timer.0.tick(time.delta());
-    }
+    projectile_timers.for_each_mut(|mut destruction_timer| {
+        destruction_timer.0.tick(delta);
+
+    });
 }
 
 /*fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
@@ -855,36 +838,23 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
 }*/
 
 //TODO: Change this to seperate queries using Without
-fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &PlayerID, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
+fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
     mut t: QuerySet<(
         Query<&mut Text, With<AmmoText>>,
         Query<&mut Text, With<AbilityChargeText>>,
         Query<&mut Text, With<HealthText>>,
     )>,
-    my_player_id: Res<MyPlayerID>) {
+    my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_id) = &my_player_id.0 {
-        let mut ammo_in_mag = 0;
-        let mut max_ammo = 0;
+        let (ability_charge, player_ammo_count, player_max_ammo, reload_timer, player_health) = query.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
 
-        let mut ability_charge_percent = 0.0;
+        let ammo_in_mag = (*player_ammo_count).0;
+        let max_ammo = (*player_max_ammo).0;
 
-        let mut reloading = false;
-        let mut health = 0.0;
+        let ability_charge_percent = ability_charge.0.percent() * 100.0;
 
-        for (ability_charge, player_ammo_count, player_max_ammo, id, reload_timer, player_health) in query.iter() {
-            if id.0 == my_id.0 {
-                ammo_in_mag = (*player_ammo_count).0;
-                max_ammo = (*player_max_ammo).0;
-
-                ability_charge_percent = ability_charge.0.percent() * 100.0;
-
-                reloading = reload_timer.reloading;
-                health = player_health.0;
-
-                break;
-
-            }
-        }
+        let reloading = reload_timer.reloading;
+        let health = player_health.0;
 
         let mut ammo_text = t.q0_mut().single_mut().unwrap();
         let mut ammo_pos = ammo_style.single_mut().unwrap();
@@ -1026,7 +996,7 @@ fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCam
         size: camera_size,
     };
 
-    for (entity, transform, sprite)  in query.iter() {
+    query.for_each(|(entity, transform, sprite)| {
         let sprite_rect = MyRect {
             position: transform.translation.truncate(),
             size: sprite.size,
@@ -1043,6 +1013,6 @@ fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCam
 
         }
 
-    }
+    });
 
 }
