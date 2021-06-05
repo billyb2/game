@@ -351,6 +351,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, shader_assets: Res<AssetsLoading>) {
     let mut i: u8 = 0;
 

@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 use std::f32::consts::PI;
 
@@ -22,41 +23,38 @@ macro_rules! console_log {
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
-pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, mut players: Query<(&Transform, &PlayerID, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, map: Res<Map>) {
-     if let Some(my_id) = &my_player_id.0 {
-        for (player, id, sprite) in players.iter_mut() {
-            if id.0 == my_id.0 {
-                let mut x = player.translation.x - sprite.size.x / 2.0;
-                let mut y = player.translation.y + sprite.size.y / 2.0;
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, map: Res<Map>, player_entity: Res<HashMap<u8, Entity>>) {
+    if let Some(my_player_id) = &my_player_id.0 {
+        let (player, sprite) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-                if x - window.width / 2.0 < 0.0 {
-                    x = window.width / 2.0;
+        let mut x = player.translation.x - sprite.size.x / 2.0;
+        let mut y = player.translation.y + sprite.size.y / 2.0;
 
-                } else if x + window.width / 2.0 > map.size.x {
-                    x = map.size.x - window.width / 2.0;
+        if x - window.width / 2.0 < 0.0 {
+            x = window.width / 2.0;
 
-                }
+        } else if x + window.width / 2.0 > map.size.x {
+            x = map.size.x - window.width / 2.0;
 
-                if -y - window.height / 2.0 < 0.0 {
-                    y = -window.height / 2.0;
-
-                } else if -y + window.height / 2.0 > map.size.y {
-                    y = -map.size.y + window.height / 2.0;
-
-                }
-
-                camera.single_mut().unwrap().translation.x = x;
-                camera.single_mut().unwrap().translation.y = y;
-
-                break;
-            }
         }
+
+        if -y - window.height / 2.0 < 0.0 {
+            y = -window.height / 2.0;
+
+        } else if -y + window.height / 2.0 > map.size.y {
+            y = -map.size.y + window.height / 2.0;
+
+        }
+
+        camera.single_mut().unwrap().translation.x = x;
+        camera.single_mut().unwrap().translation.y = y;
+
     }
 }
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerID, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>) {
+pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     let mut angle = None;
 
     if keyboard_input.pressed(keybindings.left) && angle.is_none() {
@@ -150,31 +148,28 @@ pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(
     }
 
     // Only do a change event if a key has been pressed
-    if let Some(my_id) = &my_player_id.0 {
+    if let Some(my_player_id) = &my_player_id.0 {
         if keyboard_input.pressed(keybindings.use_ability) {
-            ev_use_ability.send(AbilityEvent(my_id.0));
+            ev_use_ability.send(AbilityEvent(my_player_id.0));
 
         }
 
 
         if let Some(angle) = angle {
-            for (mut requested_movement, id, speed) in query.iter_mut() {
-                if id.0 == my_id.0 {
-                    requested_movement.angle = angle;
-                    requested_movement.speed = speed.0;
+            let (mut requested_movement, speed) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-                    break;
+            requested_movement.angle = angle;
+            requested_movement.speed = speed.0;
 
-                }
-            }
+
         }
     }
 }
 
 pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &PlayerID, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>, my_player_id: Res<MyPlayerID>) {
     for (bursting, transform, id, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer) in query.iter() {
-        if let Some(my_id)= &my_player_id.0 {
-            if id.0 == my_id.0 {
+        if let Some(my_player_id)= &my_player_id.0 {
+            if id.0 == my_player_id.0 {
                 if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
                     let mut rng = rand::thread_rng();
 
@@ -240,8 +235,8 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&PlayerID, &mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>) {
-    if let Some(my_id)= &my_player_id.0 {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+    if let Some(my_player_id)= &my_player_id.0 {
         for ev in shoot_event.iter() {
             if ev.health != 0.0 {
                 let angle = get_angle(ev.pos_direction.x, ev.pos_direction.y, ev.start_pos.x, ev.start_pos.y);
@@ -254,56 +249,51 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let player_id = ev.player_id;
 
-                if player_id == my_id.0 && ev.projectile_type != ProjectileType::Molotov {
-                    for (id, mut bursting, mut time_since_last_shot, mut ammo_in_mag) in query.iter_mut() {
-                        // Checks that said player can shoot, and isnt reloading
-                        if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading  && id.0 == player_id {
-                            shooting = true;
-                            net.broadcast_message((*ev).clone());
+                if ev.projectile_type != ProjectileType::Molotov {
+                    let (mut bursting, mut time_since_last_shot, mut ammo_in_mag) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                            if ev.model == Model::BurstRifle {
-                                if !bursting.0 {
-                                    bursting.0 = true;
-                                    time_since_last_shot.0.set_duration(Duration::from_millis(45));
+                    // Checks that said player can shoot, and isnt reloading
+                    if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading {
+                        shooting = true;
 
-                                } else if ammo_in_mag.0 % 3 == 0 {
-                                    bursting.0 = false;
-                                    shooting = false;
+                        if ev.model == Model::BurstRifle {
+                            if !bursting.0 {
+                                bursting.0 = true;
+                                time_since_last_shot.0.set_duration(Duration::from_millis(45));
 
-                                    time_since_last_shot.0.set_duration(Duration::from_millis(500));
+                            } else if ammo_in_mag.0 % 3 == 0 {
+                                bursting.0 = false;
+                                shooting = false;
 
-                                }
+                                time_since_last_shot.0.set_duration(Duration::from_millis(500));
 
                             }
-
-
-                            if shooting {
-                                ammo_in_mag.0 -= 1;
-
-                            }
-
-                            time_since_last_shot.0.reset();
-
-                            break;
-
-                        } else if ammo_in_mag.0 == 0 && id.0 == my_id.0 {
-                            // Reload automatically if the player tries to shoot with no ammo
-                            ev_reload.send(ReloadEvent);
-
-                            break;
 
                         }
+
+
+                        if shooting {
+                            ammo_in_mag.0 -= 1;
+
+                        }
+
+                        time_since_last_shot.0.reset();
+
+                    } else if ammo_in_mag.0 == 0 && player_id == my_player_id.0 {
+                        // Reload automatically if the player tries to shoot with no ammo
+                        ev_reload.send(ReloadEvent);
 
                     }
 
                 } else if ev.projectile_type == ProjectileType::Molotov {
                     shooting = true;
-                    net.broadcast_message((*ev).clone());
 
                 }
 
-                if shooting || player_id != my_id.0 {
-                    for recoil in &ev.recoil_vec {
+                if shooting || player_id != my_player_id.0 {
+                    net.broadcast_message((*ev).clone());
+
+                    for recoil in ev.recoil_vec.iter() {
                         let movement = RequestedMovement::new(angle + recoil, speed);
 
                         let material =
@@ -342,217 +332,211 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             });
                     }
                 }
+
             }
         }
 
     }
 }
 
-pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &PlayerID, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>, my_player_id: Res<MyPlayerID>) {
+pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     // Only start a reload if the reload event is read
-    if let Some(my_id)= &my_player_id.0 {
+    if let Some(my_player_id)= &my_player_id.0 {
         for _ in ev_reload.iter() {
-            for (ammo_in_mag, max_ammo, id, mut reload_timer) in query.iter_mut() {
-                if id.0 == my_id.0 && ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
-                    reload_timer.reloading = true;
-                    reload_timer.timer.reset();
+            let (ammo_in_mag, max_ammo, mut reload_timer) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-                }
+            if ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
+                reload_timer.reloading = true;
+                reload_timer.timer.reset();
 
             }
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload,
-              &PlayerID, &mut Visible)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map:
-ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>) {
-    if let Some(my_id)= &my_player_id.0 {
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Visible)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map:
+ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>) {
+    if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
-            for (transform, mut requested_movement, ability, mut ability_charge, mut
-            ability_completed, mut speed, health, mut using_ability, model, reload_timer, id, mut
-            visible) in query.iter_mut() {
-                #[cfg(feature = "web")]
-                console_log!("Ability: {:?} \n Ability finished: {:?}", ability, ability_charge.0.finished());
+                let (transform, mut requested_movement, ability, mut ability_charge, mut
+            ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut
+            visible) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
-                // Events that come from other players dont need to wait for ability charge to finish
-                if id.0 == ev_id.0 && (ability_charge.0.finished() || ev_id.0 != my_id.0) {
-                    match ability {
-                        Ability::Wall => {
-                            if requested_movement.speed != 0.0 || ev_id.0 != my_id.0 {
-                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+            // Events that come from other players dont need to wait for ability charge to finish
+            if ability_charge.0.finished() || ev_id.0 != my_player_id.0 {
+                match ability {
+                    Ability::Wall => {
+                        if requested_movement.speed != 0.0 || ev_id.0 != my_player_id.0 {
+                            let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
 
-                                let message: ([u8; 2], [f32; 3]) = ([my_id.0, Ability::Wall.into()], message_array);
+                            let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Wall.into()], message_array);
 
-                                if ev_id.0 == my_id.0 {
-                                    net.broadcast_message(message);
-
-                                }
-
-                                let color = Color::rgb_u8(255, 255, 0);
-
-                                let color_handle: Handle<ColorMaterial> = {
-                                    let mut color_to_return = None;
-
-                                    for (id, material_to_return) in materials.iter() {
-                                        if color == material_to_return.color {
-                                            color_to_return = Some(materials.get_handle(id));
-
-                                        }
-
-                                    }
-
-                                    match color_to_return {
-                                        Some(color) => color,
-                                        None => materials.add(color.into())
-
-                                    }
-
-                                };
-
-                                let coords = transform.translation + Vec3::new(100.0 * requested_movement.angle.cos(), 100.0 * requested_movement.angle.sin(), 0.0);
-
-                                let size =
-                                    if requested_movement.angle.abs() == PI / 2.0 {
-                                        Vec2::new(100.0, 25.0)
-
-                                    } else {
-                                        Vec2::new(25.0, 100.0)
-
-                                    };
-
-                                let health_of_wall: f32 = 300.0;
-
-                                commands
-                                    .spawn_bundle(SpriteBundle {
-                                        material: color_handle.clone(),
-                                        sprite: Sprite::new(size),
-                                        transform: Transform {
-                                            translation: coords,
-                                            ..Default::default()
-                                        },
-                                        ..Default::default()
-                                    })
-                                    .insert(Health(health_of_wall))
-                                    .insert(WallMarker);
-
-                                map.objects.push(
-                                    MapObject {
-                                        coords,
-                                        size,
-                                        color,
-                                        collidable: true,
-                                        player_spawn: false,
-                                        health: Some(health_of_wall),
-
-                                    }
-                                );
-
-                                ability_charge.0.reset();
-
-                            }
-                        },
-                        Ability::Warp => {
-                            requested_movement.speed += 500.0;
-                            #[cfg(feature = "web")]
-                            console_log!("Warp speed: {}", requested_movement.speed);
-
-                            ability_charge.0.reset();
-
-                        },
-                        Ability::Stim => {
-                            if !using_ability.0 && ability_charge.0.finished() {
-                                speed.0 *= 2.0;
-                                ability_completed.0.reset();
-                                using_ability.0 = true;
-
-                            }
-                        },
-                        Ability::Hacker => {
-                            let mut potential_players_to_be_hacked: Vec<u8> = Vec::with_capacity(255);
-
-                            for id in online_player_ids.0.iter() {
-                                if *id != my_id.0 {
-                                    potential_players_to_be_hacked.push(*id);
-
-                                }
-                            }
-
-                            let mut rng = rand::thread_rng();
-
-                            if !potential_players_to_be_hacked.is_empty() {
-                                // Get a random player that isn't the current player
-                                let player_to_be_hacked: u8 = *potential_players_to_be_hacked.choose(&mut rng).unwrap();
-
-                                let message: ([u8; 2], [f32; 3]) = ([player_to_be_hacked, Ability::Hacker.into()], [transform.translation.x, transform.translation.y, 0.0]);
-                                
+                            if ev_id.0 == my_player_id.0 {
                                 net.broadcast_message(message);
 
-
-                                ability_charge.0.reset();
-
                             }
 
-                        },
-                        // The engineer ability is passive, so when the use ability button is pressed nothing happens
-                        Ability::Engineer => {},
-                        // Inferno throws a molotov that lights an area on fire for a few seconds
-                        Ability::Inferno => {
-                            let projectile_speed: f32 = 6.0;
+                            let color = Color::rgb_u8(255, 255, 0);
 
-                            let event = ShootEvent {
-                                start_pos: transform.translation,
-                                player_id: id.0,
-                                pos_direction: mouse_pos.0,
-                                health: health.0,
-                                model: *model,
-                                // The distance that the bullet will travel is just the distance between the mouse and the player
-                                max_distance: mouse_pos.0.distance(transform.translation.truncate()),
-                                recoil_vec: vec![0.0],
-                                // Bullets need to travel "backwards" when moving to the left
-                                speed: match mouse_pos.0.x <= transform.translation.x {
-                                    true => -projectile_speed,
-                                    false => projectile_speed,
-                                },
-                                projectile_type: ProjectileType::Molotov,
-                                damage: Damage(5.0),
-                                player_ability: Ability::Inferno,
-                                size: Vec2::new(3.0, 3.0),
-                                reloading: reload_timer.reloading,
+                            let color_handle: Handle<ColorMaterial> = {
+                                let mut color_to_return = None;
+
+                                for (id, material_to_return) in materials.iter() {
+                                    if color == material_to_return.color {
+                                        color_to_return = Some(materials.get_handle(id));
+
+                                    }
+
+                                }
+
+                                match color_to_return {
+                                    Some(color) => color,
+                                    None => materials.add(color.into())
+
+                                }
 
                             };
 
-                            shoot_event.send(event);
+                            let coords = transform.translation + Vec3::new(100.0 * requested_movement.angle.cos(), 100.0 * requested_movement.angle.sin(), 0.0);
+
+                            let size =
+                                if requested_movement.angle.abs() == PI / 2.0 {
+                                    Vec2::new(100.0, 25.0)
+
+                                } else {
+                                    Vec2::new(25.0, 100.0)
+
+                                };
+
+                            let health_of_wall: f32 = 300.0;
+
+                            commands
+                                .spawn_bundle(SpriteBundle {
+                                    material: color_handle.clone(),
+                                    sprite: Sprite::new(size),
+                                    transform: Transform {
+                                        translation: coords,
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(Health(health_of_wall))
+                                .insert(WallMarker);
+
+                            map.objects.push(
+                                MapObject {
+                                    coords,
+                                    size,
+                                    color,
+                                    collidable: true,
+                                    player_spawn: false,
+                                    health: Some(health_of_wall),
+
+                                }
+                            );
 
                             ability_charge.0.reset();
 
-                        },
-                        Ability::Cloak => {
-                            if !using_ability.0 && ability_charge.0.finished() {
-                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+                        }
+                    },
+                    Ability::Warp => {
+                        requested_movement.speed += 500.0;
+                        #[cfg(feature = "web")]
+                        console_log!("Warp speed: {}", requested_movement.speed);
 
-                                let message: ([u8; 2], [f32; 3]) = ([my_id.0, Ability::Cloak.into
-                                ()], message_array);
+                        ability_charge.0.reset();
 
-                                if ev_id.0 == my_id.0 {
-                                    net.broadcast_message(message);
+                    },
+                    Ability::Stim => {
+                        if !using_ability.0 && ability_charge.0.finished() {
+                            speed.0 *= 2.0;
+                            ability_completed.0.reset();
+                            using_ability.0 = true;
 
-                                }
+                        }
+                    },
+                    Ability::Hacker => {
+                        let mut potential_players_to_be_hacked: Vec<u8> = Vec::with_capacity(255);
 
-                                visible.is_visible = false;
-                                ability_completed.0.reset();
-                                using_ability.0 = true;
+                        for id in online_player_ids.0.iter() {
+                            if *id != my_player_id.0 {
+                                potential_players_to_be_hacked.push(*id);
+
+                            }
+                        }
+
+                        let mut rng = rand::thread_rng();
+
+                        if !potential_players_to_be_hacked.is_empty() {
+                            // Get a random player that isn't the current player
+                            let player_to_be_hacked: u8 = *potential_players_to_be_hacked.choose(&mut rng).unwrap();
+
+                            let message: ([u8; 2], [f32; 3]) = ([player_to_be_hacked, Ability::Hacker.into()], [transform.translation.x, transform.translation.y, 0.0]);
+                            
+                            net.broadcast_message(message);
+
+
+                            ability_charge.0.reset();
+
+                        }
+
+                    },
+                    // The engineer ability is passive, so when the use ability button is pressed nothing happens
+                    Ability::Engineer => {},
+                    // Inferno throws a molotov that lights an area on fire for a few seconds
+                    Ability::Inferno => {
+                        let projectile_speed: f32 = 6.0;
+
+                        let event = ShootEvent {
+                            start_pos: transform.translation,
+                            player_id: ev_id.0,
+                            pos_direction: mouse_pos.0,
+                            health: health.0,
+                            model: *model,
+                            // The distance that the bullet will travel is just the distance between the mouse and the player
+                            max_distance: mouse_pos.0.distance(transform.translation.truncate()),
+                            recoil_vec: vec![0.0],
+                            // Bullets need to travel "backwards" when moving to the left
+                            speed: match mouse_pos.0.x <= transform.translation.x {
+                                true => -projectile_speed,
+                                false => projectile_speed,
+                            },
+                            projectile_type: ProjectileType::Molotov,
+                            damage: Damage(5.0),
+                            player_ability: Ability::Inferno,
+                            size: Vec2::new(3.0, 3.0),
+                            reloading: reload_timer.reloading,
+
+                        };
+
+                        shoot_event.send(event);
+
+                        ability_charge.0.reset();
+
+                    },
+                    Ability::Cloak => {
+                        if !using_ability.0 && ability_charge.0.finished() {
+                            let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+
+                            let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into
+                            ()], message_array);
+
+                            if ev_id.0 == my_player_id.0 {
+                                net.broadcast_message(message);
+
                             }
 
-                        },
-                    };
+                            visible.is_visible = false;
+                            ability_completed.0.reset();
+                            using_ability.0 = true;
+                        }
 
-                    break;
+                    },
+                };
 
-                }
+
             }
         }
     }
@@ -561,8 +545,8 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
 TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
 AbilityCharge, &mut PlayerSpeed, & mut Visible)>) {
-    for (mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
-        mut using_ability, mut ability_charge, mut speed, mut visible) in query.iter_mut() {
+    query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
+        mut using_ability, mut ability_charge, mut speed, mut visible)| {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -583,7 +567,8 @@ AbilityCharge, &mut PlayerSpeed, & mut Visible)>) {
             using_ability.0 = false;
             ability_charge.0.reset();
         }
-    }
+
+    });
 }
 
 
@@ -606,10 +591,10 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
     let p = cursor_pos - size / 2.0;
 
 
-    for mut shader_mouse_pos in shader_mouse_pos.iter_mut() {
+    shader_mouse_pos.for_each_mut(|mut shader_mouse_pos| {
         shader_mouse_pos.value = cursor_pos / size;
 
-    }
+    });
 
     // apply the camera transform
     let pos_wld = camera_transform.compute_matrix() * p.extend(0.0).extend(1.0);
@@ -618,17 +603,10 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
 
 }
 
-pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut player_query: Query<(&mut Sprite, &Transform, &PlayerID)>) {
-    if let Some(my_id) = &my_player_id.0 {
-        for (mut sprite, transform, id) in player_query.iter_mut() {
-            if id.0 == my_id.0 {
-                sprite.flip_x = mouse_pos.0.x >= transform.translation.x;
-
-                break;
-
-            }
-
-        }
+pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut player_query: Query<(&mut Sprite, &Transform)>, player_entity: Res<HashMap<u8, Entity>>) {
+    if let Some(my_player_id) = &my_player_id.0 {
+        let (mut sprite, transform) = player_query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+        sprite.flip_x = mouse_pos.0.x >= transform.translation.x;
 
     }
 

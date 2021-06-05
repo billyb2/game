@@ -423,7 +423,7 @@ pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Quer
         #[cfg(feature = "native")]
         if _hosting.0 {
             for m in messages_to_send.iter() {
-                net.broadcast_message((*m).clone());
+                net.broadcast_message(*m);
 
             }
         }

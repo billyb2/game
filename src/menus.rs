@@ -7,7 +7,7 @@ use crate::*;
 use crate::net::Hosting;
 
 pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
-    for (interaction, mut material, children) in interaction_query.iter_mut() {
+    interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let mut selected_key_button = selected_key_button.single_mut().unwrap();
 
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -214,11 +214,11 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                 }
             }
         }
-    }
+    });
 }
 
 pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
-    for (interaction, mut material, children) in interaction_query.iter_mut() {
+    interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         match *interaction {
@@ -241,11 +241,11 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
 
             }
         }
-    }
+    });
 }
 
 pub fn game_menu_system(mut commands: Commands, button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
-    for (interaction, mut material, children) in interaction_query.iter_mut() {
+    interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         match *interaction {
@@ -275,11 +275,11 @@ pub fn game_menu_system(mut commands: Commands, button_materials: Res<GameMenuBu
 
             }
         }
-    }
+    });
 }
 
 pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>) {
-    for (interaction, mut material, children) in interaction_query.iter_mut() {
+    interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         match *interaction {
@@ -339,21 +339,21 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
             }
         }
-    }
+    });
 }
 
 // When exiting anything with a UI, it removes all Nodes, which removes all text and buttons, as well as there children
-pub fn exit_menu(mut commands: Commands, mut query: Query<(Entity, &Node)>) {
-    for q in query.iter_mut() {
+pub fn exit_menu(mut commands: Commands, query: Query<(Entity, &Node)>) {
+    query.for_each(|q| {
         commands.entity(q.0).despawn_recursive();
 
-    }
+    });
 }
 
-pub fn remove_selected(mut commands: Commands, mut query: Query<(Entity, &SelectedKeyButton)>) {
-    for q in query.iter_mut() {
+pub fn remove_selected(mut commands: Commands, query: Query<(Entity, &SelectedKeyButton)>) {
+    query.for_each(|q| {
         commands.entity(q.0).despawn_recursive();
 
-    }
+    });
 
 }

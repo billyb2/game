@@ -682,7 +682,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             while i < molotovs_to_be_lit_on_fire.len() {
                 let potential_molotov = molotovs_to_be_lit_on_fire[i];
 
-                if proj_coords.translation.truncate() == potential_molotov.0 && sprite.size.x == potential_molotov.1 {
+                if proj_coords.translation.truncate() == potential_molotov.0 && (sprite.size.x - potential_molotov.1).abs() < f32::EPSILON {
                     // Does 75 damage every second (since there are 60 frames per second)
                     // This might seem excessive, but most players have the sense to run if they catch on fire, so the high damage done forces them to take the fire as a threat instead of just running through it to engage the slow and weak Inferno
                     // Once the molotov is hit by a bullet, it becomes molotov fire
