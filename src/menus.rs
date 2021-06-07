@@ -4,6 +4,7 @@
 use bevy::prelude::*;
 
 use crate::*;
+#[cfg(feature = "web")]
 use crate::net::Hosting;
 
 pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
@@ -244,7 +245,7 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
     });
 }
 
-pub fn game_menu_system(mut commands: Commands, button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
+pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -252,10 +253,6 @@ pub fn game_menu_system(mut commands: Commands, button_materials: Res<GameMenuBu
             Interaction::Clicked => {
                 if text.len() >= 5 && &text[5..] == "game" {
                     app_state.set(AppState::Connecting).unwrap();
-                    #[cfg(feature = "native")]
-                    commands.insert_resource(Hosting(true));
-                    #[cfg(feature = "web")]
-                    commands.insert_resource(Hosting(false));
 
                 } else if text == "Customize" {
                     app_state.set(AppState::CustomizePlayerMenu).unwrap();

@@ -5,7 +5,7 @@ use std::io::Read;
 
 use bevy::prelude::*;
 
-use crate::Health;
+use crate::{GameRelated, Health};
 use crate::components::WallMarker;
 
 use crate::helper_functions::collide;
@@ -239,7 +239,8 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
                 ..Default::default()
             })
             .insert(Health(100.0))
-            .insert(WallMarker);
+            .insert(WallMarker)
+            .insert(GameRelated);
 
         i += 1;
     }

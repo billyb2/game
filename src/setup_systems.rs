@@ -121,7 +121,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..Default::default()
         })
-        .insert(AmmoText);
+        .insert(AmmoText)
+        .insert(GameRelated);
 
     // Text saying the player's ability charge
     commands
@@ -153,7 +154,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..Default::default()
         })
-        .insert(AbilityChargeText);
+        .insert(AbilityChargeText)
+        .insert(GameRelated);
 
     // Text saying the player's health
     commands
@@ -185,7 +187,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..Default::default()
         })
-        .insert(HealthText);
+        .insert(HealthText)
+        .insert(GameRelated);
 
     // Text saying the game log charge
     commands
@@ -208,7 +211,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..Default::default()
         })
-        .insert(GameLogText);
+        .insert(GameLogText)
+        .insert(GameRelated);
 
     // Text saying the current score of all players in game
     commands
@@ -258,7 +262,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 },
                 ..Default::default()
             })
-            .insert(ScoreUI);
+            .insert(ScoreUI)
+            .insert(GameRelated);
         });
 
     // The text saying that a player won the game
@@ -309,7 +314,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 },
                 ..Default::default()
             })
-            .insert(ChampionText);
+            .insert(ChampionText)
+            .insert(GameRelated);
         });
 
 }
@@ -432,6 +438,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
                 .insert(WindowSize { value: Vec2::new(wnd.width(), wnd.height()) })
                 .insert(helmet_color)
                 .insert(inner_suit_color)
+                .insert(GameRelated)
                 .id();
 
             player_entities.insert(i, entity);
@@ -1265,6 +1272,126 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
                 },
                 ..Default::default()
 
+            });
+
+        });
+}
+
+pub fn setup_continue_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
+    commands.insert_resource(ClearColor(Color::ORANGE));
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexStart,
+                margin: Rect {
+                   bottom: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::FlexEnd,
+                align_content: AlignContent::FlexStart,
+                align_items: AlignItems::FlexStart,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: String::from("Continue playing?"),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 80.0,
+                                color: Color::WHITE,
+                            },
+                        },
+                    ],
+                    ..Default::default()
+                },
+                ..Default::default()
+
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                margin: Rect {
+                    bottom: Val::Percent(10.0),
+
+                    ..Default::default()
+                },
+                size: Size::new(Val::Px(350.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("Yes"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(450.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: String::from("No"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                })
+                .insert(KeyBindingButtons::Down);
             });
 
         });

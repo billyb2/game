@@ -68,6 +68,8 @@ struct AbilityChargeText;
 struct GameLogText;
 struct HealthText;
 
+pub struct GameRelated;
+
 pub struct ScoreUI;
 pub struct ChampionText;
 
@@ -76,6 +78,7 @@ pub enum AppState {
     Connecting,
     MainMenu,
     GameMenu,
+    ContinuePlaying,
     CustomizePlayerMenu,
     InGame,
     Settings,
@@ -249,226 +252,239 @@ fn main() {
 
     let mut rng = rand::thread_rng();
 
-    let ability: Ability = rng.gen();
-    let gun_model: Model = rng.gen();
+    app
+    // Antialiasing
+    .insert_resource(Msaa { samples: 1 });
 
-        app
-        // Antialiasing
-        .insert_resource(Msaa { samples: 1 });
+    app.insert_resource( WindowDescriptor {
+        title: String::from("Necrophaser"),
+        vsync: true,
+        ..Default::default()
 
-        app.insert_resource( WindowDescriptor {
-            title: String::from("Necrophaser"),
-            vsync: true,
-            ..Default::default()
+    });
 
-        });
+    // I want the screen size to be smaller on wasm
+    #[cfg(feature = "web")]
+    app.insert_resource( WindowDescriptor {
+        title: String::from("Necrophaser"),
+        vsync: true,
+        width: 1366.0 * 0.85,
+        height: 768.0 * 0.85,
+        ..Default::default()
 
-        // I want the screen size to be smaller on wasm
-        #[cfg(feature = "web")]
-        app.insert_resource( WindowDescriptor {
-            title: String::from("Necrophaser"),
-            vsync: true,
-            width: 1366.0 * 0.85,
-            height: 768.0 * 0.85,
-            ..Default::default()
+    });
 
-        });
+    app
+    //Start in the main menu
+    .add_state(AppState::MainMenu)
 
-        app
-        //Start in the main menu
-        .add_state(AppState::MainMenu)
+    // Embed the map into the binary
+    .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
+    // Gotta initialize the mouse position with something, or else the game crashes
+    .insert_resource(MousePosition(Vec2::ZERO))
+    // Used to make searches through queries for 1 player much quicker, with some overhead in the beginning of the program
+    .insert_resource(MyPlayerID(None))
+    .insert_resource(GameMode::Deathmatch)
+    .insert_resource(GameLogs::new())
+    .insert_resource(rng.gen::<Model>())
+    .insert_resource(rng.gen::<Ability>())
+    .insert_resource(DeathmatchScore(HashMap::with_capacity(256)));
 
-        // Embed the map into the binary
-        .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
-        // Gotta initialize the mouse position with something, or else the game crashes
-        .insert_resource(MousePosition(Vec2::ZERO))
-        // Used to make searches through queries for 1 player much quicker, with some overhead in the beginning of the program
-        .insert_resource(MyPlayerID(None))
-        .insert_resource(GameMode::Deathmatch)
-        .insert_resource(GameLogs::new())
-        .insert_resource(gun_model)
-        .insert_resource(ability)
-        .insert_resource(DeathmatchScore(HashMap::with_capacity(256)));
+    app.add_plugins(DefaultPlugins)
+    .add_plugin(NetworkingPlugin::default())
+    .add_event::<NetworkEvent>()
+    // Adds some possible events, like reloading and using your ability
+    .add_event::<ReloadEvent>()
+    .add_event::<ShootEvent>()
+    .add_event::<AbilityEvent>()
+    .add_event::<DespawnWhenDead>()
+    .add_event::<DeathEvent>()
+    .add_event::<LogEvent>();
 
-        app.add_plugins(DefaultPlugins)
-        .add_plugin(NetworkingPlugin::default())
-        .add_event::<NetworkEvent>()
-        // Adds some possible events, like reloading and using your ability
-        .add_event::<ReloadEvent>()
-        .add_event::<ShootEvent>()
-        .add_event::<AbilityEvent>()
-        .add_event::<DespawnWhenDead>()
-        .add_event::<DeathEvent>()
-        .add_event::<LogEvent>();
+    //The WebGL2 plugin is only added if we're compiling to WASM
+    #[cfg(feature = "web")]
+    app.add_plugin(bevy_webgl2::WebGL2Plugin);
 
-        //The WebGL2 plugin is only added if we're compiling to WASM
-        #[cfg(feature = "web")]
-        app.add_plugin(bevy_webgl2::WebGL2Plugin);
+    app
+    // All the materials of the game NEED to be added before everything else
+    .add_startup_system(setup_materials.system())
+    // The cameras also need to be added first as well
+    .add_startup_system(setup_cameras.system())
+    .add_startup_system(setup_default_controls.system())
+    .add_startup_system(setup_asset_loading.system())
+    .add_system(check_assets_ready.system());
 
-        app
-        // All the materials of the game NEED to be added before everything else
-        .add_startup_system(setup_materials.system())
-        // The cameras also need to be added first as well
-        .add_startup_system(setup_cameras.system())
-        .add_startup_system(setup_default_controls.system())
-        .add_startup_system(setup_asset_loading.system())
-        .add_system(check_assets_ready.system());
+    #[cfg(feature = "native")]
+    app.insert_resource(Hosting(true));
+    #[cfg(feature = "web")]
+    app.insert_resource(Hosting(false));
 
-        // Sprite culling
-        // For some reason, sprite culling fails on WASM
-        #[cfg(feature = "native")]
-        app.add_system_to_stage(
-            CoreStage::PostUpdate,
-            sprite_culling.system(),
-        );
 
-        app.add_system_set(
-            SystemSet::on_enter(AppState::Connecting)
-                .with_system(setup_players.system())
-                .with_system(setup_networking.system())
-                .with_system(setup_id.system())
-                .with_system(setup_connection_menu.system())
+    #[cfg(feature = "native")]
+    app.add_startup_system(setup_listening.system());
 
-        );
+    // Sprite culling
+    // For some reason, sprite culling fails on WASM
+    #[cfg(feature = "native")]
+    app.add_system_to_stage(
+        CoreStage::PostUpdate,
+        sprite_culling.system(),
+    );
 
-        app.add_system_set(
-            SystemSet::on_update(AppState::Connecting)
-                .with_system(tick_timers.system())
+    app.add_system_set(
+        SystemSet::on_enter(AppState::Connecting)
+            .with_system(setup_players.system())
+            .with_system(setup_networking.system())
+            .with_system(setup_id.system())
+            .with_system(setup_connection_menu.system())
 
-        );
+    );
 
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Connecting)
-                .with_system(exit_menu.system())
+    app.add_system_set(
+        SystemSet::on_update(AppState::Connecting)
+            .with_system(tick_timers.system())
 
-        );
+    );
 
-        // Initialize InGame
-        app.add_system_set(
-            SystemSet::on_enter(AppState::InGame)
-                .with_system(setup_game_ui.system())
-                // Set the mouse coordinates initially
-                .with_system(set_mouse_coords.system())
-                .with_system(draw_map.system())
+    app.add_system_set(
+        SystemSet::on_exit(AppState::Connecting)
+            .with_system(exit_menu.system())
 
-        )
+    );
 
-        // Run every tick when InGame
-        .add_system_set(
-            SystemSet::on_update(AppState::InGame)
-                // Timers should be ticked first
-                .with_system(tick_timers.system().before("player_attr").before(InputFromPlayer))
-                .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
-                .with_system(send_stats.system().label(InputFromPlayer).before("player_attr"))
-                .with_system(handle_stat_packets.system().label(InputFromPlayer).before("player_attr"))
-                .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
-                //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
-                .with_system(my_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
-                .with_system(set_player_sprite_direction.system().after(InputFromPlayer))
-                .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
-                .with_system(spawn_projectile.system().label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
-                .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
-                .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
-                .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
-                .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
-                .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
-                .with_system(score_system.system().after(InputFromPlayer).after("move_objects"))
-                .with_system(handle_damage_packets.system().label("handle_damage").before("move_objects"))
-                .with_system(despawn_destroyed_walls.system().after("move_objects"))
-                .with_system(death_event_system.system().after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
-                .with_system(dead_players.system().after("move_objects").label("dead_players"))
-                .with_system(log_system.system().after("dead_players"))
-                .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
-                .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
-        );
+    // Initialize InGame
+    app.add_system_set(
+        SystemSet::on_enter(AppState::InGame)
+            .with_system(setup_game_ui.system())
+            // Set the mouse coordinates initially
+            .with_system(set_mouse_coords.system())
+            .with_system(draw_map.system())
 
-        #[cfg(feature = "native")]
-        app.add_system_set(
-            SystemSet::on_update(AppState::InGame)
-                .with_system(handle_server_commands.system())
+    )
 
-        );
+    // Run every tick when InGame
+    .add_system_set(
+        SystemSet::on_update(AppState::InGame)
+            // Timers should be ticked first
+            .with_system(tick_timers.system().before("player_attr").before(InputFromPlayer))
+            .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
+            .with_system(send_stats.system().label(InputFromPlayer).before("player_attr"))
+            .with_system(handle_stat_packets.system().label(InputFromPlayer).before("player_attr"))
+            .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
+            //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
+            .with_system(my_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
+            .with_system(set_player_sprite_direction.system().after(InputFromPlayer))
+            .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
+            .with_system(spawn_projectile.system().label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
+            .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
+            .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
+            .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
+            .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
+            .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+            .with_system(score_system.system().after(InputFromPlayer).after("move_objects"))
+            .with_system(handle_damage_packets.system().label("handle_damage").before("move_objects"))
+            .with_system(despawn_destroyed_walls.system().after("move_objects"))
+            .with_system(death_event_system.system().after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
+            .with_system(dead_players.system().after("move_objects").label("dead_players"))
+            .with_system(log_system.system().after("dead_players"))
+            .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
+            .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
+    );
+    app.add_system_set(
+        SystemSet::on_exit(AppState::InGame)
+            .with_system(exit_in_game.system())
+            .with_system(disconnect.system())
 
-        #[cfg(feature = "web")]
-        app.add_system_set(
-            SystemSet::on_update(AppState::Connecting)
-                .with_system(request_player_info.system())
-                .with_system(handle_client_commands.system())
+    );
 
-        );
 
-        #[cfg(feature = "web")]
-        app.add_system_set(
-            SystemSet::on_update(AppState::InGame)
-                .with_system(handle_client_commands.system().before("player_attr").before(InputFromPlayer))
+    #[cfg(feature = "native")]
+    app.add_system_set(
+        SystemSet::on_update(AppState::InGame)
+            .with_system(handle_server_commands.system())
 
-        );
+    );
 
-        app.add_system_set(
-            SystemSet::on_enter(AppState::MainMenu)
-                .with_system(setup_main_menu.system())
+    #[cfg(feature = "web")]
+    app.add_system_set(
+        SystemSet::on_update(AppState::Connecting)
+            .with_system(request_player_info.system())
+            .with_system(handle_client_commands.system())
 
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::MainMenu)
-                .with_system(main_menu_system.system())
+    );
 
-        )
-        .add_system_set(
-            SystemSet::on_exit(AppState::MainMenu)
-                .with_system(exit_menu.system())
+    #[cfg(feature = "web")]
+    app.add_system_set(
+        SystemSet::on_update(AppState::InGame)
+            .with_system(handle_client_commands.system().before("player_attr").before(InputFromPlayer))
 
-        )
-        .add_system_set(
-            SystemSet::on_enter(AppState::GameMenu)
-                .with_system(setup_game_menu.system())
+    );
 
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::GameMenu)
-                .with_system(game_menu_system.system())
+    app.add_system_set(
+        SystemSet::on_enter(AppState::MainMenu)
+            .with_system(setup_main_menu.system())
 
-        )
-        .add_system_set(
-            SystemSet::on_exit(AppState::GameMenu)
-                .with_system(exit_menu.system())
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::MainMenu)
+            .with_system(main_menu_system.system())
 
-        )
-        .add_system_set(
-            SystemSet::on_enter(AppState::CustomizePlayerMenu)
-                .with_system(setup_customize_menu.system())
+    )
+    .add_system_set(
+        SystemSet::on_exit(AppState::MainMenu)
+            .with_system(exit_menu.system())
 
-        )
-        .add_system_set(
-            SystemSet::on_update(AppState::CustomizePlayerMenu)
-                .with_system(customize_menu_system.system())
+    )
+    .add_system_set(
+        SystemSet::on_enter(AppState::GameMenu)
+            .with_system(setup_game_menu.system())
 
-        )
-        .add_system_set(
-            SystemSet::on_exit(AppState::CustomizePlayerMenu)
-                .with_system(exit_menu.system())
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::GameMenu)
+            .with_system(game_menu_system.system())
 
-        )
-        .add_system_set(
-            SystemSet::on_enter(AppState::Settings)
-                .with_system(setup_settings.system())
+    )
+    .add_system_set(
+        SystemSet::on_exit(AppState::GameMenu)
+            .with_system(exit_menu.system())
 
-        )
+    )
+    .add_system_set(
+        SystemSet::on_enter(AppState::CustomizePlayerMenu)
+            .with_system(setup_customize_menu.system())
 
-        .add_system_set(
-            SystemSet::on_update(AppState::Settings)
-                .with_system(settings_system.system())
+    )
+    .add_system_set(
+        SystemSet::on_update(AppState::CustomizePlayerMenu)
+            .with_system(customize_menu_system.system())
 
-        )
+    )
+    .add_system_set(
+        SystemSet::on_exit(AppState::CustomizePlayerMenu)
+            .with_system(exit_menu.system())
 
-        .add_system_set(
-            SystemSet::on_exit(AppState::Settings)
-                .with_system(exit_menu.system())
-                .with_system(remove_selected.system())
+    )
+    .add_system_set(
+        SystemSet::on_enter(AppState::Settings)
+            .with_system(setup_settings.system())
 
-        )
+    )
 
-        .run();
+    .add_system_set(
+        SystemSet::on_update(AppState::Settings)
+            .with_system(settings_system.system())
+
+    )
+
+    .add_system_set(
+        SystemSet::on_exit(AppState::Settings)
+            .with_system(exit_menu.system())
+            .with_system(remove_selected.system())
+
+    )
+
+    .run();
 }
 
 //TODO: Turn RequestedMovement into an event
@@ -711,7 +727,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 // Despawns walls that have been destroyed
 fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventReader<DespawnWhenDead>, mut walls: Query<(Entity, &mut Health, &Transform), With<WallMarker>>) {
     for ev in wall_event.iter() {
-        for (entity, mut health, transform) in walls.iter_mut() {
+        walls.for_each_mut(|(entity, mut health, transform)| {
             if ev.coords == transform.translation.truncate() {
                 if ev.health != 0.0 {
                     health.0 = ev.health;
@@ -721,9 +737,8 @@ fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventReader<D
 
                 }
 
-                break;
             }
-        }
+        });
     }
 }
 
@@ -762,7 +777,7 @@ fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer
 
 }
 
-fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>) {
+fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>) {
     let deathmatch_score = &deathmatch_score.deref().0;
 
     for (player_id, score) in deathmatch_score.iter() {
@@ -772,6 +787,16 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
 
             text.sections[0].value = champion_string;
             visible.is_visible = true;
+
+            if player_continue_timer.is_empty() {
+                commands
+                    .spawn()
+                    .insert(PlayerContinueTimer(Timer::from_seconds(5.0, false)))
+                    .insert(GameRelated);
+            } else if player_continue_timer.single().unwrap().0.finished() {
+                app_state.set(AppState::GameMenu).unwrap();
+
+            }
 
             break;
 
@@ -785,7 +810,7 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
+fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>) {
     let delta = time.delta();
 
     player_timers.for_each_mut(|(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer)| {
@@ -819,6 +844,12 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
 
     projectile_timers.for_each_mut(|mut destruction_timer| {
         destruction_timer.0.tick(delta);
+
+    });
+
+    // While there's only ever going to be one player continue timer, it isnt always going to be around, so we just do a for each instead
+    player_continue_timer.for_each_mut(|mut player_continue_timer| {
+        player_continue_timer.0.tick(delta);
 
     });
 }
@@ -1015,4 +1046,26 @@ fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCam
 
     });
 
+}
+
+pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>) {
+    query.for_each(|q| {
+        commands.entity(q.0).despawn_recursive();
+
+    });
+
+    player_query.for_each(|q| {
+        commands.entity(q.0).despawn_recursive();
+
+    });
+
+    projectile_query.for_each(|q| {
+        commands.entity(q.0).despawn_recursive();
+
+    });
+
+    ui_query.for_each(|q| {
+        commands.entity(q.0).despawn_recursive();
+
+    });
 }

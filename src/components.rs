@@ -99,3 +99,6 @@ pub struct DespawnWhenDead {
 }
 
 pub struct WallMarker;
+
+#[derive(Clone)]
+pub struct PlayerContinueTimer(pub Timer);

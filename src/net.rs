@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::collections::BTreeSet;
@@ -141,7 +142,33 @@ pub struct Hosting(pub bool);
 
 pub struct SetAbility(bool);
 
-pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut _app_state: ResMut<State<AppState>>) {
+#[cfg(feature = "native")]
+pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) {
+    // Currently, only PC builds can host
+    #[cfg(feature = "native")]
+    if hosting.0 {
+        let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
+        //let ip_address = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
+
+        // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
+        println!("Listening on {:?}", &socket_address);
+
+        // The WebRTC listening address just picks a random port
+        let webrtc_listen_addr = {
+            let webrtc_listen_ip: IpAddr = socket_address.ip();
+
+            let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str())
+                .expect("No available port");
+
+            SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
+        };
+
+        net.listen(socket_address, Some(webrtc_listen_addr), Some(webrtc_listen_addr));
+
+    }
+}
+
+pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, _hosting: Res<Hosting>, mut _app_state: ResMut<State<AppState>>) {
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
@@ -169,34 +196,14 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), false)));
     commands.insert_resource(SetAbility(false));
 
-    let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
-
-    // Currently, only PC builds can host
     #[cfg(feature = "native")]
-    if hosting.0 {
-        //let ip_address = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
-
-        // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
-        println!("Listening on {:?}", &socket_address);
-
-        // The WebRTC listening address just picks a random port
-        let webrtc_listen_addr = {
-            let webrtc_listen_ip: IpAddr = socket_address.ip();
-
-            let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str())
-                .expect("No available port");
-
-            SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
-        };
-
-        net.listen(socket_address, Some(webrtc_listen_addr), Some(webrtc_listen_addr));
-        _app_state.set(AppState::InGame).unwrap();
-
-    }
+     _app_state.set(AppState::InGame).unwrap();
 
     // Currently, only web builds can join games (until we add UDP servers)
     #[cfg(feature = "web")]
-    if !hosting.0 {
+    if !_hosting.0 {
+        let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
+
         println!("Connecting to {:?}", socket_address);
         console_log!("Net: Connecting to {:?}", socket_address);
 
@@ -205,27 +212,20 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     }
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &Sprite, &PlayerID)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &Sprite)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+    // Only start sending packets when your ID is set
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
-        // Only start sending packets when your ID is set
         if ready_to_send_packet.0.finished() {
-            for (transform, sprite, id) in players.iter() {
-                if id.0 == my_id.0 {
-                    net.broadcast_message((my_id.0, sprite.flip_x, [transform.translation.x, transform.translation.y]));
-
-                    break;
-
-                }
-
-            }
+            let (transform, sprite) = players.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
+            net.broadcast_message((my_id.0, sprite.flip_x, [transform.translation.x, transform.translation.y]));
 
             ready_to_send_packet.0.reset();
         }
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<(u8, bool, [f32; 2])> = Vec::with_capacity(255);
 
@@ -244,20 +244,16 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
                 make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
 
                 // Set the location of any local players to the location given
-                for (mut transform, mut sprite, id) in players.iter_mut() {
-                    if id.0 == player_id {
-                        sprite.flip_x = flip_x;
+                let (mut transform, mut sprite) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                        if player_id != my_id.0 {
-                            transform.translation.x = x;
-                            transform.translation.y = y;
+                sprite.flip_x = flip_x;
 
-                        }
+                if player_id != my_id.0 {
+                    transform.translation.x = x;
+                    transform.translation.y = y;
 
-                        break;
-
-                    }
                 }
+
             }
         }
 
@@ -271,7 +267,7 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &PlayerID)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], [f32; 3])> = Vec::with_capacity(255);
 
@@ -294,28 +290,24 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                 if player_id != my_id.0 || ability == Ability::Hacker {
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
+                    let (mut ammo_in_mag, mut transform, mut requested_movement) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                    for (mut ammo_in_mag, mut transform, mut requested_movement, id) in players.iter_mut() {
-                        if id.0 == player_id && ability != Ability::Hacker {
-                            transform.translation.x = player_x;
-                            transform.translation.y = player_y;
+                    if ability != Ability::Hacker {
+                        transform.translation.x = player_x;
+                        transform.translation.y = player_y;
 
-                            requested_movement.angle = angle;
+                        requested_movement.angle = angle;
 
-                            if ability == Ability::Wall || ability == Ability::Cloak {
-                                ev_use_ability.send(AbilityEvent(player_id));
-
-                            }
-
-                            break;
-
-                        } else if ability == Ability::Hacker && id.0 == player_id {
-                            ev_use_ability.send(AbilityEvent(my_id.0));
-                            ammo_in_mag.0 = 0;
-
-                            break;
+                        if ability == Ability::Wall || ability == Ability::Cloak {
+                            ev_use_ability.send(AbilityEvent(player_id));
 
                         }
+
+                    } else {
+                        // THe hacker resets the ammo
+                        ev_use_ability.send(AbilityEvent(my_id.0));
+                        ammo_in_mag.0 = 0;
+
                     }
                 }
             }
@@ -330,7 +322,7 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
     }
 }
 
-pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<(&mut Transform, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(255);
 
@@ -342,13 +334,8 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
                 if my_id.0 !=  event.player_id {
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, event.player_id);
 
-                    for (mut transform, id) in players.iter_mut() {
-                        if event.player_id == id.0 {
-                            transform.translation = event.start_pos;
-                            break;
-
-                        }
-                    }
+                    let mut transform = players.get_mut(*player_entity.get(&event.player_id).unwrap()).unwrap();
+                    transform.translation = event.start_pos;
 
                     // The host broadcasts the shots fired of all other players
                     #[cfg(feature = "native")]
@@ -373,7 +360,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
     }
 }
 
-pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Health, &PlayerID)>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Health>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], f32)> = Vec::with_capacity(255);
 
@@ -387,25 +374,18 @@ pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Quer
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_who_took_damage);
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_who_fired_shot);
 
-                    for (mut health, id) in players.iter_mut() {
-                        if player_who_took_damage == id.0 {
-                            println!("Damage taken: {}", damage);
+                    let mut health = players.get_mut(*player_entity.get(&player_who_took_damage).unwrap()).unwrap();
 
-                            if (health.0 - damage) <= 0.0 {
-                                health.0 = 0.0;
-                                death_event.send(DeathEvent(player_who_took_damage));
-                                // The player who shot the bullet has their score increased 
-                                *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
+                    if (health.0 - damage) <= 0.0 {
+                        health.0 = 0.0;
+                        death_event.send(DeathEvent(player_who_took_damage));
+                        // The player who shot the bullet has their score increased 
+                        *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
 
 
-                            } else {
-                                health.0 -= damage;
+                    } else {
+                        health.0 -= damage;
 
-                            }
-
-                            break;
-
-                        }
                     }
 
                 }
@@ -573,5 +553,10 @@ pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_
         online_player_ids.insert(player_id);
 
     }
+}
+
+// Literally just removes all connections from the connections hashmap.
+pub fn disconnect(mut net: ResMut<NetworkResource>) {
+    net.connections.clear();
 
 }
