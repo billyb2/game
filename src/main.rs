@@ -4,6 +4,7 @@
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 //mod bots;
 mod components;
@@ -381,7 +382,8 @@ fn main() {
             .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
             .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
             .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
-            .with_system(score_system.system().after(InputFromPlayer).after("move_objects"))
+            .with_system(damage_text_system.system().after("move_objects"))
+            .with_system(score_system.system().after("move_objects"))
             .with_system(handle_damage_packets.system().label("handle_damage").before("move_objects"))
             .with_system(despawn_destroyed_walls.system().after("move_objects"))
             .with_system(death_event_system.system().after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
@@ -491,7 +493,7 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
     player_movements.for_each_mut(|(mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible)| {
@@ -570,12 +572,38 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
                     }
 
+                    let player_died = (health.0 - damage.0) <= 0.0;
+
+                    commands.spawn_bundle(Text2dBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: format!("{:.0}", damage.0),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 11.0,
+                                        color: match player_died {
+                                            false => Color::WHITE,
+                                            true => Color::RED,
+
+                                        },
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        transform: Transform::from_translation(next_potential_pos.truncate().extend(5.0)),
+                        ..Default::default()
+
+                    })
+                    .insert(DamageTextTimer(Timer::from_seconds(2.0, false)));
+
                     // Players can only do damage to other players if they receive a network event about it, if they don't, then damage can only happen to themselves
                     if let Some(my_player_id) = &my_player_id.0 {
                         if my_player_id.0 == player_id.0 {
                             net.broadcast_message(([my_player_id.0, shot_from.0], damage.0));
                             
-                            if (health.0 - damage.0) <= 0.0 {
+                            if player_died {
                                 health.0 = 0.0;
                                 death_event.send(DeathEvent(player_id.0));
                                 // The player who shot the bullet has their score increased 
@@ -810,7 +838,7 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>) {
+fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>) {
     let delta = time.delta();
 
     player_timers.for_each_mut(|(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer)| {
@@ -847,9 +875,13 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
 
     });
 
-    // While there's only ever going to be one player continue timer, it isnt always going to be around, so we just do a for each instead
-    player_continue_timer.for_each_mut(|mut player_continue_timer| {
+    if let Ok(mut player_continue_timer) = player_continue_timer.single_mut() {
         player_continue_timer.0.tick(delta);
+
+    }
+
+    damage_text_timer.for_each_mut(|mut damage_text_timer| {
+        damage_text_timer.0.tick(delta);
 
     });
 }
@@ -927,6 +959,20 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSince
         health_text.sections[0].value = format!("Health: {:.0}%", health);
 
     }
+}
+
+fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut Text, &DamageTextTimer)>) {
+    texts.for_each_mut(|(entity, mut text, timer)| {
+        if timer.0.finished() {
+            commands.entity(entity).despawn_recursive();
+
+        } else {
+            let text = &mut text.deref_mut().sections[0];
+            text.style.color.set_a(timer.0.percent_left());
+
+        }
+
+    });
 }
 
 fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {

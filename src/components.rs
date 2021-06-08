@@ -102,3 +102,5 @@ pub struct WallMarker;
 
 #[derive(Clone)]
 pub struct PlayerContinueTimer(pub Timer);
+
+pub struct DamageTextTimer(pub Timer);

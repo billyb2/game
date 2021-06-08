@@ -4,8 +4,6 @@
 use bevy::prelude::*;
 
 use crate::*;
-#[cfg(feature = "web")]
-use crate::net::Hosting;
 
 pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {

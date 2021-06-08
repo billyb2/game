@@ -1277,7 +1277,7 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
         });
 }
 
-pub fn setup_continue_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
+/*pub fn setup_continue_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -1395,7 +1395,7 @@ pub fn setup_continue_menu(mut commands: Commands, asset_server: Res<AssetServer
             });
 
         });
-}
+}*/
 
 pub fn setup_default_controls(mut commands: Commands) {
     commands.insert_resource(KeyBindings {
