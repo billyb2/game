@@ -27,6 +27,7 @@ pub struct Player {
     pub ability_completed: AbilityCompleted,
     pub using_ability: UsingAbility,
     pub can_respawn: RespawnTimer,
+    pub dashing_info: DashingInfo,
 
 }
 
@@ -65,12 +66,18 @@ impl Player {
                 _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
             },
             using_ability: UsingAbility(false),
-            can_respawn: RespawnTimer(Timer::from_seconds(2.5, false))
+            can_respawn: RespawnTimer(Timer::from_seconds(2.5, false)),
+            dashing_info: DashingInfo {
+                time_till_can_dash: Timer::from_seconds(3.0, false),
+                time_till_stop_dash: Timer::from_seconds(0.2, false),
+                dashing: false,
+            },
 
         };
 
         // The ability charge is ready on game start
         finish_timer(&mut player.ability_charge.0);
+        finish_timer(&mut player.dashing_info.time_till_can_dash);
 
         player
     }
@@ -100,7 +107,7 @@ impl From<u8> for Ability {
             4 => Ability::Hacker,
             5 => Ability::Inferno,
             6 => Ability::Cloak,
-            _ => Ability::Engineer,
+            _ => panic!("Ability conversion out of bounds: {} was requested, max is {}", ability, NUM_OF_ABILITIES),
 
         }
 
@@ -127,7 +134,7 @@ impl From<Ability> for u8 {
 
 impl Distribution<Ability> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Ability {
-        let rand_num: u8 = rng.gen_range(0..=NUM_OF_ABILITIES);
+        let rand_num: u8 = rng.gen_range(0..NUM_OF_ABILITIES);
         let ability: Ability = rand_num.into();
 
         ability
@@ -176,7 +183,7 @@ impl From<u8> for Model {
             5 => Model::SubmachineGun,
             6 => Model::ClusterShotgun,
             7 => Model::Flamethrower,
-            _ => Model::Pistol,
+            _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
 
@@ -204,7 +211,7 @@ impl From<Model> for u8 {
 
 impl Distribution<Model> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Model {
-        let rand_num: u8 = rng.gen_range(0..=NUM_OF_GUN_MODELS);
+        let rand_num: u8 = rng.gen_range(0..NUM_OF_GUN_MODELS);
         let gun_model: Model = rand_num.into();
 
         gun_model

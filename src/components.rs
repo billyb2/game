@@ -61,6 +61,13 @@ pub struct TimeSinceLastShot(pub Timer);
 pub struct DestructionTimer(pub Timer);
 
 #[derive(Clone, Debug)]
+pub struct DashingInfo {
+    pub time_till_can_dash: Timer,
+    pub time_till_stop_dash: Timer,
+    pub dashing: bool,
+}
+
+#[derive(Clone, Debug)]
 pub struct TimeSinceStartReload {
     pub timer: Timer,
     pub reloading: bool,

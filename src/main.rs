@@ -211,6 +211,7 @@ pub struct KeyBindings {
     pub use_ability: KeyCode,
     pub reload: KeyCode,
     pub show_score: KeyCode,
+    pub dash: KeyCode,
 
 }
 
@@ -292,6 +293,8 @@ fn main() {
     .insert_resource(DeathmatchScore(HashMap::with_capacity(256)));
 
     app.add_plugins(DefaultPlugins)
+    // Using this only temporarily to quit apps on escape
+    .add_system(bevy::input::system::exit_on_esc_system.system())
     .add_plugin(NetworkingPlugin::default())
     .add_event::<NetworkEvent>()
     // Adds some possible events, like reloading and using your ability
@@ -490,6 +493,7 @@ fn main() {
 }
 
 //TODO: Turn RequestedMovement into an event
+//TODO: Maybe make all the bullet ccollisions into its own seeperate system? (for readability and maybe performance)
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
@@ -838,12 +842,11 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>) {
+fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>) {
     let delta = time.delta();
 
-    player_timers.for_each_mut(|(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer)| {
+    player_timers.for_each_mut(|(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info)| {
         time_since_last_shot.0.tick(delta);
-        ability_charge.0.tick(delta);
 
         // If the player is reloading
         if time_since_start_reload.reloading {
@@ -853,6 +856,9 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
 
         if using_ability.0 {
             ability_completed.0.tick(delta);
+
+        } else {
+            ability_charge.0.tick(delta);
 
         }
 
@@ -867,6 +873,14 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
         }
 
         ready_to_send_packet.0.tick(delta);
+
+        if !dashing_info.dashing {
+            dashing_info.time_till_can_dash.tick(delta);
+
+        } else {
+            dashing_info.time_till_stop_dash.tick(delta);
+
+        }
 
     });
 

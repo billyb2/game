@@ -1408,6 +1408,7 @@ pub fn setup_default_controls(mut commands: Commands) {
         reload: KeyCode::R,
 
         show_score: KeyCode::Tab,
+        dash: KeyCode::E,
 
     });
 }

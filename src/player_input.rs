@@ -54,7 +54,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &PlayerSpeed)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &mut PlayerSpeed, &mut DashingInfo)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     let mut angle = None;
 
     if keyboard_input.pressed(keybindings.left) && angle.is_none() {
@@ -145,24 +145,36 @@ pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(
 
         }
 
+
     }
 
-    // Only do a change event if a key has been pressed
     if let Some(my_player_id) = &my_player_id.0 {
+        let (mut requested_movement, mut speed, mut dashing_info) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+
+        if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
+            speed.0 *= 3.1;
+
+            dashing_info.dashing = true;
+            dashing_info.time_till_stop_dash.reset();
+
+        }
+
+        // Only do a change event if a key has been pressed
         if keyboard_input.pressed(keybindings.use_ability) {
             ev_use_ability.send(AbilityEvent(my_player_id.0));
 
         }
 
-
         if let Some(angle) = angle {
-            let (mut requested_movement, speed) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            // If the player is dashing then they can't change the angle that they move in
+            if !dashing_info.dashing {
+                requested_movement.angle = angle;
 
-            requested_movement.angle = angle;
+            }
             requested_movement.speed = speed.0;
 
-
         }
+
     }
 }
 
@@ -386,6 +398,7 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
                                 for (id, material_to_return) in materials.iter() {
                                     if color == material_to_return.color {
                                         color_to_return = Some(materials.get_handle(id));
+                                        break;
 
                                     }
 
@@ -544,9 +557,9 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
 
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
 TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
-AbilityCharge, &mut PlayerSpeed, & mut Visible)>) {
+AbilityCharge, &mut PlayerSpeed, & mut Visible, &mut DashingInfo)>) {
     query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
-        mut using_ability, mut ability_charge, mut speed, mut visible)| {
+        mut using_ability, mut ability_charge, mut speed, mut visible, mut dashing_info)| {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -566,6 +579,14 @@ AbilityCharge, &mut PlayerSpeed, & mut Visible)>) {
 
             using_ability.0 = false;
             ability_charge.0.reset();
+
+        }
+
+        if dashing_info.dashing && dashing_info.time_till_stop_dash.finished() {
+            speed.0 /= 3.1;
+            dashing_info.dashing = false;
+            dashing_info.time_till_can_dash.reset();
+
         }
 
     });
