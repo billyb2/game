@@ -247,7 +247,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, audio: Res<Audio>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev in shoot_event.iter() {
             if ev.health != 0.0 {
@@ -333,6 +333,13 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 }
 
                             };
+
+                            let sound = match ev.model { 
+                                Model::Speedball => asset_server.load("audio/laser.flac"),
+                                _ => asset_server.load("audio/pew.flac"),
+
+                            };
+                            audio.play(sound);
 
                         commands
                             .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))

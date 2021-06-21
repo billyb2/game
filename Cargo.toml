@@ -101,6 +101,8 @@ default = [
   "bevy/bevy_winit",
   "bevy/render",
   "bevy/png",
+  "bevy/bevy_audio",
+  "bevy/flac",
   "native",
 ]
 
