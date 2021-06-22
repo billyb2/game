@@ -6,6 +6,9 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::utils::Duration;
+
+use bevy_kira_audio::Audio;
+
 use rand::Rng;
 use rand::seq::SliceRandom;
 
@@ -54,195 +57,279 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
 
 //TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn my_keyboard_input(keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &mut PlayerSpeed, &mut DashingInfo)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
-    let mut angle = None;
+pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &mut PlayerSpeed, &mut DashingInfo)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>) {
+    if in_game_settings.is_empty() {
+        let mut angle = None;
 
-    if keyboard_input.pressed(keybindings.left) && angle.is_none() {
-        match keyboard_input.pressed(keybindings.up) {
-            true => { angle = Some(PI  * 0.75); }
-            false => {
-                match keyboard_input.pressed(keybindings.down) {
-                    true => { angle = Some(PI * 1.25); }
-                    false => { angle = Some(PI); }
-
-                }
-
-            }
-
-        }
-
-    }
-
-    if keyboard_input.pressed(keybindings.right) && angle.is_none() {
-        match keyboard_input.pressed(keybindings.up) {
-            true => { angle = Some(PI  * 0.25); }
-            false => {
-                match keyboard_input.pressed(keybindings.down) {
-                    true => { angle = Some(PI * 1.75); }
-                    false => { angle = Some(0.0); }
-
-                }
-
-            }
-
-        }
-
-    }
-
-    if keyboard_input.pressed(keybindings.down) && angle.is_none() {
-        angle = Some(-PI / 2.0);
-
-    }
-
-    if keyboard_input.pressed(keybindings.up) && angle.is_none() {
-       angle = Some(PI / 2.0);
-
-    }
-
-    if keyboard_input.pressed(keybindings.reload) {
-        ev_reload.send(ReloadEvent);
-
-    }
-
-    if keyboard_input.just_pressed(keybindings.show_score) {
-        let (mut text, mut visible) = score_ui.single_mut().unwrap();
-
-        visible.is_visible = true;
-
-
-        for (player_id, kills) in score.0.iter() {
-            let singular_or_plural_kills = 
-                if *kills == 1 {
-                    "kill"
-
-                } else {
-                    "kills"
-
-                };
-
-            text.sections.push(
-                TextSection {
-                    value: format!("Player {}: {} {}\n", player_id + 1, kills, singular_or_plural_kills).to_string(),
-                    style: TextStyle {
-                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                        font_size: 45.0,
-                        color: Color::WHITE,
-                    },
-                }
-            );
-
-        }
-
-
-
-    } else if keyboard_input.just_released(keybindings.show_score) {
-        let (mut text, mut visible) = score_ui.single_mut().unwrap();
-
-        visible.is_visible = false;
-
-        while text.sections.len() != 1 {
-            text.sections.pop();
-
-        }
-
-
-    }
-
-    if let Some(my_player_id) = &my_player_id.0 {
-        let (mut requested_movement, mut speed, mut dashing_info) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
-
-        if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
-            speed.0 *= 3.1;
-
-            dashing_info.dashing = true;
-            dashing_info.time_till_stop_dash.reset();
-
-        }
-
-        // Only do a change event if a key has been pressed
-        if keyboard_input.pressed(keybindings.use_ability) {
-            ev_use_ability.send(AbilityEvent(my_player_id.0));
-
-        }
-
-        if let Some(angle) = angle {
-            // If the player is dashing then they can't change the angle that they move in
-            if !dashing_info.dashing {
-                requested_movement.angle = angle;
-
-            }
-            requested_movement.speed = speed.0;
-
-        }
-
-    }
-}
-
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &PlayerID, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>, my_player_id: Res<MyPlayerID>) {
-    for (bursting, transform, id, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer) in query.iter() {
-        if let Some(my_player_id)= &my_player_id.0 {
-            if id.0 == my_player_id.0 {
-                if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
-                    let mut rng = rand::thread_rng();
-
-                    // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
-                    // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
-
-                    // TODO: Make number of bullets into a part of the gun
-                    let mut recoil_vec: Vec<f32> = match *model {
-                        Model::Shotgun => Vec::with_capacity(12),
-                        Model::ClusterShotgun => Vec::with_capacity(6),
-                        Model::Flamethrower => Vec::with_capacity(5),
-                        _ => Vec::with_capacity(1),
-
-                    };
-
-                    // Fill the recoil_vec to capacity
-                    while recoil_vec.len() < recoil_vec.capacity() {
-                        let recoil =
-                            if recoil_range.0 == 0.0 {
-                                0.0
-
-                            } else {
-                                rng.gen_range(-recoil_range.0..recoil_range.0)
-
-                        };
-
-                        recoil_vec.push(recoil);
+        if keyboard_input.pressed(keybindings.left) && angle.is_none() {
+            match keyboard_input.pressed(keybindings.up) {
+                true => { angle = Some(PI  * 0.75); }
+                false => {
+                    match keyboard_input.pressed(keybindings.down) {
+                        true => { angle = Some(PI * 1.25); }
+                        false => { angle = Some(PI); }
 
                     }
 
-                    let event = ShootEvent {
-                        start_pos: transform.translation,
-                        player_id: id.0,
-                        pos_direction: mouse_pos.0,
-                        health: health.0,
-                        model: *model,
-                        max_distance: max_distance.0,
-                        recoil_vec,
-                        // Bullets need to travel "backwards" when moving to the left
-                        speed: match mouse_pos.0.x <= transform.translation.x {
-                            true => -speed.0,
-                            false => speed.0,
-                        },
-                        projectile_type: *projectile_type,
-                        damage: *damage,
-                        player_ability: *player_ability,
-                        size: Vec2::new(size.width, size.height),
-                        reloading: reload_timer.reloading,
+                }
 
+            }
 
-                    };
+        }
 
-                    shoot_event.send(event);
+        if keyboard_input.pressed(keybindings.right) && angle.is_none() {
+            match keyboard_input.pressed(keybindings.up) {
+                true => { angle = Some(PI  * 0.25); }
+                false => {
+                    match keyboard_input.pressed(keybindings.down) {
+                        true => { angle = Some(PI * 1.75); }
+                        false => { angle = Some(0.0); }
+
+                    }
 
                 }
 
-                break;
-
             }
+
         }
 
+        if keyboard_input.pressed(keybindings.down) && angle.is_none() {
+            angle = Some(-PI / 2.0);
+
+        }
+
+        if keyboard_input.pressed(keybindings.up) && angle.is_none() {
+           angle = Some(PI / 2.0);
+
+        }
+
+        if keyboard_input.pressed(keybindings.reload) {
+            ev_reload.send(ReloadEvent);
+
+        }
+
+        if keyboard_input.just_pressed(KeyCode::Escape) {
+            commands
+            .spawn_bundle(NodeBundle {
+                style: Style {
+                    flex_direction: FlexDirection::ColumnReverse,
+                    align_self: AlignSelf::Center,
+                    position_type: PositionType::Absolute,
+                    justify_content: JustifyContent::Center,
+                    align_content: AlignContent::Center,
+                    align_items: AlignItems::Center,
+                    size: Size {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                    },
+
+                    ..Default::default()
+                },
+                material: materials.add(Color::rgba_u8(255, 255, 255, 10).into()),
+                visible: Visible {
+                    is_visible: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+
+            })
+            .with_children(|node_parent| {
+                node_parent.spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![
+                            TextSection {
+                                value: "Settings".to_string(),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 80.0,
+                                    color: Color::GOLD,
+                                },
+                            },
+                        ],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+
+                });
+
+                node_parent.spawn_bundle(ButtonBundle {
+                style: Style {
+                    align_content: AlignContent::Center,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                    ..Default::default()
+                },
+                material: button_materials.normal.clone(),
+                ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![
+                                    TextSection {
+                                        value: String::from("Customize"),
+                                        style: TextStyle {
+                                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                            font_size: 55.0,
+                                            color: Color::WHITE,
+                                        },
+                                    },
+                                ],
+                                ..Default::default()
+                            },
+                            ..Default::default()
+
+                    });
+                });
+
+            })
+            .insert(InGameSettings::Settings);
+        }
+
+        if keyboard_input.just_pressed(keybindings.show_score) {
+            let (mut text, mut visible) = score_ui.single_mut().unwrap();
+
+            visible.is_visible = true;
+
+
+            for (player_id, kills) in score.0.iter() {
+                let singular_or_plural_kills = 
+                    if *kills == 1 {
+                        "kill"
+
+                    } else {
+                        "kills"
+
+                    };
+
+                text.sections.push(
+                    TextSection {
+                        value: format!("Player {}: {} {}\n", player_id + 1, kills, singular_or_plural_kills).to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 45.0,
+                            color: Color::WHITE,
+                        },
+                    }
+                );
+
+            }
+
+
+
+        } else if keyboard_input.just_released(keybindings.show_score) {
+            let (mut text, mut visible) = score_ui.single_mut().unwrap();
+
+            visible.is_visible = false;
+
+            while text.sections.len() != 1 {
+                text.sections.pop();
+
+            }
+
+
+        }
+
+        if let Some(my_player_id) = &my_player_id.0 {
+            let (mut requested_movement, mut speed, mut dashing_info) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+
+            if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
+                speed.0 *= 3.1;
+
+                dashing_info.dashing = true;
+                dashing_info.time_till_stop_dash.reset();
+
+            }
+
+            // Only do a change event if a key has been pressed
+            if keyboard_input.pressed(keybindings.use_ability) {
+                ev_use_ability.send(AbilityEvent(my_player_id.0));
+
+            }
+
+            if let Some(angle) = angle {
+                // If the player is dashing then they can't change the angle that they move in
+                if !dashing_info.dashing {
+                    requested_movement.angle = angle;
+
+                }
+                requested_movement.speed = speed.0;
+
+            }
+
+        }
+
+    } else if keyboard_input.just_pressed(KeyCode::Escape) {
+        let entity = in_game_settings.single().unwrap().0;
+        commands.entity(entity).despawn_recursive();
+    }
+}
+
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>) {
+    if in_game_settings.is_empty() {
+        if let Some(my_player_id)= &my_player_id.0 {
+            let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+
+            if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
+                let mut rng = rand::thread_rng();
+
+                // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
+                // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
+
+                // TODO: Make number of bullets into a part of the gun
+                let mut recoil_vec: Vec<f32> = match *model {
+                    Model::Shotgun => Vec::with_capacity(12),
+                    Model::ClusterShotgun => Vec::with_capacity(6),
+                    Model::Flamethrower => Vec::with_capacity(5),
+                    _ => Vec::with_capacity(1),
+
+                };
+
+                // Fill the recoil_vec to capacity
+                while recoil_vec.len() < recoil_vec.capacity() {
+                    let recoil =
+                        if recoil_range.0 == 0.0 {
+                            0.0
+
+                        } else {
+                            rng.gen_range(-recoil_range.0..recoil_range.0)
+
+                    };
+
+                    recoil_vec.push(recoil);
+
+                }
+
+                let event = ShootEvent {
+                    start_pos: transform.translation,
+                    player_id: my_player_id.0,
+                    pos_direction: mouse_pos.0,
+                    health: health.0,
+                    model: *model,
+                    max_distance: max_distance.0,
+                    recoil_vec,
+                    // Bullets need to travel "backwards" when moving to the left
+                    speed: match mouse_pos.0.x <= transform.translation.x {
+                        true => -speed.0,
+                        false => speed.0,
+                    },
+                    projectile_type: *projectile_type,
+                    damage: *damage,
+                    player_ability: *player_ability,
+                    size: Vec2::new(size.width, size.height),
+                    reloading: reload_timer.reloading,
+
+
+                };
+
+                shoot_event.send(event);
+
+            }
+
+        }
     }
 
 }
@@ -631,11 +718,13 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
 
 }
 
-pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut player_query: Query<(&mut Sprite, &Transform)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut player_query: Query<(&mut Sprite, &Transform)>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<(Entity, &InGameSettings)>) {
     if let Some(my_player_id) = &my_player_id.0 {
-        let (mut sprite, transform) = player_query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
-        sprite.flip_x = mouse_pos.0.x >= transform.translation.x;
+        if in_game_settings.is_empty() {
+            let (mut sprite, transform) = player_query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            sprite.flip_x = mouse_pos.0.x >= transform.translation.x;
 
+        }
     }
 
 }

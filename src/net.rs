@@ -4,8 +4,6 @@
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::collections::BTreeSet;
-#[cfg(feature = "web")]
-use std::ops::DerefMut;
 
 use hashbrown::HashMap;
 
@@ -518,7 +516,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, command[2]);
 
-                    for (id, mut ability, mut helmet_color, mut inner_suit_color) in players.iter_mut() {
+                    players.for_each_mut(|(id, mut ability, mut helmet_color, mut inner_suit_color)| {
                         if id.0 == command[2] {
                             *ability.deref_mut() = player_ability;
 
@@ -536,7 +534,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
                         }
 
-                    }
+                    });
 
                 }
             }

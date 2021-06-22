@@ -31,6 +31,29 @@ pub struct Player {
 
 }
 
+
+pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
+    *ability_charge = match ability {
+        Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
+        Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
+        Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
+        Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
+        Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
+        Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
+        Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
+
+    };
+
+    *ability_completed = match ability {
+        Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
+        Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
+        // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
+        _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
+    };
+
+}
+
+
 impl Player {
     pub fn new(id: u8, ability: Ability, living: bool) -> Player {
         let mut player = Player {
@@ -41,30 +64,17 @@ impl Player {
             },
             speed: match ability {
                 // Stim players have a faster default running speed
-                Ability::Stim => PlayerSpeed(12.0),
+                Ability::Stim => PlayerSpeed(14.0),
                 // Inferno players move slower to make up for their massive fire damage
-                Ability::Inferno => PlayerSpeed(8.0),
-                _ => PlayerSpeed(11.0),
+                Ability::Inferno => PlayerSpeed(10.0),
+                _ => PlayerSpeed(13.0),
             },
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
             ability,
-            ability_charge: match ability {
-                Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
-                Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
-                Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
-                Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
-                Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
-                Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
-                Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
-            },
+            ability_charge: AbilityCharge(Timer::from_seconds(0.0, false)),
             // The AbilityCompleted timer is just the duration of how long the ability lasts (if it has an affect over time)
-            ability_completed: match ability {
-                Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
-                Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
-                // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
-                _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
-            },
+            ability_completed: AbilityCompleted(Timer::from_seconds(0.0, false)),
             using_ability: UsingAbility(false),
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false)),
             dashing_info: DashingInfo {
@@ -74,6 +84,8 @@ impl Player {
             },
 
         };
+
+        set_ability_player_attr(&mut player.ability_charge, &mut player.ability_completed, player.ability);
 
         // The ability charge is ready on game start
         finish_timer(&mut player.ability_charge.0);

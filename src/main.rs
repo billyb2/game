@@ -29,6 +29,8 @@ use bevy::render::renderer::RenderResources;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
+use bevy_kira_audio::AudioPlugin;
+
 use serde::{Deserialize, Serialize};
 
 use hashbrown::HashMap;
@@ -294,8 +296,9 @@ fn main() {
 
     app.add_plugins(DefaultPlugins)
     // Using this only temporarily to quit apps on escape
-    .add_system(bevy::input::system::exit_on_esc_system.system())
+    //.add_system(bevy::input::system::exit_on_esc_system.system())
     .add_plugin(NetworkingPlugin::default())
+    .add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
     // Adds some possible events, like reloading and using your ability
     .add_event::<ReloadEvent>()
@@ -385,6 +388,7 @@ fn main() {
             .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
             .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
             .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
+            .with_system(in_game_settings_menu_system.system().after(InputFromPlayer))
             .with_system(damage_text_system.system().after("move_objects"))
             .with_system(score_system.system().after("move_objects"))
             .with_system(handle_damage_packets.system().label("handle_damage").before("move_objects"))

@@ -111,3 +111,9 @@ pub struct WallMarker;
 pub struct PlayerContinueTimer(pub Timer);
 
 pub struct DamageTextTimer(pub Timer);
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum InGameSettings {
+    Settings,
+    Customize
+}

@@ -276,6 +276,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3410529e8288c463bedb5930f82833bc0c90e5d2fe639a56582a4d09220b281"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -292,6 +301,12 @@ name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
+
+[[package]]
+name = "basedrop"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e80d37a08696e321155da2faed6008661811fac02bf977afbc2fbefaffcb730"
 
 [[package]]
 name = "bevy"
@@ -347,21 +362,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "bevy_audio"
-version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee6854ca6dbd8"
-dependencies = [
- "anyhow",
- "bevy_app",
- "bevy_asset",
- "bevy_ecs",
- "bevy_reflect",
- "bevy_utils",
- "parking_lot",
- "rodio",
 ]
 
 [[package]]
@@ -476,7 +476,6 @@ source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee68
 dependencies = [
  "bevy_app",
  "bevy_asset",
- "bevy_audio",
  "bevy_core",
  "bevy_derive",
  "bevy_diagnostic",
@@ -499,6 +498,18 @@ dependencies = [
  "bevy_window",
  "bevy_winit",
  "ndk-glue 0.2.1",
+]
+
+[[package]]
+name = "bevy_kira_audio"
+version = "0.5.0"
+source = "git+https://github.com/billyb2/bevy_kira_audio?branch=bevy_main#b38fb1039289c6615895acdfe604260e89d570d3"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "bevy_reflect",
+ "kira",
+ "parking_lot",
 ]
 
 [[package]]
@@ -1255,6 +1266,7 @@ dependencies = [
  "parking_lot",
  "stdweb",
  "thiserror",
+ "wasm-bindgen",
  "web-sys",
  "winapi",
 ]
@@ -1682,6 +1694,7 @@ name = "game"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_kira_audio",
  "bevy_networking_turbulence",
  "bevy_webgl2",
  "crc32fast",
@@ -2191,6 +2204,25 @@ checksum = "8c2352bd1d0bceb871cb9d40f24360c8133c11d7486b68b5381c1dd1a32015e3"
 dependencies = [
  "libc",
  "libloading 0.7.0",
+]
+
+[[package]]
+name = "kira"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e7a756bb5de5a0dea42a6f514037db18736b56c9e2313928746025721f9cca0"
+dependencies = [
+ "atomic",
+ "basedrop",
+ "claxon",
+ "cpal",
+ "getrandom 0.2.3",
+ "indexmap",
+ "instant",
+ "rand 0.8.4",
+ "ringbuf",
+ "thiserror",
+ "uuid",
 ]
 
 [[package]]
@@ -2771,9 +2803,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.64"
+version = "0.9.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "209efc2fe0e980c8849efacdb567f975a1c80245c4f6980d6f012733bfa851af"
+checksum = "7a7907e3bfa08bb85105209cdfcb6c63d109f8f6c1ed6ca318fff5c1853fbc1d"
 dependencies = [
  "autocfg",
  "cc",
@@ -3096,13 +3128,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
-name = "rodio"
-version = "0.14.0"
+name = "ringbuf"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d98f5e557b61525057e2bc142c8cd7f0e70d75dc32852309bec440e6e046bf9"
+checksum = "908f26a8bb4110da2b151015792f3b8f434e2c76379fca8ab410f12ef534b404"
 dependencies = [
- "claxon",
- "cpal",
+ "cache-padded",
 ]
 
 [[package]]
