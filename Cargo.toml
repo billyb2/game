@@ -76,7 +76,7 @@ bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true 
 bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
 
 # Using a PR of bevy_networking_turbulence that works with the latest version of Bevy
-bevy_networking_turbulence = { git = "https://github.com/smokku/bevy_networking_turbulence", branch = "master", default-features = false, features = ["use-webrtc"] }
+bevy_networking_turbulence = { version = "=0.3.0", default-features = false, features = ["use-webrtc"] }
 
 # A faster hashmap
 hashbrown = { version = "0.11", features = ["nightly"] }

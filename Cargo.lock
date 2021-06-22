@@ -382,7 +382,7 @@ dependencies = [
 [[package]]
 name = "bevy_derive"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee6854ca6dbd8"
+source = "git+https://github.com/bevyengine/bevy#f71f93c843ea03d38477353ac02e3854053e27f9"
 dependencies = [
  "Inflector",
  "bevy_macro_utils",
@@ -427,7 +427,7 @@ dependencies = [
 [[package]]
 name = "bevy_ecs_macros"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee6854ca6dbd8"
+source = "git+https://github.com/bevyengine/bevy#f71f93c843ea03d38477353ac02e3854053e27f9"
 dependencies = [
  "bevy_macro_utils",
  "proc-macro2",
@@ -528,7 +528,7 @@ dependencies = [
 [[package]]
 name = "bevy_macro_utils"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee6854ca6dbd8"
+source = "git+https://github.com/bevyengine/bevy#f71f93c843ea03d38477353ac02e3854053e27f9"
 dependencies = [
  "cargo-manifest",
  "proc-macro2",
@@ -546,8 +546,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_networking_turbulence"
-version = "0.3.1"
-source = "git+https://github.com/smokku/bevy_networking_turbulence?branch=master#234f64c5c66cb7e6c46aa041c65969c8ab149c3c"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19e8e5c870056c3663cd2cbf2008fc540e63ba4730fba5cfb61e4352da35d6c7"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -586,7 +587,7 @@ dependencies = [
 [[package]]
 name = "bevy_reflect"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee6854ca6dbd8"
+source = "git+https://github.com/bevyengine/bevy#f71f93c843ea03d38477353ac02e3854053e27f9"
 dependencies = [
  "bevy_reflect_derive",
  "bevy_utils",
@@ -602,7 +603,7 @@ dependencies = [
 [[package]]
 name = "bevy_reflect_derive"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee6854ca6dbd8"
+source = "git+https://github.com/bevyengine/bevy#f71f93c843ea03d38477353ac02e3854053e27f9"
 dependencies = [
  "bevy_macro_utils",
  "proc-macro2",
@@ -761,7 +762,7 @@ dependencies = [
 [[package]]
 name = "bevy_utils"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#00d8d5d5a08f10cfcbeed5b9161ee6854ca6dbd8"
+source = "git+https://github.com/bevyengine/bevy#f71f93c843ea03d38477353ac02e3854053e27f9"
 dependencies = [
  "ahash 0.7.4",
  "bevy_derive",
