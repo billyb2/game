@@ -14,6 +14,9 @@ use crate::helper_functions::slice_to_u32;
 use crc32fast::Hasher;
 use lz4_flex::frame::FrameDecoder;
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
 #[derive(Bundle, Copy, Clone)]
 pub struct MapObject {
     pub coords: Vec3,
@@ -34,27 +37,10 @@ pub struct Map {
 }
 
 impl MapObject {
-    fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: f32) -> bool {
-        // Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
-        if self.collidable && collide(self.coords, self.size, other_object_coords, other_object_size) {
-            // Damagable objects take damage
-            if self.health.is_some() {
-                if self.health.unwrap() as i16 - damage as i16 <= 0 {
-                    self.health = Some(0.0);
+    fn collision(&self, other_object_coords: Vec3, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
 
-                } else {
-                    self.health = Some(self.health.unwrap() - damage);
-
-                }
-
-            }
-
-            true
-
-        } else {
-            false
-
-        }
+        //Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
+        self.collidable && collide(other_object_coords, other_object_size, self.coords, self.size, distance, angle)
 
     }
 
@@ -158,35 +144,51 @@ impl Map {
     }
 
     // Returns the health of a wall if they have health
-     pub fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: f32) -> (bool, Option<(f32, Vec2)>) {
-        let mut i = 0;
-        let mut collided = false;
+    pub fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: f32, distance: f32, angle: f32) -> (bool, Option<(f32, Vec2)>) {
+        let map_collision = |index: &usize| {
+            self.objects[*index].collision(other_object_coords, other_object_size, distance, angle)
 
-        let mut health_and_coords = None;
+        };
 
         // The collision function just iterates throuhg each map object within the map, and runs the collide function within
-        while i != self.objects.len() {
-            if self.objects[i].collision(other_object_coords, other_object_size, damage) {
-                if let Some(health) = self.objects[i].health {
-                    health_and_coords = Some((health, self.objects[i].coords.truncate()));
+        #[cfg(feature = "parallel")]
+        let i = (0..self.objects.len()).into_par_iter().find_any(map_collision);
+
+        #[cfg(not(feature = "parallel"))]
+        let i = (0..self.objects.len()).into_par_iter().find_any(map_collision);
+
+
+        let health_and_coords = match i {
+            Some(i) => { 
+                 if let Some(mut health) = &mut self.objects[i].health {
+                    // Damagable objects take damage
+                    if health as i16 - damage as i16 <= 0 {
+                        health = 0.0;
+
+                    } else {
+                        health -= damage;
+
+                    }
+
 
                     if health == 0.0 {
                         self.objects.remove(i);
 
                     }
 
+                    Some((health,  self.objects[i].coords.truncate())) 
+
+                } else {
+                    None
+
                 }
 
-                collided = true;
-                break;
+            },
+            None => None,
 
-            } else {
-                i += 1;
+        };
 
-            }
-        }
-
-        (collided, health_and_coords)
+        (i.is_some(), health_and_coords)
 
      }
 

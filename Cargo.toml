@@ -9,6 +9,9 @@ edition = "2018"
 [profile.dev]
 # Since neither me or Luke uses a debugger, turning off debug info should speed up compile times (although it does make debugging shaders a bit more difficult)
 debug = 0
+# Since mveoement collisions have to do a lot of math, we need to optimize a little better
+opt-level = 0
+overflow-checks = false
 
 [profile.dev-windows]
 inherits = "dev"
@@ -52,30 +55,16 @@ codegen-units = 32
 inherits = "release"
 
 
-# In order to have Bevy run a little faster, it's compiled with a slightly higher optimization level. This is done instead of optimizing the entire crate in order to have faster build times, while not having the game eat CPU
-[profile.dev.package.bevy]
-opt-level = 1
-
-[profile.dev.package.bevy_render]
-opt-level = 1
-
-[profile.dev.package.bevy_ecs]
-opt-level = 1
-
-[profile.dev.package.bevy_app]
-opt-level = 1
-
-
 [dependencies]
 # The bevy game engine
-bevy = { git = "https://github.com/bevyengine/bevy", default-features = false }
+bevy = { git = "https://github.com/bevyengine/bevy", default-features = false, features = ["bevy_winit", "render", "png"] }
 # Allows for building bevy to the web
 bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true }
 
 # A more complex audio library than the one that Bevy uses
 bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
 
-# Using a PR of bevy_networking_turbulence that works with the latest version of Bevy
+# Networking library
 bevy_networking_turbulence = { version = "=0.3.0", default-features = false, features = ["use-webrtc"] }
 
 # A faster hashmap
@@ -99,18 +88,42 @@ winit = { version = "0.25.0" }
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
 
+# Enables running very slow tasks in parallel
+rayon = { version = "1.5", optional = true }
+
+# In order to have Bevy run a little faster, it's compiled with a slightly higher optimization level. This is done instead of optimizing the entire crate in order to have faster build times, while not having the game eat CPU
+[profile.dev.package.bevy]
+opt-level = 1
+
+[profile.dev.package.bevy_render]
+opt-level = 1
+
+[profile.dev.package.bevy_ecs]
+opt-level = 1
+
+[profile.dev.package.bevy_app]
+opt-level = 1
+
+[profile.dev.package.game]
+opt-level = 1
+
+[profile.dev.package.rayon]
+opt-level = 1
+
 [features]
 default = [
-  "bevy/bevy_winit",
-  "bevy/render",
-  "bevy/png",
   "native",
+  "parallel",
 ]
 
 native = [
   "bevy/bevy_wgpu",
   # Since literally every 64 bit CPU has SIMD support, I think it's fine to enable it for rand
   "rand/simd_support",
+]
+
+parallel = [
+  "rayon",
 ]
 
 web = [

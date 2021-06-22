@@ -13,7 +13,7 @@ Please follow the instructions below in order, while it seems complicated, it ma
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 ### Arch/Manjaro Linux
-- `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib`
+- `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl --needed`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 ### MacOS

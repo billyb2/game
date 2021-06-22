@@ -509,10 +509,11 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let mut lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+            //let mut lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+            let lag_compensation = 1.0;
 
             // Warp shifts screw up w lag compensation
-            if movement.speed < 500.0 {
+            /*if movement.speed < 500.0 {
                 if lag_compensation > 60.0 {
                     lag_compensation = 60.0;
 
@@ -521,11 +522,11 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             } else {
                 lag_compensation = 1.0;
 
-            }
+            }*/
 
             let next_potential_pos = object.translation + (next_potential_movement * lag_compensation);
 
-            if !map.collision(next_potential_pos, sprite.size, 0.0).0  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
+            if !map.collision(object.translation, sprite.size, 0.0, movement.speed, movement.angle).0  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
                 object.translation = next_potential_pos;
 
                 match movement_type {
@@ -564,7 +565,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             // Only lets you move if the movement doesn't bump into a wall
             let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let next_potential_pos = object.translation + (next_potential_movement * DESIRED_TICKS_PER_SECOND * time.delta_seconds());
+            let next_potential_pos = object.translation + next_potential_movement;
 
             let mut player_collision = false;
 
@@ -574,7 +575,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
 
-                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(player.translation, player_sprite.size, next_potential_pos, sprite.size)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(object.translation, sprite.size, player.translation, player_sprite.size, movement.speed, movement.angle)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
                     if *ability == Ability::Cloak && !visible.is_visible {
                         visible.is_visible = true;
 
@@ -631,7 +632,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             });
 
-            let (wall_collision, health_and_coords) = map.collision(next_potential_pos, sprite.size, damage.0);
+            let (wall_collision, health_and_coords) = map.collision(object.translation, sprite.size, damage.0, movement.speed, movement.angle);
 
             if let Some((health, coords)) = health_and_coords {
                 wall_event.send(DespawnWhenDead {
@@ -671,7 +672,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.as_mut().unwrap().0  += movement.speed.abs() * 60.0 * time.delta_seconds();
+                        distance_traveled.as_mut().unwrap().0  += movement.speed.abs();
 
                         if distance_traveled.as_ref().unwrap().0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
