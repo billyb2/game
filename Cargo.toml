@@ -113,13 +113,13 @@ opt-level = 1
 [features]
 default = [
   "native",
-  "parallel",
 ]
 
 native = [
   "bevy/bevy_wgpu",
   # Since literally every 64 bit CPU has SIMD support, I think it's fine to enable it for rand
   "rand/simd_support",
+  "parallel",
 ]
 
 parallel = [

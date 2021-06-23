@@ -155,7 +155,7 @@ impl Map {
         let i = (0..self.objects.len()).into_par_iter().find_any(map_collision);
 
         #[cfg(not(feature = "parallel"))]
-        let i = (0..self.objects.len()).into_par_iter().find_any(map_collision);
+        let i = (0..self.objects.len()).into_iter().find(map_collision);
 
 
         let health_and_coords = match i {

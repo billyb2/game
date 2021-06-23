@@ -549,7 +549,7 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
                         }
                     },
                     Ability::Warp => {
-                        requested_movement.speed += 500.0;
+                        requested_movement.speed = 550.0;
                         #[cfg(feature = "web")]
                         console_log!("Warp speed: {}", requested_movement.speed);
 

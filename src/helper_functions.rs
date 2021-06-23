@@ -7,10 +7,8 @@ use bevy::math::{Vec2, Vec3};
 use std::f32::consts::PI;
 use std::convert::TryInto;
 
-#[cfg(feature = "parallel")]
+#[cfg(feature = "native")]
 use std::net::UdpSocket;
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 
 pub fn slice_to_u32(data: &[u8]) -> u32 {
     debug_assert!(data.len() == 4);
@@ -82,7 +80,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-pub fn collide(mut rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_size: Vec2, distance: f32, angle: f32) -> bool {
+pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_size: Vec2, distance: f32, angle: f32) -> bool {
     // A bounding box collision test between two rectangles
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
@@ -94,42 +92,33 @@ pub fn collide(mut rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rec
 
     let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
     let interval = distance / a_size_f32;
-    //let interval: f32 = 10.0;
-    let mut distance_traveled = 0.0;
 
-    if distance != 0.0 && distance <= 500.0 {
-        let mut possible_collision_vec: Vec<Vec3> = Vec::with_capacity(50);
+    if distance != 0.0 && distance != 550.0 {
+        let num_of_iters = (distance / interval).ceil() as u32;
 
-        while distance_traveled <= distance.abs() {
-            distance_traveled += interval.abs();
-            rect1_coords += Vec3::new(interval * angle.cos(), interval * angle.sin(), 0.0);
+        let collision = |i: &u32| {
+            let interval = interval * *i as f32;
+            let rect1_coords = rect1_coords + Vec3::new(interval * angle.cos(), interval * angle.sin(), 0.0);
 
-            possible_collision_vec.push(rect1_coords);
-
-
-        }
-        let collision = |rect1_coords: &&Vec3| {
             let a_min = rect1_coords.truncate() - rect1_size / 2.0;
             let a_max = rect1_coords.truncate() + rect1_size / 2.0;
 
             // Check for collision
-            a_min.x < b_max.x && a_max.x > b_min.x && a_min.y < b_max.y && a_max.y > b_min.y
+            a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y
 
         };
 
-        #[cfg(feature = "parallel")]
-        return possible_collision_vec.par_iter().find_any(collision).is_some();
-
-        #[cfg(not(feature = "parallel"))]
-        return possible_collision_vec.iter().find_any(collision).is_some();
+        return (1..num_of_iters).into_iter().find(collision).is_some();
 
 
 
     } else {
+        let rect1_coords = rect1_coords + Vec3::new(distance * angle.cos(), distance * angle.sin(), 0.0);
+
         let a_min = rect1_coords.truncate() - rect1_size / 2.0;
         let a_max = rect1_coords.truncate() + rect1_size / 2.0;
 
-        a_min.x < b_max.x && a_max.x > b_min.x && a_min.y < b_max.y && a_max.y > b_min.y
+        a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y
 
     }
 
