@@ -23,9 +23,11 @@ use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
 
 use bevy_networking_turbulence::*;
+
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
+use bevy::tasks::TaskPool;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
@@ -282,6 +284,7 @@ fn main() {
     //Start in the main menu
     .add_state(AppState::MainMenu)
 
+    .insert_resource(TaskPool::new())
     // Embed the map into the binary
     .insert_resource(Map::from_bin(include_bytes!("../tiled/map1.custom")))
     // Gotta initialize the mouse position with something, or else the game crashes
@@ -292,6 +295,7 @@ fn main() {
     .insert_resource(GameLogs::new())
     .insert_resource(rng.gen::<Model>())
     .insert_resource(rng.gen::<Ability>())
+    .insert_resource(rng.gen::<Perk>())
     .insert_resource(DeathmatchScore(HashMap::with_capacity(256)));
 
     app.add_plugins(DefaultPlugins)
@@ -501,23 +505,27 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut map: ResMut<Map>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, task_pool: Res<TaskPool>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
-    player_movements.for_each_mut(|(mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible)| {
+    player_movements.par_for_each_mut(&task_pool, 1, |(mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible)| {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let mut lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+
             if lag_compensation > 4.0 {
                 lag_compensation = 4.0;
+
             }
 
+            let speed = movement.speed * lag_compensation;
+
             // Only lets you move if the movement doesn't bump into a wall
-            let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0) * lag_compensation;
+            let next_potential_movement = Vec3::new(speed * movement.angle.cos(), speed * movement.angle.sin(), 0.0);
 
             let next_potential_pos = object.translation + next_potential_movement;
 
-            if !map.collision(object.translation, sprite.size, 0.0, movement.speed * lag_compensation, movement.angle).0  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
+            if !map.collision_no_damage(object.translation, sprite.size, speed, movement.angle)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
                 object.translation = next_potential_pos;
 
                 match movement_type {
@@ -555,8 +563,10 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             let lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
 
+            let speed = movement.speed * lag_compensation;
+
             // Only lets you move if the movement doesn't bump into a wall
-            let next_potential_movement = Vec3::new(movement.speed * movement.angle.cos(), movement.speed * movement.angle.sin(), 0.0) * lag_compensation;
+            let next_potential_movement = Vec3::new(speed * movement.angle.cos(), speed * movement.angle.sin(), 0.0);
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let next_potential_pos = object.translation + next_potential_movement;
 
@@ -625,7 +635,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             });
 
-            let (wall_collision, health_and_coords) = map.collision(object.translation, sprite.size, damage.0, movement.speed * lag_compensation, movement.angle);
+            let (wall_collision, health_and_coords) = map.collision(object.translation, sprite.size, damage.0, speed, movement.angle);
 
             if let Some((health, coords)) = health_and_coords {
                 wall_event.send(DespawnWhenDead {
@@ -651,8 +661,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
                     }
 
-                } else if *projectile_type == ProjectileType::Flame {
+                } else if *projectile_type == ProjectileType::Flame && sprite.size.x <= 20.0 {
                     sprite.size *= 1.3;
+
                 }
 
                 match movement_type {
@@ -794,10 +805,15 @@ fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Qu
 }
 
 // This system just deals respawning players
-fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>) {
-    for (mut health, mut visibility, mut respawn_timer, player_id) in players.iter_mut() {
+fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>) {
+    for (mut health, mut visibility, mut respawn_timer, perk, player_id) in players.iter_mut() {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains(&player_id.0) {
-            health.0 = 100.0;
+            health.0 = match perk {
+                Perk::HeavyArmor => 125.0,
+                Perk::LightArmor => 80.0,
+                _ => 100.0,
+
+            };
             respawn_timer.0.reset();
             visibility.is_visible = true;
 

@@ -90,14 +90,13 @@ pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_s
     let b_min = rect2_coords.truncate() - rect2_size / 2.0;
     let b_max = rect2_coords.truncate() + rect2_size / 2.0;
 
-    let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
-    let interval = distance / a_size_f32;
-
-    if distance != 0.0 && distance != 550.0 {
+    if distance != 0.0 && distance >= 550.0 {
+        let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
+        let interval = distance / a_size_f32;
         let num_of_iters = (distance / interval).ceil() as u32;
 
-        let collision = |i: &u32| {
-            let interval = interval * *i as f32;
+        let collision = |i: u32| {
+            let interval = interval * i as f32;
             let rect1_coords = rect1_coords + Vec3::new(interval * angle.cos(), interval * angle.sin(), 0.0);
 
             let a_min = rect1_coords.truncate() - rect1_size / 2.0;
@@ -108,7 +107,8 @@ pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_s
 
         };
 
-        return (1..num_of_iters).into_iter().find(collision).is_some();
+        // Searches for a collision anywhere between the player moving one unit (with each unit being the size of the player themselves) and moving to their destination
+        (1..num_of_iters).into_iter().any(collision)
 
 
 

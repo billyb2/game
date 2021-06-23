@@ -28,6 +28,7 @@ pub struct Player {
     pub using_ability: UsingAbility,
     pub can_respawn: RespawnTimer,
     pub dashing_info: DashingInfo,
+    pub perk: Perk,
 
 }
 
@@ -53,9 +54,31 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 
 }
 
+pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: Perk) {
+    if perk == Perk::HeavyArmor {
+        health.0 *= 1.25;
+        speed.0 *= 0.8;
+
+    } else if perk == Perk::LightArmor {
+        health.0 *= 0.8;
+        speed.0 *= 1.3;
+
+    }
+
+}
+
+pub fn set_perk_gun_attr(mut max_ammo: &mut MaxAmmo, mut ammo_in_mag: &mut AmmoInMag, perk: Perk) {
+    if perk == Perk::ExtendedMag {
+        max_ammo.0 = (max_ammo.0 as f32 * 1.5).ceil() as u8;
+        ammo_in_mag.0 = max_ammo.0;
+
+    }
+
+}
+
 
 impl Player {
-    pub fn new(id: u8, ability: Ability, living: bool) -> Player {
+    pub fn new(id: u8, ability: Ability, perk: Perk, living: bool) -> Player {
         let mut player = Player {
             id: PlayerID(id),
             health: match living {
@@ -82,9 +105,11 @@ impl Player {
                 time_till_stop_dash: Timer::from_seconds(0.2, false),
                 dashing: false,
             },
+            perk,
 
         };
 
+        set_perk_player_attr(&mut player.health, &mut player.speed, player.perk);
         set_ability_player_attr(&mut player.ability_charge, &mut player.ability_completed, player.ability);
 
         // The ability charge is ready on game start
@@ -104,6 +129,14 @@ pub enum Ability {
     Hacker,
     Inferno,
     Cloak,
+
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub enum Perk {
+    ExtendedMag,
+    HeavyArmor,
+    LightArmor,
 
 }
 
@@ -150,6 +183,44 @@ impl Distribution<Ability> for Standard {
         let ability: Ability = rand_num.into();
 
         ability
+    }
+}
+
+pub const NUM_OF_PERKS: u8 = variant_count::<Perk>() as u8;
+
+impl From<u8> for Perk {
+    fn from(perk: u8)  -> Self {
+        match perk {
+            0 => Perk::ExtendedMag,
+            1 => Perk::HeavyArmor,
+            2 => Perk::LightArmor,
+            _ => panic!("Perk conversion out of bounds: {} was requested, max is {}", perk, NUM_OF_PERKS),
+
+        }
+
+    }
+
+}
+
+impl From<Perk> for u8 {
+    fn from(perk: Perk)  -> Self {
+        match perk {
+            Perk::ExtendedMag => 0,
+            Perk::HeavyArmor => 1,
+            Perk::LightArmor => 2,
+
+        }
+
+    }
+
+}
+
+impl Distribution<Perk> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Perk {
+        let rand_num: u8 = rng.gen_range(0..NUM_OF_PERKS);
+        let perk: Perk = rand_num.into();
+
+        perk
     }
 }
 
@@ -250,7 +321,7 @@ pub struct Gun {
 
 
 impl Gun {
-    pub fn new(model: Model, ability: Ability) -> Gun {
+    pub fn new(model: Model, ability: Ability, perk: Perk) -> Gun {
         let mut gun = Gun {
             model,
             time_since_last_shot: match model {
@@ -385,6 +456,8 @@ impl Gun {
             gun.damage.0 *= 0.7;
 
         }
+
+        set_perk_gun_attr(&mut gun.max_ammo, &mut gun.ammo_in_mag, perk);
 
         gun
     }

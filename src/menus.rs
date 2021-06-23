@@ -274,7 +274,7 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
     });
 }
 
-pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>) {
+pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -317,8 +317,23 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
                     *text = format!("Gun: {:?}", *my_gun_model);
 
-                } else if text == "Customize" {
-                    app_state.set(AppState::CustomizePlayerMenu).unwrap();
+                } else if text.len() >= 4 && &text[..4] == "Perk" {
+                    let current_perk_int: u8 = (*my_perk).into();
+
+                    match current_perk_int == NUM_OF_PERKS - 1 {
+                        true => {
+                            let new_perk: Perk = 0.into();
+                            *my_perk.deref_mut() = new_perk;
+                        },
+                        false => {
+                            let new_perk: Perk = (current_perk_int + 1).into();
+                            *my_perk.deref_mut() = new_perk;
+                        },
+
+
+                    };
+
+                    *text = format!("Perk: {:?}", *my_perk);
 
                 } else if text == "Back" {
                     app_state.set(AppState::GameMenu).unwrap();
@@ -338,7 +353,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>, my_perk: Res<Perk>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -559,7 +574,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                             set_ability_player_attr(ability_charge.deref_mut(), ability_completed.deref_mut(), *ability.deref());
 
-                            commands.entity(entity).insert_bundle(Gun::new(*my_gun_model.deref(), *ability));
+                            commands.entity(entity).insert_bundle(Gun::new(*my_gun_model.deref(), *ability, *my_perk));
 
                             commands
                             .spawn_bundle(NodeBundle {

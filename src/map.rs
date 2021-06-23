@@ -3,7 +3,12 @@
 
 use std::io::Read;
 
-use bevy::prelude::*;
+use bevy::math::prelude::*;
+use bevy::sprite::prelude::*;
+use bevy::transform::prelude::*;
+use bevy::ecs::prelude::*;
+use bevy::render::prelude::*;
+use bevy::asset::prelude::*;
 
 use crate::{GameRelated, Health};
 use crate::components::WallMarker;
@@ -189,6 +194,25 @@ impl Map {
         };
 
         (i.is_some(), health_and_coords)
+
+     }
+
+    // Identical to collision, except it's a non-mutable reference so it's safe to use in an iterator
+    pub fn collision_no_damage(&self, other_object_coords: Vec3, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
+        let map_collision = |index: usize| {
+            self.objects[index].collision(other_object_coords, other_object_size, distance, angle)
+
+        };
+
+        // The collision function just iterates through each map object within the map, and runs the collide function within
+        // Since this function is only used in par_for_each loops, we don't need extra parallelism
+        #[cfg(not(feature = "parallel"))]
+        let collision = (0..self.objects.len()).into_iter().any(map_collision);
+
+        #[cfg(feature = "parallel")]
+        let collision = (0..self.objects.len()).into_par_iter().any(map_collision);
+
+        collision
 
      }
 

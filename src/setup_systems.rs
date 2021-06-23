@@ -358,7 +358,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, shader_assets: Res<AssetsLoading>) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>) {
     let mut i: u8 = 0;
 
     //let mut rng = rand::thread_rng();
@@ -407,12 +407,13 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
         if object.player_spawn {
             let ability = *my_ability;
             let gun_model = *my_gun_model;
+            let perk = *my_perk;
 
             let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
             let entity = commands
-                .spawn_bundle(Player::new(i, ability, living))
-                .insert_bundle(Gun::new(gun_model, ability))
+                .spawn_bundle(Player::new(i, ability, perk, living))
+                .insert_bundle(Gun::new(gun_model, ability, perk))
                 .insert_bundle(SpriteBundle {
                     material: materials.0.clone(),
                     sprite: Sprite {
@@ -584,7 +585,7 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
 }
 
-pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>) {
+pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -697,8 +698,40 @@ pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServe
                         },
                         ..Default::default()
 
-                })
-                .insert(KeyBindingButtons::Down);
+                });
+            });
+
+            node_parent.spawn_bundle(ButtonBundle {
+            style: Style {
+                align_content: AlignContent::Center,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(450.0), Val::Px(85.0)),
+
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: format!("Perk: {:?}", *my_perk),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                },
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+
+                });
             });
 
             node_parent.spawn_bundle(ButtonBundle {

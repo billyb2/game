@@ -295,7 +295,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                             0.0
 
                         } else {
-                            rng.gen_range(-recoil_range.0..recoil_range.0)
+                            rng.gen_range(-recoil_range.0..=recoil_range.0)
 
                     };
 
