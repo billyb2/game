@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 use rand::Rng;
 use rand::distributions::{Distribution, Standard};
 
+#[cfg(feature = "parallel")]
+use rayon::join;
+
 use crate::components::*;
 use crate::ProjectileType;
 
@@ -34,22 +37,48 @@ pub struct Player {
 
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
-    *ability_charge = match ability {
-        Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
-        Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
-        Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
-        Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
-        Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
-        Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
-        Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
+    #[cfg(feature = "parallel")]
+    join(
+        || *ability_charge = match ability {
+            Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
+            Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
+            Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
+            Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
+            Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
+            Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
+            Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
 
-    };
+        },
 
-    *ability_completed = match ability {
-        Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
-        Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
-        // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
-        _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
+        || *ability_completed = match ability {
+            Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
+            Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
+            // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
+            _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
+        }
+
+    );
+
+    #[cfg(not(feature = "parallel"))]
+    {
+        *ability_charge = match ability {
+            Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
+            Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
+            Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
+            Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
+            Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
+            Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
+            Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
+
+        };
+
+        *ability_completed = match ability {
+            Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
+            Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
+            // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
+            _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
+        };
+
     };
 
 }
@@ -131,6 +160,7 @@ pub enum Ability {
     Cloak,
 
 }
+
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Perk {

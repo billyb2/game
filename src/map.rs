@@ -42,10 +42,10 @@ pub struct Map {
 }
 
 impl MapObject {
-    fn collision(&self, other_object_coords: Vec3, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
+    fn collision(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
 
         //Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
-        self.collidable && collide(other_object_coords, other_object_size, self.coords, self.size, distance, angle)
+        self.collidable && collide(other_object_coords, other_object_size, self.coords.truncate(), self.size, distance, angle)
 
     }
 
@@ -149,7 +149,7 @@ impl Map {
     }
 
     // Returns the health of a wall if they have health
-    pub fn collision(&mut self, other_object_coords: Vec3, other_object_size: Vec2, damage: f32, distance: f32, angle: f32) -> (bool, Option<(f32, Vec2)>) {
+    pub fn collision(&mut self, other_object_coords: Vec2, other_object_size: Vec2, damage: f32, distance: f32, angle: f32) -> (bool, Option<(f32, Vec2)>) {
         let map_collision = |index: &usize| {
             self.objects[*index].collision(other_object_coords, other_object_size, distance, angle)
 
@@ -198,7 +198,7 @@ impl Map {
      }
 
     // Identical to collision, except it's a non-mutable reference so it's safe to use in an iterator
-    pub fn collision_no_damage(&self, other_object_coords: Vec3, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
+    pub fn collision_no_damage(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
         let map_collision = |index: usize| {
             self.objects[index].collision(other_object_coords, other_object_size, distance, angle)
 

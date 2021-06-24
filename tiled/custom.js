@@ -130,9 +130,10 @@ var customMapFormat = {
             parseInt(rgb_hex[2], 16)
         ];
 
-        array.push(rgb[0]);
-        array.push(rgb[1]);
-        array.push(rgb[2]);
+         for (let i = 0; i < rgb.len(); i++) {
+            array.push(rgb[i]);
+
+         }
 
 
         for (q = 0; q < map.layerCount ; q++) {
@@ -143,11 +144,11 @@ var customMapFormat = {
                     if (layer.objectAt(i) != null) {
                         let object = layer.objectAt(i);
 
-                        let x = object.x * 5.0 * (4.0/3.0);
-                        let y = object.y * 5.0 * (4.0/3.0);
+                        let x = object.x * 6.0;
+                        let y = object.y * 6.0;
 
-                        let width = object.width * 5.0 * (4.0/3.0);
-                        let height = object.height * 5.0 * (4.0/3.0);
+                        let width = object.width * 6.0;
+                        let height = object.height * 6.0;
 
                         let player_spawn = object.property("player_spawn");
                         let player_collidable = object.property("player_collidable");

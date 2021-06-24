@@ -28,6 +28,7 @@ use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
 use bevy::tasks::TaskPool;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
@@ -36,6 +37,9 @@ use bevy_kira_audio::AudioPlugin;
 use serde::{Deserialize, Serialize};
 
 use hashbrown::HashMap;
+
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
@@ -258,9 +262,15 @@ fn main() {
 
     let mut rng = rand::thread_rng();
 
+    #[cfg(debug_assertions)]
     app
     // Antialiasing
     .insert_resource(Msaa { samples: 1 });
+
+    #[cfg(not(debug_assertions))]
+    app
+    // Antialiasing
+    .insert_resource(Msaa { samples: 4 });
 
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
@@ -301,6 +311,8 @@ fn main() {
     app.add_plugins(DefaultPlugins)
     // Using this only temporarily to quit apps on escape
     //.add_system(bevy::input::system::exit_on_esc_system.system())
+    .add_plugin(LogDiagnosticsPlugin::default())
+    .add_plugin(FrameTimeDiagnosticsPlugin::default())
     .add_plugin(NetworkingPlugin::default())
     .add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
@@ -525,7 +537,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             let next_potential_pos = object.translation + next_potential_movement;
 
-            if !map.collision_no_damage(object.translation, sprite.size, speed, movement.angle)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
+            if !map.collision_no_damage(object.translation.truncate(), sprite.size, speed, movement.angle)  && !out_of_bounds(next_potential_pos.truncate(), sprite.size, map.size) {
                 object.translation = next_potential_pos;
 
                 match movement_type {
@@ -578,7 +590,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
 
-                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(object.translation, sprite.size, player.translation, player_sprite.size, movement.speed, movement.angle)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation, player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(object.translation.truncate(), sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, movement.angle)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos.truncate(), sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
                     if *ability == Ability::Cloak && !visible.is_visible {
                         visible.is_visible = true;
 
@@ -635,7 +647,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
             });
 
-            let (wall_collision, health_and_coords) = map.collision(object.translation, sprite.size, damage.0, speed, movement.angle);
+            let (wall_collision, health_and_coords) = map.collision(object.translation.truncate(), sprite.size, damage.0, speed, movement.angle);
 
             if let Some((health, coords)) = health_and_coords {
                 wall_event.send(DespawnWhenDead {
@@ -720,7 +732,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             let (_, _, _, _, _, _, _, ability, _) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
-                if collide_rect_circle(proj_coords.translation, sprite.size, coords.extend(0.0), *radius) && *ability == Ability::Inferno {
+                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, *coords, *radius) && *ability == Ability::Inferno {
                     molotovs_to_be_lit_on_fire.push((*coords, *radius));
 
                 }
@@ -805,8 +817,8 @@ fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Qu
 }
 
 // This system just deals respawning players
-fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>) {
-    for (mut health, mut visibility, mut respawn_timer, perk, player_id) in players.iter_mut() {
+fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, task_pool: Res<TaskPool>) {
+    players.par_for_each_mut(&task_pool, 1, |(mut health, mut visibility, mut respawn_timer, perk, player_id)| {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains(&player_id.0) {
             health.0 = match perk {
                 Perk::HeavyArmor => 125.0,
@@ -819,12 +831,42 @@ fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer
 
         }
 
-    }
+    });
 
 }
 
 fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>) {
     let deathmatch_score = &deathmatch_score.deref().0;
+
+    let mut display_win_text = |(player_id, _score)| {
+        let champion_string = format!("Player {} wins!", player_id + 1);
+        let (mut text, mut visible) = champion_text.single_mut().unwrap();
+
+        text.sections[0].value = champion_string;
+        visible.is_visible = true;
+
+        if player_continue_timer.is_empty() {
+            commands
+                .spawn()
+                .insert(PlayerContinueTimer(Timer::from_seconds(5.0, false)))
+                .insert(GameRelated);
+        } else if player_continue_timer.single().unwrap().0.finished() {
+            app_state.set(AppState::GameMenu).unwrap();
+
+        }
+    };
+
+    #[cfg(feature = "parallel")]
+    if let Some((player_id, _score)) = deathmatch_score.into_par_iter().find_any(|(_player_id, score)| **score >= SCORE_LIMIT) {
+        display_win_text((player_id, _score));
+
+    }
+
+    #[cfg(not(feature = "parallel"))]
+    if let Some((player_id, _score)) = deathmatch_score.into_iter().find(|(_player_id, score)| **score >= SCORE_LIMIT) {
+        display_win_text((player_id, _score));
+
+    }
 
     for (player_id, score) in deathmatch_score.iter() {
         if *score >= SCORE_LIMIT {
@@ -856,10 +898,10 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>) {
+fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, task_pool: Res<TaskPool>) {
     let delta = time.delta();
 
-    player_timers.for_each_mut(|(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info)| {
+    player_timers.par_for_each_mut(&task_pool, 1, |(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info)| {
         time_since_last_shot.0.tick(delta);
 
         // If the player is reloading
@@ -881,13 +923,6 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
 
         }
 
-        for game_log in logs.0.iter_mut() {
-            game_log.timer.tick(delta);
-
-        }
-
-        ready_to_send_packet.0.tick(delta);
-
         if !dashing_info.dashing {
             dashing_info.time_till_can_dash.tick(delta);
 
@@ -897,6 +932,13 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
         }
 
     });
+
+    ready_to_send_packet.0.tick(delta);
+
+    for game_log in logs.0.iter_mut() {
+        game_log.timer.tick(delta);
+
+    }
 
     projectile_timers.for_each_mut(|mut destruction_timer| {
         destruction_timer.0.tick(delta);
@@ -1005,10 +1047,7 @@ fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut Tex
 
 fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
     for log_text in log_event.iter() {
-        if logs.0.len() >= 9 {
-            logs.0.pop();
-
-        }
+        logs.0.truncate(9);
 
         logs.0.insert(0,
             GameLog {
@@ -1030,7 +1069,7 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
 
     let mut text_vec = Vec::with_capacity(10);
 
-    let mut num_of_pops: u8 = 0;
+    let mut new_len = logs.0.len();
 
     for log in logs.0.iter().rev() {
         if !log.timer.finished() {
@@ -1040,17 +1079,13 @@ fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<Ga
             text_vec.push(text);
 
         } else {
-            num_of_pops += 1;
+            new_len -= 1;
 
         }
 
     }
 
-    while num_of_pops != 0 {
-        logs.0.pop();
-        num_of_pops -= 1;
-
-    }
+    logs.0.truncate(new_len);
 
     let mut game_log = game_log.single_mut().unwrap();
 

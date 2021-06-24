@@ -2,10 +2,13 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
-use bevy::math::{Vec2, Vec3};
+use bevy::math::Vec2;
 
 use std::f32::consts::PI;
 use std::convert::TryInto;
+
+#[cfg(feature = "parallel")]
+use rayon::join;
 
 #[cfg(feature = "native")]
 use std::net::UdpSocket;
@@ -41,7 +44,11 @@ pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
 
 #[cfg(feature = "native")]
 pub fn get_available_port(ip: &str) -> Option<u16> {
-    (8000..9000).find(|port| port_is_available(ip, *port))
+    #[cfg(feature = "parallel")]
+    return (8000..9000).into_iter().find(|port| port_is_available(ip, *port));
+
+    #[cfg(not(feature = "parallel"))]
+    return (8000..9000).into_par_iter().find(|port| port_is_available(ip, *port));
 }
 
 #[cfg(feature = "native")]
@@ -80,27 +87,48 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_size: Vec2, distance: f32, angle: f32) -> bool {
+pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: f32) -> bool {
     // A bounding box collision test between two rectangles
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
     
     // So what this code essentially does is it tries to move object 1 a few increments for x distance at x angle, and then if it can do that successfully without it colliding, it gives false
+    #[cfg(feature = "parallel")]
+    let (b_min, b_max) = join(
+        || rect2_coords - rect2_size / 2.0,
+        || rect2_coords + rect2_size / 2.0
 
-    let b_min = rect2_coords.truncate() - rect2_size / 2.0;
-    let b_max = rect2_coords.truncate() + rect2_size / 2.0;
+    );
+
+    #[cfg(not(feature = "parallel"))]
+    let (b_min, b_max) = (
+        rect2_coords - rect2_size / 2.0,
+        rect2_coords + rect2_size / 2.0
+
+    );
+
+    let half_a_size = rect1_size / 2.0;
 
     if distance != 0.0 && distance >= 550.0 {
         let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
-        let interval = distance / a_size_f32;
-        let num_of_iters = (distance / interval).ceil() as u32;
+        let interval_size = distance / a_size_f32;
+        let num_of_iters = (distance / interval_size).ceil() as u32;
 
         let collision = |i: u32| {
-            let interval = interval * i as f32;
-            let rect1_coords = rect1_coords + Vec3::new(interval * angle.cos(), interval * angle.sin(), 0.0);
+            let interval = interval_size * i as f32;
+            let rect1_coords = rect1_coords + Vec2::new(interval * angle.cos(), interval * angle.sin());
 
-            let a_min = rect1_coords.truncate() - rect1_size / 2.0;
-            let a_max = rect1_coords.truncate() + rect1_size / 2.0;
+            #[cfg(feature = "parallel")]
+            let (a_min, a_max) = join(
+                || rect1_coords - half_a_size,
+                || rect1_coords + half_a_size
+            );
+
+            #[cfg(not(feature = "parallel"))]
+            let (a_min, a_max) = (
+                rect1_coords - half_a_size,
+                rect1_coords + half_a_size
+            );
 
             // Check for collision
             a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y
@@ -113,10 +141,19 @@ pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_s
 
 
     } else {
-        let rect1_coords = rect1_coords + Vec3::new(distance * angle.cos(), distance * angle.sin(), 0.0);
+        let rect1_coords = rect1_coords + Vec2::new(distance * angle.cos(), distance * angle.sin());
 
-        let a_min = rect1_coords.truncate() - rect1_size / 2.0;
-        let a_max = rect1_coords.truncate() + rect1_size / 2.0;
+        #[cfg(feature = "parallel")]
+        let (a_min, a_max) = join(
+            || rect1_coords - half_a_size,
+            || rect1_coords + half_a_size
+        );
+
+        #[cfg(not(feature = "parallel"))]
+        let (a_min, a_max) = (
+            rect1_coords - half_a_size,
+            rect1_coords + half_a_size
+        );
 
         a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y
 
@@ -124,7 +161,7 @@ pub fn collide(rect1_coords: Vec3, rect1_size: Vec2, rect2_coords: Vec3, rect2_s
 
 }
 
-pub fn collide_rect_circle(rect_coords: Vec3, rect_size: Vec2, circle_coords: Vec3, radius: f32) -> bool {
+pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Vec2, radius: f32) -> bool {
     let delta_x = circle_coords.x - f32::max(rect_coords.x - (rect_size.x / 2.0), f32::min(circle_coords.x, rect_coords.x + (rect_size.x / 2.0)));
     let delta_y = circle_coords.y - f32::max(rect_coords.y - (rect_size.y / 2.0), f32::min(circle_coords.y, rect_coords.y + (rect_size.y / 2.0)));
 
@@ -133,9 +170,9 @@ pub fn collide_rect_circle(rect_coords: Vec3, rect_size: Vec2, circle_coords: Ve
 
 }
 
-pub fn out_of_bounds(rect_coords: Vec3, rect_size: Vec2, map_size: Vec2) -> bool {
-    let a_min = rect_coords.truncate() - rect_size / 2.0;
-    let a_max = rect_coords.truncate() + rect_size / 2.0;
+pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool {
+    let a_min = rect_coords- rect_size / 2.0;
+    let a_max = rect_coords + rect_size / 2.0;
 
     {
         a_min.x <= 0.0

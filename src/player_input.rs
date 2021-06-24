@@ -225,10 +225,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
             visible.is_visible = false;
 
-            while text.sections.len() != 1 {
-                text.sections.pop();
-
-            }
+            text.sections.truncate(1);
 
 
         }
@@ -508,14 +505,12 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
 
                             let coords = transform.translation + Vec3::new(100.0 * requested_movement.angle.cos(), 100.0 * requested_movement.angle.sin(), 0.0);
 
-                            let size =
-                                if requested_movement.angle.abs() == PI / 2.0 {
-                                    Vec2::new(100.0, 25.0)
 
-                                } else {
-                                    Vec2::new(25.0, 100.0)
+                            let size = match requested_movement.angle.abs() == PI / 2.0 {
+                                true => Vec2::new(100.0, 25.0),
+                                false => Vec2::new(25.0, 100.0)
 
-                                };
+                            };
 
                             let health_of_wall: f32 = 300.0;
 
@@ -550,9 +545,6 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
                     },
                     Ability::Warp => {
                         requested_movement.speed = 550.0;
-                        #[cfg(feature = "web")]
-                        console_log!("Warp speed: {}", requested_movement.speed);
-
                         ability_charge.0.reset();
 
                     },
