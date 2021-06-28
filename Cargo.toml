@@ -70,7 +70,7 @@ bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true 
 bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
 
 # Networking library
-bevy_networking_turbulence = { version = "=0.3.0", default-features = false, features = ["use-webrtc"] }
+bevy_networking_turbulence = { version = "=0.3.1", default-features = false, features = ["use-webrtc"] }
 
 # A faster hashmap
 hashbrown = { version = "0.11", features = ["nightly"] }
@@ -96,6 +96,10 @@ rand = { version = "0.8", features = ["nightly"] }
 
 # Enables running very slow tasks in parallel
 rayon = { version = "1", optional = true }
+
+# Allows global variables 
+lazy_static = { version = "1" }
+
 
 [features]
 default = [
@@ -126,6 +130,7 @@ bevy = { git = "https://github.com/bevyengine/bevy" }
 bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
 bevy_app = { git = "https://github.com/bevyengine/bevy" }
 bevy_tasks = { git = "https://github.com/bevyengine/bevy" }
+bevy_core = { git = "https://github.com/bevyengine/bevy" }
 
 [package.metadata.android]
 build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]

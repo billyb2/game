@@ -80,7 +80,9 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn_bundle(TextBundle {
             style: Style {
-                align_self: AlignSelf::FlexEnd,
+                align_self: AlignSelf::FlexStart,
+                align_content: AlignContent::FlexStart,
+                align_items: AlignItems::FlexStart,
                 position_type: PositionType::Absolute,
                 position: Rect {
                     left: Val::Percent(90.0),
@@ -636,7 +638,7 @@ pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServe
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 margin: Rect {
-                    bottom: Val::Percent(10.0),
+                    //bottom: Val::Percent(10.0),
 
                     ..Default::default()
                 },
@@ -766,6 +768,25 @@ pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServe
 
                 });
             });
+
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: String::from(" "),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 25.0,
+                                    color: Color::WHITE,
+                                },
+                            },
+                        ],
+                        ..Default::default()
+                    },
+                ..Default::default()
+
+            })
+            .insert(CustomizeHelpText);
 
         });
 

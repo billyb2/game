@@ -25,7 +25,11 @@ use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
-const SERVER_PORT: u16 = 9363;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+}
 
 // Location data is unreliable, since its okay if we skip a few frame updates
 const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
@@ -145,23 +149,21 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
     // Currently, only PC builds can host
     #[cfg(feature = "native")]
     if hosting.0 {
-        let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
         //let ip_address = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
 
         // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
-        println!("Listening on {:?}", &socket_address);
+        println!("Listening on {:?}", *SERVER_ADDRESS);
 
         // The WebRTC listening address just picks a random port
         let webrtc_listen_addr = {
-            let webrtc_listen_ip: IpAddr = socket_address.ip();
+            let webrtc_listen_ip: IpAddr = SERVER_ADDRESS.ip();
 
-            let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str())
-                .expect("No available port");
+            let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str()).expect("No available port");
 
             SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
         };
 
-        net.listen(socket_address, Some(webrtc_listen_addr), Some(webrtc_listen_addr));
+        net.listen(*SERVER_ADDRESS, Some(webrtc_listen_addr), Some(webrtc_listen_addr));
 
     }
 }
@@ -200,12 +202,10 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     // Currently, only web builds can join games (until we add UDP servers)
     #[cfg(feature = "web")]
     if !_hosting.0 {
-        let socket_address: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), SERVER_PORT);
+        println!("Connecting to {:?}", *SERVER_ADDRESS);
+        console_log!("Net: Connecting to {:?}", *SERVER_ADDRESS);
 
-        println!("Connecting to {:?}", socket_address);
-        console_log!("Net: Connecting to {:?}", socket_address);
-
-        net.connect(socket_address);
+        net.connect(*SERVER_ADDRESS);
 
     }
 }
@@ -302,9 +302,9 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
                         }
 
                     } else {
-                        // THe hacker resets the ammo
+                        // The hacker forces a player to use their ability and halves their ammo count
                         ev_use_ability.send(AbilityEvent(my_id.0));
-                        ammo_in_mag.0 = 0;
+                        ammo_in_mag.0 = (ammo_in_mag.0 as f32 / 2.0).ceil() as u8;
 
                     }
                 }

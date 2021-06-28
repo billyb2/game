@@ -274,12 +274,12 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
     });
 }
 
-pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>) {
+pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, Without<CustomizeHelpText>>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut help_text: Query<&mut Text, With<CustomizeHelpText>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
-        let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
-
         match *interaction {
             Interaction::Clicked => {
+                let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
+
                 if text.len() >= 7 && &text[..7] == "Ability" {
                     let current_ability_int: u8 = (*my_ability).into();
 
@@ -342,6 +342,46 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
             }
             Interaction::Hovered => {
+                let button_text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
+
+                let help_text = &mut help_text.single_mut().unwrap().sections[0].value;
+
+                *help_text = if button_text.len() >= 7 && &button_text[..7] == "Ability" {
+                    match *my_ability {
+                        Ability::Warp => String::from("Your suit is equipped with a space-time warping device that allows you\n to teleport short distances"),
+                        Ability::Stim => String::from("Your robot body allows you to run faster than normal, and can supercharge\n itself with a large battery, allowing you to temporarily increase your running speed"),
+                        Ability::Engineer => String::from("Using your years of experience designing weapons, you've modified\n your guns to reload much faster and your bullets to move more quickly, at the cost of having higher recoil (PASSIVE)"),
+                        Ability::Hacker => String::from("Your knowledge of electronics allows you to short-circuit suits and guns,\n causing guns to lose half their ammo and the player holding said gun to use their ability"),
+                        Ability::Wall => String::from("You can generate walls of pure energy, that you can shoot through but\n your opponents cannot"),
+                        Ability::Inferno => String::from("Your flame tipped bullets can light the molotovs you throw"),
+                        Ability::Cloak => String::from("Your suit is modified to be able to temporarily be invisible to the eye"),
+                    
+                    }
+
+                } else if button_text.len() >= 3 && &button_text[..3] == "Gun" {
+                    match *my_gun_model {
+                        Model::Shotgun => String::from("A close-mid range high spread shotgun"),
+                        Model::ClusterShotgun => String::from("A high risk, high reward very close range shotgun"),
+                        Model::BurstRifle => String::from("A relatively accurate burst damage assault rifle"),
+                        Model::Speedball => String::from("Shoots projetiles with low damage and speed at first, but pick up speed and increases damage over time"),
+                        Model::AssaultRifle => String::from("A high recoil high damage automatic rifle"),
+                        Model::Pistol => String::from("A high damage, slow firing pistol"),
+                        Model::SubmachineGun => String::from("Sprays down an area with a very high fire rate"),
+                        Model::Flamethrower => String::from("Melts opponents with extremely high damage, but low range"),
+                    }
+
+                } else if button_text.len() >= 4 && &button_text[..4] == "Perk" {
+                    match *my_perk {
+                        Perk::ExtendedMag => String::from("Your guns can hold more rounds at a time"),
+                        Perk::HeavyArmor => String::from("Your armor is stronger, in exchange for moving a little slower"),
+                        Perk::LightArmor => String::from("Your armor is weaker, and in exchange you move a bit faster"),
+                    }
+
+                } else {
+                    String::from(" ")
+
+                };
+
                 *material = button_materials.hovered.clone();
 
             }
@@ -350,7 +390,9 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
             }
         }
+
     });
+
 }
 
 pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>, my_perk: Res<Perk>) {

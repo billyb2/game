@@ -117,8 +117,6 @@ impl Player {
             speed: match ability {
                 // Stim players have a faster default running speed
                 Ability::Stim => PlayerSpeed(14.0),
-                // Inferno players move slower to make up for their massive fire damage
-                Ability::Inferno => PlayerSpeed(10.0),
                 _ => PlayerSpeed(13.0),
             },
             requested_movement: RequestedMovement::new(0.0, 0.0),

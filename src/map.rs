@@ -78,8 +78,8 @@ impl Map {
        bytes.shrink_to_fit();
 
         // The first few bytes of the map are metadata, like the dimensions of the map, its background color, etc.
-        let map_width = slice_to_u32(&bytes[0..=3]) * 5;
-        let map_height = slice_to_u32(&bytes[4..=7]) * 5;
+        let map_width = slice_to_u32(&bytes[0..=3]) * 6;
+        let map_height = slice_to_u32(&bytes[4..=7]) * 6;
         let background_color = Color::rgb_u8(bytes[8], bytes[9], bytes[10]);
 
         let mut objects: Vec<MapObject> = Vec::with_capacity(bytes.len() - 11);

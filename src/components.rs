@@ -117,3 +117,5 @@ pub enum InGameSettings {
     Settings,
     Customize
 }
+
+pub struct CustomizeHelpText;

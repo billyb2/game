@@ -28,7 +28,6 @@ use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
 use bevy::tasks::TaskPool;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
@@ -311,8 +310,6 @@ fn main() {
     app.add_plugins(DefaultPlugins)
     // Using this only temporarily to quit apps on escape
     //.add_system(bevy::input::system::exit_on_esc_system.system())
-    .add_plugin(LogDiagnosticsPlugin::default())
-    .add_plugin(FrameTimeDiagnosticsPlugin::default())
     .add_plugin(NetworkingPlugin::default())
     .add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
@@ -867,31 +864,6 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
         display_win_text((player_id, _score));
 
     }
-
-    for (player_id, score) in deathmatch_score.iter() {
-        if *score >= SCORE_LIMIT {
-            let champion_string = format!("Player {} wins!", player_id + 1);
-            let (mut text, mut visible) = champion_text.single_mut().unwrap();
-
-            text.sections[0].value = champion_string;
-            visible.is_visible = true;
-
-            if player_continue_timer.is_empty() {
-                commands
-                    .spawn()
-                    .insert(PlayerContinueTimer(Timer::from_seconds(5.0, false)))
-                    .insert(GameRelated);
-            } else if player_continue_timer.single().unwrap().0.finished() {
-                app_state.set(AppState::GameMenu).unwrap();
-
-            }
-
-            break;
-
-        }
-
-    }
-
 
 }
 
