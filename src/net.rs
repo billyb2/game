@@ -5,9 +5,8 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::collections::BTreeSet;
 
-use hashbrown::HashMap;
-
 use crate::*;
+use single_byte_hashmap::HashMap;
 use crate::components::{AbilityEvent, RequestedMovement};
 
 #[cfg(feature = "native")]
@@ -553,7 +552,7 @@ pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_
     }
 }
 
-// Literally just removes all connections from the connections hashmap.
+// Literally just removes all connections from the connections HashMap.
 pub fn disconnect(mut net: ResMut<NetworkResource>) {
     net.connections.clear();
 

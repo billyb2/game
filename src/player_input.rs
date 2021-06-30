@@ -12,6 +12,8 @@ use bevy_kira_audio::Audio;
 use rand::Rng;
 use rand::seq::SliceRandom;
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use crate::helper_functions::get_angle;
 
@@ -194,10 +196,23 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
             visible.is_visible = true;
 
+            // Sorts the HashMap by number of kills first, before displaying
+            let mut v: Vec<(&u8, &u8)> = (&score.0).into_iter().collect();
+            
+            let compare = |x: &(&u8, &u8), y: &(&u8, &u8)| {
+                y.1.cmp(x.1)
 
-            for (player_id, kills) in score.0.iter() {
+            };
+
+            #[cfg(feature = "parallel")]
+            v.par_sort_unstable_by(compare);
+
+            #[cfg(not(feature = "parallel"))]
+            v.sort_unstable_by(compare);
+
+            for (player_id, kills) in v.iter() {
                 let singular_or_plural_kills = 
-                    if *kills == 1 {
+                    if **kills == 1 {
                         "kill"
 
                     } else {
@@ -207,7 +222,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
                 text.sections.push(
                     TextSection {
-                        value: format!("Player {}: {} {}\n", player_id + 1, kills, singular_or_plural_kills).to_string(),
+                        value: format!("Player {}: {} {}\n", *player_id + 1, kills, singular_or_plural_kills).to_string(),
                         style: TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 45.0,

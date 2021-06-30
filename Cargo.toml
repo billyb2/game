@@ -22,7 +22,7 @@ inherits = "dev"
 opt-level = 3
 overflow-checks = false
 strip = "symbols"
-lto = "fat"
+lto = false
 panic = "abort"
 debug = 0
 codegen-units = 1
@@ -72,10 +72,7 @@ bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch =
 # Networking library
 bevy_networking_turbulence = { version = "=0.3.1", default-features = false, features = ["use-webrtc"] }
 
-# A faster hashmap
-hashbrown = { version = "0.11", features = ["nightly"] }
-
-# Logging
+# WASM logging
 wasm-bindgen = { version = "0.2.74", optional = true }
 
 # Used for sending structs over networks easily and efficiently
@@ -100,6 +97,9 @@ rayon = { version = "1", optional = true }
 # Allows global variables 
 lazy_static = { version = "1" }
 
+# A hashmap that's very fast at storing singular bytes as keys (made by me)
+single_byte_hashmap = { version = "0.1", features = ["nightly"] }
+
 
 [features]
 default = [
@@ -115,7 +115,7 @@ native = [
 
 parallel = [
   "rayon",
-  "hashbrown/rayon"
+  "single_byte_hashmap/rayon"
 ]
 
 web = [
@@ -131,8 +131,3 @@ bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
 bevy_app = { git = "https://github.com/bevyengine/bevy" }
 bevy_tasks = { git = "https://github.com/bevyengine/bevy" }
 bevy_core = { git = "https://github.com/bevyengine/bevy" }
-
-[package.metadata.android]
-build_targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
-target_sdk_version = 29
-min_sdk_version = 16

@@ -16,7 +16,6 @@ mod player_input;
 mod player_attr;
 mod setup_systems;
 mod shaders;
-
 mod net;
 
 use std::collections::BTreeSet;
@@ -35,8 +34,6 @@ use bevy_kira_audio::AudioPlugin;
 
 use serde::{Deserialize, Serialize};
 
-use hashbrown::HashMap;
-
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -54,8 +51,9 @@ use player_attr::*;
 use system_labels::*;
 use setup_systems::*;
 use shaders::*;
-
+use single_byte_hashmap::*;
 use net::*;
+
 use rand::Rng;
 
 const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
@@ -209,6 +207,8 @@ pub struct ShootEvent {
 
 }
 
+//impl Into<(Vec3, u8, Vec2, f32, Model, f32, Vec<f32>, f32, ProjectileType, Damage)
+
 #[derive(Debug)]
 pub struct KeyBindings {
     pub up: KeyCode,
@@ -305,7 +305,7 @@ fn main() {
     .insert_resource(rng.gen::<Model>())
     .insert_resource(rng.gen::<Ability>())
     .insert_resource(rng.gen::<Perk>())
-    .insert_resource(DeathmatchScore(HashMap::with_capacity(256)));
+    .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
 
     app.add_plugins(DefaultPlugins)
     // Using this only temporarily to quit apps on escape
@@ -943,12 +943,7 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
 }*/
 
 //TODO: Change this to seperate queries using Without
-fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>,
-    mut t: QuerySet<(
-        Query<&mut Text, With<AmmoText>>,
-        Query<&mut Text, With<AbilityChargeText>>,
-        Query<&mut Text, With<HealthText>>,
-    )>,
+fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>, mut ammo_text: Query<&mut Text, (With<AmmoText>, Without<AbilityChargeText>)>, mut ability_charge_text: Query<&mut Text, (With<AbilityChargeText>, Without<HealthText>)>, mut health_text: Query<&mut Text, (With<HealthText>, Without<AmmoText>)>,
     my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_id) = &my_player_id.0 {
         let (ability_charge, player_ammo_count, player_max_ammo, reload_timer, player_health) = query.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
@@ -961,7 +956,7 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSince
         let reloading = reload_timer.reloading;
         let health = player_health.0;
 
-        let mut ammo_text = t.q0_mut().single_mut().unwrap();
+        let mut ammo_text = ammo_text.single_mut().unwrap();
         let mut ammo_pos = ammo_style.single_mut().unwrap();
 
         if !reloading {
@@ -981,7 +976,7 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSince
 
         }
 
-        let mut ability_charge_text = t.q1_mut().single_mut().unwrap();
+        let mut ability_charge_text = ability_charge_text.single_mut().unwrap();
         ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
 
         let ability_charge_percent = ability_charge_percent as u8;
@@ -997,7 +992,7 @@ fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSince
 
         }
 
-        let mut health_text = t.q2_mut().single_mut().unwrap();
+        let mut health_text = health_text.single_mut().unwrap();
         health_text.sections[0].value = format!("Health: {:.0}%", health);
 
     }

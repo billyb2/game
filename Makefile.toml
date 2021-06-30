@@ -111,9 +111,17 @@ dependencies = ["build-web-opt-simd", "basic-http-server"]
 command = "basic-http-server"
 dependencies = ["build-web-release", "build-web-release-simd", "basic-http-server"]
 
+[tasks.serve-release-simd]
+command = "basic-http-server"
+dependencies = ["build-web-release-simd", "basic-http-server"]
+
 [tasks.serve-opt]
 command = "basic-http-server"
 dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
+
+[tasks.serve-opt-simd]
+command = "basic-http-server"
+dependencies = ["build-web-opt-simd", "basic-http-server"]
 
 [tasks.serve-fast]
 command = "basic-http-server"

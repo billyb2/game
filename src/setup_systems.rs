@@ -15,10 +15,9 @@ use bevy::render::{
 
 use rand::Rng;
 
-use hashbrown::HashMap;
-
 use crate::*;
 use crate::shaders::*;
+use single_byte_hashmap::*;
 
  pub fn setup_cameras(mut commands: Commands) {
     commands.spawn_bundle(UiCameraBundle::default());
@@ -367,7 +366,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
-    let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity(256);
+    let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
     online_player_ids.insert(0);
     deathmatch_score.0.insert(0, 0);
