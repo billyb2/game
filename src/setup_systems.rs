@@ -3,6 +3,7 @@
 
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::collections::BTreeSet;
+use std::fs::read_dir;
 
 use bevy::prelude::*;
 use bevy::prelude::Rect;
@@ -40,6 +41,19 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
     let flame1 = rng.gen_range(200..=250);
     let flame2 = rng.gen_range(100..=150);
+    let flame3 = rng.gen_range(100..=250);
+
+    let mut map_assets: HashMap<u8, Handle<ColorMaterial>> = HashMap::with_capacity_and_hasher(256, BuildHasher::default());
+
+    for path in read_dir("./assets/map_assets").unwrap() {
+        let int = path.unwrap().file_name().to_string_lossy()[..1].parse::<u8>().unwrap();
+        let path_string = &*format!("map_assets/{}.png", int);
+
+        let asset = asset_server.load(path_string);
+
+        map_assets.insert(int, materials.add(asset.into()));
+
+    }
 
     asset_server.watch_for_changes().unwrap();
 
@@ -50,7 +64,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
         flamethrower1: materials.add(Color::rgb_u8(flame1, 43, 9).into()),
         flamethrower2: materials.add(Color::rgb_u8(221, flame2, 9).into()),
-        flamethrower3: materials.add(Color::rgb_u8(249, 249, 12).into()),
+        flamethrower3: materials.add(Color::rgb_u8(flame3, 43, 12).into()),
         engineer: materials.add(Color::rgb_u8(255, 0, 200).into()),
         molotov: materials.add(Color::rgb_u8(232, 35, 0).into()),
         molotov_fire: materials.add(molotov_fire_sprite.into()),
@@ -64,13 +78,15 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
     });
 
-    let game_button_color = Color::rgb(4.0 / 255.0, 221.0 / 255.0, 185.0 / 255.0);
+    let game_button_color = Color::rgb_u8(4, 221, 185);
 
     commands.insert_resource(GameMenuButtonMaterials {
         normal: materials.add(game_button_color.into()),
         hovered: materials.add((game_button_color * (3.0 / 2.0)).into()),
 
     });
+
+    commands.insert_resource(MapAssets(map_assets));
 }
 
 pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -361,8 +377,6 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 #[allow(clippy::too_many_arguments)]
 pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>) {
     let mut i: u8 = 0;
-
-    //let mut rng = rand::thread_rng();
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();

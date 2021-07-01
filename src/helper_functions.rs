@@ -13,6 +13,7 @@ use rayon::join;
 #[cfg(feature = "native")]
 use std::net::UdpSocket;
 
+#[inline]
 pub fn slice_to_u32(data: &[u8]) -> u32 {
     debug_assert!(data.len() == 4);
 
@@ -21,7 +22,6 @@ pub fn slice_to_u32(data: &[u8]) -> u32 {
     u32::from_be_bytes(data_array)
 
 }
-
 
 pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     let dy = ey - cy;

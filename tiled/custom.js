@@ -124,19 +124,13 @@ var customMapFormat = {
         array.push((map_height & 0x000000ff));
 
         let rgb_hex = String(map.backgroundColor).substr(1).match(/.{1,2}/g);
-        let rgb = [
-            parseInt(rgb_hex[0], 16),
-            parseInt(rgb_hex[1], 16),
-            parseInt(rgb_hex[2], 16)
-        ];
 
-         for (let i = 0; i < rgb.len(); i++) {
-            array.push(rgb[i]);
-
-         }
+         array.push(parseInt(rgb_hex[0], 16));
+         array.push(parseInt(rgb_hex[1], 16));
+         array.push(parseInt(rgb_hex[2], 16));
 
 
-        for (q = 0; q < map.layerCount ; q++) {
+        for (q = 0; q < map.layerCount; q++) {
             let layer = map.layerAt(q);
 
             if (layer.isObjectLayer) {
@@ -157,6 +151,8 @@ var customMapFormat = {
                         let green = object.property("green");
                         let blue = object.property("blue");
                         let alpha = object.property("alpha");
+
+                        let filename = object.property("filename");
 
                         if ((x + width) > map_width) {
                             map_width = x + width;
@@ -208,26 +204,32 @@ var customMapFormat = {
 
                         }
 
-                        array.push(red);
-                        array.push(green);
-                        array.push(blue);
-                        array.push(alpha);
+                        if (red != null && green != null && blue != null && alpha != null) {
+                           array.push(0);
+
+                           array.push(red);
+                           array.push(green);
+                           array.push(blue);
+                           array.push(alpha);
+
+                        } else {
+                           array.push(255);
+
+                           // Files HAVE to be called a u32 integer, just because it makes my life easier to not have some variable length encoding stuff.
+                           array.push((filename & 0xff000000) >> 24);
+                           array.push((filename & 0x00ff0000) >> 16);
+                           array.push((filename & 0x0000ff00) >> 8);
+                           array.push(filename & 0x000000ff);
+
+                        }
+
+                        // Since the health is 0, walls are indestructible
                         array.push(0);
-
-
 
                     }
                 }
             }
         }
-
-
-        // An entirely null map object signifies the start of the crc32 hash
-        for (var i = 1; i < 22; i ++) {
-            array.push(0);
-
-        }
-
 
         var file = new BinaryFile(fileName, BinaryFile.WriteOnly);
 

@@ -496,7 +496,8 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
 
                             }
 
-                            let color = Color::rgb_u8(255, 255, 0);
+                            let color_vec = UVec4::new(255, 255, 0, 255);
+                            let color = Color::rgb_u8(color_vec.x as u8, color_vec.y as u8, color_vec.z as u8);
 
                             let color_handle: Handle<ColorMaterial> = {
                                 let mut color_to_return = None;
@@ -546,10 +547,11 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
                                 MapObject {
                                     coords,
                                     size,
-                                    color,
+                                    sprite: color_vec,
                                     collidable: true,
                                     player_spawn: false,
                                     health: Some(health_of_wall),
+                                    using_image: false,
 
                                 }
                             );
