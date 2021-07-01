@@ -159,6 +159,7 @@
   </object>
   <object id="99" x="254.103" y="348.664" width="23.855" height="39.6947">
    <properties>
+    <property name="filename" type="int" value="0"/>
     <property name="player_collidable" type="bool" value="true"/>
     <property name="player_spawn" type="bool" value="false"/>
    </properties>

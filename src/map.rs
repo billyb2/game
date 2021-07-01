@@ -19,6 +19,7 @@ use crc32fast::Hasher;
 use lz4_flex::frame::FrameDecoder;
 
 use single_byte_hashmap::*;
+use hashbrown::HashMap as HashBrownMap;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -38,15 +39,16 @@ pub struct MapObject {
 }
 
 pub struct Map {
+    pub name: String,
     pub objects: Vec<MapObject>,
     pub background_color: Color,
     pub size: Vec2,
 
 }
 
-//TODO: u32 hashmap??
 pub struct MapAssets(pub HashMap<u8, Handle<ColorMaterial>>);
 
+pub struct Maps(pub HashBrownMap<String, Map>);
 
 impl MapObject {
     fn collision(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
@@ -55,12 +57,12 @@ impl MapObject {
 
     }
 
-
 }
 
 impl Map {
-    pub fn new(objects: Vec<MapObject>, size: [f32; 2], background_color: Color) -> Map {
+    pub fn new(name: String, objects: Vec<MapObject>, size: [f32; 2], background_color: Color) -> Map {
         Map {
+            name,
             objects,
             size: Vec2::new(size[0], size[1]),
             background_color,
@@ -88,15 +90,33 @@ impl Map {
         let map_height = slice_to_u32(&bytes[4..=7]) * 6;
         let background_color = Color::rgb_u8(bytes[8], bytes[9], bytes[10]);
 
+        let mut start_of_map = 11;
+
+        let mut map_char_vec = Vec::with_capacity(10);
+
+        for byte in &bytes[11..] {
+            if *byte == 0 {
+
+                break;
+            } 
+
+            map_char_vec.push(*byte as char);
+
+            start_of_map += 1;
+
+        }
+
+        let map_name: String = map_char_vec.into_iter().collect();
+
         let mut objects: Vec<MapObject> = Vec::with_capacity(0);
 
         // The map metadata length is 11 bytes
         // Splits the map into chunks each the size of a single map object
         #[cfg(feature = "parallel")]
-        let chunks = (&bytes[11..]).par_chunks_exact(24);
+        let chunks = (&bytes[start_of_map..]).par_chunks_exact(24);
 
         #[cfg(not(feature = "parallel"))]
-        let chunks = (&bytes[11..]).chunks_exact(24);
+        let chunks = (&bytes[start_of_map..]).chunks_exact(24);
 
         // Since the CRC32 is 4 bytes, it will be the final remainder of the map
         let crc32: u32 = slice_to_u32(chunks.remainder());
@@ -156,7 +176,7 @@ impl Map {
             calculate_crc32();
         }
 
-        Map::new(objects, [map_width as f32, map_height as f32], background_color)
+        Map::new(map_name, objects, [map_width as f32, map_height as f32], background_color)
 
     }
 
@@ -231,20 +251,32 @@ impl Map {
 }
 
 // This system just iterates through the map and draws each MapObject
-pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, map: Res<Map>, map_assets: Res<MapAssets>) {
+pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>) {
+
+    let map = maps.0.get(&String::from("default")).unwrap();
 
     // Set the background color to the map's specified color
-    commands.insert_resource(ClearColor((*map).background_color));
+    commands.insert_resource(ClearColor(map.background_color));
 
     map.objects.iter().for_each(|object| {
         let map_coords = object.coords;
         let map_object_size =  object.size;
 
-        // TODO: Use a HashMap that actually accepts u32
         let map_asset_int = slice_to_u32(&[object.sprite.x as u8, object.sprite.y as u8, object.sprite.z as u8, object.sprite.w as u8]) as u8;
 
         let color_handle = match object.using_image {
-            true => map_assets.0.get(&map_asset_int).unwrap().clone(),
+            true => match map_assets.0.get(&map_asset_int) {
+                Some(asset) => asset.clone(),
+                None => {
+                    let path_string = &*format!("map_assets/{}.png", map_asset_int);
+                    let asset = asset_server.load(path_string);
+                    let asset = materials.add(asset.into());
+
+                    map_assets.0.insert(map_asset_int, asset.clone());
+
+                    asset.clone()
+                }
+            },
             false => materials.add(Color::rgba_u8(object.sprite.x as u8, object.sprite.y as u8, object.sprite.z as u8, object.sprite.w as u8).into()),
 
         };

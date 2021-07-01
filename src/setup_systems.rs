@@ -3,7 +3,6 @@
 
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::collections::BTreeSet;
-use std::fs::read_dir;
 
 use bevy::prelude::*;
 use bevy::prelude::Rect;
@@ -43,16 +42,29 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let flame2 = rng.gen_range(100..=150);
     let flame3 = rng.gen_range(100..=250);
 
+    #[cfg(feature = "native")]
     let mut map_assets: HashMap<u8, Handle<ColorMaterial>> = HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
-    for path in read_dir("./assets/map_assets").unwrap() {
-        let int = path.unwrap().file_name().to_string_lossy()[..1].parse::<u8>().unwrap();
-        let path_string = &*format!("map_assets/{}.png", int);
+    #[cfg(feature = "web")]
+    let map_assets: HashMap<u8, Handle<ColorMaterial>> = HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
-        let asset = asset_server.load(path_string);
+    // Native builds can preload assets
+    #[cfg(feature = "native")]
+    {
+        let assets = asset_server.load_folder("map_assets/").unwrap();
 
-        map_assets.insert(int, materials.add(asset.into()));
+        assets.iter().for_each(|asset| {
+            let asset = asset.clone().typed();
+            let asset_path = asset_server.get_handle_path(asset.clone()).unwrap();
+            let path = asset_path.path();
+            let file_name_string = path.file_stem().unwrap().to_str().unwrap();
 
+            let int = file_name_string.parse::<u8>().unwrap();
+
+            map_assets.insert(int, materials.add(asset.clone().into()));
+
+
+        });
     }
 
     asset_server.watch_for_changes().unwrap();
@@ -375,7 +387,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Maps>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>) {
     let mut i: u8 = 0;
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
@@ -418,7 +430,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, map: Res<Map>
 
     let mut living = true;
 
-    for object in map.objects.iter() {
+    for object in maps.0.get(&String::from("default")).unwrap().objects.iter() {
         if object.player_spawn {
             let ability = *my_ability;
             let gun_model = *my_gun_model;

@@ -28,9 +28,11 @@ macro_rules! console_log {
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
-pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, map: Res<Map>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id) = &my_player_id.0 {
         let (player, sprite) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+
+        let map = maps.0.get(&String::from("default")).unwrap();
 
         let mut x = player.translation.x - sprite.size.x / 2.0;
         let mut y = player.translation.y + sprite.size.y / 2.0;
@@ -474,8 +476,8 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Visible)>, mut ev_use_ability: EventReader<AbilityEvent>, mut map:
-ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>) {
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Visible)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
+ResMut<Maps>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, mut requested_movement, ability, mut ability_charge, mut
@@ -543,7 +545,7 @@ ResMut<Map>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, on
                                 .insert(Health(health_of_wall))
                                 .insert(WallMarker);
 
-                            map.objects.push(
+                            maps.0.get_mut(&String::from("default")).unwrap().objects.push(
                                 MapObject {
                                     coords,
                                     size,

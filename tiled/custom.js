@@ -130,6 +130,14 @@ var customMapFormat = {
          array.push(parseInt(rgb_hex[2], 16));
 
 
+         // Name
+         let map_name = "default";
+
+         for (let index = 0; index < map_name.length; index ++) {
+            array.push(map_name[index].charCodeAt(0));
+         }
+
+
         for (q = 0; q < map.layerCount; q++) {
             let layer = map.layerAt(q);
 
