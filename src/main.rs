@@ -255,6 +255,8 @@ pub struct DeathEvent(u8);
 
 pub struct OnlinePlayerIDs(BTreeSet<u8>);
 
+pub struct MapCRC32(u32);
+
 // If a player gets a score of 15 kills, the game ends
 const SCORE_LIMIT: u8 = 15;
 
@@ -262,6 +264,8 @@ fn main() {
     let mut app = App::build();
 
     let mut rng = rand::thread_rng();
+
+    let map = Map::from_bin(include_bytes!("../tiled/map1.custom"));
 
     #[cfg(debug_assertions)]
     app
@@ -296,12 +300,12 @@ fn main() {
     .add_state(AppState::MainMenu)
 
     .insert_resource(TaskPool::new())
+    .insert_resource(MapCRC32(map.crc32))
     // Embed the map into the binary
     .insert_resource({
         let mut maps = Maps(HashBrownMap::with_capacity(1));
-        let map = Map::from_bin(include_bytes!("../tiled/map1.custom"));
 
-        maps.0.insert(map.name.clone(), map);
+        maps.0.insert(map.crc32, map);
 
         maps
     })
@@ -523,10 +527,10 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, task_pool: Res<TaskPool>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, task_pool: Res<TaskPool>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
-    let map = maps.0.get_mut(&String::from("default")).unwrap();
+    let map = maps.0.get_mut(&map_crc32.0).unwrap();
 
     player_movements.par_for_each_mut(&task_pool, 1, |(mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible)| {
         if movement.speed != 0.0 && health.0 != 0.0 {

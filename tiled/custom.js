@@ -110,8 +110,8 @@ var customMapFormat = {
     write: function(map, fileName) {
         let array = [];
 
-        let map_width = map.width * 6.0;
-        let map_height = map.height * 6.0;
+        let map_width = map.width * 30.0;
+        let map_height = map.height * 30.0;
 
         array.push((map_width & 0xff000000) >> 24);
         array.push((map_width & 0x00ff0000) >> 16);

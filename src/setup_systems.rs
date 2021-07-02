@@ -4,8 +4,8 @@
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::collections::BTreeSet;
 
-use bevy::prelude::*;
 use bevy::prelude::Rect;
+use bevy::prelude::*;
 
 use bevy::render::{
     pipeline::{PipelineDescriptor, RenderPipeline},
@@ -15,20 +15,23 @@ use bevy::render::{
 
 use rand::Rng;
 
-use crate::*;
 use crate::shaders::*;
+use crate::*;
 use single_byte_hashmap::*;
 
- pub fn setup_cameras(mut commands: Commands) {
+pub fn setup_cameras(mut commands: Commands) {
     commands.spawn_bundle(UiCameraBundle::default());
 
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(GameCamera);
-
 }
 
-pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
+pub fn setup_materials(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
+) {
     //TODO: Use a spritesheet
     // The gorgeous assets are made by Shelby
     let default_sprite = asset_server.load("player_sprites/default.png");
@@ -43,10 +46,12 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let flame3 = rng.gen_range(100..=250);
 
     #[cfg(feature = "native")]
-    let mut map_assets: HashMap<u8, Handle<ColorMaterial>> = HashMap::with_capacity_and_hasher(256, BuildHasher::default());
+    let mut map_assets: HashMap<u8, Handle<ColorMaterial>> =
+        HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
     #[cfg(feature = "web")]
-    let map_assets: HashMap<u8, Handle<ColorMaterial>> = HashMap::with_capacity_and_hasher(256, BuildHasher::default());
+    let map_assets: HashMap<u8, Handle<ColorMaterial>> =
+        HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
     // Native builds can preload assets
     #[cfg(feature = "native")]
@@ -61,9 +66,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
             let int = file_name_string.parse::<u8>().unwrap();
 
-            map_assets.insert(int, materials.add(asset.clone().into()));
-
-
+            map_assets.insert(int, materials.add(asset.into()));
         });
     }
 
@@ -81,13 +84,11 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         molotov: materials.add(Color::rgb_u8(232, 35, 0).into()),
         molotov_fire: materials.add(molotov_fire_sprite.into()),
         molotov_liquid: materials.add(molotov_liquid_sprite.into()),
-
     });
 
     commands.insert_resource(ButtonMaterials {
         normal: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
         hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
-
     });
 
     let game_button_color = Color::rgb_u8(4, 221, 185);
@@ -95,7 +96,6 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     commands.insert_resource(GameMenuButtonMaterials {
         normal: materials.add(game_button_color.into()),
         hovered: materials.add((game_button_color * (3.0 / 2.0)).into()),
-
     });
 
     commands.insert_resource(MapAssets(map_assets));
@@ -169,16 +169,14 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             },
             text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "0%".to_string(),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 45.0,
-                            color: Color::RED,
-                        },
+                sections: vec![TextSection {
+                    value: "0%".to_string(),
+                    style: TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 45.0,
+                        color: Color::RED,
                     },
-                ],
+                }],
                 ..Default::default()
             },
             ..Default::default()
@@ -202,16 +200,14 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             },
             text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "Health: 0%".to_string(),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 45.0,
-                            color: Color::GREEN,
-                        },
+                sections: vec![TextSection {
+                    value: "Health: 0%".to_string(),
+                    style: TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 45.0,
+                        color: Color::GREEN,
                     },
-                ],
+                }],
                 ..Default::default()
             },
             ..Default::default()
@@ -250,8 +246,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexEnd,
                 margin: Rect {
-                   left: Val::Auto,
-                   right: Val::Auto,
+                    left: Val::Auto,
+                    right: Val::Auto,
 
                     ..Default::default()
                 },
@@ -266,33 +262,30 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             },
             ..Default::default()
-
         })
         .with_children(|node_parent| {
-            node_parent.spawn_bundle(TextBundle {
-                text: Text {
-                    sections: vec![
-                        TextSection {
+            node_parent
+                .spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![TextSection {
                             value: "Score\n".to_string(),
                             style: TextStyle {
                                 font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                 font_size: 45.0,
                                 color: Color::WHITE,
                             },
-                        }
-                    ],
-                    ..Default::default()
-                },
-                visible: Visible {
-                    is_visible: false,
+                        }],
+                        ..Default::default()
+                    },
+                    visible: Visible {
+                        is_visible: false,
 
+                        ..Default::default()
+                    },
                     ..Default::default()
-
-                },
-                ..Default::default()
-            })
-            .insert(ScoreUI)
-            .insert(GameRelated);
+                })
+                .insert(ScoreUI)
+                .insert(GameRelated);
         });
 
     // The text saying that a player won the game
@@ -302,8 +295,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexEnd,
                 margin: Rect {
-                   left: Val::Auto,
-                   right: Val::Auto,
+                    left: Val::Auto,
+                    right: Val::Auto,
 
                     ..Default::default()
                 },
@@ -318,35 +311,31 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             },
             ..Default::default()
-
         })
         .with_children(|node_parent| {
-            node_parent.spawn_bundle(TextBundle {
-                text: Text {
-                    sections: vec![
-                        TextSection {
+            node_parent
+                .spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![TextSection {
                             value: String::from("Player X won!"),
                             style: TextStyle {
                                 font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                 font_size: 45.0,
                                 color: Color::WHITE,
                             },
-                        }
-                    ],
-                    ..Default::default()
-                },
-                visible: Visible {
-                    is_visible: false,
+                        }],
+                        ..Default::default()
+                    },
+                    visible: Visible {
+                        is_visible: false,
 
+                        ..Default::default()
+                    },
                     ..Default::default()
-
-                },
-                ..Default::default()
-            })
-            .insert(ChampionText)
-            .insert(GameRelated);
+                })
+                .insert(ChampionText)
+                .insert(GameRelated);
         });
-
 }
 
 pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
@@ -379,20 +368,32 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
         Ability::Wall => (WALL_HELMET_COLOR, WALL_SUIT_COLOR),
         Ability::Stim => (STIM_HELMET_COLOR, STIM_SUIT_COLOR),
         Ability::Cloak => (CLOAK_HELMET_COLOR, CLOAK_SUIT_COLOR),
-
     };
 
     (helmet_color, inner_suit_color)
-
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Maps>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>) {
+pub fn setup_players(
+    mut commands: Commands,
+    materials: Res<Skin>,
+    maps: Res<Maps>,
+    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
+    mut render_graph: ResMut<RenderGraph>,
+    wnds: Res<Windows>,
+    mut deathmatch_score: ResMut<DeathmatchScore>,
+    my_ability: Res<Ability>,
+    my_gun_model: Res<Model>,
+    my_perk: Res<Perk>,
+    shader_assets: Res<AssetsLoading>,
+    map_crc32: Res<MapCRC32>
+) {
     let mut i: u8 = 0;
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
-    let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(256, BuildHasher::default());
+    let mut player_entities: HashMap<u8, Entity> =
+        HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
     online_player_ids.insert(0);
     deathmatch_score.0.insert(0, 0);
@@ -430,7 +431,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
 
     let mut living = true;
 
-    for object in maps.0.get(&String::from("default")).unwrap().objects.iter() {
+    for object in maps.0.get(&map_crc32.0).unwrap().objects.iter() {
         if object.player_spawn {
             let ability = *my_ability;
             let gun_model = *my_gun_model;
@@ -452,7 +453,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
                     },
                     visible: Visible {
                         is_visible: living,
-                        
+
                         ..Default::default()
                     },
                     transform: Transform::from_translation(object.coords),
@@ -463,7 +464,9 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
                     ..Default::default()
                 })
                 .insert(ShaderMousePosition { value: Vec2::ZERO })
-                .insert(WindowSize { value: Vec2::new(wnd.width(), wnd.height()) })
+                .insert(WindowSize {
+                    value: Vec2::new(wnd.width(), wnd.height()),
+                })
                 .insert(helmet_color)
                 .insert(inner_suit_color)
                 .insert(GameRelated)
@@ -473,13 +476,11 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
 
             if i != 0 {
                 availabie_player_ids.push(PlayerID(i));
-
             }
 
             living = false;
 
             i += 1;
-
         }
     }
 
@@ -488,7 +489,11 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
     commands.insert_resource(player_entities);
 }
 
-pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {
+pub fn setup_main_menu(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    button_materials: Res<ButtonMaterials>,
+) {
     commands.insert_resource(ClearColor(Color::BLACK));
 
     commands
@@ -497,8 +502,8 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                 flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexEnd,
                 margin: Rect {
-                   left: Val::Auto,
-                   right: Val::Auto,
+                    left: Val::Auto,
+                    right: Val::Auto,
 
                     ..Default::default()
                 },
@@ -513,106 +518,101 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                 ..Default::default()
             },
             ..Default::default()
-
         })
         .with_children(|node_parent| {
             node_parent.spawn_bundle(TextBundle {
                 text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: "Necrophaser".to_string(),
-                            style: TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 80.0,
-                                color: Color::GOLD,
-                            },
+                    sections: vec![TextSection {
+                        value: "Necrophaser".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 80.0,
+                            color: Color::GOLD,
                         },
-                    ],
+                    }],
                     ..Default::default()
                 },
                 ..Default::default()
-
             });
 
             // Only PC's can host games
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                margin: Rect {
-                    bottom: Val::Percent(10.0),
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        margin: Rect {
+                            bottom: Val::Percent(10.0),
 
+                            ..Default::default()
+                        },
+                        size: Size::new(Val::Px(185.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
                     ..Default::default()
-                },
-                size: Size::new(Val::Px(185.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
                         text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Play"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
+                            sections: vec![TextSection {
+                                value: String::from("Play"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
                                 },
-                            ],
+                            }],
                             ..Default::default()
                         },
                         ..Default::default()
-
+                    });
                 });
-            });
 
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
 
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: String::from("Settings"),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
-                        ..Default::default()
-
-                })
-                .insert(KeyBindingButtons::Down);
-            });
-
+                        })
+                        .insert(KeyBindingButtons::Down);
+                });
         });
-
-
 }
 
-pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>) {
+pub fn setup_customize_menu(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    button_materials: Res<GameMenuButtonMaterials>,
+    my_ability: Res<Ability>,
+    my_gun_model: Res<Model>,
+    my_perk: Res<Perk>,
+) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -621,7 +621,7 @@ pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServe
                 flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexStart,
                 margin: Rect {
-                   bottom: Val::Auto,
+                    bottom: Val::Auto,
 
                     ..Default::default()
                 },
@@ -636,189 +636,171 @@ pub fn setup_customize_menu(mut commands: Commands, asset_server: Res<AssetServe
                 ..Default::default()
             },
             ..Default::default()
-
         })
         .with_children(|node_parent| {
             node_parent.spawn_bundle(TextBundle {
                 text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: String::from("Customize"),
-                            style: TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 80.0,
-                                color: Color::WHITE,
-                            },
+                    sections: vec![TextSection {
+                        value: String::from("Customize"),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 80.0,
+                            color: Color::WHITE,
                         },
-                    ],
+                    }],
                     ..Default::default()
                 },
                 ..Default::default()
-
             });
 
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                margin: Rect {
-                    //bottom: Val::Percent(10.0),
-
-                    ..Default::default()
-                },
-                size: Size::new(Val::Px(350.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: format!("Ability: {:?}", *my_ability),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        margin: Rect {
+                            //bottom: Val::Percent(10.0),
                             ..Default::default()
                         },
-                        ..Default::default()
+                        size: Size::new(Val::Px(350.0), Val::Px(85.0)),
 
-                });
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(450.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: format!("Gun: {:?}", *my_gun_model),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
-                });
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(450.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: format!("Perk: {:?}", *my_perk),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
-                });
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Back"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
-                });
-            });
-
-            node_parent.spawn_bundle(TextBundle {
-                text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: String::from(" "),
-                                style: TextStyle {
-                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                    font_size: 25.0,
-                                    color: Color::WHITE,
-                                },
-                            },
-                        ],
                         ..Default::default()
                     },
-                ..Default::default()
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: format!("Ability: {:?}", *my_ability),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
 
-            })
-            .insert(CustomizeHelpText);
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(450.0), Val::Px(85.0)),
 
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: format!("Gun: {:?}", *my_gun_model),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(450.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: format!("Perk: {:?}", *my_perk),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from("Back"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
+
+            node_parent
+                .spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![TextSection {
+                            value: String::from(" "),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 25.0,
+                                color: Color::WHITE,
+                            },
+                        }],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(CustomizeHelpText);
         });
-
-
 }
 
-pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
+pub fn setup_game_menu(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    button_materials: Res<GameMenuButtonMaterials>,
+) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -827,7 +809,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                 flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexStart,
                 margin: Rect {
-                   bottom: Val::Auto,
+                    bottom: Val::Auto,
 
                     ..Default::default()
                 },
@@ -842,184 +824,169 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                 ..Default::default()
             },
             ..Default::default()
-
         })
         .with_children(|node_parent| {
             node_parent.spawn_bundle(TextBundle {
                 text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: String::from("Play"),
-                            style: TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 80.0,
-                                color: Color::WHITE,
-                            },
+                    sections: vec![TextSection {
+                        value: String::from("Play"),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 80.0,
+                            color: Color::WHITE,
                         },
-                    ],
+                    }],
                     ..Default::default()
                 },
                 ..Default::default()
-
             });
 
             // Only PC's can host games
             #[cfg(feature = "native")]
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                margin: Rect {
-                    bottom: Val::Percent(10.0),
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        margin: Rect {
+                            bottom: Val::Percent(10.0),
 
+                            ..Default::default()
+                        },
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
                     ..Default::default()
-                },
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
                         text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Host game"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
+                            sections: vec![TextSection {
+                                value: String::from("Host game"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
                                 },
-                            ],
+                            }],
                             ..Default::default()
                         },
                         ..Default::default()
-
+                    });
                 });
-            });
 
             // Only WASM can join games
             #[cfg(feature = "web")]
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                margin: Rect {
-                    bottom: Val::Percent(10.0),
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        margin: Rect {
+                            bottom: Val::Percent(10.0),
 
+                            ..Default::default()
+                        },
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
                     ..Default::default()
-                },
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
                         text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Join game"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
+                            sections: vec![TextSection {
+                                value: String::from("Join game"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
                                 },
-                            ],
+                            }],
                             ..Default::default()
                         },
                         ..Default::default()
-
+                    });
                 });
-            });
 
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
 
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: String::from("Customize"),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
-                        ..Default::default()
-
-                })
-                .insert(KeyBindingButtons::Down);
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Back"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
+                        })
+                        .insert(KeyBindingButtons::Down);
                 });
-            });
 
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from("Back"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
         });
-
-
 }
 
-pub fn setup_settings(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>, keybindings: Res<KeyBindings>) {
+pub fn setup_settings(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    button_materials: Res<ButtonMaterials>,
+    keybindings: Res<KeyBindings>,
+) {
     commands.insert_resource(ClearColor(Color::BLACK));
-    commands
-        .spawn()
-        .insert(SelectedKeyButton(None));
+    commands.spawn().insert(SelectedKeyButton(None));
 
     commands
         .spawn_bundle(NodeBundle {
@@ -1027,8 +994,8 @@ pub fn setup_settings(mut commands: Commands, asset_server: Res<AssetServer>, bu
                 flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexEnd,
                 margin: Rect {
-                   left: Val::Auto,
-                   right: Val::Auto,
+                    left: Val::Auto,
+                    right: Val::Auto,
 
                     ..Default::default()
                 },
@@ -1043,268 +1010,245 @@ pub fn setup_settings(mut commands: Commands, asset_server: Res<AssetServer>, bu
                 ..Default::default()
             },
             ..Default::default()
-
         })
         .with_children(|node_parent| {
             node_parent.spawn_bundle(TextBundle {
                 text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: "Settings".to_string(),
-                            style: TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 75.0,
-                                color: Color::GOLD,
-                            },
+                    sections: vec![TextSection {
+                        value: "Settings".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 75.0,
+                            color: Color::GOLD,
                         },
-                    ],
+                    }],
                     ..Default::default()
                 },
                 ..Default::default()
-
             });
 
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
 
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: format!("Up: {:?}", keybindings.up),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
+                        })
+                        .insert(KeyBindingButtons::Up);
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+
                         ..Default::default()
-
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
                 })
-                .insert(KeyBindingButtons::Up);
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: format!("Down: {:?}", keybindings.down),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
+                        })
+                        .insert(KeyBindingButtons::Down);
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+
                         ..Default::default()
-
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
                 })
-                .insert(KeyBindingButtons::Down);
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: format!("Left: {:?}", keybindings.left),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
+                        })
+                        .insert(KeyBindingButtons::Left);
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+
                         ..Default::default()
-
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
                 })
-                .insert(KeyBindingButtons::Left);
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: format!("Right: {:?}", keybindings.right),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
+                        })
+                        .insert(KeyBindingButtons::Right);
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+
                         ..Default::default()
-
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
                 })
-                .insert(KeyBindingButtons::Right);
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: format!("Ability: {:?}", keybindings.use_ability),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
+                        })
+                        .insert(KeyBindingButtons::UseAbility);
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
+
                         ..Default::default()
-
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
                 })
-                .insert(KeyBindingButtons::UseAbility);
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
                                     value: format!("Reload: {:?}", keybindings.reload),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,
                                         color: Color::WHITE,
                                     },
-                                },
-                            ],
+                                }],
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
-                        ..Default::default()
-
-                })
-                .insert(KeyBindingButtons::Reload);
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Back"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
+                        })
+                        .insert(KeyBindingButtons::Reload);
                 });
-            });
 
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
 
-
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from("Back"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
         });
-
 }
 
 pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -1316,8 +1260,8 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
                 flex_direction: FlexDirection::ColumnReverse,
                 align_self: AlignSelf::FlexEnd,
                 margin: Rect {
-                   left: Val::Auto,
-                   right: Val::Auto,
+                    left: Val::Auto,
+                    right: Val::Auto,
 
                     ..Default::default()
                 },
@@ -1332,27 +1276,22 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
                 ..Default::default()
             },
             ..Default::default()
-
         })
         .with_children(|node_parent| {
             node_parent.spawn_bundle(TextBundle {
                 text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: "Connecting, please wait...".to_string(),
-                            style: TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 80.0,
-                                color: Color::WHITE,
-                            },
+                    sections: vec![TextSection {
+                        value: "Connecting, please wait...".to_string(),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 80.0,
+                            color: Color::WHITE,
                         },
-                    ],
+                    }],
                     ..Default::default()
                 },
                 ..Default::default()
-
             });
-
         });
 }
 
@@ -1488,7 +1427,6 @@ pub fn setup_default_controls(mut commands: Commands) {
 
         show_score: KeyCode::Tab,
         dash: KeyCode::E,
-
     });
 }
 
@@ -1496,13 +1434,10 @@ pub fn setup_id(mut commands: Commands, hosting: Res<Hosting>) {
     #[cfg(feature = "native")]
     if hosting.0 {
         commands.insert_resource(MyPlayerID(Some(PlayerID(0))));
-
     }
 
     #[cfg(feature = "web")]
     if !hosting.0 {
         commands.insert_resource(MyPlayerID(None));
-
     }
-
 }

@@ -130,6 +130,28 @@ const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 64,
 };
 
+const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+    channel: 5,
+    channel_mode: MessageChannelMode::Reliable {
+        reliability_settings: ReliableChannelSettings {
+            bandwidth: 8,
+            recv_window_size: 2048,
+            send_window_size: 2048,
+            burst_bandwidth: 2048,
+            init_send: 1024,
+            wakeup_time: Duration::from_millis(50),
+            initial_rtt: Duration::from_millis(200),
+            // Info requests time out after 10 seconds
+            max_rtt: Duration::from_secs(10),
+            rtt_update_factor: 0.1,
+            rtt_resend_factor: 1.5,
+        },
+        max_message_len: 128,
+    },
+    message_buffer_size: 8,
+    packet_buffer_size: 8,
+};
+
 #[cfg(feature = "web")]
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
@@ -188,6 +210,10 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
         builder
             .register::<([u8; 2], [f32; 3])>(ABILITY_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<u32>(SET_MAP_SETTINGS)
             .unwrap();
 
     });
@@ -435,7 +461,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
         let mut messages_to_send: Vec<(u32, [u8; 3])> = Vec::with_capacity(255);
@@ -488,13 +514,15 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 
         for (handle, message) in messages_to_send.iter() {
             net.send_message(*handle, *message).unwrap();
+            net.send_message(*handle, map_crc32.0).unwrap();
 
         }
+
     }
 }
 
 #[cfg(feature = "web")]
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>) {
     if !hosting.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
@@ -536,6 +564,11 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                     });
 
                 }
+            }
+
+            while let Some(new_crc32) = channels.recv::<u32>() {
+                map_crc32.0 = new_crc32;
+
             }
         }
     }
