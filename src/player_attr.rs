@@ -35,49 +35,37 @@ pub struct Player {
 
 }
 
+pub const DEFAULT_PLAYER_SPEED: f32 = 13.0;
+
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
+
+    let mut set_ability_charge = || *ability_charge = match ability {
+        Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
+        Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
+        Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
+        Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
+        Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
+        Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
+        Ability::Cloak => AbilityCharge(Timer::from_seconds(17.0, false)),
+        Ability::PulseWave => AbilityCharge(Timer::from_seconds(10.0, false)),
+
+    };
+
+    let mut set_ability_completed = || *ability_completed = match ability {
+        Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
+        Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
+        // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
+        _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
+    };
+
     #[cfg(feature = "parallel")]
-    join(
-        || *ability_charge = match ability {
-            Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
-            Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
-            Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
-            Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
-            Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
-            Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
-            Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
-
-        },
-
-        || *ability_completed = match ability {
-            Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
-            Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
-            // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
-            _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
-        }
-
-    );
+    join(set_ability_charge, set_ability_completed);
 
     #[cfg(not(feature = "parallel"))]
     {
-        *ability_charge = match ability {
-            Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
-            Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
-            Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
-            Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
-            Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
-            Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
-            Ability::Cloak => AbilityCharge(Timer::from_seconds(20.0, false)),
-
-        };
-
-        *ability_completed = match ability {
-            Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
-            Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
-            // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
-            _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
-        };
+        set_ability_charge();
+        set_ability_completed();
 
     };
 
@@ -116,8 +104,8 @@ impl Player {
             },
             speed: match ability {
                 // Stim players have a faster default running speed
-                Ability::Stim => PlayerSpeed(14.0),
-                _ => PlayerSpeed(13.0),
+                Ability::Stim => PlayerSpeed(DEFAULT_PLAYER_SPEED + 1.0),
+                _ => PlayerSpeed(DEFAULT_PLAYER_SPEED),
             },
             requested_movement: RequestedMovement::new(0.0, 0.0),
             movement_type: MovementType::SingleFrame,
@@ -156,6 +144,7 @@ pub enum Ability {
     Hacker,
     Inferno,
     Cloak,
+    PulseWave,
 
 }
 
@@ -180,6 +169,7 @@ impl From<u8> for Ability {
             4 => Ability::Hacker,
             5 => Ability::Inferno,
             6 => Ability::Cloak,
+            7 => Ability::PulseWave,
             _ => panic!("Ability conversion out of bounds: {} was requested, max is {}", ability, NUM_OF_ABILITIES),
 
         }
@@ -198,6 +188,7 @@ impl From<Ability> for u8 {
             Ability::Hacker => 4,
             Ability::Inferno => 5,
             Ability::Cloak => 6,
+            Ability::PulseWave => 7,
 
         }
 

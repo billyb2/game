@@ -39,6 +39,8 @@ pub fn setup_materials(
     let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
     let molotov_liquid_sprite = asset_server.load("projectile_sprites/molotov_liquid.png");
 
+    let pulsewave_sprite = asset_server.load("projectile_sprites/pulsewave.png");
+
     let mut rng = rand::thread_rng();
 
     let flame1 = rng.gen_range(200..=250);
@@ -84,6 +86,7 @@ pub fn setup_materials(
         molotov: materials.add(Color::rgb_u8(232, 35, 0).into()),
         molotov_fire: materials.add(molotov_fire_sprite.into()),
         molotov_liquid: materials.add(molotov_liquid_sprite.into()),
+        pulsewave: materials.add(pulsewave_sprite.into()),
     });
 
     commands.insert_resource(ButtonMaterials {
@@ -91,11 +94,11 @@ pub fn setup_materials(
         hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
     });
 
-    let game_button_color = Color::rgb_u8(4, 221, 185);
+    const GAME_BUTTON_COLOR: Color = Color::rgb(4.0 / 256.0, 221.0 / 256.0, 185.0 / 256.0);
 
     commands.insert_resource(GameMenuButtonMaterials {
-        normal: materials.add(game_button_color.into()),
-        hovered: materials.add((game_button_color * (3.0 / 2.0)).into()),
+        normal: materials.add(GAME_BUTTON_COLOR.into()),
+        hovered: materials.add((GAME_BUTTON_COLOR * (3.0 / 2.0)).into()),
     });
 
     commands.insert_resource(MapAssets(map_assets));
@@ -360,6 +363,9 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
     const CLOAK_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
     const CLOAK_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([158; 3]);
 
+    const PULSEWAVE_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const PULSEWAVE_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([230, 238, 35]);
+
     let (helmet_color, inner_suit_color) = match ability {
         Ability::Inferno => (INFERNO_HELMET_COLOR, INFERNO_SUIT_COLOR),
         Ability::Engineer => (ENGINEER_HELMET_COLOR, ENGINEER_SUIT_COLOR),
@@ -368,6 +374,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
         Ability::Wall => (WALL_HELMET_COLOR, WALL_SUIT_COLOR),
         Ability::Stim => (STIM_HELMET_COLOR, STIM_SUIT_COLOR),
         Ability::Cloak => (CLOAK_HELMET_COLOR, CLOAK_SUIT_COLOR),
+        Ability::PulseWave => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR)
     };
 
     (helmet_color, inner_suit_color)

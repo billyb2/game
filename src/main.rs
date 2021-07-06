@@ -98,6 +98,7 @@ pub enum AppState {
 pub enum ProjectileType {
     Regular,
     Speedball,
+    PulseWave,
     Flame,
     Molotov,
     MolotovFire,
@@ -161,6 +162,7 @@ pub struct ProjectileMaterials {
     pub flamethrower1: Handle<ColorMaterial>,
     pub flamethrower2: Handle<ColorMaterial>,
     pub flamethrower3: Handle<ColorMaterial>,
+    pub pulsewave: Handle<ColorMaterial>,
 }
 
 pub struct ButtonMaterials {
@@ -527,12 +529,12 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, task_pool: Res<TaskPool>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, task_pool: Res<TaskPool>) {
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
     let map = maps.0.get_mut(&map_crc32.0).unwrap();
 
-    player_movements.par_for_each_mut(&task_pool, 1, |(mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible)| {
+    player_movements.par_for_each_mut(&task_pool, 1, |(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed)| {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let mut lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
@@ -597,7 +599,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            player_movements.for_each_mut(|(player, _, _, _, player_sprite, player_id, mut health, ability, mut visible) |{
+            player_movements.for_each_mut(|(entity, player, _, _, _, player_sprite, player_id, mut health, ability, mut visible, mut player_speed) |{
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
@@ -647,6 +649,13 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
 
                             } else {
                                 health.0 -= damage.0;
+
+                                if *projectile_type == ProjectileType::PulseWave {
+                                    player_speed.0 *= 0.25;
+
+                                    commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
+
+                                }
 
                             }
 
@@ -741,7 +750,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(&mut Transf
     projectile_movements.for_each_mut(|(_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) |{
         if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
             // Firstly, find if the player ID is that of an inferno
-            let (_, _, _, _, _, _, _, ability, _) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
+            let (_entity, _, _, _, _, _, _, _, ability, _, _player_speed) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
                 if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, *coords, *radius) && *ability == Ability::Inferno {
@@ -885,10 +894,10 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, task_pool: Res<TaskPool>) {
+fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>) {
     let delta = time.delta();
 
-    player_timers.par_for_each_mut(&task_pool, 1, |(mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info)| {
+    player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down)| {
         time_since_last_shot.0.tick(delta);
 
         // If the player is reloading
@@ -915,6 +924,22 @@ fn tick_timers(time: Res<Time>, mut player_timers: Query<(&mut AbilityCharge, &m
 
         } else {
             dashing_info.time_till_stop_dash.tick(delta);
+
+        }
+
+        if let Some(mut slowed_down_timer) = slowed_down {
+            slowed_down_timer.0.tick(delta);
+
+            if slowed_down_timer.0.finished() {
+                player_speed.0 = match ability {
+                    Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
+                    _ => DEFAULT_PLAYER_SPEED,
+
+                };
+
+                commands.entity(entity).remove::<SlowedDown>();
+
+            }
 
         }
 

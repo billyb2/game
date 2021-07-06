@@ -355,6 +355,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
                         Ability::Wall => String::from("You can generate walls of pure energy, that you can shoot through but\n your opponents cannot"),
                         Ability::Inferno => String::from("Your flame tipped bullets can light the molotovs you throw"),
                         Ability::Cloak => String::from("Your suit is modified to be able to temporarily be invisible to the eye"),
+                        Ability::PulseWave => String::from("You can generate pulses of electricity, significantly slowing down your opponents temporarily"),
                     
                     }
 

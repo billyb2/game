@@ -119,3 +119,5 @@ pub enum InGameSettings {
 }
 
 pub struct CustomizeHelpText;
+
+pub struct SlowedDown(pub Timer);

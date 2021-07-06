@@ -336,7 +336,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                     size: Vec2::new(size.width, size.height),
                     reloading: reload_timer.reloading,
 
-
                 };
 
                 shoot_event.send(event);
@@ -362,7 +361,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let player_id = ev.player_id;
 
-                if ev.projectile_type != ProjectileType::Molotov {
+                if ev.projectile_type != ProjectileType::Molotov || ev.projectile_type != ProjectileType::PulseWave {
                     let (mut bursting, mut time_since_last_shot, mut ammo_in_mag) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                     // Checks that said player can shoot, and isnt reloading
@@ -398,7 +397,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                     }
 
-                } else if ev.projectile_type == ProjectileType::Molotov {
+                } else {
                     shooting = true;
 
                 }
@@ -430,6 +429,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::MolotovFire => materials.molotov_fire.clone(),
                                     ProjectileType::MolotovLiquid => materials.molotov_liquid.clone(),
                                     ProjectileType::Flame => flame_material,
+                                    ProjectileType::PulseWave => materials.pulsewave.clone(),
 
                                 }
 
@@ -446,8 +446,17 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
                                 material,
-                                sprite: Sprite::new(Vec2::new(5.0 * (4.0/3.0), 5.0 * (4.0/3.0))),
-                                transform: Transform::from_xyz(ev.start_pos.x + 5.0, ev.start_pos.y + 5.0, 0.0),
+                                sprite: Sprite::new(ev.size),
+                                transform: Transform {
+                                    translation: Vec3::new(ev.start_pos.x + 5.0, ev.start_pos.y + 5.0, 0.0),
+                                    rotation: match speed.is_sign_negative() {
+                                        true => Quat::from_rotation_z(angle - PI),
+                                        false => Quat::from_rotation_z(angle)
+
+                                    },
+                                    ..Default::default()
+
+                                },
                                 ..Default::default()
                             });
                     }
@@ -623,7 +632,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             },
                             projectile_type: ProjectileType::Molotov,
                             damage: Damage(5.0),
-                            player_ability: Ability::Inferno,
+                            player_ability: *ability,
                             size: Vec2::new(3.0, 3.0),
                             reloading: reload_timer.reloading,
 
@@ -652,6 +661,35 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                         }
 
                     },
+                    Ability::PulseWave => {
+                        let projectile_speed: f32 = 7.5;
+
+                        let event = ShootEvent {
+                            start_pos: transform.translation,
+                            player_id: ev_id.0,
+                            pos_direction: mouse_pos.0,
+                            health: health.0,
+                            model: *model,
+                            max_distance: 300.0,
+                            recoil_vec: vec![0.0],
+                            // Bullets need to travel "backwards" when moving to the left
+                            speed: match mouse_pos.0.x <= transform.translation.x {
+                                true => -projectile_speed,
+                                false => projectile_speed,
+                            },
+                            projectile_type: ProjectileType::PulseWave,
+                            damage: Damage(15.0),
+                            player_ability: *ability,
+                            size: Vec2::new(100.0, 100.0),
+                            reloading: reload_timer.reloading,
+
+                        };
+
+                        shoot_event.send(event);
+
+                        ability_charge.0.reset();             
+
+                    }
                 };
 
 
@@ -675,7 +713,7 @@ AbilityCharge, &mut PlayerSpeed, & mut Visible, &mut DashingInfo)>) {
 
         if using_ability.0 && ability_completed.0.finished() {
             if *ability == Ability::Stim {
-                speed.0 /= 2.0;
+                speed.0 = DEFAULT_PLAYER_SPEED + 1.0;
 
             } else if *ability == Ability::Cloak {
                 visible.is_visible = true;
@@ -688,7 +726,12 @@ AbilityCharge, &mut PlayerSpeed, & mut Visible, &mut DashingInfo)>) {
         }
 
         if dashing_info.dashing && dashing_info.time_till_stop_dash.finished() {
-            speed.0 /= 3.1;
+            speed.0 = match *ability {
+                Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
+                _ => DEFAULT_PLAYER_SPEED,
+
+            };
+
             dashing_info.dashing = false;
             dashing_info.time_till_can_dash.reset();
 
