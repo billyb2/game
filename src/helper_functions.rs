@@ -92,7 +92,7 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
     
-    // So what this code essentially does is it tries to move object 1 a few increments for x distance at x angle, and then if it can do that successfully without it colliding, it gives false
+    // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
     #[cfg(feature = "parallel")]
     let (b_min, b_max) = join(
         || rect2_coords - rect2_size / 2.0,

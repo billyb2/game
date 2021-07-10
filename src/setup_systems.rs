@@ -35,6 +35,7 @@ pub fn setup_materials(
     //TODO: Use a spritesheet
     // The gorgeous assets are made by Shelby
     let default_sprite = asset_server.load("player_sprites/default.png");
+    let enemy_sprite = asset_server.load("player_sprites/enemy.png");
 
     let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
     let molotov_liquid_sprite = asset_server.load("projectile_sprites/molotov_liquid.png");
@@ -74,7 +75,11 @@ pub fn setup_materials(
 
     asset_server.watch_for_changes().unwrap();
 
-    commands.insert_resource(Skin(materials.add(default_sprite.into())));
+    commands.insert_resource(Skin {
+        player: materials.add(default_sprite.into()),
+        enemy: materials.add(enemy_sprite.into()),
+
+    });
 
     commands.insert_resource(ProjectileMaterials {
         regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
@@ -393,7 +398,7 @@ pub fn setup_players(
     my_gun_model: Res<Model>,
     my_perk: Res<Perk>,
     shader_assets: Res<AssetsLoading>,
-    map_crc32: Res<MapCRC32>
+    map_crc32: Res<MapCRC32>,
 ) {
     let mut i: u8 = 0;
 
@@ -450,7 +455,11 @@ pub fn setup_players(
                 .spawn_bundle(Player::new(i, ability, perk, living))
                 .insert_bundle(Gun::new(gun_model, ability, perk))
                 .insert_bundle(SpriteBundle {
-                    material: materials.0.clone(),
+                    material: match i {
+                        0 => materials.player.clone(),
+                        _ => materials.enemy.clone(),
+
+                    },
                     sprite: Sprite {
                         size: Vec2::new(60.0, 60.0),
                         flip_x: true,

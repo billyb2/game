@@ -92,15 +92,11 @@ void main() {
     vec4 color = Color;
 
     // Don't mess with the transparent part of the sprites
-    if (color.a != 0.0) {
-        # ifdef COLORMATERIAL_TEXTURE
-            color *= texture(sampler2D(ColorMaterial_texture, ColorMaterial_texture_sampler), v_Uv);
-        # endif
-        set_color_of_player(color);
-        //add_lighting(color);
+    # ifdef COLORMATERIAL_TEXTURE
+        color *= texture(sampler2D(ColorMaterial_texture, ColorMaterial_texture_sampler), v_Uv);
+    # endif
+    //set_color_of_player(color);
+    //add_lighting(color);
 
-
-    }
-
-    o_Target = color_encode(color);
+    o_Target = color;
 }
