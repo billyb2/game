@@ -44,22 +44,22 @@ const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettin
     channel: 1,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
-            bandwidth: 256,
+            bandwidth: 4096,
             recv_window_size: 2048,
             send_window_size: 2048,
             burst_bandwidth: 2048,
             init_send: 1024,
             wakeup_time: Duration::from_millis(15),
             initial_rtt: Duration::from_millis(160),
-            // Bullet shots won't register if ping is above 4 seconds
-            max_rtt: Duration::from_secs(4),
+            // Bullet shots won't register if ping is above 10 seconds
+            max_rtt: Duration::from_secs(10),
             rtt_update_factor: 0.1,
             rtt_resend_factor: 1.5,
         },
         max_message_len: 128,
     },
-    message_buffer_size: 64,
-    packet_buffer_size: 64,
+    message_buffer_size: 128,
+    packet_buffer_size: 128,
 };
 
 // Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here
@@ -193,7 +193,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
-            .register::<(u8, bool, [f32; 2])>(CLIENT_STATE_MESSAGE_SETTINGS)
+            .register::<(u8, [f32; 2], [f32; 4])>(CLIENT_STATE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -235,41 +235,43 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     }
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&Transform, &Sprite)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<&Transform>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     // Only start sending packets when your ID is set
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
         if ready_to_send_packet.0.finished() {
-            let (transform, sprite) = players.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
-            net.broadcast_message((my_id.0, sprite.flip_x, [transform.translation.x, transform.translation.y]));
+            let transform = players.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
+            let quat_xyzw: [f32; 4] = transform.rotation.into();
+
+            net.broadcast_message((my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw));
 
             ready_to_send_packet.0.reset();
         }
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Sprite)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Transform>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<(u8, bool, [f32; 2])> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<(u8, [f32; 2], [f32; 4])> = Vec::with_capacity(255);
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
 
-            while let Some((player_id, flip_x, [x, y])) = channels.recv::<(u8, bool, [f32; 2])>() {
+            while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w])) = channels.recv::<(u8, [f32; 2], [f32; 4])>() {
                 // The host broadcasts the locations of all other players
                 #[cfg(feature = "native")]
                 if _hosting.0 {
-                    messages_to_send.push((player_id, flip_x, [x, y]))
+                    messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w]))
 
                 }
 
                 make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
 
                 // Set the location of any local players to the location given
-                let (mut transform, mut sprite) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                let mut transform = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                sprite.flip_x = flip_x;
+                transform.rotation = Quat::from_xyzw(rot_x, rot_y, rot_z, rot_w);
 
                 if player_id != my_id.0 {
                     transform.translation.x = x;
@@ -383,7 +385,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
     }
 }
 
-pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Health>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Health>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, player_entity: Res<HashMap<u8, Entity>>, mut log_event: EventWriter<LogEvent>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], f32)> = Vec::with_capacity(255);
 
@@ -399,16 +401,20 @@ pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Quer
 
                     let mut health = players.get_mut(*player_entity.get(&player_who_took_damage).unwrap()).unwrap();
 
-                    if (health.0 - damage) <= 0.0 {
-                        health.0 = 0.0;
-                        death_event.send(DeathEvent(player_who_took_damage));
-                        // The player who shot the bullet has their score increased 
-                        *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
+                    if health.0 != 0.0 {
+                        log_event.send(LogEvent(format!("Player {} took {} damage", player_who_took_damage, damage)));
+
+                        if (health.0 - damage) <= 0.0 {
+                            health.0 = 0.0;
+                            death_event.send(DeathEvent(player_who_took_damage));
+                            // The player who shot the bullet has their score increased 
+                            *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
 
 
-                    } else {
-                        health.0 -= damage;
+                        } else {
+                            health.0 -= damage;
 
+                        }
                     }
 
                 }
@@ -522,7 +528,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 }
 
 #[cfg(feature = "web")]
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>) {
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>) {
     if !hosting.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
@@ -535,7 +541,10 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                     my_player_id.0 = Some(PlayerID(id));
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, id);
 
-                    break;
+                    let (_id, mut _ability, mut _helmet_color, mut _inner_suit_color, mut sprite) = players.get_mut(*player_entity.get(&id).unwrap()).unwrap();
+
+                    *sprite.deref_mut() = materials.player.clone();
+
 
                 // The set player ability command
                 } else if command[0] == 1 {
@@ -543,7 +552,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, command[2]);
 
-                    players.for_each_mut(|(id, mut ability, mut helmet_color, mut inner_suit_color)| {
+                    players.for_each_mut(|(id, mut ability, mut helmet_color, mut inner_suit_color, _sprite)| {
                         if id.0 == command[2] {
                             *ability.deref_mut() = player_ability;
 
@@ -575,14 +584,12 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 }
 
 // This function makes players that aren't online, online, if they aren't already
-// Basically, the function just checks if the player is in the online_player_ids BTreeSet, and if not, it inserts them into that and deathmatch score
+// Basically, the function just checks if the player is in online_player_ids, and if not, it inserts them into that and deathmatch score
 // This function should be run on pretty much any net function that receives an ID
 pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_ids: &mut BTreeSet<u8>, player_id: u8) {
-    if !online_player_ids.contains(&player_id) {
-        deathmatch_score.insert(player_id, 0);
-        online_player_ids.insert(player_id);
+    deathmatch_score.insert(player_id, 0);
+    online_player_ids.insert(player_id);
 
-    }
 }
 
 // Literally just removes all connections from the connections HashMap.

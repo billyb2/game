@@ -361,7 +361,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let player_id = ev.player_id;
 
-                if ev.projectile_type != ProjectileType::Molotov || ev.projectile_type != ProjectileType::PulseWave {
+                if ev.projectile_type != ProjectileType::Molotov && ev.projectile_type != ProjectileType::PulseWave {
                     let (mut bursting, mut time_since_last_shot, mut ammo_in_mag) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                     // Checks that said player can shoot, and isnt reloading
@@ -382,7 +382,6 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             }
 
                         }
-
 
                         if shooting {
                             ammo_in_mag.0 -= 1;
@@ -442,13 +441,16 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             };
                             audio.play(sound);
 
+                        let negative_speed = ev.speed.signum();
+
                         commands
                             .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
                                 material,
                                 sprite: Sprite::new(ev.size),
                                 transform: Transform {
-                                    translation: Vec3::new(ev.start_pos.x + 5.0, ev.start_pos.y + 5.0, 0.0),
+                                    // Finally found a place fto do a fused multiply and add, jaja
+                                    translation: Vec3::new(10.0_f32.mul_add(negative_speed, ev.start_pos.x), 15.0_f32.mul_add(negative_speed, ev.start_pos.y), 0.0),
                                     rotation: match speed.is_sign_negative() {
                                         true => Quat::from_rotation_z(angle - PI),
                                         false => Quat::from_rotation_z(angle)
@@ -772,11 +774,18 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
 
 }
 
-pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut player_query: Query<(&mut Sprite, &Transform)>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<(Entity, &InGameSettings)>) {
+pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut player_query: Query<&mut Transform>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<(Entity, &InGameSettings)>) {
     if let Some(my_player_id) = &my_player_id.0 {
         if in_game_settings.is_empty() {
-            let (mut sprite, transform) = player_query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
-            sprite.flip_x = mouse_pos.0.x >= transform.translation.x;
+            let mut transform = player_query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+
+            let angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, transform.translation.x, transform.translation.y);
+
+            transform.rotation = match mouse_pos.0.x <= transform.translation.x {
+                true => Quat::from_rotation_z(angle - PI),
+                false => Quat::from_rotation_z(angle),
+
+            };
 
         }
     }

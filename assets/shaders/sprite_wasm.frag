@@ -79,17 +79,12 @@ void set_color_of_player(inout vec4 color) {
 
 void main() {
     vec4 color = Color;
-
-    // Don't mess with the transparent part of the sprites
-    if (color.a != 0.0) {
-        # ifdef COLORMATERIAL_TEXTURE
-            color *= texture(ColorMaterial_texture, v_Uv);
-        # endif
-        set_color_of_player(color);
-        //add_lighting(color);
-
-
-    }
+    
+    # ifdef COLORMATERIAL_TEXTURE
+        color *= texture(ColorMaterial_texture, v_Uv);
+    # endif
+    set_color_of_player(color);
+    //add_lighting(color);
 
     o_Target = color;
 }
