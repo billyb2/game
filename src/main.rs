@@ -1,6 +1,7 @@
 #![feature(variant_count)]
 #![feature(const_fn_union)]
 #![feature(const_fn_floating_point_arithmetic)]
+#![feature(core_intrinsics)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
@@ -20,6 +21,7 @@ mod net;
 
 use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
+use std::intrinsics::*;
 
 use bevy_networking_turbulence::*;
 
@@ -534,24 +536,24 @@ fn main() {
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
 fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
-    let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
+    let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(3);
 
     let map = maps.0.get_mut(&map_crc32.0).unwrap();
 
     player_movements.for_each_mut(|(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed)| {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let mut lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+            let mut lag_compensation = unsafe { fmul_fast(DESIRED_TICKS_PER_SECOND, time.delta_seconds()) };
 
             if lag_compensation > 4.0 {
                 lag_compensation = 4.0;
 
             }
 
-            let speed = movement.speed * lag_compensation;
+            let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
 
             // Only lets you move if the movement doesn't bump into a wall
-            let next_potential_movement = Vec3::new(speed * movement.angle.cos(), speed * movement.angle.sin(), 0.0);
+            let next_potential_movement = unsafe { Vec3::new(fmul_fast(speed, movement.angle.cos()), fmul_fast(speed, movement.angle.sin()), 0.0) };
 
             let next_potential_pos = object.translation + next_potential_movement;
 
@@ -568,7 +570,14 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.as_mut().unwrap().0 += movement.speed.abs() * DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+                        distance_traveled.as_mut().unwrap().0 = unsafe { 
+                            fadd_fast(distance_traveled.as_ref().unwrap().0,  
+                                fmul_fast(
+                                    fmul_fast(movement.speed.abs(), DESIRED_TICKS_PER_SECOND), 
+                                    time.delta_seconds()
+                                )
+                            ) 
+                        };
 
                         if distance_traveled.as_ref().unwrap().0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
@@ -591,12 +600,12 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
             }
 
-            let lag_compensation = DESIRED_TICKS_PER_SECOND * time.delta_seconds();
+            let lag_compensation = unsafe { fmul_fast(DESIRED_TICKS_PER_SECOND, time.delta_seconds()) };
 
-            let speed = movement.speed * lag_compensation;
+            let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
 
             // Only lets you move if the movement doesn't bump into a wall
-            let next_potential_movement = Vec3::new(speed * movement.angle.cos(), speed * movement.angle.sin(), 0.0);
+            let next_potential_movement = unsafe { Vec3::new(fmul_fast(speed, movement.angle.cos()), fmul_fast(speed, movement.angle.sin()), 0.0) };
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let next_potential_pos = object.translation + next_potential_movement;
 
@@ -655,7 +664,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                                 health.0 -= damage.0;
 
                                 if *projectile_type == ProjectileType::PulseWave {
-                                    player_speed.0 *= 0.25;
+                                    player_speed.0 =  unsafe { fmul_fast(player_speed.0, 0.25) };
 
                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
 
@@ -690,8 +699,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                 // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
                 // The speedball's weapon speeds up and gets bigger
                 if *projectile_type == ProjectileType::Speedball {
-                    movement.speed *= 1.1;
-                    sprite.size *= 1.03;
+                    movement.speed = unsafe { fmul_fast(movement.speed, 1.1) };
+                    sprite.size = unsafe { Vec2::new(fmul_fast(sprite.size.x, 1.03), fmul_fast(sprite.size.y, 1.03))};
 
                     if damage.0 <= 75.0 {
                         damage.0 += distance_traveled.as_ref().unwrap().0  / 60.0;
@@ -741,7 +750,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                 // Molotov liquid disappears after a little while
                 commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
 
-            } else if *projectile_type != ProjectileType::MolotovLiquid && *projectile_type != ProjectileType::MolotovFire || ((*projectile_type == ProjectileType::MolotovLiquid || *projectile_type == ProjectileType::MolotovFire) && destruction_timer.unwrap().0.finished()) {
+            } else if unlikely(*projectile_type != ProjectileType::MolotovLiquid && *projectile_type != ProjectileType::MolotovFire || ((*projectile_type == ProjectileType::MolotovLiquid || *projectile_type == ProjectileType::MolotovFire) && destruction_timer.unwrap().0.finished())) {
                 commands.entity(entity).despawn_recursive();
 
             }

@@ -27,11 +27,7 @@ pub fn setup_cameras(mut commands: Commands) {
         .insert(GameCamera);
 }
 
-pub fn setup_materials(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
+pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
     //TODO: Use a spritesheet
     // The gorgeous assets are made by Shelby
     let default_sprite = asset_server.load("player_sprites/default.png");
@@ -56,7 +52,7 @@ pub fn setup_materials(
     let map_assets: HashMap<u8, Handle<ColorMaterial>> =
         HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
-    // Native builds can preload assets
+    // Web builds can't preload assets
     #[cfg(feature = "native")]
     {
         let assets = asset_server.load_folder("map_assets/").unwrap();
@@ -82,7 +78,7 @@ pub fn setup_materials(
     });
 
     commands.insert_resource(ProjectileMaterials {
-        regular: materials.add(Color::rgb_u8(255, 255, 255).into()),
+        regular: materials.add(Color::BLACK.into()),
         speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
         flamethrower1: materials.add(Color::rgb_u8(flame1, 43, 9).into()),
         flamethrower2: materials.add(Color::rgb_u8(221, flame2, 9).into()),

@@ -40,6 +40,7 @@ pub const DEFAULT_PLAYER_SPEED: f32 = 13.0;
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
 
+    #[allow(unused_mut)]
     let mut set_ability_charge = || *ability_charge = match ability {
         Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
@@ -52,6 +53,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 
     };
 
+    #[allow(unused_mut)]
     let mut set_ability_completed = || *ability_completed = match ability {
         Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
         Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),

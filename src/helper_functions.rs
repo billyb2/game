@@ -7,8 +7,7 @@ use bevy::math::Vec2;
 use std::f32::consts::PI;
 use std::convert::TryInto;
 
-#[cfg(feature = "parallel")]
-use rayon::join;
+use std::intrinsics::*;
 
 #[cfg(feature = "native")]
 use std::net::UdpSocket;
@@ -24,17 +23,16 @@ pub fn slice_to_u32(data: &[u8]) -> u32 {
 }
 
 pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
-    let dy = ey - cy;
-    let dx = ex - cx;
-
+    let dy = unsafe { fsub_fast(ey, cy) };
+    let dx = unsafe { fsub_fast(ex, cx) };
     if dx != 0.0 {
-        let d = dy / dx;
+        let d = unsafe { fdiv_fast(dy, dx) };
 
         // Returns the angle in radians
         d.atan()
 
     } else if dy > 0.0 {
-            PI / 2.0
+            unsafe { fdiv_fast(PI, 2.0) }
 
     }  else {
             PI
@@ -93,14 +91,7 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
     
     // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
-    #[cfg(feature = "parallel")]
-    let (b_min, b_max) = join(
-        || rect2_coords - rect2_size / 2.0,
-        || rect2_coords + rect2_size / 2.0
 
-    );
-
-    #[cfg(not(feature = "parallel"))]
     let (b_min, b_max) = (
         rect2_coords - rect2_size / 2.0,
         rect2_coords + rect2_size / 2.0
@@ -116,22 +107,15 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
 
         let collision = |i: u32| {
             let interval = interval_size * i as f32;
-            let rect1_coords = rect1_coords + Vec2::new(interval * angle.cos(), interval * angle.sin());
+            let rect1_coords = Vec2::new(interval.mul_add(angle.cos(), rect1_coords.x), interval.mul_add(angle.sin(),rect1_coords.y));
 
-            #[cfg(feature = "parallel")]
-            let (a_min, a_max) = join(
-                || rect1_coords - half_a_size,
-                || rect1_coords + half_a_size
-            );
-
-            #[cfg(not(feature = "parallel"))]
             let (a_min, a_max) = (
-                rect1_coords - half_a_size,
-                rect1_coords + half_a_size
+                unsafe { Vec2::new(fsub_fast(rect1_coords.x, half_a_size.x), fsub_fast(rect1_coords.y, half_a_size.y)) },
+                unsafe { Vec2::new(fadd_fast(rect1_coords.x, half_a_size.x), fadd_fast(rect1_coords.y, half_a_size.y)) }
             );
 
             // Check for collision
-            a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y
+            unlikely(a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y)
 
         };
 
@@ -143,13 +127,6 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     } else {
         let rect1_coords = rect1_coords + Vec2::new(distance * angle.cos(), distance * angle.sin());
 
-        #[cfg(feature = "parallel")]
-        let (a_min, a_max) = join(
-            || rect1_coords - half_a_size,
-            || rect1_coords + half_a_size
-        );
-
-        #[cfg(not(feature = "parallel"))]
         let (a_min, a_max) = (
             rect1_coords - half_a_size,
             rect1_coords + half_a_size
@@ -174,14 +151,14 @@ pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool
     let a_min = rect_coords- rect_size / 2.0;
     let a_max = rect_coords + rect_size / 2.0;
 
-    {
+    unlikely({
         a_min.x <= 0.0
         // Gotta make the y coordinates negative due to the funky way Bevy uses coordinates
         || -a_min.y <= 0.0
         || a_max.x >= map_size.x
         || -a_max.y >= map_size.y
 
-    }
+    })
 
 
 }
