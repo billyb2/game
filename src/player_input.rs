@@ -318,7 +318,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                 }
 
                 let event = ShootEvent {
-                    start_pos: transform.translation,
+                    start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
                     player_id: my_player_id.0,
                     pos_direction: mouse_pos.0,
                     health: health.0,
@@ -326,10 +326,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
                     max_distance: max_distance.0,
                     recoil_vec,
                     // Bullets need to travel "backwards" when moving to the left
-                    speed: match mouse_pos.0.x <= transform.translation.x {
-                        true => -speed.0,
-                        false => speed.0,
-                    },
+                    speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
                     projectile_type: *projectile_type,
                     damage: *damage,
                     player_ability: *player_ability,
