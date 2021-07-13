@@ -91,6 +91,13 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
     
     // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
+<<<<<<< HEAD
+=======
+    #[cfg(feature = "parallel")]
+    let (b_min, b_max) = join(
+        || rect2_coords - rect2_size / 2.0,
+        || rect2_coords + rect2_size / 2.0
+>>>>>>> origin/main
 
     let (b_min, b_max) = (
         rect2_coords - rect2_size / 2.0,
