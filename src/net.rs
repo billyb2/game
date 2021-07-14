@@ -546,7 +546,6 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                     *sprite.deref_mut() = materials.player.clone();*/
 
                     *sprite.deref_mut() = materials.player.clone();
->>>>>>> origin/main
 
 
                 // The set player ability command
