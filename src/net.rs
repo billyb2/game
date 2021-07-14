@@ -541,12 +541,9 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                     my_player_id.0 = Some(PlayerID(id));
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, id);
 
-<<<<<<< HEAD
                     /*let (_id, mut _ability, mut _helmet_color, mut _inner_suit_color, mut sprite) = players.get_mut(*player_entity.get(&id).unwrap()).unwrap();
 
                     *sprite.deref_mut() = materials.player.clone();*/
-=======
-                    let (_id, mut _ability, mut _helmet_color, mut _inner_suit_color, mut sprite) = players.get_mut(*player_entity.get(&id).unwrap()).unwrap();
 
                     *sprite.deref_mut() = materials.player.clone();
 >>>>>>> origin/main
