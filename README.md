@@ -8,6 +8,8 @@ Please follow the instructions below in order, while it seems complicated, it ma
 ### Windows
 - Please install [VS2019 Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16)
 - [Install CMake](https://cmake.org/download/)
+- [Install OpenSSL](https://slproweb.com/download/Win64OpenSSL-1_1_1k.msi)
+- Add the *OPENSSL_DIR* system environment variable, with the value being the *exact* path you installed OpenSSL to (default is C:\Program Files\OpenSSL-Win64 , but please double check to make sure)
 - `cargo install -f cargo-binutils`
 - `rustup component add llvm-tools-preview`
 - `rustup toolchain install nightly`
@@ -70,9 +72,9 @@ The entire map1.custom file uses binary, in order to be very efficient to load a
 
 At the beginning of the file, the metadata of the map is stored (currently the width, height, and background color of the map), which takes up 11 bytes.
 
-Then, for every map object, the x and y coordinates (4 bytes each), the width and height (4 bytes each) of said object, whether a player can spawn in that object (1 byte), and whether the player can collide with that object (1 byte) are stored, as well as the health of the object (1 byte) and the color of the object (4 bytes total). Generally for the boolean data, 0 is false and 255 is true, and for the health of the map object, 0 is considered indestructible, and then anything above 0 is the actual health of the map object. So in total, the every object takes up a relatively small 23 bytes.
+Then, for every map object, the x, y and z (how objects are stacked onto each other) coordinates (4 bytes each), the width and height (4 bytes each) of said object, whether a player can spawn in that object (1 byte), and whether the player can collide with that object (1 byte) are stored, as well as the health of the object (1 byte) and the color of the object (4 bytes total). Generally for the boolean data, 0 is false and 255 is true, and for the health of the map object, 0 is considered indestructible, and then anything above 0 is the actual health of the map object. So in total, the every object takes up a relatively small 27 bytes.
 
-So the number of map objects of course varies from map to map, so to signify the end of the map object placement, a map object is placed that is entirely null (every byte set to 0), taking up another 23 bytes.
+So the number of map objects of course varies from map to map, so to signify the end of the map object placement, a map object is placed that is entirely null (every byte set to 0), taking up another 27 bytes.
 
 Then, the map has a built in checksum (a way of knowing if a map file has been corrupted or not), that uses the CRC32 algorithm (since it's very fast and does the job well). The CRC32 takes up 32 more bytes, and is appended after the null map object. The CRC32 is also useful for uniquely identifying maps, so that when a playe rtries to join another player's game, the client can check to see if the checksums match, and if not, request to download the map.
 
