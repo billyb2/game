@@ -12,6 +12,9 @@ use std::intrinsics::*;
 #[cfg(feature = "native")]
 use std::net::UdpSocket;
 
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+
 #[inline]
 pub fn slice_to_u32(data: &[u8]) -> u32 {
     debug_assert!(data.len() == 4);
@@ -92,9 +95,11 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     
     // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
 
+    let half_b_size = rect2_size / 2.0;
+
     let (b_min, b_max) = (
-        rect2_coords - rect2_size / 2.0,
-        rect2_coords + rect2_size / 2.0
+        rect2_coords - half_b_size,
+        rect2_coords + half_b_size
 
     );
 
@@ -115,7 +120,7 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
             );
 
             // Check for collision
-            unlikely(a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y)
+            unlikely(a_min.x <= b_max.x && a_min.y <= b_max.y && a_max.x >= b_min.x && a_max.y >= b_min.y)
 
         };
 
@@ -148,7 +153,7 @@ pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Ve
 }
 
 pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool {
-    let a_min = rect_coords- rect_size / 2.0;
+    let a_min = rect_coords - rect_size / 2.0;
     let a_max = rect_coords + rect_size / 2.0;
 
     unlikely({

@@ -90,7 +90,7 @@ Alright now, time to actually set up Tiled (map editor):
 Many many many distributions do not have Tiled in their software repositories, so unless you want to compile Tiled yourself, I'd recommend using Flatpak
 - Other OS: First, [install Flatpak](https://www.flatpak.org/setup/) (included by default on Zorin), second, `flatpak install flathub org.mapeditor.Tiled`
 2. Secondly, create a symlink between the `custom.js` file and `$HOME/.config/tiled/extensions/`
-This is as easy as running `mkdir -p && $HOME/.config/tiled/extensions/ && ln -s /path/to/game/repository/tiled/custom.js $HOME/.config/tiled/extensions/`, replacing /path/to/game/repository with the actual path of the repository of course.
+This is as easy as running `mkdir -p $HOME/.config/tiled/extensions/ && ln -s /path/to/game/repository/tiled/custom.js $HOME/.config/tiled/extensions/`, replacing /path/to/game/repository with the actual path of the repository of course.
 3. When you've finally created your glorious map (using the map1.tmx as an example of course), go to File->Export As, and change `File type` to `Custom map format (*.custom)`. Then, the `custom.js` file will do all the magic of properly encoding the file into something the game can parse!
 
 
