@@ -710,7 +710,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                     }
 
                 } else if *projectile_type == ProjectileType::Flame && sprite.size.x <= 20.0 {
-                    sprite.size = unsafe { fmul_fast(sprite.size, 1.3) };
+                    sprite.size *= 1.3;
 
                 }
 
