@@ -13,6 +13,8 @@ use bevy::render::{
     shader::ShaderStages,
 };
 
+use bevy::math::Vec4Swizzles;
+
 use rand::Rng;
 
 use crate::shaders::*;
@@ -457,7 +459,7 @@ pub fn setup_players(
 
                     },
                     sprite: Sprite {
-                        size: Vec2::new(60.0, 60.0),
+                        size: Vec2::new(120.0, 75.0),
                         flip_x: true,
                         resize_mode: SpriteResizeMode::Manual,
 
@@ -465,10 +467,9 @@ pub fn setup_players(
                     },
                     visible: Visible {
                         is_visible: living,
-
-                        ..Default::default()
+                        is_transparent: true,
                     },
-                    transform: Transform::from_translation(object.coords),
+                    transform: Transform::from_translation(object.coords.xy().extend(101.0)),
                     render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
                         pipeline_handle.clone(),
                     )]),

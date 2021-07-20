@@ -8,6 +8,7 @@ use std::rc::Rc;
 use bevy::asset::prelude::*;
 use bevy::ecs::prelude::*;
 use bevy::math::prelude::*;
+use bevy::math::Vec4Swizzles;
 use bevy::render::prelude::*;
 use bevy::sprite::prelude::*;
 use bevy::transform::prelude::*;
@@ -30,7 +31,7 @@ use rayon::prelude::*;
 
 #[derive(Bundle)]
 pub struct MapObject {
-    pub coords: Vec3,
+    pub coords: Vec4,
     pub size: Vec2,
     pub sprite: UVec4,
     pub collidable: bool,
@@ -60,15 +61,7 @@ impl MapObject {
         angle: f32,
     ) -> bool {
         //Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
-        self.collidable
-            && collide(
-                other_object_coords,
-                other_object_size,
-                self.coords.truncate(),
-                self.size,
-                distance,
-                angle,
-            )
+        self.collidable && collide(other_object_coords, other_object_size, self.coords.xy(), self.size, distance, angle)
     }
 }
 
@@ -129,10 +122,10 @@ impl Map {
         // The map metadata length is 11 bytes
         // Splits the map into chunks each the size of a single map object
         #[cfg(feature = "parallel")]
-        let chunks = (&bytes[start_of_map..]).par_chunks_exact(24);
+        let chunks = (&bytes[start_of_map..]).par_chunks_exact(32);
 
         #[cfg(not(feature = "parallel"))]
-        let chunks = (&bytes[start_of_map..]).chunks_exact(24);
+        let chunks = (&bytes[start_of_map..]).chunks_exact(32);
 
         // Since the CRC32 is 4 bytes, it will be the final remainder of the map
         let crc32: u32 = slice_to_u32(chunks.remainder());
@@ -143,26 +136,30 @@ impl Map {
                 .map(|chunk| {
                     let x = (slice_to_u32(&chunk[0..=(3)])) as f32;
                     let y = (slice_to_u32(&chunk[(4)..=(7)])) as f32;
-                    let width = (slice_to_u32(&chunk[(8)..=(11)])) as f32;
-                    let height = (slice_to_u32(&chunk[(12)..=(15)])) as f32;
+                    let z = (slice_to_u32(&chunk[(8)..=(11)])) as f32;
+
+                    let rotation = (slice_to_u32(&chunk[(12)..=(15)])) as f32;
+
+                    let width = (slice_to_u32(&chunk[(16)..=(19)])) as f32;
+                    let height = (slice_to_u32(&chunk[(20)..=(23)])) as f32;
 
                     MapObject {
                         // Gotta adjust for Bevy's coordinate system center being at (0, 0)
-                        coords: Vec3::new(x, -y, 0.0) + Vec3::new(width / 2.0, -height / 2.0, 1.0),
+                        coords: Vec4::new(x + width / 2.0, -y -height / 2.0, z, rotation),
                         size: Vec2::new(width, height),
-                        player_spawn: matches!(&chunk[(16)], 255),
-                        collidable: matches!(&chunk[(17)], 255),
+                        player_spawn: matches!(&chunk[(24)], 255),
+                        collidable: matches!(&chunk[(25)], 255),
 
-                        using_image: matches!(&chunk[18], 255),
+                        using_image: matches!(&chunk[26], 255),
 
                         sprite: UVec4::new(
-                            chunk[19].into(),
-                            chunk[20].into(),
-                            chunk[21].into(),
-                            chunk[22].into(),
+                            chunk[27].into(),
+                            chunk[28].into(),
+                            chunk[29].into(),
+                            chunk[30].into(),
                         ),
 
-                        health: match chunk[23] {
+                        health: match chunk[31] {
                             0 => None,
                             health => Some(health as f32),
                         },
@@ -232,7 +229,7 @@ impl Map {
                         self.objects.remove(index);
                     }
 
-                    Some((health, self.objects[index].coords.truncate()))
+                    Some((health, self.objects[index].coords.xy()))
                 } else {
                     None
                 }
@@ -262,8 +259,7 @@ impl Map {
 }
 
 // This system just iterates through the map and draws each MapObject
-pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>,
-) {
+pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>) {
     let map = maps.0.get(&map_crc32.0).unwrap();
 
     // Set the background color to the map's specified color
@@ -309,7 +305,13 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             .spawn_bundle(SpriteBundle {
                 material: color_handle,
                 sprite: Sprite::new(map_object_size),
-                transform: Transform::from_translation(map_coords),
+                transform: Transform {
+                    translation: map_coords.truncate(),
+                    rotation: Quat::from_rotation_z(map_coords.w),
+
+                    ..Default::default()
+
+                },
                 ..Default::default()
             })
             .insert(Health(100.0))
@@ -346,6 +348,16 @@ fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
             .iter()
             .for_each(push_to_map);
         ((-object.coords.y - (object.size.y / 2.0)) as u32)
+            .to_be_bytes()
+            .iter()
+            .for_each(push_to_map);
+
+        (object.coords.z as u32)
+            .to_be_bytes()
+            .iter()
+            .for_each(push_to_map);
+
+        (object.coords.w as u32)
             .to_be_bytes()
             .iter()
             .for_each(push_to_map);
