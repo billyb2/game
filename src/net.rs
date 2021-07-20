@@ -27,7 +27,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 122)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -587,7 +587,11 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 // Basically, the function just checks if the player is in online_player_ids, and if not, it inserts them into that and deathmatch score
 // This function should be run on pretty much any net function that receives an ID
 pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_ids: &mut BTreeSet<u8>, player_id: u8) {
-    deathmatch_score.insert(player_id, 0);
+    if !deathmatch_score.contains_key(&player_id) {
+        deathmatch_score.insert(player_id, 0);
+
+    }
+
     online_player_ids.insert(player_id);
 
 }
