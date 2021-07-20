@@ -9,6 +9,7 @@
  <objectgroup id="8" name="Object Layer 1">
   <object id="53" x="0" y="230" width="180" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="255"/>
     <property name="green" type="int" value="0"/>
@@ -19,6 +20,7 @@
   </object>
   <object id="54" x="0" y="180" width="180" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -29,6 +31,7 @@
   </object>
   <object id="67" x="0" y="330" width="75" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -39,6 +42,7 @@
   </object>
   <object id="71" x="0" y="90" width="75" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="255"/>
     <property name="green" type="int" value="0"/>
@@ -49,6 +53,7 @@
   </object>
   <object id="72" x="115" y="0" width="65" height="140">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="255"/>
     <property name="green" type="int" value="0"/>
@@ -59,6 +64,7 @@
   </object>
   <object id="74" x="105" y="330" width="75" height="170">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -69,6 +75,7 @@
   </object>
   <object id="85" x="320" y="230" width="180" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="255"/>
     <property name="green" type="int" value="0"/>
@@ -79,6 +86,7 @@
   </object>
   <object id="86" x="320" y="180" width="180" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -89,6 +97,7 @@
   </object>
   <object id="87" x="320" y="0" width="65" height="140">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="255"/>
     <property name="green" type="int" value="0"/>
@@ -99,6 +108,7 @@
   </object>
   <object id="88" x="425" y="90" width="75" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="255"/>
     <property name="green" type="int" value="0"/>
@@ -109,6 +119,7 @@
   </object>
   <object id="89" x="320" y="330" width="75" height="170">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -119,6 +130,7 @@
   </object>
   <object id="90" x="425" y="330" width="75" height="50">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="255"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -129,6 +141,7 @@
   </object>
   <object id="95" x="185" y="225" width="3" height="3">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="0"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -139,6 +152,7 @@
   </object>
   <object id="96" x="310" y="230" width="3" height="3">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="0"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -149,6 +163,7 @@
   </object>
   <object id="97" x="245" y="270" width="3" height="3">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="0"/>
     <property name="blue" type="int" value="0"/>
     <property name="green" type="int" value="0"/>
@@ -159,6 +174,7 @@
   </object>
   <object id="99" x="254.103" y="348.664" width="23.855" height="39.6947">
    <properties>
+    <property name="Z" type="int" value="1"/>
     <property name="filename" type="int" value="0"/>
     <property name="player_collidable" type="bool" value="true"/>
     <property name="player_spawn" type="bool" value="false"/>

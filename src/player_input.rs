@@ -447,7 +447,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 sprite: Sprite::new(ev.size),
                                 transform: Transform {
                                     // Finally found a place fto do a fused multiply and add, jaja
-                                    translation: Vec3::new(10.0_f32.mul_add(negative_speed, ev.start_pos.x), 15.0_f32.mul_add(negative_speed, ev.start_pos.y), 0.0),
+                                    translation: Vec3::new(10.0_f32.mul_add(negative_speed, ev.start_pos.x), 15.0_f32.mul_add(negative_speed, ev.start_pos.y), 3.0),
                                     rotation: match speed.is_sign_negative() {
                                         true => Quat::from_rotation_z(angle - PI),
                                         false => Quat::from_rotation_z(angle)
@@ -529,7 +529,9 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                             };
 
-                            let coords = transform.translation + Vec3::new(100.0 * requested_movement.angle.cos(), 100.0 * requested_movement.angle.sin(), 0.0);
+                            let coords = transform.translation + Vec3::new(100.0 * requested_movement.angle.cos(), 100.0 * requested_movement.angle.sin(), 5.0);
+
+                            let rotation = 0.0;
 
 
                             let size = match requested_movement.angle.abs() == PI / 2.0 {
@@ -546,6 +548,8 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                                     sprite: Sprite::new(size),
                                     transform: Transform {
                                         translation: coords,
+                                        rotation: Quat::from_rotation_z(rotation),
+
                                         ..Default::default()
                                     },
                                     ..Default::default()
@@ -555,7 +559,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                             maps.0.get_mut(&map_crc32.0).unwrap().objects.push(
                                 MapObject {
-                                    coords,
+                                    coords: coords.extend(rotation),
                                     size,
                                     sprite: color_vec,
                                     collidable: true,

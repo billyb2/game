@@ -2,6 +2,7 @@
 #![feature(const_fn_union)]
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(core_intrinsics)]
+#![feature(drain_filter)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
@@ -273,12 +274,12 @@ fn main() {
 
     let mut rng = rand::thread_rng();
 
-    let map = Map::from_bin(include_bytes!("../tiled/map1.custom"));
+    let map = Map::from_bin(include_bytes!("../tiled/map2.custom"));
 
     #[cfg(debug_assertions)]
     app
     // Antialiasing
-    .insert_resource(Msaa { samples: 1 });
+    .insert_resource(Msaa { samples: 8 });
 
     #[cfg(not(debug_assertions))]
     app
@@ -721,11 +722,13 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                     },
 
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
+                        let distance_traveled = distance_traveled.as_mut().unwrap();
+
                         // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
                         // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.as_mut().unwrap().0  += movement.speed.abs();
+                        distance_traveled.0 = unsafe { fadd_fast(distance_traveled.0, movement.speed.abs()) };
 
-                        if distance_traveled.as_ref().unwrap().0 >= *distance_to_stop_at {
+                        if distance_traveled.0 >= *distance_to_stop_at {
                             movement.speed = 0.0;
 
                         }
@@ -781,12 +784,11 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
     // Finally, light any molotovs on fire that need to be lit
     projectile_movements.for_each_mut(|(entity, proj_coords, _, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, _) |{
         if *projectile_type == ProjectileType::MolotovLiquid {
-            let mut i = 0;
 
-            while i < molotovs_to_be_lit_on_fire.len() {
-                let potential_molotov = molotovs_to_be_lit_on_fire[i];
+            molotovs_to_be_lit_on_fire.drain_filter(|potential_molotov| {
+                let should_light_molotov = proj_coords.translation.truncate() == potential_molotov.0 && (sprite.size.x - potential_molotov.1).abs() < f32::EPSILON;
 
-                if proj_coords.translation.truncate() == potential_molotov.0 && (sprite.size.x - potential_molotov.1).abs() < f32::EPSILON {
+                if should_light_molotov {
                     // Does 75 damage every second (since there are 60 frames per second)
                     // This might seem excessive, but most players have the sense to run if they catch on fire, so the high damage done forces them to take the fire as a threat instead of just running through it to engage the slow and weak Inferno
                     // Once the molotov is hit by a bullet, it becomes molotov fire
@@ -797,15 +799,12 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                     sprite.deref_mut().size = Vec2::new(250.0, 250.0);
                     commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
 
-                    molotovs_to_be_lit_on_fire.remove(i);
-                    break;
-
-
                 }
 
-                i += 1;
+                // Remove any lit molotovs w. drain filter
+                should_light_molotov
 
-            }
+            });
 
         }
 

@@ -148,7 +148,9 @@ var customMapFormat = {
 
                         let x = object.x * 6.0;
                         let y = object.y * 6.0;
-
+                        let z = object.property("Z");
+                        let rotation = object.rotation;
+                        
                         let width = object.width * 6.0;
                         let height = object.height * 6.0;
 
@@ -183,6 +185,18 @@ var customMapFormat = {
                         array.push((y & 0x00ff0000) >> 16);
                         array.push((y & 0x0000ff00) >> 8);
                         array.push(y & 0x000000ff);
+
+                        // How objects stack onto each other (Z coord)
+                        array.push((z & 0xff000000) >> 24);
+                        array.push((z & 0x00ff0000) >> 16);
+                        array.push((z & 0x0000ff00) >> 8);
+                        array.push(z & 0x000000ff);
+
+                        // Clockwise rotation
+                        array.push((rotation & 0xff000000) >> 24);
+                        array.push((rotation & 0x00ff0000) >> 16);
+                        array.push((rotation & 0x0000ff00) >> 8);
+                        array.push(rotation & 0x000000ff);
 
                         //width
                         array.push((width & 0xff000000) >> 24);

@@ -166,7 +166,7 @@ pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Ve
 }
 
 pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool {
-    let a_min = rect_coords- rect_size / 2.0;
+    let a_min = rect_coords - rect_size / 2.0;
     let a_max = rect_coords + rect_size / 2.0;
 
     unlikely({
