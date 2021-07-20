@@ -103,6 +103,10 @@ single_byte_hashmap = { version = "0.1", features = ["nightly", "allow_unsafe_si
 # Just a regular HashMap
 hashbrown = { version = "0.11", features = ["rayon", "nightly"] }
 
+# Easy SIMD
+packed_simd_2 = { version = "0.3" }
+
+
 
 [features]
 default = [

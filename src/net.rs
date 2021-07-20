@@ -545,8 +545,6 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
                     *sprite.deref_mut() = materials.player.clone();*/
 
-                    *sprite.deref_mut() = materials.player.clone();
-
 
                 // The set player ability command
                 } else if command[0] == 1 {

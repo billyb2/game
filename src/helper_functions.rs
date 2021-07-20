@@ -12,6 +12,8 @@ use std::intrinsics::*;
 #[cfg(feature = "native")]
 use std::net::UdpSocket;
 
+use packed_simd_2::*;
+
 #[inline]
 pub fn slice_to_u32(data: &[u8]) -> u32 {
     debug_assert!(data.len() == 4);
@@ -91,14 +93,27 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
     
     // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
+    const POINT_FIVE: f32x2 = f32x2::splat(0.5);
+    const TRUE: m32x2 = m32x2::splat(true);
 
-    let (b_min, b_max) = (
-        rect2_coords - rect2_size / 2.0,
-        rect2_coords + rect2_size / 2.0
+    let rect2_coords = f32x2::new(rect2_coords.x, rect2_coords.y);
 
-    );
 
-    let half_a_size = rect1_size / 2.0;
+    let half_rect1_size = {
+        let rect1_size = f32x2::new(rect1_size[0], rect1_size[1]);
+        rect1_size * POINT_FIVE
+
+    };
+
+    let half_rect2_size = {
+        let rect2_size = f32x2::new(rect2_size.x, rect2_size.y);
+        rect2_size * POINT_FIVE
+
+    };
+
+    let rect2_min = rect2_coords - half_rect2_size;
+    let rect2_max = rect2_coords + half_rect2_size;
+
 
     if distance != 0.0 && distance <= 550.0 {
         let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
@@ -107,15 +122,17 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
 
         let collision = |i: u32| {
             let interval = interval_size * i as f32;
-            let rect1_coords = Vec2::new(interval.mul_add(angle.cos(), rect1_coords.x), interval.mul_add(angle.sin(),rect1_coords.y));
 
-            let (a_min, a_max) = (
-                unsafe { Vec2::new(fsub_fast(rect1_coords.x, half_a_size.x), fsub_fast(rect1_coords.y, half_a_size.y)) },
-                unsafe { Vec2::new(fadd_fast(rect1_coords.x, half_a_size.x), fadd_fast(rect1_coords.y, half_a_size.y)) }
-            );
+            let rect1_coords = f32x2::new(interval.mul_add(angle.cos(), rect1_coords.x), interval.mul_add(angle.sin(),rect1_coords.y));
+
+            let rect1_min = rect1_coords - half_rect1_size;
+            let rect1_max = rect1_coords + half_rect1_size;
 
             // Check for collision
-            unlikely(a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y)
+            unlikely(
+                rect1_min.le(rect2_max) == TRUE &&
+                rect2_min.le(rect1_max) == TRUE
+            )
 
         };
 
@@ -125,14 +142,15 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
 
 
     } else {
-        let rect1_coords = rect1_coords + Vec2::new(distance * angle.cos(), distance * angle.sin());
+        let rect1_coords = f32x2::new(rect1_coords.x, rect1_coords.y);
 
-        let (a_min, a_max) = (
-            rect1_coords - half_a_size,
-            rect1_coords + half_a_size
-        );
+        let rect1_min = rect1_coords - half_rect1_size;
+        let rect1_max = rect1_coords + half_rect1_size;
 
-        a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y
+        unlikely(
+            rect1_min.le(rect2_max) == TRUE &&
+            rect2_min.le(rect1_max) == TRUE
+        )
 
     }
 

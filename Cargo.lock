@@ -1725,6 +1725,7 @@ dependencies = [
  "hashbrown 0.11.2",
  "lazy_static",
  "lz4_flex",
+ "packed_simd_2",
  "rand 0.8.4",
  "rayon",
  "serde",
