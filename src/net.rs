@@ -27,7 +27,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 122)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -385,7 +385,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
     }
 }
 
-pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Health>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, player_entity: Res<HashMap<u8, Entity>>, mut log_event: EventWriter<LogEvent>) {
+pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Health>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], f32)> = Vec::with_capacity(255);
 
@@ -401,20 +401,16 @@ pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Quer
 
                     let mut health = players.get_mut(*player_entity.get(&player_who_took_damage).unwrap()).unwrap();
 
-                    if health.0 != 0.0 {
-                        log_event.send(LogEvent(format!("Player {} took {} damage", player_who_took_damage, damage)));
-
-                        if (health.0 - damage) <= 0.0 {
-                            health.0 = 0.0;
-                            death_event.send(DeathEvent(player_who_took_damage));
-                            // The player who shot the bullet has their score increased 
-                            *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
+                    if (health.0 - damage) <= 0.0 && health.0 != 0.0 {
+                        health.0 = 0.0;
+                        death_event.send(DeathEvent(player_who_took_damage));
+                        // The player who shot the bullet has their score increased 
+                        *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
 
 
-                        } else {
-                            health.0 -= damage;
+                    } else {
+                        health.0 -= damage;
 
-                        }
                     }
 
                 }

@@ -1,4 +1,4 @@
-cargo-features = ["named-profiles", "strip"]
+cargo-features = ["named-profiles"]
 
 [package]
 name = "game"
@@ -21,8 +21,7 @@ inherits = "dev"
 [profile.release]
 opt-level = 3
 overflow-checks = false
-strip = "symbols"
-lto = false
+lto = true
 panic = "abort"
 debug = 0
 codegen-units = 1
@@ -104,7 +103,7 @@ single_byte_hashmap = { version = "0.1", features = ["nightly"] }
 hashbrown = { version = "0.11", features = ["rayon", "nightly"] }
 
 # Easy SIMD
-packed_simd_2 = { version = "0.3" }
+core_simd = { git = "https://github.com/rust-lang/stdsimd" }
 
 
 
@@ -122,7 +121,7 @@ native = [
 
 parallel = [
   "rayon",
-  "single_byte_hashmap/rayon"
+  "single_byte_hashmap/rayon",
 ]
 
 web = [
