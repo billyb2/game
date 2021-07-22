@@ -13,6 +13,8 @@ use bevy::render::prelude::*;
 use bevy::sprite::prelude::*;
 use bevy::transform::prelude::*;
 
+use core_simd::*;
+
 use crate::components::WallMarker;
 use crate::{GameRelated, Health, MapCRC32};
 
@@ -55,10 +57,10 @@ pub struct Maps(pub HashBrownMap<u32, Map>);
 impl MapObject {
     fn collision(
         &self,
-        other_object_coords: Vec2,
+        other_object_coords: f32x2,
         other_object_size: Vec2,
         distance: f32,
-        angle: f32,
+        angle: f32x2,
     ) -> bool {
         //Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
         self.collidable && collide(other_object_coords, other_object_size, self.coords.xy(), self.size, distance, angle)
@@ -201,7 +203,7 @@ impl Map {
     }
 
     // Returns whether a collision took place, and the health of the wall (if it has health)
-    pub fn collision(&mut self, other_object_coords: Vec2, other_object_size: Vec2, damage: f32, distance: f32, angle: f32) -> (bool, Option<(f32, Vec2)>) {
+    pub fn collision(&mut self, other_object_coords: f32x2, other_object_size: Vec2, damage: f32, distance: f32, angle: f32x2) -> (bool, Option<(f32, Vec2)>) {
         let map_collision = |index: &usize| {
             self.objects[*index].collision(other_object_coords, other_object_size, distance, angle)
         };
@@ -241,7 +243,7 @@ impl Map {
     }
 
     // Identical to collision, except it's a non-mutable reference so it's safe to use in a parallel iterator
-    pub fn collision_no_damage(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: f32) -> bool {
+    pub fn collision_no_damage(&self, other_object_coords: f32x2, other_object_size: Vec2, distance: f32, angle: f32x2) -> bool {
         let map_collision = |index: usize| {
             self.objects[index].collision(other_object_coords, other_object_size, distance, angle)
         };

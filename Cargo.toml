@@ -20,6 +20,7 @@ inherits = "dev"
 
 [profile.release]
 opt-level = 3
+# You don't need overflow checks if your ints never overflow *taps head*
 overflow-checks = false
 lto = true
 panic = "abort"
@@ -38,7 +39,8 @@ opt-level = 3
 
 [profile.opt-web]
 inherits = "release"
-lto = false
+# Thin LTO still improves speed, but isn't as slow as fat (true) LTO
+lto = "thin"
 codegen-units = 32
 
 [profile.release-web]
@@ -52,7 +54,7 @@ opt-level = 2
 
 [profile.opt-web-simd]
 inherits = "release"
-lto = false
+lto = "thin"
 codegen-units = 32
 
 [profile.release-web-simd]
@@ -106,7 +108,6 @@ hashbrown = { version = "0.11", features = ["rayon", "nightly"] }
 core_simd = { git = "https://github.com/rust-lang/stdsimd" }
 
 
-
 [features]
 default = [
   "native",
@@ -114,7 +115,7 @@ default = [
 
 native = [
   "bevy/bevy_wgpu",
-  # Since literally every 64 bit CPU has SIMD support, I think it's fine to enable it for rand
+  # Since literally every 64 bit CPU has 128-bit SIMD support, I think it's fine to enable it for rand
   "rand/simd_support",
   "parallel",
 ]

@@ -89,7 +89,7 @@ SOFTWARE.
 
 const TWO: f32x2 = f32x2::splat(2.0);
 
-pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: f32) -> bool {
+pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: f32x2) -> bool {
     // A bounding box collision test between two rectangles
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
@@ -112,8 +112,6 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
 
     let rect2_min = rect2_coords - half_rect2_size;
     let rect2_max = rect2_coords + half_rect2_size;
-
-    let angle = f32x2::from_array([angle.cos(), angle.sin()]);
 
     if distance != 0.0 && distance <= 550.0 {
         let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
@@ -162,9 +160,8 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
 
 }
 
-pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Vec2, radius: f32) -> bool {
+pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: f32x2, radius: f32) -> bool {
     let rect_coords = f32x2::from_array(rect_coords.to_array());
-    let circle_coords = f32x2::from_array(circle_coords.to_array());
 
     let half_rect_size = f32x2::from_array(rect_size.to_array()) / TWO;
 
@@ -175,10 +172,9 @@ pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Ve
 
 }
 
-pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool {
+pub fn out_of_bounds(rect_coords: f32x2, rect_size: Vec2, map_size: Vec2) -> bool {
     const ZERO: f32x2 = f32x2::splat(0.0);
 
-    let rect_coords = f32x2::from_array(rect_coords.to_array());
     let half_rect_size = f32x2::from_array(rect_size.to_array()) / TWO;
 
     let min = rect_coords - half_rect_size;

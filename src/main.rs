@@ -24,6 +24,7 @@ mod net;
 use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
 use std::intrinsics::*;
+use core_simd::*;
 
 use bevy_networking_turbulence::*;
 
@@ -275,7 +276,8 @@ fn main() {
 
     let mut rng = rand::thread_rng();
 
-    let map = Map::from_bin(include_bytes!("../tiled/map2.custom"));
+    let map1 = Map::from_bin(include_bytes!("../tiled/map1.custom"));
+    let map2 = Map::from_bin(include_bytes!("../tiled/map2.custom"));
 
     #[cfg(debug_assertions)]
     app
@@ -310,12 +312,13 @@ fn main() {
     .add_state(AppState::MainMenu)
 
     .insert_resource(TaskPool::new())
-    .insert_resource(MapCRC32(map.crc32))
+    .insert_resource(MapCRC32(map2.crc32))
     // Embed the map into the binary
     .insert_resource({
-        let mut maps = Maps(HashBrownMap::with_capacity(1));
+        let mut maps = Maps(HashBrownMap::with_capacity(2));
 
-        maps.0.insert(map.crc32, map);
+        maps.0.insert(map1.crc32, map1);
+        maps.0.insert(map2.crc32, map2);
 
         maps
     })
@@ -555,13 +558,15 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
             let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
 
-            // Only lets you move if the movement doesn't bump into a wall
-            let next_potential_movement = unsafe { Vec3::new(fmul_fast(speed, movement.angle.cos()), fmul_fast(speed, movement.angle.sin()), 0.0) };
+            let angle_trig = f32x2::from_array([movement.angle.cos(), movement.angle.sin()]);
+            let translation = f32x2::from_array(object.translation.truncate().to_array());
 
-            let next_potential_pos = object.translation + next_potential_movement;
+            let speed_simd = f32x2::splat(speed);
 
-            if !map.collision_no_damage(object.translation.truncate(), sprite.size, speed, movement.angle)  && !out_of_bounds(next_potential_pos.truncate(), sprite.size, map.size) {
-                object.translation = next_potential_pos;
+            let next_potential_pos = speed_simd.mul_add(angle_trig, translation);
+
+            if !map.collision_no_damage(translation, sprite.size, movement.speed, angle_trig)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
+                object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(100.0);
 
                 match movement_type {
                     // The object moves one frame, and then stops
@@ -576,7 +581,10 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                         distance_traveled.as_mut().unwrap().0 = unsafe { 
                             fadd_fast(distance_traveled.as_ref().unwrap().0,  
                                 fmul_fast(
-                                    fmul_fast(movement.speed.abs(), DESIRED_TICKS_PER_SECOND), 
+                                    fmul_fast(
+                                        movement.speed.abs(), 
+                                        DESIRED_TICKS_PER_SECOND
+                                    ), 
                                     time.delta_seconds()
                                 )
                             ) 
@@ -607,11 +615,13 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
             let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
 
-            // Only lets you move if the movement doesn't bump into a wall
-            let next_potential_movement = unsafe { Vec3::new(fmul_fast(speed, movement.angle.cos()), fmul_fast(speed, movement.angle.sin()), 0.0) };
-            // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let next_potential_pos = object.translation + next_potential_movement;
 
+            let angle_trig = f32x2::from_array([movement.angle.cos(), movement.angle.sin()]);
+            let translation = f32x2::from_array(object.translation.truncate().to_array());
+
+            let speed_simd = f32x2::splat(speed);
+
+            let next_potential_pos = speed_simd.mul_add(angle_trig, translation);
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
@@ -620,7 +630,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
 
-                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(object.translation.truncate(), sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, movement.angle)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos.truncate(), sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                let translation = f32x2::from_array(object.translation.truncate().to_array());
+
+                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
                     if *ability == Ability::Cloak && !visible.is_visible {
                         visible.is_visible = true;
 
@@ -646,7 +658,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                             ],
                             ..Default::default()
                         },
-                        transform: Transform::from_translation(next_potential_pos.truncate().extend(5.0)),
+                        transform: Transform::from_translation(Vec2::from_slice(&next_potential_pos.to_array()).extend(5.0)),
                         ..Default::default()
 
                     })
@@ -684,7 +696,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
             });
 
-            let (wall_collision, health_and_coords) = map.collision(object.translation.truncate(), sprite.size, damage.0, speed, movement.angle);
+            let (wall_collision, health_and_coords) = map.collision(translation, sprite.size, damage.0, speed, f32x2::from_array([movement.angle.cos(), movement.angle.sin()]));
 
             if let Some((health, coords)) = health_and_coords {
                 wall_event.send(DespawnWhenDead {
@@ -696,7 +708,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
             }
 
             if !wall_collision && !player_collision {
-                object.translation = next_potential_pos;
+                object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(3.0);
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
                 // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
@@ -771,7 +783,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
             let (_entity, _, _, _, _, _, _, _, ability, _, _player_speed) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
-                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, *coords, *radius) && *ability == Ability::Inferno {
+                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, f32x2::from_array(coords.to_array()), *radius) && *ability == Ability::Inferno {
                     molotovs_to_be_lit_on_fire.push((*coords, *radius));
 
                 }
