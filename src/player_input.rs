@@ -21,11 +21,6 @@ use crate::*;
 use crate::components::*;
 use crate::player_attr::*;
 
-#[cfg(feature = "web")]
-macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
-
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
 pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>) {

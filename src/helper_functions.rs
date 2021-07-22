@@ -12,7 +12,7 @@ use std::intrinsics::*;
 #[cfg(feature = "native")]
 use std::net::UdpSocket;
 
-use packed_simd_2::*;
+use core_simd::*;
 
 #[inline]
 pub fn slice_to_u32(data: &[u8]) -> u32 {
@@ -87,51 +87,53 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+const TWO: f32x2 = f32x2::splat(2.0);
+
 pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: f32) -> bool {
     // A bounding box collision test between two rectangles
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
     
     // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
-    const POINT_FIVE: f32x2 = f32x2::splat(0.5);
-    const TRUE: m32x2 = m32x2::splat(true);
-
-    let rect2_coords = f32x2::new(rect2_coords.x, rect2_coords.y);
+    let rect2_coords = f32x2::from_array(rect2_coords.to_array());
 
 
     let half_rect1_size = {
-        let rect1_size = f32x2::new(rect1_size[0], rect1_size[1]);
-        rect1_size * POINT_FIVE
+        let rect1_size = f32x2::from_array(rect1_size.to_array());
+        rect1_size / TWO
 
     };
 
     let half_rect2_size = {
-        let rect2_size = f32x2::new(rect2_size.x, rect2_size.y);
-        rect2_size * POINT_FIVE
+        let rect2_size = f32x2::from_array(rect2_size.to_array());
+        rect2_size / TWO
 
     };
 
     let rect2_min = rect2_coords - half_rect2_size;
     let rect2_max = rect2_coords + half_rect2_size;
 
+    let angle = f32x2::from_array([angle.cos(), angle.sin()]);
 
     if distance != 0.0 && distance <= 550.0 {
         let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
         let interval_size = distance / a_size_f32;
         let num_of_iters = (distance / interval_size).ceil() as u32;
 
-        let collision = |i: u32| {
-            let interval = interval_size * i as f32;
+        let rect1_coords = f32x2::from_array(rect1_coords.to_array());
 
-            let rect1_coords = f32x2::new(interval.mul_add(angle.cos(), rect1_coords.x), interval.mul_add(angle.sin(),rect1_coords.y));
+        let collision = |i: u32| {
+            let distance = f32x2::splat(interval_size * i as f32);
+            
+            let rect1_coords = distance.mul_add(angle, rect1_coords);
 
             let rect1_min = rect1_coords - half_rect1_size;
             let rect1_max = rect1_coords + half_rect1_size;
 
             // Check for collision
             unlikely(
-                rect1_min.le(rect2_max) == TRUE &&
-                rect2_min.le(rect1_max) == TRUE
+                rect1_min.lanes_le(rect2_max) == mask32x2::splat(true) &&
+                rect2_min.lanes_le(rect1_max) == mask32x2::splat(true)
             )
 
         };
@@ -142,14 +144,18 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
 
 
     } else {
-        let rect1_coords = f32x2::new(rect1_coords.x, rect1_coords.y);
+        let distance = f32x2::splat(distance);
+
+        let mut rect1_coords = f32x2::from_array(rect1_coords.to_array());
+        rect1_coords = distance.mul_add(angle, rect1_coords);
 
         let rect1_min = rect1_coords - half_rect1_size;
         let rect1_max = rect1_coords + half_rect1_size;
 
+        // Check for collision
         unlikely(
-            rect1_min.le(rect2_max) == TRUE &&
-            rect2_min.le(rect1_max) == TRUE
+            rect1_min.lanes_le(rect2_max) == mask32x2::splat(true) &&
+            rect2_min.lanes_le(rect1_max) == mask32x2::splat(true)
         )
 
     }
@@ -157,26 +163,34 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
 }
 
 pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Vec2, radius: f32) -> bool {
-    let delta_x = circle_coords.x - f32::max(rect_coords.x - (rect_size.x / 2.0), f32::min(circle_coords.x, rect_coords.x + (rect_size.x / 2.0)));
-    let delta_y = circle_coords.y - f32::max(rect_coords.y - (rect_size.y / 2.0), f32::min(circle_coords.y, rect_coords.y + (rect_size.y / 2.0)));
+    let rect_coords = f32x2::from_array(rect_coords.to_array());
+    let circle_coords = f32x2::from_array(circle_coords.to_array());
 
-    (delta_x.powi(2) + delta_y.powi(2)) < (radius / 2.0).powi(2)
+    let half_rect_size = f32x2::from_array(rect_size.to_array()) / TWO;
+
+    let delta = circle_coords - (rect_coords - half_rect_size).max(circle_coords.min(rect_coords + half_rect_size)); 
+
+    (delta * delta).horizontal_sum() <= (radius / 2.0).powi(2)
 
 
 }
 
 pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool {
-    let a_min = rect_coords - rect_size / 2.0;
-    let a_max = rect_coords + rect_size / 2.0;
+    const ZERO: f32x2 = f32x2::splat(0.0);
 
-    unlikely({
-        a_min.x <= 0.0
-        // Gotta make the y coordinates negative due to the funky way Bevy uses coordinates
-        || -a_min.y <= 0.0
-        || a_max.x >= map_size.x
-        || -a_max.y >= map_size.y
+    let rect_coords = f32x2::from_array(rect_coords.to_array());
+    let half_rect_size = f32x2::from_array(rect_size.to_array()) / TWO;
 
-    })
+    let min = rect_coords - half_rect_size;
+    let max = rect_coords + half_rect_size;
+
+    let map_size = f32x2::from_array(map_size.to_array());
+
+    unlikely(
+        min.lanes_le(ZERO) == mask32x2::splat(true) &&
+        max.lanes_ge(map_size) == mask32x2::splat(true)
+    )
+
 
 
 }

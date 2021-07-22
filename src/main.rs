@@ -3,6 +3,7 @@
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(core_intrinsics)]
 #![feature(drain_filter)]
+#![feature(portable_simd)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
