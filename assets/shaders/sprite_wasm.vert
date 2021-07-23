@@ -20,7 +20,7 @@ layout(std140) uniform Sprite {  // set = 2, binding = 1
     uint flip;
 };
 
-const float epsilon = 0.00000011920929;
+const float f32_epsilon = 0.00000011920929;
 
 void main() {
     vec2 uv = Vertex_Uv;
@@ -34,10 +34,10 @@ void main() {
     // to me (@zicklag ) that causes the uv's to be slightly offset and causes over/under running of
     // the sprite UV sampling which is visible when resizing the screen.
     if ((flip & x_flip_bit) == x_flip_bit) {
-        uv = vec2(1.0 - uv.x - epsilon, uv.y);
+        uv = vec2(1.0 - uv.x - f32_epsilon, uv.y);
     }
     if ((flip & y_flip_bit) == y_flip_bit) {
-        uv = vec2(uv.x, 1.0 - uv.y - epsilon);
+        uv = vec2(uv.x, 1.0 - uv.y - f32_epsilon);
     }
 
     v_Uv = uv;

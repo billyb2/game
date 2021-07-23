@@ -47,6 +47,8 @@ use rayon::prelude::*;
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
 
+use rand::seq::SliceRandom;
+
 //use bots::*;
 use map::*;
 use player_input::*;
@@ -426,6 +428,7 @@ fn main() {
             .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
             .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
             .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
+            .with_system(reset_player_phasing.system().after(InputFromPlayer))
             .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
             .with_system(in_game_settings_menu_system.system().after(InputFromPlayer))
             .with_system(damage_text_system.system().after("move_objects"))
@@ -540,13 +543,13 @@ fn main() {
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed, &Phasing), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
 
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
     let map = maps.0.get_mut(&map_crc32.0).unwrap();
 
-    player_movements.for_each_mut(|(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed)| {
+    player_movements.for_each_mut(|(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed, phasing)| {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let mut lag_compensation = unsafe { fmul_fast(DESIRED_TICKS_PER_SECOND, time.delta_seconds()) };
@@ -563,7 +566,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
             let speed_simd = f32x2::splat(speed);
 
-            let next_potential_pos = speed_simd.mul_add(angle_trig, translation);
+            if phasing.0 || (!map.collision_no_damage(object.translation.truncate(), sprite.size, speed, movement.angle)  && !out_of_bounds(next_potential_pos.truncate(), sprite.size, map.size)) {
+                object.translation = next_potential_pos;
 
             if !map.collision_no_damage(translation, sprite.size, movement.speed, angle_trig)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
                 object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(100.0);
@@ -625,7 +629,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            player_movements.for_each_mut(|(entity, player, _, _, _, player_sprite, player_id, mut health, ability, mut visible, mut player_speed) |{
+            player_movements.for_each_mut(|(entity, player, _, _, _, player_sprite, player_id, mut health, ability, mut visible, mut player_speed, _phasing) |{
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
@@ -780,7 +784,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
     projectile_movements.for_each_mut(|(_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) |{
         if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
             // Firstly, find if the player ID is that of an inferno
-            let (_entity, _, _, _, _, _, _, _, ability, _, _player_speed) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
+            let (_entity, _, _, _, _, _, _, _, ability, _, _player_speed, _phasing) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
                 if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, f32x2::from_array(coords.to_array()), *radius) && *ability == Ability::Inferno {
@@ -864,9 +868,14 @@ fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Qu
 }
 
 // This system just deals respawning players
-fn dead_players(mut players: Query<(&mut Health, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, task_pool: Res<TaskPool>) {
-    players.par_for_each_mut(&task_pool, 1, |(mut health, mut visibility, mut respawn_timer, perk, player_id)| {
+fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, task_pool: Res<TaskPool>, maps: Res<Maps>, map_crc32: Res<MapCRC32>) {
+    players.par_for_each_mut(&task_pool, 1, |(mut health, mut transform, mut visibility, mut respawn_timer, perk, player_id)| {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains(&player_id.0) {
+            let mut rng = rand::thread_rng();
+            let spawn_points = &maps.0.get(&map_crc32.0).unwrap().spawn_points;
+
+            transform.translation = spawn_points.choose(&mut rng).unwrap().extend(100.0);
+
             health.0 = match perk {
                 Perk::HeavyArmor => 125.0,
                 Perk::LightArmor => 80.0,

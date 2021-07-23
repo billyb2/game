@@ -24,6 +24,10 @@ layout(set = 2, binding = 5) uniform WindowSize_value {
     vec2 screen_dimensions;
 };
 
+layout(set = 2, binding = 6) uniform ShaderPhasing_value {
+    float phasing;
+};
+
 
 # ifdef COLORMATERIAL_TEXTURE 
 layout(set = 1, binding = 1) uniform texture2D ColorMaterial_texture;
@@ -90,6 +94,8 @@ void set_color_of_player(inout vec4 color) {
 
 void main() {
     vec4 color = Color;
+
+    color.a = phasing;
 
     // Don't mess with the transparent part of the sprites
     # ifdef COLORMATERIAL_TEXTURE

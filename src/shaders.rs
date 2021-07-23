@@ -67,6 +67,13 @@ impl InnerSuitColor {
     }
 }
 
+#[derive(RenderResources, Default, TypeUuid)]
+#[uuid = "463e4c8b-d554-4fc2-bc9f-4c881163ba92"]
+pub struct ShaderPhasing {
+    pub value: f32,
+}
+
+
 // All this is to keep hot shaders from crashing (see https://github.com/bevyengine/bevy/issues/1359)
 
 #[derive(Default)]

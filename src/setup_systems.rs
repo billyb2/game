@@ -377,7 +377,9 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
         Ability::Wall => (WALL_HELMET_COLOR, WALL_SUIT_COLOR),
         Ability::Stim => (STIM_HELMET_COLOR, STIM_SUIT_COLOR),
         Ability::Cloak => (CLOAK_HELMET_COLOR, CLOAK_SUIT_COLOR),
-        Ability::PulseWave => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR)
+        Ability::PulseWave => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
+        Ability::Ghost => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
+
     };
 
     (helmet_color, inner_suit_color)
@@ -439,63 +441,67 @@ pub fn setup_players(
         RenderResourcesNode::<InnerSuitColor>::new(true),
     );
 
+    render_graph.add_system_node(
+        "phasing",
+        RenderResourcesNode::<ShaderPhasing>::new(true),
+    );
+
     let mut living = true;
 
-    for object in maps.0.get(&map_crc32.0).unwrap().objects.iter() {
-        if object.player_spawn {
-            let ability = *my_ability;
-            let gun_model = *my_gun_model;
-            let perk = *my_perk;
+    maps.0.get(&map_crc32.0).unwrap().spawn_points.iter().for_each(|coords| {
+        let ability = *my_ability;
+        let gun_model = *my_gun_model;
+        let perk = *my_perk;
 
-            let (helmet_color, inner_suit_color) = set_player_colors(&ability);
+        let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
-            let entity = commands
-                .spawn_bundle(Player::new(i, ability, perk, living))
-                .insert_bundle(Gun::new(gun_model, ability, perk))
-                .insert_bundle(SpriteBundle {
-                    material: match i {
-                        0 => materials.player.clone(),
-                        _ => materials.enemy.clone(),
+        let entity = commands
+            .spawn_bundle(Player::new(i, ability, perk, living))
+            .insert_bundle(Gun::new(gun_model, ability, perk))
+            .insert_bundle(SpriteBundle {
+                material: match i {
+                    0 => materials.player.clone(),
+                    _ => materials.enemy.clone(),
 
-                    },
-                    sprite: Sprite {
-                        size: Vec2::new(120.0, 75.0),
-                        flip_x: true,
-                        resize_mode: SpriteResizeMode::Manual,
-
-                        ..Default::default()
-                    },
-                    visible: Visible {
-                        is_visible: living,
-                        is_transparent: true,
-                    },
-                    transform: Transform::from_translation(object.coords.xy().extend(101.0)),
-                    render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                        pipeline_handle.clone(),
-                    )]),
+                },
+                sprite: Sprite {
+                    size: Vec2::new(120.0, 75.0),
+                    flip_x: true,
+                    resize_mode: SpriteResizeMode::Manual,
 
                     ..Default::default()
-                })
-                .insert(ShaderMousePosition { value: Vec2::ZERO })
-                .insert(WindowSize {
-                    value: Vec2::new(wnd.width(), wnd.height()),
-                })
-                .insert(helmet_color)
-                .insert(inner_suit_color)
-                .insert(GameRelated)
-                .id();
+                },
+                visible: Visible {
+                    is_visible: living,
+                    is_transparent: true,
+                },
+                transform: Transform::from_translation(coords.extend(101.0)),
+                render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
+                    pipeline_handle.clone(),
+                )]),
 
-            player_entities.insert(i, entity);
+                ..Default::default()
+            })
+            .insert(ShaderMousePosition { value: Vec2::ZERO })
+            .insert(WindowSize {
+                value: Vec2::new(wnd.width(), wnd.height()),
+            })
+            .insert(helmet_color)
+            .insert(inner_suit_color)
+            .insert(GameRelated)
+            .insert(ShaderPhasing { value: 1.0})
+            .id();
 
-            if i != 0 {
-                availabie_player_ids.push(PlayerID(i));
-            }
+        player_entities.insert(i, entity);
 
-            living = false;
-
-            i += 1;
+        if i != 0 {
+            availabie_player_ids.push(PlayerID(i));
         }
-    }
+
+        living = false;
+
+        i += 1;
+    });
 
     commands.insert_resource(availabie_player_ids);
     commands.insert_resource(OnlinePlayerIDs(online_player_ids));
@@ -1435,7 +1441,7 @@ pub fn setup_default_controls(mut commands: Commands) {
         left: KeyCode::A,
         right: KeyCode::D,
 
-        use_ability: KeyCode::Q,
+        use_ability: KeyCode::LShift,
         reload: KeyCode::R,
 
         show_score: KeyCode::Tab,

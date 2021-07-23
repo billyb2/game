@@ -97,9 +97,9 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
     // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
     let rect2_coords = f32x2::from_array(rect2_coords.to_array());
 
+    let rect1_size = f32x2::from_array(rect1_size.to_array());
 
     let half_rect1_size = {
-        let rect1_size = f32x2::from_array(rect1_size.to_array());
         rect1_size / TWO
 
     };
@@ -114,7 +114,7 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
     let rect2_max = rect2_coords + half_rect2_size;
 
     if distance != 0.0 && distance <= 550.0 {
-        let a_size_f32 = (rect1_size.x * rect1_size.y).sqrt();
+        let a_size_f32 = rect1_size.horizontal_product().sqrt();
         let interval_size = distance / a_size_f32;
         let num_of_iters = (distance / interval_size).ceil() as u32;
 

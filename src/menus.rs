@@ -356,6 +356,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
                         Ability::Inferno => String::from("Your flame tipped bullets can light the molotovs you throw"),
                         Ability::Cloak => String::from("Your suit is modified to be able to temporarily be invisible to the eye"),
                         Ability::PulseWave => String::from("You can generate pulses of electricity, significantly slowing down your opponents temporarily"),
+                        Ability::Ghost => String::from("You where hit by a car and you are half-dead. Your armor has mystic abilities to phase through walls. \nBe careful though, if you are still stuck in the walls by the end of your phase time, \n you will die.")
                     
                     }
 
