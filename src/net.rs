@@ -292,7 +292,7 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &mut Ability)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<([u8; 2], [f32; 3])> = Vec::with_capacity(255);
 
@@ -315,7 +315,9 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                 if player_id != my_id.0 || ability == Ability::Hacker {
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
-                    let (mut ammo_in_mag, mut transform, mut requested_movement) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut ammo_in_mag, mut transform, mut requested_movement, mut old_ability) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+
+                    *old_ability = ability;
 
                     if ability != Ability::Hacker {
                         transform.translation.x = player_x;
@@ -323,7 +325,10 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                         requested_movement.angle = angle;
 
-                        if ability == Ability::Wall || ability == Ability::Cloak {
+                        #[cfg(feature = "web")]
+                        console_log!("{:?}", old_ability);
+
+                        if ability == Ability::Wall || ability == Ability::Cloak || ability == Ability::Ghost {
                             ev_use_ability.send(AbilityEvent(player_id));
 
                         }
@@ -544,18 +549,19 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
                 // The set player ability command
                 } else if command[0] == 1 {
-                    let player_ability: Ability = command[1].into();
+                    let [_, ability, player_id] = command;
+                    let player_ability: Ability = ability.into();
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, command[2]);
 
                     players.for_each_mut(|(id, mut ability, mut helmet_color, mut inner_suit_color, _sprite)| {
-                        if id.0 == command[2] {
-                            *ability.deref_mut() = player_ability;
+                        if id.0 == player_id {
+                            *ability = player_ability;
 
                             let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
 
-                            *helmet_color.deref_mut() = new_helmet_color;
-                            *inner_suit_color.deref_mut() = new_inner_suit_color;
+                            *helmet_color = new_helmet_color;
+                            *inner_suit_color = new_inner_suit_color;
 
                             if let Some(my_player_id) = &my_player_id.0 {
                                 if id.0 == my_player_id.0 {

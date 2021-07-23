@@ -15,11 +15,19 @@ use rand::seq::SliceRandom;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+#[cfg(feature = "web")]
+use crate::log;
+
 use crate::helper_functions::get_angle;
 
 use crate::*;
 use crate::components::*;
 use crate::player_attr::*;
+
+#[cfg(feature = "web")]
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
@@ -277,12 +285,12 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
     }
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &Phasing)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
-            let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, phasing) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-            if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
+            if !phasing.0 && (btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0) {
                 let mut rng = rand::thread_rng();
 
                 // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
@@ -479,13 +487,13 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Visible)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Visible, &mut Phasing, &mut ShaderPhasing)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
 ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, mut requested_movement, ability, mut ability_charge, mut
             ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut
-            visible) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
+            visible, mut phasing, mut shader_phasing) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
             // Events that come from other players dont need to wait for ability charge to finish
             if ability_charge.0.finished() || ev_id.0 != my_player_id.0 {
@@ -642,18 +650,20 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                     },
                     Ability::Cloak => {
-                        if !using_ability.0 && ability_charge.0.finished() {
-                            let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+                        let my_player_used_ability = ev_id.0 == my_player_id.0;
 
-                            let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into
-                            ()], message_array);
+                        if !my_player_used_ability || (!using_ability.0 && ability_charge.0.finished()) {
+                            if my_player_used_ability {
+                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+                                let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
 
-                            if ev_id.0 == my_player_id.0 {
                                 net.broadcast_message(message);
+                                shader_phasing.value = 0.25;
 
+                            } else {
+                                shader_phasing.value = 0.0;
                             }
 
-                            visible.is_visible = false;
                             ability_completed.0.reset();
                             using_ability.0 = true;
                         }
@@ -687,6 +697,26 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                         ability_charge.0.reset();             
 
+                    },
+                    Ability::Ghost =>  {
+                        let my_player_used_ability = ev_id.0 == my_player_id.0;
+
+                        if !my_player_used_ability || (!using_ability.0 && ability_charge.0.finished()) {
+                            phasing.0 = true;
+
+                            shader_phasing.value = 0.5;
+
+                            if my_player_used_ability {
+                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+                                let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Ghost.into()], message_array);
+
+                                net.broadcast_message(message);
+
+                            }
+
+                            using_ability.0 = true;
+                            ability_completed.0.reset();
+                        }
                     }
                 };
 
@@ -698,9 +728,9 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
 TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
-AbilityCharge, &mut PlayerSpeed, & mut Visible, &mut DashingInfo)>) {
+AbilityCharge, &mut PlayerSpeed, &mut Visible, &mut DashingInfo, &mut Phasing, &Transform, &Sprite, &mut Health)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
     query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
-        mut using_ability, mut ability_charge, mut speed, mut visible, mut dashing_info)| {
+        mut using_ability, mut ability_charge, mut speed, mut visible, mut dashing_info, mut phasing, transform, sprite, mut health)| {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -713,9 +743,14 @@ AbilityCharge, &mut PlayerSpeed, & mut Visible, &mut DashingInfo)>) {
             if *ability == Ability::Stim {
                 speed.0 = DEFAULT_PLAYER_SPEED + 1.0;
 
-            } else if *ability == Ability::Cloak {
-                visible.is_visible = true;
+            } else if *ability == Ability::Ghost {
+                let map = maps.0.get(&map_crc32.0).unwrap();
+                if map.collision_no_damage(transform.translation.truncate(), sprite.size, 0.0, 0.0) {
+                    health.0 = 0.0;
+                    death_event.send(DeathEvent(my_player_id.0.as_ref().unwrap().0));
+                }
 
+                phasing.0 = false;
             }
 
             using_ability.0 = false;
@@ -738,6 +773,14 @@ AbilityCharge, &mut PlayerSpeed, & mut Visible, &mut DashingInfo)>) {
     });
 }
 
+pub fn reset_player_phasing(mut query: Query<(&UsingAbility, &Ability, &mut ShaderPhasing)>) {
+    query.for_each_mut(|(using_ability, ability, mut shader_phasing)| {
+        if !using_ability.0 && *ability != Ability::Stim {
+            shader_phasing.value = 1.0;
+
+        }
+    });
+}
 
 pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition>, mut shader_mouse_pos: Query<&mut ShaderMousePosition> ) {
     // assuming there is exactly one main camera entity, so this is OK

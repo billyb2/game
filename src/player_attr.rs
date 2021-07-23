@@ -32,6 +32,7 @@ pub struct Player {
     pub can_respawn: RespawnTimer,
     pub dashing_info: DashingInfo,
     pub perk: Perk,
+    pub phasing: Phasing,
 
 }
 
@@ -50,12 +51,14 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
         Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Cloak => AbilityCharge(Timer::from_seconds(17.0, false)),
         Ability::PulseWave => AbilityCharge(Timer::from_seconds(10.0, false)),
+        Ability::Ghost => AbilityCharge(Timer::from_seconds(15.0, false)),
 
     };
 
     #[allow(unused_mut)]
     let mut set_ability_completed = || *ability_completed = match ability {
         Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
+        Ability::Ghost => AbilityCompleted(Timer::from_seconds(5.0, false)),
         Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
         // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
         _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
@@ -123,6 +126,7 @@ impl Player {
                 dashing: false,
             },
             perk,
+            phasing: Phasing(false),
 
         };
 
@@ -147,6 +151,7 @@ pub enum Ability {
     Inferno,
     Cloak,
     PulseWave,
+    Ghost,
 
 }
 
@@ -172,6 +177,7 @@ impl From<u8> for Ability {
             5 => Ability::Inferno,
             6 => Ability::Cloak,
             7 => Ability::PulseWave,
+            8 => Ability::Ghost,
             _ => panic!("Ability conversion out of bounds: {} was requested, max is {}", ability, NUM_OF_ABILITIES),
 
         }
@@ -191,6 +197,7 @@ impl From<Ability> for u8 {
             Ability::Inferno => 5,
             Ability::Cloak => 6,
             Ability::PulseWave => 7,
+            Ability::Ghost => 8,
 
         }
 

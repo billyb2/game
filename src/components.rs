@@ -121,3 +121,6 @@ pub enum InGameSettings {
 pub struct CustomizeHelpText;
 
 pub struct SlowedDown(pub Timer);
+
+#[derive(Debug, Clone)]
+pub struct Phasing(pub bool);

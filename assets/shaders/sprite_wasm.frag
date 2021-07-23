@@ -24,6 +24,12 @@ layout(std140) uniform WindowSize_value { // set = 2, binding = 5
     vec2 screen_dimensions;
 };
 
+layout(std140) uniform ShaderPhasing_value {
+    float phasing;
+};
+
+
+
 
 # ifdef COLORMATERIAL_TEXTURE 
 uniform sampler2D ColorMaterial_texture;  // set = 1, binding = 1
@@ -79,11 +85,13 @@ void set_color_of_player(inout vec4 color) {
 
 void main() {
     vec4 color = Color;
-    
+
+    color.a = phasing;
+
     # ifdef COLORMATERIAL_TEXTURE
         color *= texture(ColorMaterial_texture, v_Uv);
     # endif
-    set_color_of_player(color);
+    //set_color_of_player(color);
     //add_lighting(color);
 
     o_Target = color;

@@ -46,6 +46,7 @@ pub struct Map {
     pub background_color: Color,
     pub size: Vec2,
     pub crc32: u32,
+    pub spawn_points: Vec<Vec2>,
 }
 
 pub struct MapAssets(pub HashMap<u8, Handle<ColorMaterial>>);
@@ -72,6 +73,7 @@ impl Map {
         size: [f32; 2],
         background_color: Color,
         crc32: u32,
+        spawn_points: Vec<Vec2>
     ) -> Map {
         Map {
             name,
@@ -79,6 +81,7 @@ impl Map {
             size: Vec2::new(size[0], size[1]),
             background_color,
             crc32,
+            spawn_points,
         }
     }
 
@@ -129,7 +132,6 @@ impl Map {
 
         // Since the CRC32 is 4 bytes, it will be the final remainder of the map
         let crc32: u32 = slice_to_u32(chunks.remainder());
-
         let add_map_objects = || {
             // Iterates through the entire map, adding a map object for each chunk
             objects = chunks
@@ -192,7 +194,23 @@ impl Map {
             calculate_crc32();
         }
 
-        let map = Map::new(map_crc32, objects, [map_width, map_height], background_color, crc32);
+        let find_spawn_points = |map_object: &MapObject| {
+            if map_object.player_spawn {
+                Some(map_object.coords.truncate().truncate())
+
+            } else {
+                None
+
+            }
+        };
+
+        #[cfg(feature = "parallel")]
+        let spawn_points = objects.par_iter().filter_map(find_spawn_points).collect();
+
+        #[cfg(not(feature = "parallel"))]
+        let spawn_points = objects.iter().filter_map(find_spawn_points).collect();
+
+        let map = Map::new(map_crc32, objects, [map_width, map_height], background_color, crc32, spawn_points);
 
         // Quick check to make sure the to_bin function is working
         debug_assert!(bytes[..] == map_to_bin(&map, false));
