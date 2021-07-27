@@ -278,6 +278,7 @@ pub enum Model {
     SubmachineGun,
     ClusterShotgun,
     Flamethrower,
+    SniperRifle,
 
 }
 
@@ -294,6 +295,7 @@ impl From<u8> for Model {
             5 => Model::SubmachineGun,
             6 => Model::ClusterShotgun,
             7 => Model::Flamethrower,
+            8 => Model::SniperRifle,
             _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
@@ -313,6 +315,7 @@ impl From<Model> for u8 {
             Model::SubmachineGun => 5,
             Model::ClusterShotgun => 6,
             Model::Flamethrower => 7,
+            Model::SniperRifle => 8,
 
         }
 
@@ -361,6 +364,7 @@ impl Gun {
                 Model::SubmachineGun => TimeSinceLastShot(Timer::from_seconds(0.07, false)),
                 Model::ClusterShotgun => TimeSinceLastShot(Timer::from_seconds(1.3, false)),
                 Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
+                Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(5.0, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -373,6 +377,7 @@ impl Gun {
                     Model::SubmachineGun => Timer::from_seconds(2.0, false),
                     Model::ClusterShotgun => Timer::from_seconds(4.0, false),
                     Model::Flamethrower => Timer::from_seconds(2.0, false),
+                    Model::SniperRifle => Timer::from_seconds(5.0, false),
 
                 },
                 reloading: false,
@@ -388,6 +393,7 @@ impl Gun {
                 Model::SubmachineGun => AmmoInMag(35),
                 Model::ClusterShotgun => AmmoInMag(5),
                 Model::Flamethrower => AmmoInMag(30),
+                Model::SniperRifle => AmmoInMag(1),
 
             },
             max_ammo: match model {
@@ -399,6 +405,7 @@ impl Gun {
                 Model::SubmachineGun => MaxAmmo(35),
                 Model::ClusterShotgun => MaxAmmo(5),
                 Model::Flamethrower => MaxAmmo(30),
+                Model::SniperRifle => MaxAmmo(1),
 
             },
             max_distance: match model {
@@ -410,6 +417,7 @@ impl Gun {
                 Model::SubmachineGun => MaxDistance(600.0),
                 Model::ClusterShotgun => MaxDistance(275.0),
                 Model::Flamethrower => MaxDistance(200.0),
+                Model::SniperRifle => MaxDistance(5000.0),
 
             },
             // The recoil range is in radians
@@ -437,6 +445,7 @@ impl Gun {
                 Model::SubmachineGun => Speed(16.0),
                 Model::ClusterShotgun => Speed(11.0),
                 Model::Flamethrower => Speed(15.0),
+                Model::SniperRifle => Speed(100.0),
 
             },
             projectile_size: match model {
@@ -454,6 +463,7 @@ impl Gun {
                 Model::SubmachineGun => Damage(7.5),
                 Model::ClusterShotgun => Damage(17.0),
                 Model::Flamethrower => Damage(3.25),
+                Model::SniperRifle => Damage(275.0),
 
 
             },
