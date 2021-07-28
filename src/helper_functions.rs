@@ -113,7 +113,8 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
     let rect2_min = rect2_coords - half_rect2_size;
     let rect2_max = rect2_coords + half_rect2_size;
 
-    if distance != 0.0 && distance <= 550.0 {
+
+    if distance != 0.0 {
         let a_size_f32 = rect1_size.horizontal_product().sqrt();
         let interval_size = distance / a_size_f32;
         let num_of_iters = (distance / interval_size).ceil() as u32;

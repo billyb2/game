@@ -370,6 +370,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
                         Model::Pistol => String::from("A high damage, slow firing pistol"),
                         Model::SubmachineGun => String::from("Sprays down an area with a very high fire rate"),
                         Model::Flamethrower => String::from("Melts opponents with extremely high damage, but low range"),
+                        Model::SniperRifle => String::from("Long range, extremely high-damage sniper with severely slow reload times")
                     }
 
                 } else if button_text.len() >= 4 && &button_text[..4] == "Perk" {
