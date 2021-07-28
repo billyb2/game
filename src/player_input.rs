@@ -15,19 +15,10 @@ use rand::seq::SliceRandom;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-#[cfg(feature = "web")]
-use crate::log;
-
-use crate::helper_functions::get_angle;
-
 use crate::*;
 use crate::components::*;
 use crate::player_attr::*;
-
-#[cfg(feature = "web")]
-macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
+use crate::helper_functions::get_angle;
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
@@ -487,13 +478,12 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Visible, &mut Phasing, &mut ShaderPhasing)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Phasing, &mut ShaderPhasing)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
 ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, mut requested_movement, ability, mut ability_charge, mut
-            ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut
-            visible, mut phasing, mut shader_phasing) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
+            ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut phasing, mut shader_phasing) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
             // Events that come from other players dont need to wait for ability charge to finish
             if ability_charge.0.finished() || ev_id.0 != my_player_id.0 {
@@ -728,9 +718,11 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
 TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
-AbilityCharge, &mut PlayerSpeed, &mut Visible, &mut DashingInfo, &mut Phasing, &Transform, &Sprite, &mut Health)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
+AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sprite, &mut Health)>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
     query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
-        mut using_ability, mut ability_charge, mut speed, mut visible, mut dashing_info, mut phasing, transform, sprite, mut health)| {
+        mut using_ability, mut ability_charge, mut speed, mut dashing_info, mut phasing, transform, sprite, mut health)| {
+        const ZERO: f32x2 = f32x2::splat(0.0);
+
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -745,7 +737,9 @@ AbilityCharge, &mut PlayerSpeed, &mut Visible, &mut DashingInfo, &mut Phasing, &
 
             } else if *ability == Ability::Ghost {
                 let map = maps.0.get(&map_crc32.0).unwrap();
-                if map.collision_no_damage(transform.translation.truncate(), sprite.size, 0.0, 0.0) {
+                let translation = f32x2::from_array(transform.translation.truncate().to_array());
+
+                if map.collision_no_damage(translation, sprite.size, 0.0, ZERO) {
                     health.0 = 0.0;
                     death_event.send(DeathEvent(my_player_id.0.as_ref().unwrap().0));
                 }

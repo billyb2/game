@@ -566,10 +566,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
             let speed_simd = f32x2::splat(speed);
 
-            if phasing.0 || (!map.collision_no_damage(object.translation.truncate(), sprite.size, speed, movement.angle)  && !out_of_bounds(next_potential_pos.truncate(), sprite.size, map.size)) {
-                object.translation = next_potential_pos;
+            let next_potential_pos = speed_simd.mul_add(angle_trig, translation);
 
-            if !map.collision_no_damage(translation, sprite.size, movement.speed, angle_trig)  && !out_of_bounds(next_potential_pos, sprite.size, map.size) {
+            if phasing.0 || (!map.collision_no_damage(translation, sprite.size, speed, angle_trig)  && !out_of_bounds(next_potential_pos, sprite.size, map.size)) {
                 object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(100.0);
 
                 match movement_type {

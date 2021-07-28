@@ -13,8 +13,6 @@ use bevy::render::{
     shader::ShaderStages,
 };
 
-use bevy::math::Vec4Swizzles;
-
 use rand::Rng;
 
 use crate::shaders::*;
