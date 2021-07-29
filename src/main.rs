@@ -274,7 +274,7 @@ pub struct MapCRC32(u32);
 const SCORE_LIMIT: u8 = 15;
 
 fn main() {
-    let mut app = App::build();
+    let mut app = App::new();
 
     let mut rng = rand::thread_rng();
 
@@ -288,7 +288,7 @@ fn main() {
 
     #[cfg(not(debug_assertions))]
     app
-    // Antialiasing
+    // Antialiasing is lower for debug builds
     .insert_resource(Msaa { samples: 4 });
 
     app.insert_resource( WindowDescriptor {
@@ -337,7 +337,7 @@ fn main() {
 
     app.add_plugins(DefaultPlugins)
     // Using this only temporarily to quit apps on escape
-    //.add_system(bevy::input::system::exit_on_esc_system.system())
+    //.add_system(bevy::input::system::exit_on_esc_system)
     .add_plugin(NetworkingPlugin::default())
     .add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
@@ -355,12 +355,12 @@ fn main() {
 
     app
     // All the materials of the game NEED to be added before everything else
-    .add_startup_system(setup_materials.system())
+    .add_startup_system(setup_materials)
     // The cameras also need to be added first as well
-    .add_startup_system(setup_cameras.system())
-    .add_startup_system(setup_default_controls.system())
-    .add_startup_system(setup_asset_loading.system())
-    .add_system(check_assets_ready.system());
+    .add_startup_system(setup_cameras)
+    .add_startup_system(setup_default_controls)
+    .add_startup_system(setup_asset_loading)
+    .add_system(check_assets_ready);
 
     #[cfg(feature = "native")]
     app.insert_resource(Hosting(true));
@@ -369,44 +369,44 @@ fn main() {
 
 
     #[cfg(feature = "native")]
-    app.add_startup_system(setup_listening.system());
+    app.add_startup_system(setup_listening);
 
     // Sprite culling
     // For some reason, sprite culling fails on WASM
     #[cfg(feature = "native")]
     app.add_system_to_stage(
         CoreStage::PostUpdate,
-        sprite_culling.system(),
+        sprite_culling,
     );
 
     app.add_system_set(
         SystemSet::on_enter(AppState::Connecting)
-            .with_system(setup_players.system())
-            .with_system(setup_networking.system())
-            .with_system(setup_id.system())
-            .with_system(setup_connection_menu.system())
+            .with_system(setup_players)
+            .with_system(setup_networking)
+            .with_system(setup_id)
+            .with_system(setup_connection_menu)
 
     );
 
     app.add_system_set(
         SystemSet::on_update(AppState::Connecting)
-            .with_system(tick_timers.system())
+            .with_system(tick_timers)
 
     );
 
     app.add_system_set(
         SystemSet::on_exit(AppState::Connecting)
-            .with_system(exit_menu.system())
+            .with_system(exit_menu)
 
     );
 
     // Initialize InGame
     app.add_system_set(
         SystemSet::on_enter(AppState::InGame)
-            .with_system(setup_game_ui.system())
+            .with_system(setup_game_ui)
             // Set the mouse coordinates initially
-            .with_system(set_mouse_coords.system())
-            .with_system(draw_map.system())
+            .with_system(set_mouse_coords)
+            .with_system(draw_map)
 
     )
 
@@ -414,37 +414,37 @@ fn main() {
     .add_system_set(
         SystemSet::on_update(AppState::InGame)
             // Timers should be ticked first
-            .with_system(tick_timers.system().before("player_attr").before(InputFromPlayer))
-            .with_system(set_mouse_coords.system().label(InputFromPlayer).before("player_attr").before("shoot"))
-            .with_system(send_stats.system().label(InputFromPlayer).before("player_attr"))
-            .with_system(handle_stat_packets.system().label(InputFromPlayer).before("player_attr"))
-            .with_system(handle_projectile_packets.system().label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
-            //.with_system(bots.system().label(InputFromPlayer).before("player_attr"))
-            .with_system(my_keyboard_input.system().label(InputFromPlayer).before("player_attr"))
-            .with_system(set_player_sprite_direction.system().after(InputFromPlayer))
-            .with_system(shooting_player_input.system().label(InputFromPlayer).label("shoot"))
-            .with_system(spawn_projectile.system().label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
-            .with_system(reset_player_resources.system().label(InputFromPlayer).label("player_attr"))
-            .with_system(start_reload.system().label(InputFromPlayer).label("player_attr"))
-            .with_system(use_ability.system().label(InputFromPlayer).label("player_attr"))
-            .with_system(handle_ability_packets.system().label(InputFromPlayer).label("player_attr"))
-            .with_system(reset_player_phasing.system().after(InputFromPlayer))
-            .with_system(move_objects.system().after(InputFromPlayer).label("move_objects"))
-            .with_system(in_game_settings_menu_system.system().after(InputFromPlayer))
-            .with_system(damage_text_system.system().after("move_objects"))
-            .with_system(score_system.system().after("move_objects"))
-            .with_system(handle_damage_packets.system().label("handle_damage").before("move_objects"))
-            .with_system(despawn_destroyed_walls.system().after("move_objects"))
-            .with_system(death_event_system.system().after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
-            .with_system(dead_players.system().after("move_objects").label("dead_players"))
-            .with_system(log_system.system().after("dead_players"))
-            .with_system(move_camera.system().after(InputFromPlayer).after("move_objects"))
-            .with_system(update_game_ui.system().after(InputFromPlayer).after("move_objects"))
+            .with_system(tick_timers.before("player_attr").before(InputFromPlayer))
+            .with_system(set_mouse_coords.label(InputFromPlayer).before("player_attr").before("shoot"))
+            .with_system(send_stats.label(InputFromPlayer).before("player_attr"))
+            .with_system(handle_stat_packets.label(InputFromPlayer).before("player_attr"))
+            .with_system(handle_projectile_packets.label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
+            //.with_system(bots.label(InputFromPlayer).before("player_attr"))
+            .with_system(my_keyboard_input.label(InputFromPlayer).before("player_attr"))
+            .with_system(set_player_sprite_direction.after(InputFromPlayer))
+            .with_system(shooting_player_input.label(InputFromPlayer).label("shoot"))
+            .with_system(spawn_projectile.label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
+            .with_system(reset_player_resources.label(InputFromPlayer).label("player_attr"))
+            .with_system(start_reload.label(InputFromPlayer).label("player_attr"))
+            .with_system(use_ability.label(InputFromPlayer).label("player_attr"))
+            .with_system(handle_ability_packets.label(InputFromPlayer).label("player_attr"))
+            .with_system(reset_player_phasing.after(InputFromPlayer))
+            .with_system(move_objects.after(InputFromPlayer).label("move_objects"))
+            .with_system(in_game_settings_menu_system.after(InputFromPlayer))
+            .with_system(damage_text_system.after("move_objects"))
+            .with_system(score_system.after("move_objects"))
+            .with_system(handle_damage_packets.label("handle_damage").before("move_objects"))
+            .with_system(despawn_destroyed_walls.after("move_objects"))
+            .with_system(death_event_system.after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
+            .with_system(dead_players.after("move_objects").label("dead_players"))
+            .with_system(log_system.after("dead_players"))
+            .with_system(move_camera.after(InputFromPlayer).after("move_objects"))
+            .with_system(update_game_ui.after(InputFromPlayer).after("move_objects"))
     );
     app.add_system_set(
         SystemSet::on_exit(AppState::InGame)
-            .with_system(exit_in_game.system())
-            .with_system(disconnect.system())
+            .with_system(exit_in_game)
+            .with_system(disconnect)
 
     );
 
@@ -452,86 +452,86 @@ fn main() {
     #[cfg(feature = "native")]
     app.add_system_set(
         SystemSet::on_update(AppState::InGame)
-            .with_system(handle_server_commands.system())
+            .with_system(handle_server_commands)
 
     );
 
     #[cfg(feature = "web")]
     app.add_system_set(
         SystemSet::on_update(AppState::Connecting)
-            .with_system(request_player_info.system())
-            .with_system(handle_client_commands.system())
+            .with_system(request_player_info)
+            .with_system(handle_client_commands)
 
     );
 
     #[cfg(feature = "web")]
     app.add_system_set(
         SystemSet::on_update(AppState::InGame)
-            .with_system(handle_client_commands.system().before("player_attr").before(InputFromPlayer))
+            .with_system(handle_client_commands.before("player_attr").before(InputFromPlayer))
 
     );
 
     app.add_system_set(
         SystemSet::on_enter(AppState::MainMenu)
-            .with_system(setup_main_menu.system())
+            .with_system(setup_main_menu)
 
     )
     .add_system_set(
         SystemSet::on_update(AppState::MainMenu)
-            .with_system(main_menu_system.system())
+            .with_system(main_menu_system)
 
     )
     .add_system_set(
         SystemSet::on_exit(AppState::MainMenu)
-            .with_system(exit_menu.system())
+            .with_system(exit_menu)
 
     )
     .add_system_set(
         SystemSet::on_enter(AppState::GameMenu)
-            .with_system(setup_game_menu.system())
+            .with_system(setup_game_menu)
 
     )
     .add_system_set(
         SystemSet::on_update(AppState::GameMenu)
-            .with_system(game_menu_system.system())
+            .with_system(game_menu_system)
 
     )
     .add_system_set(
         SystemSet::on_exit(AppState::GameMenu)
-            .with_system(exit_menu.system())
+            .with_system(exit_menu)
 
     )
     .add_system_set(
         SystemSet::on_enter(AppState::CustomizePlayerMenu)
-            .with_system(setup_customize_menu.system())
+            .with_system(setup_customize_menu)
 
     )
     .add_system_set(
         SystemSet::on_update(AppState::CustomizePlayerMenu)
-            .with_system(customize_menu_system.system())
+            .with_system(customize_menu_system)
 
     )
     .add_system_set(
         SystemSet::on_exit(AppState::CustomizePlayerMenu)
-            .with_system(exit_menu.system())
+            .with_system(exit_menu)
 
     )
     .add_system_set(
         SystemSet::on_enter(AppState::Settings)
-            .with_system(setup_settings.system())
+            .with_system(setup_settings)
 
     )
 
     .add_system_set(
         SystemSet::on_update(AppState::Settings)
-            .with_system(settings_system.system())
+            .with_system(settings_system)
 
     )
 
     .add_system_set(
         SystemSet::on_exit(AppState::Settings)
-            .with_system(exit_menu.system())
-            .with_system(remove_selected.system())
+            .with_system(exit_menu)
+            .with_system(remove_selected)
 
     )
 
