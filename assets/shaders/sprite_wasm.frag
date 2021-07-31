@@ -24,7 +24,7 @@ layout(std140) uniform WindowSize_value { // set = 2, binding = 5
     vec2 screen_dimensions;
 };
 
-layout(std140) uniform ShaderPhasing_value {
+layout(std140) uniform Alpha_value {
     float phasing;
 };
 

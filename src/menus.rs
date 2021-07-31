@@ -13,73 +13,73 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         if let Some(selected_key) = &selected_key_button.0 {
-            if text.len() >= 3 && text[0..=1] == *"Up"  && selected_key != &KeyBindingButtons::Up {
+            if text.starts_with("Up")  && selected_key != &KeyBindingButtons::Up {
                 *text = format!("Up: {:?}", keybindings.up);
 
             }
 
-            if text.len() >= 5 && text[0..=3] == *"Down" && selected_key != &KeyBindingButtons::Down {
+            if text.starts_with("Down") && selected_key != &KeyBindingButtons::Down {
                 *text = format!("Down: {:?}", keybindings.down);
 
             }
 
-            if text.len() >= 5 && text[0..=3] == *"Left" && selected_key != &KeyBindingButtons::Left {
+            if text.starts_with("Left") && selected_key != &KeyBindingButtons::Left {
                 *text = format!("Left: {:?}", keybindings.left);
 
             }
 
-            if text.len() >= 6 && text[0..=4] == *"Right" && selected_key != &KeyBindingButtons::Right {
+            if text.starts_with("Right") && selected_key != &KeyBindingButtons::Right {
                 *text = format!("Right: {:?}", keybindings.right);
 
             }
 
-            if text.len() >= 8 && text[0..=6] == *"Ability" && selected_key != &KeyBindingButtons::UseAbility {
+            if text.starts_with("Ability") && selected_key != &KeyBindingButtons::UseAbility {
                 *text = format!("Ability: {:?}", keybindings.use_ability);
 
             }
 
-            if text.len() >= 7 && text[0..=5] == *"Reload" && selected_key != &KeyBindingButtons::Reload {
+            if text.starts_with("Reload") && selected_key != &KeyBindingButtons::Reload {
                 *text = format!("Reload: {:?}", keybindings.reload);
 
             }
 
-            if text.len() >= 6 && text[0..=4] == *"Score" && selected_key != &KeyBindingButtons::ShowScore {
+            if text.starts_with("Score") && selected_key != &KeyBindingButtons::ShowScore {
                 *text = format!("Score: {:?}", keybindings.show_score);
 
             }
 
         } else {
-            if text.len() >= 3 && text[0..=1] == *"Up" {
+            if text.starts_with("Up") {
                 *text = format!("Up: {:?}", keybindings.up);
 
             }
 
-            if text.len() >= 5 && text[0..=3] == *"Down" {
+            if text.starts_with("Down") {
                 *text = format!("Down: {:?}", keybindings.down);
 
             }
 
-            if text.len() >= 5 && text[0..=3] == *"Left" {
+            if text.starts_with("Left") {
                 *text = format!("Left: {:?}", keybindings.left);
 
             }
 
-            if text.len() >= 6 && text[0..=4] == *"Right" {
+            if text.starts_with("Right") {
                 *text = format!("Right: {:?}", keybindings.right);
 
             }
 
-            if text.len() >= 8 && text[0..=6] == *"Ability" {
+            if text.starts_with("Ability") {
                 *text = format!("Ability: {:?}", keybindings.use_ability);
 
             }
 
-            if text.len() >= 7 && text[0..=5] == *"Reload" {
+            if text.starts_with("Reload") {
                 *text = format!("Reload: {:?}", keybindings.reload);
 
             }
 
-            if text.len() >= 6 && text[0..=4] == *"Score" {
+            if text.starts_with("Score") {
                 *text = format!("Score: {:?}", keybindings.show_score);
 
             }
@@ -90,31 +90,31 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                 if text == "Back" {
                     app_state.set(AppState::MainMenu).unwrap();
 
-                } else if text[0..=1] == *"Up" {
+                } else if text.starts_with("Up") {
                     *text = "Up:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Up);
 
-                } else if text[0..=3] == *"Down" {
+                } else if text.starts_with("Down") {
                     *text = "Down:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Down);
 
-                } else if text[0..=3] == *"Left" {
+                } else if text.starts_with("Left") {
                     *text = "Left:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Left);
 
-                } else if text[0..=4] == *"Right" {
+                } else if text.starts_with("Right") {
                     *text = "Right:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Right);
 
-                } else if text[0..=6] == *"Ability" {
+                } else if text.starts_with("Ability") {
                     *text = "Ability:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::UseAbility);
 
-                } else if text[0..=5] == *"Reload" {
+                } else if text.starts_with("Reload") {
                     *text = "Reload:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Reload);
 
-                } else if text[0..=4] == *"Score" {
+                } else if text.starts_with("Score") {
                     *text = "Score:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::ShowScore);
 
@@ -144,7 +144,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         keybindings.up = *key;
                         selected_key_button.0 = None;
 
-                        if text.len() >= 3 && text[0..=1] == *"Up" {
+                        if text.starts_with("Up") {
                             *text = format!("Up: {:?}", *key);
 
                         }
@@ -154,7 +154,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         keybindings.down = *key;
                         selected_key_button.0 = None;
 
-                        if text.len() >= 5 && text[0..=3] == *"Down" {
+                        if text.starts_with("Down") {
                             *text = format!("Down: {:?}", *key);
 
                         }
@@ -164,7 +164,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         keybindings.left = *key;
                         selected_key_button.0 = None;
 
-                        if text.len() >= 5 && text[0..=3] == *"Left" {
+                        if text.starts_with("Left") {
                             *text = format!("Left: {:?}", *key);
 
                         }
@@ -174,7 +174,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         keybindings.right = *key;
                         selected_key_button.0 = None;
 
-                        if text.len() >= 6 && text[0..=4] == *"Right" {
+                        if text.starts_with("Right") {
                             *text = format!("Right: {:?}", *key);
 
                         }
@@ -184,7 +184,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         keybindings.use_ability = *key;
                         selected_key_button.0 = None;
 
-                        if text.len() >= 8 && text[0..=6] == *"Ability" {
+                        if text.starts_with("Ability") {
                             *text = format!("Ability: {:?}", *key);
 
                         }
@@ -194,7 +194,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         keybindings.reload = *key;
                         selected_key_button.0 = None;
 
-                        if text.len() >= 6 && text[0..=5] == *"Reload" {
+                        if text.starts_with("Reload") {
                             *text = format!("Reload: {:?}", *key);
 
                         }
@@ -204,7 +204,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         keybindings.show_score = *key;
                         selected_key_button.0 = None;
 
-                        if text.len() >= 5 && text[0..=4] == *"Score" {
+                        if text.starts_with("Score") {
                             *text = format!("Score: {:?}", *key);
 
                         }
@@ -250,14 +250,18 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
 
         match *interaction {
             Interaction::Clicked => {
-                if text.len() >= 5 && &text[5..] == "game" {
+                if text.ends_with("game") {
                     app_state.set(AppState::Connecting).unwrap();
 
-                } else if text == "Customize" {
-                    app_state.set(AppState::CustomizePlayerMenu).unwrap();
-
-                } else if text == "Back" {
-                    app_state.set(AppState::MainMenu).unwrap();
+                } else {
+                    app_state.set(
+                        match &**text {
+                            "Customize Player" => AppState::CustomizePlayerMenu,
+                            "Customize Game" => AppState::CustomizeGame,
+                            "Back" => AppState::MainMenu,
+                            _ => unimplemented!(),
+                        }
+                    ).unwrap();
 
                 }
 
@@ -274,13 +278,13 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
     });
 }
 
-pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, Without<CustomizeHelpText>>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut help_text: Query<&mut Text, With<CustomizeHelpText>>) {
+pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, Without<CustomizeHelpText>>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut help_text: Query<&mut Text, With<CustomizeHelpText>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         match *interaction {
             Interaction::Clicked => {
                 let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
-                if text.len() >= 7 && &text[..7] == "Ability" {
+                if text.starts_with("Ability") {
                     let current_ability_int: u8 = (*my_ability).into();
 
                     match current_ability_int == NUM_OF_ABILITIES - 1 {
@@ -299,7 +303,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
                     *text = format!("Ability: {:?}", *my_ability);
 
-                } else if text.len() >= 3 && &text[..3] == "Gun" {
+                } else if text.starts_with("Gun") {
                     let current_gun_int: u8 = (*my_gun_model).into();
 
                     match current_gun_int == NUM_OF_GUN_MODELS - 1 {
@@ -317,7 +321,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
                     *text = format!("Gun: {:?}", *my_gun_model);
 
-                } else if text.len() >= 4 && &text[..4] == "Perk" {
+                } else if text.starts_with("Perk") {
                     let current_perk_int: u8 = (*my_perk).into();
 
                     match current_perk_int == NUM_OF_PERKS - 1 {
@@ -346,7 +350,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
                 let help_text = &mut help_text.single_mut().unwrap().sections[0].value;
 
-                *help_text = if button_text.len() >= 7 && &button_text[..7] == "Ability" {
+                *help_text = if button_text.starts_with("Ability") {
                     match *my_ability {
                         Ability::Warp => String::from("Your suit is equipped with a space-time warping device that allows you\n to teleport short distances"),
                         Ability::Stim => String::from("Your robot body allows you to run faster than normal, and can supercharge\n itself with a large battery, allowing you to temporarily increase your running speed"),
@@ -360,7 +364,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
                     
                     }
 
-                } else if button_text.len() >= 3 && &button_text[..3] == "Gun" {
+                } else if button_text.starts_with("Gun") {
                     match *my_gun_model {
                         Model::Shotgun => String::from("A close-mid range high spread shotgun"),
                         Model::ClusterShotgun => String::from("A high risk, high reward very close range shotgun"),
@@ -373,7 +377,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
                         Model::SniperRifle => String::from("Long range, extremely high-damage sniper with severely slow reload times")
                     }
 
-                } else if button_text.len() >= 4 && &button_text[..4] == "Perk" {
+                } else if button_text.starts_with("Perk") {
                     match *my_perk {
                         Perk::ExtendedMag => String::from("Your guns can hold more rounds at a time"),
                         Perk::HeavyArmor => String::from("Your armor is stronger, in exchange for moving a little slower"),
@@ -397,6 +401,56 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
     });
 
+}
+
+pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>) {
+    interaction_query.for_each_mut(|(interaction, mut material, children)| {
+        let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
+
+        match *interaction {
+            Interaction::Clicked => {
+                if text == "Back" {
+                    app_state.set(AppState::GameMenu).unwrap();
+
+                } else if text.starts_with("Map") {
+                    // Basically an incredibly genius way of iterating through the map
+                    // It just tries to figure out what the next map item is after the current one, and switch the current map item to that one
+
+                    // Obviously, no point in doing all the work if there's only 1 map
+                    if maps.0.len() > 1 {
+                        let crc32_iter = maps.0.keys();
+
+                        // Firstly, if the current map is the last one in the hashmap, just loop around and set the current map to the first one
+                        if crc32_iter.last().unwrap() == &map_crc32.0 {
+                            map_crc32.0 = *maps.0.keys().next().unwrap();
+
+                        } else {
+                            // If not, then just try to find the map directly next to the currrent one
+                            let mut crc32_iter = maps.0.keys();
+
+                            if crc32_iter.position(|&crc32| map_crc32.0 == crc32).is_some() {
+                                map_crc32.0 = *crc32_iter.next().unwrap();
+                            }
+
+                        }
+
+                        *text = format!("Map: {:?}", maps.0.get(&map_crc32.0).unwrap().name); 
+
+                    }
+
+                }
+
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+
+            }
+        }
+    });
 }
 
 pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>, my_perk: Res<Perk>) {
@@ -562,7 +616,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                         }
 
                     } else if menu == InGameSettings::Customize {
-                        if text.len() >= 7 && &text[..7] == "Ability" {
+                        if text.starts_with("Ability") {
                             let current_ability_int: u8 = (*my_ability).into();
 
                             match current_ability_int == NUM_OF_ABILITIES - 1 {
@@ -581,7 +635,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                             *text = format!("Ability: {:?}", *my_ability);
 
-                        } else if text.len() >= 3 && &text[..3] == "Gun" {
+                        } else if text.starts_with("Gun") {
                             let current_gun_int: u8 = (*my_gun_model).into();
 
                             match current_gun_int == NUM_OF_GUN_MODELS - 1 {

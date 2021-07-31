@@ -486,7 +486,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Phasing, &mut ShaderPhasing)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Phasing, &mut Alpha)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
 ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
@@ -775,7 +775,7 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sp
     });
 }
 
-pub fn reset_player_phasing(mut query: Query<(&UsingAbility, &Ability, &mut ShaderPhasing)>) {
+pub fn reset_player_phasing(mut query: Query<(&UsingAbility, &Ability, &mut Alpha)>) {
     query.for_each_mut(|(using_ability, ability, mut shader_phasing)| {
         if !using_ability.0 && *ability != Ability::Stim {
             shader_phasing.value = 1.0;

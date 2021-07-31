@@ -207,10 +207,12 @@ impl Map {
         };
 
         #[cfg(feature = "parallel")]
-        let spawn_points = objects.par_iter().filter_map(find_spawn_points).collect();
+        let objects_iter = objects.par_iter();
 
         #[cfg(not(feature = "parallel"))]
-        let spawn_points = objects.iter().filter_map(find_spawn_points).collect();
+        let objects_iter = objects.iter();
+
+        let spawn_points = objects_iter.filter_map(find_spawn_points).collect();
 
         let map = Map::new(map_crc32, objects, [map_width, map_height], background_color, crc32, spawn_points);
 

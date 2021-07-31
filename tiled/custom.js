@@ -131,7 +131,7 @@ var customMapFormat = {
 
 
          // Name
-         let map_name = "default";
+         let map_name = map.property("name");
 
          for (let index = 0; index < map_name.length; index ++) {
             array.push(map_name[index].charCodeAt(0));

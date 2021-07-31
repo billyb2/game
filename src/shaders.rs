@@ -69,7 +69,7 @@ impl InnerSuitColor {
 
 #[derive(RenderResources, Default, TypeUuid)]
 #[uuid = "463e4c8b-d554-4fc2-bc9f-4c881163ba92"]
-pub struct ShaderPhasing {
+pub struct Alpha {
     pub value: f32,
 }
 

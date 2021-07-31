@@ -4,6 +4,8 @@
 #![feature(core_intrinsics)]
 #![feature(drain_filter)]
 #![feature(portable_simd)]
+#![feature(option_result_unwrap_unchecked)]
+#![feature(stmt_expr_attributes)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
@@ -97,6 +99,7 @@ pub enum AppState {
     CustomizePlayerMenu,
     InGame,
     Settings,
+    CustomizeGame,
 
 }
 
@@ -268,6 +271,7 @@ pub struct DeathEvent(u8);
 
 pub struct OnlinePlayerIDs(BTreeSet<u8>);
 
+// The identifier for the map
 pub struct MapCRC32(u32);
 
 // If a player gets a score of 15 kills, the game ends
@@ -330,6 +334,7 @@ fn main() {
     .insert_resource(MyPlayerID(None))
     .insert_resource(GameMode::Deathmatch)
     .insert_resource(GameLogs::new())
+    // Randomly generate some aspects of the player
     .insert_resource(rng.gen::<Model>())
     .insert_resource(rng.gen::<Ability>())
     .insert_resource(rng.gen::<Perk>())
@@ -359,6 +364,7 @@ fn main() {
     // The cameras also need to be added first as well
     .add_startup_system(setup_cameras)
     .add_startup_system(setup_default_controls)
+    // Hot asset reloading
     .add_startup_system(setup_asset_loading)
     .add_system(check_assets_ready);
 
@@ -503,12 +509,12 @@ fn main() {
     )
     .add_system_set(
         SystemSet::on_enter(AppState::CustomizePlayerMenu)
-            .with_system(setup_customize_menu)
+            .with_system(setup_customize_player)
 
     )
     .add_system_set(
         SystemSet::on_update(AppState::CustomizePlayerMenu)
-            .with_system(customize_menu_system)
+            .with_system(customize_player_system)
 
     )
     .add_system_set(
@@ -535,6 +541,23 @@ fn main() {
 
     )
 
+    .add_system_set(
+        SystemSet::on_enter(AppState::CustomizeGame)
+            .with_system(setup_customize_game)
+
+    )
+
+    .add_system_set(
+        SystemSet::on_update(AppState::CustomizeGame)
+            .with_system(customize_game_system)
+
+    )
+
+    .add_system_set(
+        SystemSet::on_exit(AppState::CustomizeGame)
+            .with_system(exit_menu)
+    )
+
     .run();
 }
 
@@ -548,6 +571,18 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
     let map = maps.0.get_mut(&map_crc32.0).unwrap();
+
+
+    let stop_after_distance = 
+    #[inline(always)]
+    |movement_speed: &mut f32, distance_traveled: &mut f32, distance_to_stop_at: f32| {
+        *distance_traveled = unsafe { fadd_fast(movement_speed.abs(), *distance_traveled) };
+
+        if *distance_traveled >= distance_to_stop_at {
+            *movement_speed = 0.0;
+
+        }
+    };
 
     player_movements.for_each_mut(|(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed, phasing)| {
         if movement.speed != 0.0 && health.0 != 0.0 {
@@ -579,24 +614,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                     },
 
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
-                        // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
-                        // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.as_mut().unwrap().0 = unsafe { 
-                            fadd_fast(distance_traveled.as_ref().unwrap().0,  
-                                fmul_fast(
-                                    fmul_fast(
-                                        movement.speed.abs(), 
-                                        DESIRED_TICKS_PER_SECOND
-                                    ), 
-                                    time.delta_seconds()
-                                )
-                            ) 
-                        };
+                        stop_after_distance(&mut movement.speed, unsafe { &mut distance_traveled.as_mut().unwrap_unchecked().0 }, *distance_to_stop_at);
 
-                        if distance_traveled.as_ref().unwrap().0 >= *distance_to_stop_at {
-                            movement.speed = 0.0;
-
-                        }
                     },
                 }
 
@@ -738,16 +757,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                     },
 
                     MovementType::StopAfterDistance(distance_to_stop_at) => {
-                        let distance_traveled = distance_traveled.as_mut().unwrap();
+                        stop_after_distance(&mut movement.speed, unsafe { &mut distance_traveled.as_mut().unwrap_unchecked().0 }, *distance_to_stop_at)
 
-                        // If an object uses the StopAfterDistance movement type, it MUST have the distance traveled component, or it will crash
-                        // Need to get the absolute value of the movement speed, since speed can be negative (backwards)
-                        distance_traveled.0 = unsafe { fadd_fast(distance_traveled.0, movement.speed.abs()) };
-
-                        if distance_traveled.0 >= *distance_to_stop_at {
-                            movement.speed = 0.0;
-
-                        }
                     },
                 }
 

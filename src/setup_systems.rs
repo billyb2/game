@@ -343,7 +343,8 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
-    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
+    // Since shaders aren't (currently) using player colors, removing all the const fn calls should improve compile times
+/*    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
     const INFERNO_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([232, 35, 0]);
 
     const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
@@ -378,7 +379,8 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
         Ability::PulseWave => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
         Ability::Ghost => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
 
-    };
+    };*/
+    let (helmet_color, inner_suit_color) = (HelmetColor::new([9, 145, 160]), InnerSuitColor::new([9, 145, 160]));
 
     (helmet_color, inner_suit_color)
 }
@@ -440,8 +442,8 @@ pub fn setup_players(
     );
 
     render_graph.add_system_node(
-        "phasing",
-        RenderResourcesNode::<ShaderPhasing>::new(true),
+        "alpha",
+        RenderResourcesNode::<Alpha>::new(true),
     );
 
     let mut living = true;
@@ -487,7 +489,7 @@ pub fn setup_players(
             .insert(helmet_color)
             .insert(inner_suit_color)
             .insert(GameRelated)
-            .insert(ShaderPhasing { value: 1.0})
+            .insert(Alpha { value: 1.0})
             .id();
 
         player_entities.insert(i, entity);
@@ -622,14 +624,7 @@ pub fn setup_main_menu(
         });
 }
 
-pub fn setup_customize_menu(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    button_materials: Res<GameMenuButtonMaterials>,
-    my_ability: Res<Ability>,
-    my_gun_model: Res<Model>,
-    my_perk: Res<Perk>,
-) {
+pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -752,6 +747,130 @@ pub fn setup_customize_menu(
                         text: Text {
                             sections: vec![TextSection {
                                 value: format!("Perk: {:?}", *my_perk),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from("Back"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
+
+            node_parent
+                .spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![TextSection {
+                            value: String::from(" "),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 25.0,
+                                color: Color::WHITE,
+                            },
+                        }],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(CustomizeHelpText);
+        });
+}
+
+pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>) {
+    commands.insert_resource(ClearColor(Color::ORANGE));
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexStart,
+                margin: Rect {
+                    bottom: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::FlexEnd,
+                align_content: AlignContent::FlexStart,
+                align_items: AlignItems::FlexStart,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![TextSection {
+                        value: String::from("Customize Game"),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 80.0,
+                            color: Color::WHITE,
+                        },
+                    }],
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        margin: Rect {
+                            //bottom: Val::Percent(10.0),
+                            ..Default::default()
+                        },
+                        size: Size::new(Val::Px(350.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: format!("Map: {:?}", maps.0.get(&map_crc32.0).unwrap().name),
                                 style: TextStyle {
                                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                     font_size: 55.0,
@@ -938,7 +1057,7 @@ pub fn setup_game_menu(
                         align_content: AlignContent::Center,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
-                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+                        size: Size::new(Val::Px(365.0), Val::Px(85.0)),
 
                         ..Default::default()
                     },
@@ -950,7 +1069,39 @@ pub fn setup_game_menu(
                         .spawn_bundle(TextBundle {
                             text: Text {
                                 sections: vec![TextSection {
-                                    value: String::from("Customize"),
+                                    value: String::from("Customize Player"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                }],
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(KeyBindingButtons::Down);
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(350.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
+                                    value: String::from("Customize Game"),
                                     style: TextStyle {
                                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                         font_size: 55.0,

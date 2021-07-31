@@ -24,7 +24,7 @@ layout(set = 2, binding = 5) uniform WindowSize_value {
     vec2 screen_dimensions;
 };
 
-layout(set = 2, binding = 6) uniform ShaderPhasing_value {
+layout(set = 2, binding = 6) uniform Alpha_value {
     float phasing;
 };
 
