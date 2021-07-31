@@ -9,8 +9,6 @@ use bevy::utils::Duration;
 
 use bevy_kira_audio::Audio;
 
-use glam::core::traits::vector::Vector;
-
 use rand::Rng;
 use rand::seq::SliceRandom;
 
@@ -33,6 +31,8 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         let mut x = player.translation.x - sprite.size.x / 2.0;
         let mut y = player.translation.y + sprite.size.y / 2.0;
 
+        let camera = &mut camera.single_mut().unwrap();
+
         if x - window.width / 2.0 < 0.0 {
             x = window.width / 2.0;
 
@@ -49,12 +49,13 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
         }
 
-        camera.single_mut().unwrap().translation.x = x;
-        camera.single_mut().unwrap().translation.y = y;
+        camera.translation.x = x;
+        camera.translation.y = y;
 
 
         if perk == Perk::ExtendedVision {
-            camera.single_mut().unwrap().translation.scale(90.0);
+            camera.scale = Vec3::splat(1.25);
+
         }
 
     }
