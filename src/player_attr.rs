@@ -161,6 +161,7 @@ pub enum Perk {
     ExtendedMag,
     HeavyArmor,
     LightArmor,
+    ExtendedVision,
 
 }
 
@@ -222,6 +223,7 @@ impl From<u8> for Perk {
             0 => Perk::ExtendedMag,
             1 => Perk::HeavyArmor,
             2 => Perk::LightArmor,
+            3 => Perk::ExtendedVision,
             _ => panic!("Perk conversion out of bounds: {} was requested, max is {}", perk, NUM_OF_PERKS),
 
         }
@@ -236,6 +238,7 @@ impl From<Perk> for u8 {
             Perk::ExtendedMag => 0,
             Perk::HeavyArmor => 1,
             Perk::LightArmor => 2,
+            Perk::ExtendedVision => 3,
 
         }
 

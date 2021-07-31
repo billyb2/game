@@ -9,6 +9,8 @@ use bevy::utils::Duration;
 
 use bevy_kira_audio::Audio;
 
+use glam::core::traits::vector::Vector;
+
 use rand::Rng;
 use rand::seq::SliceRandom;
 
@@ -22,9 +24,9 @@ use crate::helper_functions::get_angle;
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
-pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id) = &my_player_id.0 {
-        let (player, sprite) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+        let (player, sprite, &perk) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
         let map = maps.0.get(&map_crc32.0).unwrap();
 
@@ -49,6 +51,11 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
         camera.single_mut().unwrap().translation.x = x;
         camera.single_mut().unwrap().translation.y = y;
+
+
+        if perk == Perk::ExtendedVision {
+            camera.single_mut().unwrap().translation.scale(90.0);
+        }
 
     }
 }
