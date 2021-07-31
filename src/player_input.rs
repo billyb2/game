@@ -22,14 +22,16 @@ use crate::helper_functions::get_angle;
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
-pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id) = &my_player_id.0 {
-        let (player, sprite) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+        let (player, sprite, &perk) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
         let map = maps.0.get(&map_crc32.0).unwrap();
 
         let mut x = player.translation.x - sprite.size.x / 2.0;
         let mut y = player.translation.y + sprite.size.y / 2.0;
+
+        let camera = &mut camera.single_mut().unwrap();
 
         if x - window.width / 2.0 < 0.0 {
             x = window.width / 2.0;
@@ -47,8 +49,14 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
         }
 
-        camera.single_mut().unwrap().translation.x = x;
-        camera.single_mut().unwrap().translation.y = y;
+        camera.translation.x = x;
+        camera.translation.y = y;
+
+
+        if perk == Perk::ExtendedVision {
+            camera.scale = Vec3::splat(1.25);
+
+        }
 
     }
 }

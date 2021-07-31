@@ -378,6 +378,7 @@ pub fn customize_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut
                         Perk::ExtendedMag => String::from("Your guns can hold more rounds at a time"),
                         Perk::HeavyArmor => String::from("Your armor is stronger, in exchange for moving a little slower"),
                         Perk::LightArmor => String::from("Your armor is weaker, and in exchange you move a bit faster"),
+                        Perk::ExtendedVision => String::from("Your view of the map is slightly larger, allowing you to see players that are farther away"),
                     }
 
                 } else {
