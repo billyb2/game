@@ -4,4 +4,3 @@ RUN rustup default nightly
 RUN cargo install -f cargo-make
 RUN rustup target install wasm32-unknown-unknown
 RUN rustup component add rust-src
-RUN cargo make build-web-fast-simd
