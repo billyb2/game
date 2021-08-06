@@ -342,7 +342,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
 }
 
-pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
+pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
     // Since shaders aren't (currently) using player colors, removing all the const fn calls should improve compile times
 /*    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
     const INFERNO_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([232, 35, 0]);

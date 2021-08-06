@@ -30,12 +30,18 @@ use bevy::utils::Duration;
 
 use lazy_static::lazy_static;
 
+#[cfg(feature = "native")]
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9363);
+}
+
+#[cfg(feature = "web")]
+lazy_static! {
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
-const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 0,
     channel_mode: MessageChannelMode::Unreliable,
     // The message buffer size is kind of overkill, but it lets the game lag and not process a good amount of messages for a few seconds and still not be overwhelmed
@@ -44,7 +50,7 @@ const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSett
 };
 
 // Projectile updates are reliable, since when someone shoots a bullet, the server *must* shoot
-const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 1,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -67,7 +73,7 @@ const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettin
 };
 
 // Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here
-const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 2,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -89,7 +95,7 @@ const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings 
 };
 
 // When requesting or sending meta data about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
-const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 3,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -112,7 +118,7 @@ const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
 };
 
 // Damage is also reliable, with even more leeway since damage not registering is bad
-const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 4,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -134,7 +140,7 @@ const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 512,
 };
 
-const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 5,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -565,9 +571,12 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
         let mut messages_to_send: Vec<(u32, [u8; 3])> = Vec::with_capacity(255);
 
         for (handle, connection) in net.connections.iter_mut() {
+            
             let channels = connection.channels().unwrap();
 
             while let Some(command) = channels.recv::<[u8; 3]>() {
+
+                println!("{:?}", command);
                 // Send a player ID as well as an ability back
                 if command[0] == 0 {
                     if let Some(player_id) = available_ids.last() {
