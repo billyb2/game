@@ -6,7 +6,6 @@ use bevy::math::Vec2;
 
 use std::f32::consts::PI;
 use std::convert::TryInto;
-
 use std::intrinsics::*;
 
 #[cfg(feature = "native")]
@@ -190,4 +189,9 @@ pub fn out_of_bounds(rect_coords: f32x2, rect_size: Vec2, map_size: Vec2) -> boo
 
 
 
+}
+
+#[inline]
+pub fn vec_to_array<T, const N: usize>(v: Vec<T>) -> [T; N] {
+    v.try_into().unwrap_or_else(|v: Vec<T>| panic!("Expected a Vec of length {} but it was {}", N, v.len()))
 }

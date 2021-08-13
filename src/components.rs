@@ -107,6 +107,7 @@ pub struct DespawnWhenDead {
 
 pub struct WallMarker;
 
+// A timer for when a player wins a match, so the game knows when to return to the main menu
 #[derive(Clone)]
 pub struct PlayerContinueTimer(pub Timer);
 

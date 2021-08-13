@@ -50,7 +50,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
         Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
         Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Cloak => AbilityCharge(Timer::from_seconds(17.0, false)),
-        Ability::PulseWave => AbilityCharge(Timer::from_seconds(10.0, false)),
+        Ability::PulseWave => AbilityCharge(Timer::from_seconds(8.0, false)),
         Ability::Ghost => AbilityCharge(Timer::from_seconds(15.0, false)),
 
     };
@@ -58,7 +58,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
     #[allow(unused_mut)]
     let mut set_ability_completed = || *ability_completed = match ability {
         Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
-        Ability::Ghost => AbilityCompleted(Timer::from_seconds(5.0, false)),
+        Ability::Ghost => AbilityCompleted(Timer::from_seconds(4.75, false)),
         Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
         // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
         _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
@@ -78,12 +78,12 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 
 pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: Perk) {
     if perk == Perk::HeavyArmor {
-        health.0 *= 1.25;
+        health.0 *= 1.1;
         speed.0 *= 0.8;
 
     } else if perk == Perk::LightArmor {
         health.0 *= 0.8;
-        speed.0 *= 1.3;
+        speed.0 *= 1.1;
 
     }
 
@@ -327,6 +327,7 @@ impl From<Model> for u8 {
 }
 
 impl Distribution<Model> for Standard {
+    #[inline]
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Model {
         let rand_num: u8 = rng.gen_range(0..NUM_OF_GUN_MODELS);
         let gun_model: Model = rand_num.into();
@@ -361,13 +362,13 @@ impl Gun {
             time_since_last_shot: match model {
                 Model::Pistol => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
                 Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(0.8, false)),
-                Model::Speedball => TimeSinceLastShot(Timer::from_seconds(1.5, false)),
+                Model::Speedball => TimeSinceLastShot(Timer::from_seconds(0.9, false)),
                 Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
                 Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.12, false)),
                 Model::SubmachineGun => TimeSinceLastShot(Timer::from_seconds(0.07, false)),
                 Model::ClusterShotgun => TimeSinceLastShot(Timer::from_seconds(1.3, false)),
                 Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
-                Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(5.0, false)),
+                Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(4.0, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -380,7 +381,7 @@ impl Gun {
                     Model::SubmachineGun => Timer::from_seconds(2.0, false),
                     Model::ClusterShotgun => Timer::from_seconds(4.0, false),
                     Model::Flamethrower => Timer::from_seconds(2.0, false),
-                    Model::SniperRifle => Timer::from_seconds(5.0, false),
+                    Model::SniperRifle => Timer::from_seconds(7.0, false),
 
                 },
                 reloading: false,
@@ -431,6 +432,7 @@ impl Gun {
                 Model::SubmachineGun => RecoilRange(0.12),
                 Model::ClusterShotgun => RecoilRange(0.07),
                 Model::Flamethrower => RecoilRange(0.15),
+                Model::SniperRifle => RecoilRange(0.012),
                 _ => RecoilRange(0.075),
 
             },
@@ -440,33 +442,33 @@ impl Gun {
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
-                Model::Pistol => Speed(20.0),
-                Model::Shotgun => Speed(16.0),
+                Model::Pistol => Speed(23.0),
+                Model::Shotgun => Speed(19.0),
                 Model::Speedball => Speed(0.7),
-                Model::BurstRifle => Speed(17.0),
-                Model::AssaultRifle => Speed(18.0),
-                Model::SubmachineGun => Speed(16.0),
-                Model::ClusterShotgun => Speed(11.0),
-                Model::Flamethrower => Speed(15.0),
+                Model::BurstRifle => Speed(20.0),
+                Model::AssaultRifle => Speed(21.0),
+                Model::SubmachineGun => Speed(19.5),
+                Model::ClusterShotgun => Speed(14.0),
+                Model::Flamethrower => Speed(17.0),
                 Model::SniperRifle => Speed(100.0),
 
             },
             projectile_size: match model {
-                Model::SubmachineGun => Size::new(3.0, 3.0),
+                Model::SubmachineGun => Size::new(4.0, 4.0),
                 _ => Size::new(6.0, 6.0),
 
             },
 
             damage: match model {
                 Model::Pistol => Damage(45.0),
-                Model::Shotgun => Damage(6.0),
-                Model::Speedball => Damage(1.0),
-                Model::BurstRifle => Damage(15.0),
-                Model::AssaultRifle => Damage(13.0),
-                Model::SubmachineGun => Damage(7.5),
-                Model::ClusterShotgun => Damage(17.0),
-                Model::Flamethrower => Damage(3.25),
-                Model::SniperRifle => Damage(275.0),
+                Model::Shotgun => Damage(8.0),
+                Model::Speedball => Damage(1.5),
+                Model::BurstRifle => Damage(18.0),
+                Model::AssaultRifle => Damage(15.0),
+                Model::SubmachineGun => Damage(8.0),
+                Model::ClusterShotgun => Damage(20.0),
+                Model::Flamethrower => Damage(4.25),
+                Model::SniperRifle => Damage(300.0),
 
 
             },
@@ -494,7 +496,7 @@ impl Gun {
 
         } else if ability == Ability::Inferno {
             // Inferno's bullets do less damage to make up for the fact that his fire does so much
-            gun.damage.0 *= 0.7;
+            gun.damage.0 *= 0.8;
 
         }
 
@@ -506,6 +508,7 @@ impl Gun {
 }
 
 
+#[inline(always)]
 fn finish_timer(timer: &mut Timer){
     timer.set_elapsed(timer.duration());
 

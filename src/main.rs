@@ -37,11 +37,11 @@ use bevy::tasks::TaskPool;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
-use bevy_kira_audio::AudioPlugin;
+// use bevy_kira_audio::AudioPlugin;
 
 use serde::{Deserialize, Serialize};
 
-use hashbrown::HashMap as HashBrownMap;
+use rustc_hash::FxHashMap;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -96,6 +96,7 @@ pub enum AppState {
     MainMenu,
     GameMenu,
     ContinuePlaying,
+    DownloadMapMenu,
     CustomizePlayerMenu,
     InGame,
     Settings,
@@ -274,8 +275,7 @@ pub struct OnlinePlayerIDs(BTreeSet<u8>);
 // The identifier for the map
 pub struct MapCRC32(u32);
 
-// If a player gets a score of 15 kills, the game ends
-const SCORE_LIMIT: u8 = 15;
+pub struct ScoreLimit(u8);
 
 fn main() {
     let mut app = App::new();
@@ -287,13 +287,13 @@ fn main() {
 
     #[cfg(debug_assertions)]
     app
-    // Antialiasing
-    .insert_resource(Msaa { samples: 8 });
+    // Antialiasing is lower for debug buidls
+    .insert_resource(Msaa { samples: 4 });
 
     #[cfg(not(debug_assertions))]
     app
-    // Antialiasing is lower for debug builds
-    .insert_resource(Msaa { samples: 4 });
+    // Antialiasing
+    .insert_resource(Msaa { samples: 8 });
 
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
@@ -321,9 +321,11 @@ fn main() {
     .insert_resource(MapCRC32(map2.crc32))
     // Embed the map into the binary
     .insert_resource({
-        let mut maps = Maps(HashBrownMap::with_capacity(2));
+        let mut maps = Maps(FxHashMap::default());
 
         maps.0.insert(map1.crc32, map1);
+
+        #[cfg(feature = "native")]
         maps.0.insert(map2.crc32, map2);
 
         maps
@@ -332,6 +334,8 @@ fn main() {
     .insert_resource(MousePosition(Vec2::ZERO))
     // Used to make searches through queries for 1 player much quicker, with some overhead in the beginning of the program
     .insert_resource(MyPlayerID(None))
+    // If a player gets a score of 15 kills, the game ends
+    .insert_resource(ScoreLimit(15))
     .insert_resource(GameMode::Deathmatch)
     .insert_resource(GameLogs::new())
     // Randomly generate some aspects of the player
@@ -344,7 +348,7 @@ fn main() {
     // Using this only temporarily to quit apps on escape
     //.add_system(bevy::input::system::exit_on_esc_system)
     .add_plugin(NetworkingPlugin::default())
-    .add_plugin(AudioPlugin)
+    //.add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
     // Adds some possible events, like reloading and using your ability
     .add_event::<ReloadEvent>()
@@ -366,7 +370,10 @@ fn main() {
     .add_startup_system(setup_default_controls)
     // Hot asset reloading
     .add_startup_system(setup_asset_loading)
-    .add_system(check_assets_ready);
+    .add_system(check_assets_ready)
+    .add_system(handle_map_object_request)
+    .add_system(handle_map_object_data)
+    .add_system(handle_map_metadata);
 
     #[cfg(feature = "native")]
     app.insert_resource(Hosting(true));
@@ -558,15 +565,34 @@ fn main() {
             .with_system(exit_menu)
     )
 
+    .add_system_set(
+        SystemSet::on_enter(AppState::DownloadMapMenu)
+            .with_system(setup_download_map_menu)
+
+    )
+
+    .add_system_set(
+        SystemSet::on_update(AppState::DownloadMapMenu)
+            .with_system(download_map_system)
+
+    )
+
+    .add_system_set(
+        SystemSet::on_exit(AppState::DownloadMapMenu)
+            .with_system(exit_menu)
+    )
+
     .run();
 }
 
 //TODO: Turn RequestedMovement into an event
-//TODO: Maybe make all the bullet ccollisions into its own seeperate system? (for readability and maybe performance)
+//TODO: Maybe make all the bullet collisions into its own seperate system? (for readability and maybe performance)
+//TODO: Make it so molotovs are map objects and not bullets
+//TODO: Potentially move this fn into it's own module? Like it takes up a good 3/4 of the main.rs file, maybe something called logic.rs or something
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed, &Phasing), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
+fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed, &Phasing, &mut Alpha), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
 
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
@@ -584,10 +610,11 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
         }
     };
 
-    player_movements.for_each_mut(|(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed, phasing)| {
+    player_movements.for_each_mut(|(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed, phasing, _alpha)| {
         if movement.speed != 0.0 && health.0 != 0.0 {
             // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
             let mut lag_compensation = unsafe { fmul_fast(DESIRED_TICKS_PER_SECOND, time.delta_seconds()) };
+
 
             if lag_compensation > 4.0 {
                 lag_compensation = 4.0;
@@ -647,7 +674,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            player_movements.for_each_mut(|(entity, player, _, _, _, player_sprite, player_id, mut health, ability, mut visible, mut player_speed, _phasing) |{
+            player_movements.for_each_mut(|(entity, player, _, _, _, player_sprite, player_id, mut health, ability, _visible, mut player_speed, _phasing, mut alpha) |{
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
@@ -655,8 +682,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                 let translation = f32x2::from_array(object.translation.truncate().to_array());
 
                 if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
-                    if *ability == Ability::Cloak && !visible.is_visible {
-                        visible.is_visible = true;
+
+                    if *ability == Ability::Cloak && alpha.value != 1.0 {
+                        alpha.value = 1.0;
 
                     }
 
@@ -729,7 +757,8 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
             }
 
-            if !wall_collision && !player_collision {
+            // Pulsewaves move through walls, but not players
+            if !wall_collision && !player_collision || (*projectile_type == ProjectileType::PulseWave && !player_collision) {
                 object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(3.0);
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
@@ -739,7 +768,7 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                     movement.speed = unsafe { fmul_fast(movement.speed, 1.1) };
                     sprite.size = unsafe { Vec2::new(fmul_fast(sprite.size.x, 1.03), fmul_fast(sprite.size.y, 1.03))};
 
-                    if damage.0 <= 75.0 {
+                    if damage.0 <= 80.0 {
                         damage.0 += distance_traveled.as_ref().unwrap().0  / 60.0;
 
                     }
@@ -763,9 +792,11 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
                 }
 
             } else {
+                // Stop any bullets that hit players or walls
                 movement.speed = 0.0;
 
             }
+
         }
     });
 
@@ -774,30 +805,30 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
     projectile_movements.for_each_mut(|(entity, _, req_mov, _, _, mut sprite, mut projectile_type, _, _, mut material, destruction_timer)| {
         if req_mov.speed == 0.0 {
             if *projectile_type == ProjectileType::Molotov {
-                // Once the molotov reaches it's destination, or hits a player, it becomes molotov liquid, waiting to be lit by an Inferno
+                // Once the molotov reaches it's destination, or hits a player, it becomes molotov liquid, waiting to be lit by an Inferno player
                 *projectile_type.deref_mut() = ProjectileType::MolotovLiquid;
                 *material.deref_mut() = materials.molotov_liquid.clone();
                 sprite.deref_mut().size = Vec2::new(175.0, 175.0);
                 // Molotov liquid disappears after a little while
                 commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
 
-            } else if unlikely(*projectile_type != ProjectileType::MolotovLiquid && *projectile_type != ProjectileType::MolotovFire || ((*projectile_type == ProjectileType::MolotovLiquid || *projectile_type == ProjectileType::MolotovFire) && destruction_timer.unwrap().0.finished())) {
+            } else if likely(*projectile_type != ProjectileType::MolotovLiquid && *projectile_type != ProjectileType::MolotovFire || ((*projectile_type == ProjectileType::MolotovLiquid || *projectile_type == ProjectileType::MolotovFire) && destruction_timer.unwrap().0.finished())) {
                 commands.entity(entity).despawn_recursive();
 
             }
         }
     });
 
-    let mut molotovs_to_be_lit_on_fire: Vec<(Vec2, f32)> = Vec::with_capacity(5);
+    let mut molotovs_to_be_lit_on_fire: Vec<(Vec2, f32)> = Vec::new();
 
     // Find molotovs that are to be lit on fire
     projectile_movements.for_each_mut(|(_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) |{
         if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
             // Firstly, find if the player ID is that of an inferno
-            let (_entity, _, _, _, _, _, _, _, ability, _, _player_speed, _phasing) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
+            let (_entity, _, _, _, _, _, _, _, ability, _, _player_speed, _phasing, _alpha) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
-                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, f32x2::from_array(coords.to_array()), *radius) && *ability == Ability::Inferno {
+                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, f32x2::from_array(coords.to_array()), *radius) {
                     molotovs_to_be_lit_on_fire.push((*coords, *radius));
 
                 }
@@ -865,7 +896,7 @@ fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Qu
             0 => format!("Player {} got murked", ev.0 + 1),
             1 => format!("Player {} got gulaged", ev.0 + 1),
             2 => format!("Player {} got sent to the shadow realm", ev.0 + 1),
-            _ => String::new(),
+            _ => unimplemented!(),
 
         };
 
@@ -901,7 +932,7 @@ fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visible, &
 
 }
 
-fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>) {
+fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>, score_limit: Res<ScoreLimit>) {
     let deathmatch_score = &deathmatch_score.deref().0;
 
     let mut display_win_text = |(player_id, _score)| {
@@ -916,6 +947,7 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
                 .spawn()
                 .insert(PlayerContinueTimer(Timer::from_seconds(5.0, false)))
                 .insert(GameRelated);
+
         } else if player_continue_timer.single().unwrap().0.finished() {
             app_state.set(AppState::GameMenu).unwrap();
 
@@ -923,13 +955,13 @@ fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query
     };
 
     #[cfg(feature = "parallel")]
-    if let Some((player_id, _score)) = deathmatch_score.into_par_iter().find_any(|(_player_id, score)| **score >= SCORE_LIMIT) {
+    if let Some((player_id, _score)) = deathmatch_score.into_par_iter().find_any(|(_player_id, score)| **score >= score_limit.0) {
         display_win_text((player_id, _score));
 
     }
 
     #[cfg(not(feature = "parallel"))]
-    if let Some((player_id, _score)) = deathmatch_score.into_iter().find(|(_player_id, score)| **score >= SCORE_LIMIT) {
+    if let Some((player_id, _score)) = deathmatch_score.into_iter().find(|(_player_id, score)| **score >= score_limit.0) {
         display_win_text((player_id, _score));
 
     }
@@ -945,44 +977,40 @@ fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query
     player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down)| {
         time_since_last_shot.0.tick(delta);
 
-        // If the player is reloading
-        if time_since_start_reload.reloading {
-            time_since_start_reload.timer.tick(delta);
-
-        }
-
-        if using_ability.0 {
-            ability_completed.0.tick(delta);
-
-        } else {
-            ability_charge.0.tick(delta);
-
-        }
-
         if health.0 == 0.0 && *game_mode == GameMode::Deathmatch {
             respawn_timer.0.tick(delta);
 
-        }
-
-        if !dashing_info.dashing {
-            dashing_info.time_till_can_dash.tick(delta);
-
         } else {
-            dashing_info.time_till_stop_dash.tick(delta);
+            match dashing_info.dashing {
+                false => dashing_info.time_till_can_dash.tick(delta),
+                true => dashing_info.time_till_stop_dash.tick(delta),
+            };
 
-        }
+            match using_ability.0 {
+                false => ability_charge.0.tick(delta),
+                true => ability_completed.0.tick(delta),
+            };
 
-        if let Some(mut slowed_down_timer) = slowed_down {
-            slowed_down_timer.0.tick(delta);
+            // If the player is reloading
+            if time_since_start_reload.reloading {
+                time_since_start_reload.timer.tick(delta);
 
-            if slowed_down_timer.0.finished() {
-                player_speed.0 = match ability {
-                    Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
-                    _ => DEFAULT_PLAYER_SPEED,
+            }
 
-                };
 
-                commands.entity(entity).remove::<SlowedDown>();
+            if let Some(mut slowed_down_timer) = slowed_down {
+                slowed_down_timer.0.tick(delta);
+
+                if slowed_down_timer.0.finished() {
+                    player_speed.0 = match ability {
+                        Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
+                        _ => DEFAULT_PLAYER_SPEED,
+
+                    };
+
+                    commands.entity(entity).remove::<SlowedDown>();
+
+                }
 
             }
 

@@ -7,7 +7,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
-use bevy_kira_audio::Audio;
+//use bevy_kira_audio::Audio;
 
 use rand::Rng;
 use rand::seq::SliceRandom;
@@ -215,13 +215,10 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
             v.sort_unstable_by(compare);
 
             for (player_id, kills) in v.iter() {
-                let singular_or_plural_kills = 
-                    if **kills == 1 {
-                        "kill"
-
-                    } else {
-                        "kills"
-
+                let singular_or_plural_kills =
+                    match **kills {
+                        1 => "kill",
+                        _ => "kills"
                     };
 
                 text.sections.push(
@@ -346,7 +343,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, audio: Res<Audio>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev in shoot_event.iter() {
             if ev.health != 0.0 {
@@ -433,12 +430,12 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                             };
 
-                            let sound = match ev.model { 
+                            /*let sound = match ev.model { 
                                 Model::Speedball => asset_server.load("audio/laser.flac"),
                                 _ => asset_server.load("audio/pew.flac"),
 
                             };
-                            audio.play(sound);
+                            audio.play(sound);*/
 
                         let negative_speed = ev.speed.signum();
 
@@ -541,7 +538,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                             };
 
-                            let health_of_wall: f32 = 300.0;
+                            let health_of_wall: f32 = 75.0;
 
                             commands
                                 .spawn_bundle(SpriteBundle {
@@ -582,7 +579,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                     },
                     Ability::Stim => {
                         if !using_ability.0 && ability_charge.0.finished() {
-                            speed.0 *= 2.0;
+                            speed.0 *= 1.5;
                             ability_completed.0.reset();
                             using_ability.0 = true;
 
@@ -668,7 +665,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                     },
                     Ability::PulseWave => {
-                        let projectile_speed: f32 = 7.5;
+                        let projectile_speed: f32 = 20.5;
 
                         let event = ShootEvent {
                             start_pos: transform.translation,
@@ -676,7 +673,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             pos_direction: mouse_pos.0,
                             health: health.0,
                             model: *model,
-                            max_distance: 300.0,
+                            max_distance: 2000.0,
                             recoil_vec: vec![0.0],
                             // Bullets need to travel "backwards" when moving to the left
                             speed: match mouse_pos.0.x <= transform.translation.x {

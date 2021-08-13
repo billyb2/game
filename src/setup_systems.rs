@@ -386,20 +386,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(
-    mut commands: Commands,
-    materials: Res<Skin>,
-    maps: Res<Maps>,
-    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
-    mut render_graph: ResMut<RenderGraph>,
-    wnds: Res<Windows>,
-    mut deathmatch_score: ResMut<DeathmatchScore>,
-    my_ability: Res<Ability>,
-    my_gun_model: Res<Model>,
-    my_perk: Res<Perk>,
-    shader_assets: Res<AssetsLoading>,
-    map_crc32: Res<MapCRC32>,
-) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Maps>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>, map_crc32: Res<MapCRC32>) {
     let mut i: u8 = 0;
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
@@ -448,71 +435,69 @@ pub fn setup_players(
 
     let mut living = true;
 
-    maps.0.get(&map_crc32.0).unwrap().spawn_points.iter().for_each(|coords| {
-        let ability = *my_ability;
-        let gun_model = *my_gun_model;
-        let perk = *my_perk;
+    if let Some(map) = maps.0.get(&map_crc32.0) {
+        map.spawn_points.iter().for_each(|coords| {
+            let ability = *my_ability;
+            let gun_model = *my_gun_model;
+            let perk = *my_perk;
 
-        let (helmet_color, inner_suit_color) = set_player_colors(&ability);
+            let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
-        let entity = commands
-            .spawn_bundle(Player::new(i, ability, perk, living))
-            .insert_bundle(Gun::new(gun_model, ability, perk))
-            .insert_bundle(SpriteBundle {
-                material: match i {
-                    0 => materials.player.clone(),
-                    _ => materials.enemy.clone(),
+            let entity = commands
+                .spawn_bundle(Player::new(i, ability, perk, living))
+                .insert_bundle(Gun::new(gun_model, ability, perk))
+                .insert_bundle(SpriteBundle {
+                    material: match i {
+                        0 => materials.player.clone(),
+                        _ => materials.enemy.clone(),
 
-                },
-                sprite: Sprite {
-                    size: Vec2::new(120.0, 75.0),
-                    flip_x: true,
-                    resize_mode: SpriteResizeMode::Manual,
+                    },
+                    sprite: Sprite {
+                        size: Vec2::new(120.0, 75.0),
+                        flip_x: true,
+                        resize_mode: SpriteResizeMode::Manual,
+
+                        ..Default::default()
+                    },
+                    visible: Visible {
+                        is_visible: living,
+                        is_transparent: true,
+                    },
+                    transform: Transform::from_translation(coords.extend(101.0)),
+                    render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
+                        pipeline_handle.clone(),
+                    )]),
 
                     ..Default::default()
-                },
-                visible: Visible {
-                    is_visible: living,
-                    is_transparent: true,
-                },
-                transform: Transform::from_translation(coords.extend(101.0)),
-                render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                    pipeline_handle.clone(),
-                )]),
+                })
+                .insert(ShaderMousePosition { value: Vec2::ZERO })
+                .insert(WindowSize {
+                    value: Vec2::new(wnd.width(), wnd.height()),
+                })
+                .insert(helmet_color)
+                .insert(inner_suit_color)
+                .insert(GameRelated)
+                .insert(Alpha { value: 1.0})
+                .id();
 
-                ..Default::default()
-            })
-            .insert(ShaderMousePosition { value: Vec2::ZERO })
-            .insert(WindowSize {
-                value: Vec2::new(wnd.width(), wnd.height()),
-            })
-            .insert(helmet_color)
-            .insert(inner_suit_color)
-            .insert(GameRelated)
-            .insert(Alpha { value: 1.0})
-            .id();
+            player_entities.insert(i, entity);
 
-        player_entities.insert(i, entity);
+            if i != 0 {
+                availabie_player_ids.push(PlayerID(i));
+            }
 
-        if i != 0 {
-            availabie_player_ids.push(PlayerID(i));
-        }
+            living = false;
 
-        living = false;
-
-        i += 1;
-    });
+            i += 1;
+        });
+    }
 
     commands.insert_resource(availabie_player_ids);
     commands.insert_resource(OnlinePlayerIDs(online_player_ids));
     commands.insert_resource(player_entities);
 }
 
-pub fn setup_main_menu(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    button_materials: Res<ButtonMaterials>,
-) {
+pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {
     commands.insert_resource(ClearColor(Color::BLACK));
 
     commands
@@ -929,6 +914,98 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
                     ..Default::default()
                 })
                 .insert(CustomizeHelpText);
+        });
+}
+
+pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>) {
+    commands.insert_resource(ClearColor(Color::ORANGE));
+
+    commands
+        .spawn_bundle(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::ColumnReverse,
+                align_self: AlignSelf::FlexStart,
+                margin: Rect {
+                    bottom: Val::Auto,
+
+                    ..Default::default()
+                },
+                justify_content: JustifyContent::FlexEnd,
+                align_content: AlignContent::FlexStart,
+                align_items: AlignItems::FlexStart,
+
+                ..Default::default()
+            },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .with_children(|node_parent| {
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![TextSection {
+                        value: String::from("Downloading Map..."),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 80.0,
+                            color: Color::WHITE,
+                        },
+                    }],
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+
+            node_parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![TextSection {
+                        value: String::from("0.0%"),
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            font_size: 80.0,
+                            color: Color::WHITE,
+                        },
+                    }],
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        margin: Rect {
+                            //bottom: Val::Percent(10.0),
+                            ..Default::default()
+                        },
+                        size: Size::new(Val::Px(350.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from("Cancel"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
         });
 }
 
