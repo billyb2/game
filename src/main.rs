@@ -284,6 +284,7 @@ fn main() {
 
     let map1 = Map::from_bin(include_bytes!("../tiled/map1.custom"));
     let map2 = Map::from_bin(include_bytes!("../tiled/map2.custom"));
+    let map3 = Map::from_bin(include_bytes!("../tiled/map3.custom"));
 
     #[cfg(debug_assertions)]
     app
@@ -321,10 +322,11 @@ fn main() {
     .insert_resource(MapCRC32(map2.crc32))
     // Embed the map into the binary
     .insert_resource({
-        let mut maps = Maps(HashBrownMap::with_capacity(2));
+        let mut maps = Maps(HashBrownMap::with_capacity(3));
 
         maps.0.insert(map1.crc32, map1);
         maps.0.insert(map2.crc32, map2);
+        maps.0.insert(map3.crc32, map3);
 
         maps
     })
@@ -1177,6 +1179,7 @@ Copyright (c) 2020 Carter Anderson
 #[cfg(feature = "native")]
 fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCamera>>, query: Query<(Entity, &Transform, &Sprite), Without<GameCamera>>, wnds: Res<Windows>, culled_sprites: Query<&OutsideFrustum, With<Sprite>>) {
     let wnd = wnds.get_primary().unwrap();
+
     let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
 
     let camera = camera.single().unwrap();
