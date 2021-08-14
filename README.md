@@ -14,6 +14,10 @@ Please follow the instructions below in order, while it seems complicated, it ma
 - `rustup component add llvm-tools-preview`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
+- ### Ubuntu/Debian Linux
+- `sudo apt-get install cmake clang lld libx11 pkgconf alsa-lib openssl`
+- `rustup toolchain install nightly`
+- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.74 && cargo install -f basic-http-server`
 ### Arch/Manjaro Linux
 - `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl --needed`
 - `rustup toolchain install nightly`
