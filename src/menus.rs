@@ -2,9 +2,19 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
+use std::convert::TryInto;
+
 use bevy::prelude::*;
 
 use crate::*;
+
+#[cfg(feature = "web")]
+use crate::log;
+
+#[cfg(feature = "web")]
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
 
 pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
@@ -223,13 +233,12 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
 
         match *interaction {
             Interaction::Clicked => {
-                if text == "Play" {
-                    app_state.set(AppState::GameMenu).unwrap();
+                app_state.set(match &**text {
+                    "Play" => AppState::GameMenu,
+                    "Settings" => AppState::Settings,
+                    _ => unimplemented!(),
 
-                } else if text == "Settings"{
-                    app_state.set(AppState::Settings).unwrap();
-
-                }
+                }).unwrap();
 
             }
             Interaction::Hovered => {
@@ -241,6 +250,66 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
 
             }
         }
+    });
+}
+
+pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<NetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
+    interaction_query.for_each_mut(|(interaction, mut material, children)| {
+        const DEFAULT_MAP_OBJECT: MapObject = MapObject::default();
+
+        let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
+
+        match *interaction {
+            Interaction::Clicked => {
+                if text == "Cancel" {
+                    app_state.set(AppState::GameMenu).unwrap();
+
+                }
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+
+            }
+        }
+
+        //Checks to see if ther map's metadata is downloaded first
+        // I check the map object capacity since if it's zero,, that's an effectively worthless map
+        // Of course, this means maps with 0 map objects will download forever, so sad :(
+        let map = maps.0.get_mut(&map_crc32.0).unwrap(); 
+
+        if map.objects.capacity() == 0 {
+            #[cfg(feature = "web")]
+            console_log!("Downloading metadata");
+
+            net.broadcast_message((String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
+
+        } else {
+            let default_objects: Vec<u64> = map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
+                match *object == DEFAULT_MAP_OBJECT {
+                    true => {
+                        let index: u64 = i.try_into().unwrap();
+                        Some(index)
+
+                    },
+                    false => None,
+
+            }).collect();
+
+            #[cfg(feature = "web")]
+            console_log!("Downloading map object");
+
+            // Request a map object for each default map object
+            default_objects.into_iter().for_each(|i| net.broadcast_message((map_crc32.0, i)));
+            
+        }
+
+
+
+
     });
 }
 

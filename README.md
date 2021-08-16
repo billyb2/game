@@ -10,21 +10,24 @@ Please follow the instructions below in order, while it seems complicated, it ma
 - [Install CMake](https://cmake.org/download/)
 - [Install OpenSSL](https://slproweb.com/download/Win64OpenSSL-1_1_1k.msi)
 - Add the *OPENSSL_DIR* system environment variable, with the value being the *exact* path you installed OpenSSL to (default is C:\Program Files\OpenSSL-Win64 , but please double check to make sure)
-- `cargo install -f cargo-binutils`
+- `cargo install -f cargo-binutils && cargo install -f wasm-bindgen-cli --version 0.2.74 && cargo install -f basic-http-server`
 - `rustup component add llvm-tools-preview`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
+- ### Ubuntu/Debian Linux
+- `sudo apt-get install cmake clang lld libx11 pkgconf alsa-lib openssl`
+- `rustup toolchain install nightly`
+- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.74 && cargo install -f basic-http-server`
 ### Arch/Manjaro Linux
 - `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl --needed`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make`
+- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.74 && cargo install -f basic-http-server`
 ### MacOS
 MacOS, of course, does not have a working LLD linker (thanks Apple), though the ZLD linker is still faster than the default
 - [Install CMake](https://cmake.org/download/)
 - `brew install michaeleisel/zld/zld`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make`
-
+- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.74 && cargo install -f basic-http-server`
 
 Occasionally, please run `rustup update` to update to the latest version of the nightly compiler.
 The nightly compiler allows us to use unstable Rust optimizations for both faster build times and faster bineries.
@@ -50,7 +53,7 @@ To build for WASM (Web ASseMbly), run:
 `cargo make serve`
 
 To make a very optimized build for WASM (slow build times, fast run times), run:
-`cargo make serve-release`
+`cargo make serve-release-simd`
 
 To run a debug WASM build (not recommended since the performance is horrible), run:
 `cargo make serve-fast`
@@ -72,9 +75,7 @@ The entire map1.custom file uses binary, in order to be very efficient to load a
 
 At the beginning of the file, the metadata of the map is stored (currently the width, height, and background color of the map), which takes up 11 bytes.
 
-Then, for every map object, the x, y and z (how objects are stacked onto each other) coordinates (4 bytes each), the width and height (4 bytes each) of said object, whether a player can spawn in that object (1 byte), and whether the player can collide with that object (1 byte) are stored, as well as the health of the object (1 byte) and the color of the object (4 bytes total). Generally for the boolean data, 0 is false and 255 is true, and for the health of the map object, 0 is considered indestructible, and then anything above 0 is the actual health of the map object. So in total, the every object takes up a relatively small 27 bytes.
-
-So the number of map objects of course varies from map to map, so to signify the end of the map object placement, a map object is placed that is entirely null (every byte set to 0), taking up another 27 bytes.
+Then, for every map object, the x, y, z (how objects are stacked onto each other) coordinates and w (rotation) (4 bytes each for a total of 16), the width and height (4 bytes each for a total of 8 bytes) of said object, whether a player can spawn in that object (1 byte), and whether the player can collide with that object (1 byte) are stored, as well as the health of the object (1 byte) and the color of the object (4 bytes total). Generally for the boolean data, 0 is false and 255 is true, and for the health of the map object, 0 is considered indestructible, and then anything above 0 is the actual health of the map object. So in total, the every object takes up a relatively small 32 bytes.
 
 Then, the map has a built in checksum (a way of knowing if a map file has been corrupted or not), that uses the CRC32 algorithm (since it's very fast and does the job well). The CRC32 takes up 32 more bytes, and is appended after the null map object. The CRC32 is also useful for uniquely identifying maps, so that when a playe rtries to join another player's game, the client can check to see if the checksums match, and if not, request to download the map.
 
