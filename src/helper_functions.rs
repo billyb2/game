@@ -88,7 +88,7 @@ SOFTWARE.
 
 const TWO: f32x2 = f32x2::splat(2.0);
 
-pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: f32x2) -> bool {
+pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: f32x2) -> (bool, bool) {
     // A bounding box collision test between two rectangles
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
@@ -120,7 +120,7 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
 
         let rect1_coords = f32x2::from_array(rect1_coords.to_array());
 
-        let collision = |i: u32| {
+        let collision = |i: u32| -> (bool, bool) {
             let distance = f32x2::splat(interval_size * i as f32);
             
             let rect1_coords = distance.mul_add(angle, rect1_coords);
@@ -129,16 +129,15 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
             let rect1_max = rect1_coords + half_rect1_size;
 
             // Check for collision
-            unlikely(
-                rect1_min.lanes_le(rect2_max) == mask32x2::splat(true) &&
-                rect2_min.lanes_le(rect1_max) == mask32x2::splat(true)
+            (
+                unlikely(rect1_min.lanes_le(rect2_max) == mask32x2::splat(true)),
+                unlikely(rect2_min.lanes_le(rect1_max) == mask32x2::splat(true))
             )
 
         };
 
-        // Searches for a collision anywhere between the player moving one unit (with each unit being the size of the player themselves) and moving to their destination
-        (1..num_of_iters).into_iter().any(collision)
-
+        // Tries to find whether the x coordinate collides or if the y coordinate collides
+        (1..num_of_iters).into_iter().map(collision).fold((false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1))
 
 
     } else {
@@ -151,8 +150,8 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
         let rect1_max = rect1_coords + half_rect1_size;
 
         // Check for collision
-        unlikely(
-            rect1_min.lanes_le(rect2_max) == mask32x2::splat(true) &&
+        (
+            rect1_min.lanes_le(rect2_max) == mask32x2::splat(true),
             rect2_min.lanes_le(rect1_max) == mask32x2::splat(true)
         )
 

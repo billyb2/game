@@ -629,9 +629,20 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
             let speed_simd = f32x2::splat(speed);
 
             let next_potential_pos = speed_simd.mul_add(angle_trig, translation);
+            let collision = map.collision_no_damage(translation, sprite.size, speed, angle_trig);
 
-            if phasing.0 || (!map.collision_no_damage(translation, sprite.size, speed, angle_trig)  && !out_of_bounds(next_potential_pos, sprite.size, map.size)) {
-                object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(100.0);
+            if phasing.0 || (!out_of_bounds(next_potential_pos, sprite.size, map.size)) {
+                let potential_pos_array = next_potential_pos.to_array();
+
+                if collision.0 {
+                    object.translation.x = potential_pos_array[0];
+
+                }
+
+                if collision.1 {
+                    object.translation.y = potential_pos_array[1];
+
+                }
 
                 match movement_type {
                     // The object moves one frame, and then stops
@@ -681,7 +692,9 @@ fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mu
 
                 let translation = f32x2::from_array(object.translation.truncate().to_array());
 
-                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                let collision = collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig);
+
+                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && (collision.0 || collision.1)) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
 
                     if *ability == Ability::Cloak && alpha.value != 1.0 {
                         alpha.value = 1.0;
