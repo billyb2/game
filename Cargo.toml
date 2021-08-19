@@ -64,7 +64,7 @@ inherits = "release"
 
 [dependencies]
 # The bevy game engine
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["bevy_winit", "render", "png"] }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 
 # Allows for building bevy to the web
 bevy_webgl2 = { git = "https://github.com/billyb2/bevy_webgl2", optional = true }
@@ -90,7 +90,7 @@ lz4_flex = { version = "0.8", default-features = false, features = ["checked-dec
 crc32fast = { version = "1", features = ["nightly"] }
 
 # Idk why, but build always fails if winit isn't included as a dep
-winit = { version = "0.25.0" }
+winit = { version = "0.25.0", optional = true }
 
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
@@ -105,7 +105,6 @@ lazy_static = { version = "1" }
 single_byte_hashmap = { version = "0.1", features = ["nightly"] }
 
 # Just a regular HashMap
-hashbrown = { version = "0.11", features = ["rayon", "nightly"] }
 rustc-hash = { version = "1" }
 
 # Easy SIMD
@@ -122,6 +121,10 @@ native = [
   # Since literally every 64 bit CPU has 128-bit SIMD support, I think it's fine to enable it for rand
   "rand/simd_support",
   "parallel",
+  "winit",
+  "bevy/bevy_winit",
+  "bevy/render",
+  "bevy/png"
 ]
 
 parallel = [
@@ -132,6 +135,9 @@ parallel = [
 web = [
   "bevy_webgl2",
   "wasm-bindgen",
+  "bevy/bevy_winit",
+  "bevy/render",
+  "bevy/png"
 ]
 
 [lib]
@@ -144,11 +150,11 @@ path = "src/server_cli.rs"
 [patch.crates-io]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 # The bevy_* patches are specifically for bevy_networking_turbulence
-bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
-bevy_app = { git = "https://github.com/bevyengine/bevy" }
-bevy_tasks = { git = "https://github.com/bevyengine/bevy" }
-bevy_core = { git = "https://github.com/bevyengine/bevy" }
-bevy_reflect = { git = "https://github.com/bevyengine/bevy" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_app = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_tasks = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_core = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_reflect = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 # Using a PR of mine until they merge it, it just bumps the rand crate to the latest version
 naia-socket-shared = { git = "https://github.com/billyb2/naia-socket" }
 glam = { git = "https://github.com/bitshifter/glam-rs", branch = "wasm32-simd" }
