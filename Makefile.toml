@@ -99,14 +99,6 @@ command = "cargo"
 command = "${CARGO_TARGET_DIR}/release/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
 dependencies = ["build-native-release"]
 
-[tasks.server_cli]
-args = ["run", "--features", "bevy/dynamic", "-Z", "unstable-options", "--bin", "server_cli", "--no-default-features"]
-command = "cargo"
-
-[tasks.server_cli-release]
-args = ["run", "-Z", "unstable-options", "--bin", "server_cli", "--no-default-features", "--release"]
-command = "cargo"
-
 [tasks.serve]
 command = "basic-http-server"
 dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]

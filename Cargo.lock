@@ -1544,6 +1544,7 @@ dependencies = [
  "bevy_webgl2",
  "core_simd",
  "crc32fast",
+ "hashbrown 0.11.2",
  "lazy_static",
  "lz4_flex",
  "rand",
@@ -1874,6 +1875,7 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 dependencies = [
+ "ahash 0.7.4",
  "rayon",
 ]
 
@@ -2186,9 +2188,9 @@ dependencies = [
 
 [[package]]
 name = "metal"
-version = "0.23.1"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0514f491f4cc03632ab399ee01e2c1c1b12d3e1cf2d667c1ff5f87d6dcd2084"
+checksum = "79d7d769f1c104b8388294d6594d491d2e21240636f5f94d37f8a0f3d7904450"
 dependencies = [
  "bitflags",
  "block",
@@ -3823,3 +3825,28 @@ name = "xml-rs"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
+
+[[patch.unused]]
+name = "bevy_app"
+version = "0.5.0"
+source = "git+https://github.com/bevyengine/bevy#9788b386c7846c99978ab5c1a33698ec5a471d84"
+
+[[patch.unused]]
+name = "bevy_core"
+version = "0.5.0"
+source = "git+https://github.com/bevyengine/bevy#9788b386c7846c99978ab5c1a33698ec5a471d84"
+
+[[patch.unused]]
+name = "bevy_ecs"
+version = "0.5.0"
+source = "git+https://github.com/bevyengine/bevy#9788b386c7846c99978ab5c1a33698ec5a471d84"
+
+[[patch.unused]]
+name = "bevy_reflect"
+version = "0.5.0"
+source = "git+https://github.com/bevyengine/bevy#9788b386c7846c99978ab5c1a33698ec5a471d84"
+
+[[patch.unused]]
+name = "bevy_tasks"
+version = "0.5.0"
+source = "git+https://github.com/bevyengine/bevy#9788b386c7846c99978ab5c1a33698ec5a471d84"
