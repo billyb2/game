@@ -5,13 +5,8 @@ use std::cell::RefCell;
 use std::io::{Read, Write};
 use std::rc::Rc;
 
-use bevy::asset::prelude::*;
-use bevy::ecs::prelude::*;
-use bevy::math::prelude::*;
 use bevy::math::Vec4Swizzles;
-use bevy::render::prelude::*;
-use bevy::sprite::prelude::*;
-use bevy::transform::prelude::*;
+use bevy::prelude::*;
 
 use core_simd::*;
 
