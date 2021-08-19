@@ -27,10 +27,8 @@ pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     let dy = unsafe { fsub_fast(ey, cy) };
     let dx = unsafe { fsub_fast(ex, cx) };
     if dx != 0.0 {
-        let d = unsafe { fdiv_fast(dy, dx) };
-
         // Returns the angle in radians
-        d.atan()
+        unsafe { fdiv_fast(dy, dx) }.atan()
 
     } else if dy > 0.0 {
             unsafe { fdiv_fast(PI, 2.0) }

@@ -301,10 +301,18 @@ impl Map {
         #[cfg(feature = "parallel")]
         let index = (0..self.objects.len())
             .into_par_iter()
-            .find_any(map_collision);
+            .find_any(|i| {
+                let c = map_collision(i);
+                c.0 || c.1
+
+            });
 
         #[cfg(not(feature = "parallel"))]
-        let index = (0..self.objects.len()).into_iter().find(map_collision);
+        let index = (0..self.objects.len()).into_iter().find(|i| {
+                let c = map_collision(i);
+                c.0 || c.1
+
+            });
 
         let health_and_coords = match index {
             Some(index) => {
@@ -340,10 +348,10 @@ impl Map {
         // The collision function just iterates through each map object within the map, and runs the collide function within
         // Since this function is only used in par_for_each loops, we don't need extra parallelism
         #[cfg(not(feature = "parallel"))]
-        let collision = (0..self.objects.len()).into_iter().any(map_collision);
+        let collision = (0..self.objects.len()).into_iter().map(map_collision).fold((false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1));
 
         #[cfg(feature = "parallel")]
-        let collision = (0..self.objects.len()).into_par_iter().any(map_collision);
+        let collision = (0..self.objects.len()).into_par_iter().map(map_collision).reduce(|| (false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1));
 
         collision
     }

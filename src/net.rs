@@ -14,9 +14,10 @@ use crate::components::{AbilityEvent, RequestedMovement};
 use crate::LogEvent;
 
 #[cfg(feature = "web")]
-use crate::log;
-#[cfg(feature = "web")]
-use crate::setup_systems::set_player_colors;
+use crate:: {
+    log,
+    setup_systems::set_player_colors
+};
 
 #[cfg(feature = "native")]
 use crate::helper_functions::get_available_port;
