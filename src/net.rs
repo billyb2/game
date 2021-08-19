@@ -35,7 +35,7 @@ lazy_static! {
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
-const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 0,
     channel_mode: MessageChannelMode::Unreliable,
     // The message buffer size is kind of overkill, but it lets the game lag and not process a good amount of messages for a few seconds and still not be overwhelmed
@@ -44,7 +44,7 @@ const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSett
 };
 
 // Projectile updates are reliable, since when someone shoots a bullet, the server *must* shoot
-const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 1,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -67,7 +67,7 @@ const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettin
 };
 
 // Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here
-const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 2,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -89,7 +89,7 @@ const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings 
 };
 
 // When requesting or sending meta data about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
-const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 3,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -112,7 +112,7 @@ const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
 };
 
 // Damage is also reliable, with even more leeway since damage not registering is bad
-const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 4,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -134,7 +134,7 @@ const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 512,
 };
 
-const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 5,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -549,6 +549,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
         net.broadcast_message(set_ability_message);
 
         ready_to_send_packet.0.reset();
+        app_state.set(AppState::InGame).unwrap();
 
     } else if my_player_id.0.is_some() && ability_set.0 {
         // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
@@ -565,6 +566,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
         let mut messages_to_send: Vec<(u32, [u8; 3])> = Vec::with_capacity(255);
 
         for (handle, connection) in net.connections.iter_mut() {
+            
             let channels = connection.channels().unwrap();
 
             while let Some(command) = channels.recv::<[u8; 3]>() {

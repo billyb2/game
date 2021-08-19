@@ -6,6 +6,7 @@ use std::convert::TryInto;
 
 use bevy::prelude::*;
 
+use crate::player_attr::*;
 use crate::*;
 
 #[cfg(feature = "web")]

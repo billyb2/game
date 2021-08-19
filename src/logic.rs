@@ -262,7 +262,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
     projectile_movements.for_each_mut(|(_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) |{
         if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
             // Firstly, find if the player ID is that of an inferno
-            let (_entity, _, _, _, _, _, _, _, ability, _, _player_speed, _phasing, _alpha) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
+            let (_entity, _, _, _, _, _, _, _, _ability, _, _player_speed, _phasing, _alpha) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
                 if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, f32x2::from_array(coords.to_array()), *radius) {
