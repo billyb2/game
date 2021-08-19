@@ -14,9 +14,6 @@ opt-level = 0
 overflow-checks = false
 split-debuginfo = "unpacked"
 
-[profile.dev.package."*"]
-opt-level = 3
-
 [profile.dev-windows]
 inherits = "dev"
 
@@ -35,6 +32,9 @@ panic = "abort"
 overflow-checks = false
 # Since web builds run like garbage, using a higher optimization level is nice
 opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
 
 [profile.fast-web.package."*"]
 opt-level = 3
@@ -77,7 +77,7 @@ bevy_webgl2 = { git = "https://github.com/billyb2/bevy_webgl2", optional = true 
 bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", default-features = false, features = ["use-webrtc"] }
 
 # WASM logging
-wasm-bindgen = { version = "0.2.74", optional = true }
+wasm-bindgen = { version = "0.2.76", optional = true }
 
 # Used for sending structs over networks easily and efficiently
 serde = { version = "1", features = ["derive"] }

@@ -30,14 +30,8 @@ use bevy::utils::Duration;
 
 use lazy_static::lazy_static;
 
-#[cfg(feature = "native")]
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9363);
-}
-
-#[cfg(feature = "web")]
-lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -555,6 +549,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
         net.broadcast_message(set_ability_message);
 
         ready_to_send_packet.0.reset();
+        app_state.set(AppState::InGame).unwrap();
 
     } else if my_player_id.0.is_some() && ability_set.0 {
         // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
@@ -575,8 +570,6 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
             let channels = connection.channels().unwrap();
 
             while let Some(command) = channels.recv::<[u8; 3]>() {
-
-                println!("{:?}", command);
                 // Send a player ID as well as an ability back
                 if command[0] == 0 {
                     if let Some(player_id) = available_ids.last() {

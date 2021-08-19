@@ -917,7 +917,7 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
         });
 }
 
-pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>) {
+pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands

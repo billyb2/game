@@ -50,6 +50,8 @@ fn main() {
     .add_plugin(NetworkingPlugin::default())
     .add_event::<NetworkEvent>()
     .add_event::<LogEvent>()
+    .add_event::<AbilityEvent>()
+    .add_event::<ShootEvent>()
     .insert_resource(Hosting(true))
     .insert_resource(TaskPool::new())
     .insert_resource(GameLogs::new())
@@ -59,6 +61,8 @@ fn main() {
     .add_system(tick_timers)
     .add_system(handle_stat_packets)
     .add_system(handle_server_commands)
+    .add_system(handle_ability_packets)
+    .add_system(handle_projectile_packets)
     .run()
 
 }
@@ -145,3 +149,28 @@ fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut
     messages_to_send.into_iter().for_each(|m| {net.broadcast_message(m)});
 }
 
+fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<SBHashMap<u8, Entity>>) {
+    let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(255);
+
+    for (_handle, connection) in net.connections.iter_mut() {
+        if let Some(channels) = connection.channels() {
+            while let Some(event) = channels.recv::<ShootEvent>() {
+                make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, event.player_id);
+
+                let mut transform = players.get_mut(*player_entity.get(&event.player_id).unwrap()).unwrap();
+                transform.translation = event.start_pos;
+
+                // The host broadcasts the shots fired of all other players
+                messages_to_send.push(event.clone());
+
+                shoot_event.send(event);
+
+            }
+        }
+    }
+
+    for m in messages_to_send.iter() {
+        net.broadcast_message((*m).clone());
+
+    }
+}
