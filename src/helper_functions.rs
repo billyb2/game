@@ -126,11 +126,9 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
             let rect1_min = rect1_coords - half_rect1_size;
             let rect1_max = rect1_coords + half_rect1_size;
 
+            let collision = unlikely(rect1_min.lanes_le(rect2_max) == mask32x2::splat(true)) && unlikely(rect2_min.lanes_le(rect1_max) == mask32x2::splat(true));
             // Check for collision
-            (
-                unlikely(rect1_min.lanes_le(rect2_max) == mask32x2::splat(true)),
-                unlikely(rect2_min.lanes_le(rect1_max) == mask32x2::splat(true))
-            )
+            (collision, collision)
 
         };
 

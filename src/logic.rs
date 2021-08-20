@@ -54,13 +54,14 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
                 let next_potential_pos = next_potential_pos.to_array();
 
-                if collision.0 {
+                if !collision.0 {
                     object.translation.x = next_potential_pos[0];
 
                 }
 
-                if collision.1 {
+                if !collision.1 {
                     object.translation.y = next_potential_pos[1];
+
                 }
 
                 match movement_type {

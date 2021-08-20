@@ -17,35 +17,35 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.76"}
 
 [tasks.cargo-build-web-release]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-release-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
@@ -130,6 +130,10 @@ dependencies = ["build-web-fast", "build-web-fast-simd", "basic-http-server"]
 [tasks.serve-fast-simd]
 command = "basic-http-server"
 dependencies = ["build-web-fast-simd", "basic-http-server"]
+
+[tasks.server_cli]
+args = ["run", "--bin", "server_cli", "--features", "native"]
+command = "cargo"
 
 [tasks.check-native]
 args = ["clippy", "--features", "native,bevy/bevy_wgpu,gui", "--", "-D", "warnings", "-Z", "unstable-options"]

@@ -288,6 +288,7 @@ impl Map {
 
     // Returns whether a collision took place, and the health of the wall (if it has health)
     pub fn collision(&mut self, other_object_coords: f32x2, other_object_size: Vec2, damage: f32, distance: f32, angle: f32x2) -> (bool, Option<(f32, Vec2)>) {
+        //TODO: USE REGULAR PAR ITER OVER OBJECTS TO AVOID BOUNDS CHECKING FOR SPEED!!!!!!!
         let map_collision = |index: &usize| {
             self.objects[*index].collision(other_object_coords, other_object_size, distance, angle)
         };
@@ -336,6 +337,7 @@ impl Map {
 
     // Identical to collision, except it's a non-mutable reference so it's safe to use in a parallel iterator
     pub fn collision_no_damage(&self, other_object_coords: f32x2, other_object_size: Vec2, distance: f32, angle: f32x2) -> (bool, bool) {
+        //TODO: USE REGULAR PAR ITER OVER OBJECTS TO AVOID BOUNDS CHECKING FOR SPEED!!!!!!!
         let map_collision = |index: usize| {
             self.objects[index].collision(other_object_coords, other_object_size, distance, angle)
         };
