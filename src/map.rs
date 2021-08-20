@@ -288,43 +288,42 @@ impl Map {
 
     // Returns whether a collision took place, and the health of the wall (if it has health)
     pub fn collision(&mut self, other_object_coords: f32x2, other_object_size: Vec2, damage: f32, distance: f32, angle: f32x2) -> (bool, Option<(f32, Vec2)>) {
-        //TODO: USE REGULAR PAR ITER OVER OBJECTS TO AVOID BOUNDS CHECKING FOR SPEED!!!!!!!
-        let map_collision = |index: &usize| {
-            self.objects[*index].collision(other_object_coords, other_object_size, distance, angle)
-        };
-
         // The collision function just iterates through each map object within the map, and runs the collide function within
         #[cfg(feature = "parallel")]
-        let index = (0..self.objects.len())
-            .into_par_iter()
-            .find_any(|i| {
-                let c = map_collision(i);
+        let object = self.objects.par_iter_mut().enumerate()
+            .find_any(|(_i, object)| {
+                let c = object.collision(other_object_coords, other_object_size, distance, angle);
                 c.0 || c.1
 
             });
 
         #[cfg(not(feature = "parallel"))]
-        let index = (0..self.objects.len()).into_iter().find(|i| {
-                let c = map_collision(i);
-                c.0 || c.1
+        let object = self.objects.iter_mut().enumerate()
+        .find(|(_i, object)| {
+            let c = object.collision(other_object_coords, other_object_size, distance, angle);
+            c.0 || c.1
 
-            });
+        });
 
-        let health_and_coords = match index {
-            Some(index) => {
-                if let Some(mut health) = &mut self.objects[index].health {
+        let found_object = object.is_some();
+        // The map object to remove if a player dies
+        let mut object_to_remove = None;
+
+        let health_and_coords = match object {
+            Some((index, object)) => {
+                if let Some(mut health) = &mut object.health {
                     // Damagable objects take damage
-                    if health as i16 - damage as i16 <= 0 {
-                        health = 0.0;
-                    } else {
-                        health -= damage;
-                    }
-
+                    health = match health as i16 - damage as i16 <= 0 {
+                        true => 0.0,
+                        false => health - damage,
+                    };
+ 
                     if health == 0.0 {
-                        self.objects.remove(index);
+                        object_to_remove = Some(index);
+
                     }
 
-                    Some((health, self.objects[index].coords.xy()))
+                    Some((health, object.coords.xy()))
                 } else {
                     None
                 }
@@ -332,23 +331,26 @@ impl Map {
             None => None,
         };
 
-        (index.is_some(), health_and_coords)
+        if let Some(i) = object_to_remove {
+            self.objects.remove(i);
+
+        }
+
+        (found_object, health_and_coords)
     }
 
     // Identical to collision, except it's a non-mutable reference so it's safe to use in a parallel iterator
     pub fn collision_no_damage(&self, other_object_coords: f32x2, other_object_size: Vec2, distance: f32, angle: f32x2) -> (bool, bool) {
-        //TODO: USE REGULAR PAR ITER OVER OBJECTS TO AVOID BOUNDS CHECKING FOR SPEED!!!!!!!
-        let map_collision = |index: usize| {
-            self.objects[index].collision(other_object_coords, other_object_size, distance, angle)
-        };
-
+        let map_collision = |object: &MapObject| object.collision(other_object_coords, other_object_size, distance, angle);
+        
         // The collision function just iterates through each map object within the map, and runs the collide function within
         // Since this function is only used in par_for_each loops, we don't need extra parallelism
         #[cfg(not(feature = "parallel"))]
-        let collision = (0..self.objects.len()).into_iter().map(map_collision).fold((false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1));
+        // The collision only returns None if the Iterator is emtpy, which it never will be
+        let collision = unsafe { self.objects.iter().map(map_collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() };
 
         #[cfg(feature = "parallel")]
-        let collision = (0..self.objects.len()).into_par_iter().map(map_collision).reduce(|| (false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1));
+        let collision = self.objects.par_iter().map(map_collision).reduce(|| (false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1));
 
         collision
     }

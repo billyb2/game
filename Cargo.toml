@@ -39,6 +39,12 @@ opt-level = 3
 [profile.fast-web.package."*"]
 opt-level = 3
 
+[profile.dev.package.game]
+opt-level = 1
+
+[profile.fast-web.package.game]
+opt-level = 2
+
 [profile.opt-web]
 inherits = "release"
 # Thin LTO still improves speed, but isn't as slow as fat (true) LTO
