@@ -289,7 +289,7 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
             net.broadcast_message((String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
 
         } else {
-            let default_objects: Vec<u64> = map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
+            map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
                 match *object == DEFAULT_MAP_OBJECT {
                     true => {
                         let index: u64 = i.try_into().unwrap();
@@ -298,13 +298,12 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
                     },
                     false => None,
 
-            }).collect();
+            }).for_each(|i| net.broadcast_message((map_crc32.0, i)));
 
             #[cfg(feature = "web")]
             console_log!("Downloading map object");
 
             // Request a map object for each default map object
-            default_objects.into_iter().for_each(|i| net.broadcast_message((map_crc32.0, i)));
             
         }
 
@@ -498,7 +497,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
                             // If not, then just try to find the map directly next to the currrent one
                             let mut crc32_iter = maps.0.keys();
 
-                            if crc32_iter.position(|&crc32| map_crc32.0 == crc32).is_some() {
+                            if crc32_iter.any(|&crc32| map_crc32.0 == crc32) {
                                 map_crc32.0 = *crc32_iter.next().unwrap();
                             }
 

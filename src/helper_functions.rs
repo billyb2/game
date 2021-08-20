@@ -121,19 +121,28 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
         let collision = |i: u32| -> (bool, bool) {
             let distance = f32x2::splat(interval_size * i as f32);
             
-            let rect1_coords = distance.mul_add(angle, rect1_coords);
+            let new_rect1_coords = distance.mul_add(angle, rect1_coords);
 
-            let rect1_min = rect1_coords - half_rect1_size;
-            let rect1_max = rect1_coords + half_rect1_size;
+            // The coords when moving only in the x direction, and only in the y direction
+            let coords_cos_sine = [f32x2::from_array([new_rect1_coords[0], rect1_coords[1]]), f32x2::from_array([rect1_coords[0], new_rect1_coords[1]])];
 
-            let collision = unlikely(rect1_min.lanes_le(rect2_max) == mask32x2::splat(true)) && unlikely(rect2_min.lanes_le(rect1_max) == mask32x2::splat(true));
-            // Check for collision
-            (collision, collision)
+            //TODO: Convert to into_iter when Rust 2021 his to consume array
+            let res_vec = coords_cos_sine.iter().map(|&new_rect1_coords| {
+                let rect1_min = new_rect1_coords - half_rect1_size;
+                let rect1_max = new_rect1_coords + half_rect1_size;
+    
+                unlikely(rect1_min.lanes_le(rect2_max) == mask32x2::splat(true)) && unlikely(rect2_min.lanes_le(rect1_max) == mask32x2::splat(true))
+                
+            }).collect::<Vec<bool>>();
+
+            debug_assert!(res_vec.len() == 2);
+            unsafe { (*res_vec.get_unchecked(0), *res_vec.get_unchecked(1)) }
 
         };
 
         // Tries to find whether the x coordinate collides or if the y coordinate collides
-        (1..num_of_iters).into_iter().map(collision).fold((false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1))
+        // The map will never be empty, so it will always return Some
+        unsafe { (1..num_of_iters).into_iter().map(collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() }
 
 
     } else {

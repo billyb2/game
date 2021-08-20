@@ -121,7 +121,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
                 if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collision) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
 
-                    if *ability == Ability::Cloak && alpha.value != 1.0 {
+                    if *ability == Ability::Cloak && (alpha.value - 1.0).abs() > f32::EPSILON {
                         alpha.value = 1.0;
 
                     }
@@ -196,7 +196,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             }
 
             // Pulsewaves move through walls, but not players
-            if !wall_collision && !player_collision || (*projectile_type == ProjectileType::PulseWave && !player_collision) {
+            if !(player_collision || wall_collision && *projectile_type != ProjectileType::PulseWave) {
                 object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(3.0);
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type

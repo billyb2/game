@@ -31,7 +31,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 68, 0, 107)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -785,7 +785,7 @@ pub fn handle_map_metadata(mut net: ResMut<NetworkResource>, mut maps: ResMut<Ma
                     // Doing an if let Some so the game doesn't just crash if someone sends a non existent crc32
                     if let Some(map) = maps.0.get_mut(&crc32) {
                         // To make sure malicious net clients can't just override our metadata, it will only replace ours if the map_objects len is 0
-                        if map.objects.len() != 0 {
+                        if !map.objects.is_empty() {
                             let map_objects_len: usize = map_objects_len.try_into().unwrap();
 
                             map.objects = vec![MAP_OBJECT_DEFAULT; map_objects_len];
