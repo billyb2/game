@@ -1733,7 +1733,7 @@ dependencies = [
 [[package]]
 name = "glam"
 version = "0.17.3"
-source = "git+https://github.com/bitshifter/glam-rs?branch=wasm32-simd#90db1b2cc25635d3a9e5dcf1bb7b60325803be4a"
+source = "git+https://github.com/bitshifter/glam-rs#bb35b1a6910dc1ada1fac97784d7aa22b99cea4b"
 dependencies = [
  "bytemuck",
  "serde",

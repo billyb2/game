@@ -4,6 +4,7 @@
 
 use std::f32::consts::PI;
 
+use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
@@ -303,12 +304,9 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
 
                 // Fill the recoil_vec to capacity
                 while recoil_vec.len() < recoil_vec.capacity() {
-                    let recoil =
-                        if recoil_range.0 == 0.0 {
-                            0.0
-
-                        } else {
-                            rng.gen_range(-recoil_range.0..=recoil_range.0)
+                    let recoil = match recoil_range.0 == 0.0 {
+                        false => rng.gen_range(-recoil_range.0..=recoil_range.0),
+                        true => 0.0,
 
                     };
 
@@ -361,7 +359,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                     let (mut bursting, mut time_since_last_shot, mut ammo_in_mag) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                     // Checks that said player can shoot, and isnt reloading
-                    if time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading {
+                    if (time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading) || ev.projectile_type == ProjectileType::TractorBeam {
                         shooting = true;
 
                         if ev.model == Model::BurstRifle {
@@ -379,12 +377,14 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                         }
 
-                        if shooting {
-                            ammo_in_mag.0 -= 1;
+                        if ev.projectile_type != ProjectileType::TractorBeam {
+                            if shooting {
+                                ammo_in_mag.0 -= 1;
 
+                            }
+
+                            time_since_last_shot.0.reset();
                         }
-
-                        time_since_last_shot.0.reset();
 
                     } else if ammo_in_mag.0 == 0 && player_id == my_player_id.0 {
                         // Reload automatically if the player tries to shoot with no ammo
@@ -425,6 +425,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::MolotovLiquid => materials.molotov_liquid.clone(),
                                     ProjectileType::Flame => flame_material,
                                     ProjectileType::PulseWave => materials.pulsewave.clone(),
+                                    ProjectileType::TractorBeam => materials.beam.clone(),
 
                                 }
 
@@ -439,14 +440,21 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                         let negative_speed = ev.speed.signum();
 
+                        let avg_size = Vec3A::splat((ev.size.x + ev.size.y) / 2.0);
+                        
+                        let angle_trig = Vec3A::new(angle.cos() * negative_speed, angle.sin(), 0.0);
+                        let mut translation = Vec3A::new(ev.start_pos.x, ev.start_pos.y, 3.0);
+                        
+                        translation += avg_size * angle_trig;
+                        
                         commands
                             .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
                                 material,
                                 sprite: Sprite::new(ev.size),
                                 transform: Transform {
-                                    // Finally found a place fto do a fused multiply and add, jaja
-                                    translation: Vec3::new(10.0_f32.mul_add(negative_speed, ev.start_pos.x), 15.0_f32.mul_add(negative_speed, ev.start_pos.y), 3.0),
+                                    // Finally found a place to do a fused multiply and add, jaja
+                                    translation: translation.into(),
                                     rotation: match speed.is_sign_negative() {
                                         true => Quat::from_rotation_z(angle - PI),
                                         false => Quat::from_rotation_z(angle)
@@ -682,7 +690,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             },
                             projectile_type: ProjectileType::PulseWave,
                             damage: Damage(15.0),
-                            player_ability: *ability,
+                            player_ability: Ability::PulseWave,
                             size: Vec2::new(100.0, 100.0),
                             reloading: reload_timer.reloading,
 
@@ -712,6 +720,33 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             using_ability.0 = true;
                             ability_completed.0.reset();
                         }
+                    },
+                    Ability::Brute => {
+                        let projectile_speed = 1.0;
+
+                        let event = ShootEvent {
+                            start_pos: transform.translation,
+                            player_id: ev_id.0,
+                            pos_direction: mouse_pos.0,
+                            health: health.0,
+                            model: *model,
+                            max_distance: 1.0,
+                            recoil_vec: vec![0.0],
+                            // Bullets need to travel "backwards" when moving to the left
+                            speed: match mouse_pos.0.x <= transform.translation.x {
+                                true => -projectile_speed,
+                                false => projectile_speed,
+                            },
+                            projectile_type: ProjectileType::TractorBeam,
+                            damage: Damage(0.0),
+                            player_ability: Ability::Brute,
+                            size: Vec2::new(150.0, 45.0),
+                            reloading: reload_timer.reloading,
+
+                        };
+
+                        shoot_event.send(event);
+
                     }
                 };
 

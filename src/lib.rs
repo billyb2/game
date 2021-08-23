@@ -2,6 +2,7 @@
 #![feature(variant_count)]
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(core_intrinsics)]
+#![feature(destructuring_assignment)]
 #![feature(drain_filter)]
 #![feature(portable_simd)]
 #![feature(option_result_unwrap_unchecked)]
@@ -100,6 +101,7 @@ pub enum ProjectileType {
     Regular,
     Speedball,
     PulseWave,
+    TractorBeam,
     Flame,
     Molotov,
     MolotovFire,
@@ -168,6 +170,7 @@ pub struct ProjectileMaterials {
     pub flamethrower2: Handle<ColorMaterial>,
     pub flamethrower3: Handle<ColorMaterial>,
     pub pulsewave: Handle<ColorMaterial>,
+    pub beam: Handle<ColorMaterial>,
 }
 
 pub struct ButtonMaterials {

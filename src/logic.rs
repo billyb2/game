@@ -22,7 +22,6 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
     let map = maps.0.get_mut(&map_crc32.0).unwrap();
 
-
     let stop_after_distance = 
     #[inline(always)]
     |movement_speed: &mut f32, distance_traveled: &mut f32, distance_to_stop_at: f32| {
@@ -110,7 +109,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
-            player_movements.for_each_mut(|(entity, player, _, _, _, player_sprite, player_id, mut health, ability, _visible, mut player_speed, _phasing, mut alpha) |{
+            player_movements.for_each_mut(|(entity, player, mut player_movement, _, _, player_sprite, player_id, mut health, ability, _visible, mut player_speed, _phasing, mut alpha) |{
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place
@@ -125,40 +124,50 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
                 };
 
                 if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collision) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                    if *projectile_type == ProjectileType::TractorBeam {
+                        const BEAM_STRENGTH: f32 = 6.5;
+                        let angle_add = Vec2::new(player_movement.angle.cos(), player_movement.angle.sin()) + Vec2::new(movement.angle.cos(), movement.angle.sin());
+                        player_movement.angle = angle_add.y.atan2(angle_add.x);
 
+                        player_movement.speed += BEAM_STRENGTH * -speed.signum();
+
+                    }
+
+                    
                     if *ability == Ability::Cloak && (alpha.value - 1.0).abs() > f32::EPSILON {
                         alpha.value = 1.0;
 
                     }
 
-                    let player_died = (health.0 - damage.0) <= 0.0;
-
-                    commands.spawn_bundle(Text2dBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: format!("{:.0}", damage.0),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 11.0,
-                                        color: match player_died {
-                                            false => Color::WHITE,
-                                            true => Color::RED,
-
-                                        },
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        transform: Transform::from_translation(Vec2::from_slice(&next_potential_pos.to_array()).extend(5.0)),
-                        ..Default::default()
-
-                    })
-                    .insert(DamageTextTimer(Timer::from_seconds(2.0, false)));
-
                     // Players can only do damage to other players if they receive a network event about it, if they don't, then damage can only happen to themselves
                     if let Some(my_player_id) = &my_player_id.0 {
+                        let player_died = (health.0 - damage.0) <= 0.0;
+
+                        commands.spawn_bundle(Text2dBundle {
+                            text: Text {
+                                sections: vec![
+                                    TextSection {
+                                        value: format!("{:.0}", damage.0),
+                                        style: TextStyle {
+                                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                            font_size: 11.0,
+                                            color: match player_died {
+                                                false => Color::WHITE,
+                                                true => Color::RED,
+    
+                                            },
+                                        },
+                                    },
+                                ],
+                                ..Default::default()
+                            },
+                            transform: Transform::from_translation(Vec2::from_slice(&next_potential_pos.to_array()).extend(5.0)),
+                            ..Default::default()
+    
+                        })
+                        .insert(DamageTextTimer(Timer::from_seconds(2.0, false)));
+    
+                        
                         if my_player_id.0 == player_id.0 {
                             net.broadcast_message(([my_player_id.0, shot_from.0], damage.0));
                             
@@ -189,7 +198,12 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
             });
 
-            let (wall_collision, health_and_coords) = map.collision(translation, sprite.size, damage.0, speed, f32x2::from_array([movement.angle.cos(), movement.angle.sin()]));
+            let (wall_collision, health_and_coords) = match *projectile_type {
+                // Pulsewaves and tractor beams move through walls
+                ProjectileType::PulseWave | ProjectileType::TractorBeam => (false, None),
+                _ =>  map.collision(translation, sprite.size, damage.0, speed, f32x2::from_array([movement.angle.cos(), movement.angle.sin()])),
+
+            };
 
             if let Some((health, coords)) = health_and_coords {
                 wall_event.send(DespawnWhenDead {
@@ -201,7 +215,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             }
 
             // Pulsewaves move through walls, but not players
-            if !(player_collision || wall_collision && *projectile_type != ProjectileType::PulseWave) {
+            if !(player_collision || wall_collision) {
                 object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(3.0);
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type

@@ -52,6 +52,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
         Ability::Cloak => AbilityCharge(Timer::from_seconds(17.0, false)),
         Ability::PulseWave => AbilityCharge(Timer::from_seconds(8.0, false)),
         Ability::Ghost => AbilityCharge(Timer::from_seconds(15.0, false)),
+        Ability::Brute => AbilityCharge(Timer::from_seconds(0.01, false)),
 
     };
 
@@ -61,7 +62,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
         Ability::Ghost => AbilityCompleted(Timer::from_seconds(4.75, false)),
         Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
         // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
-        _ => AbilityCompleted(Timer::from_seconds(3.0, false)),
+        _ => AbilityCompleted(Timer::from_seconds(0.0, false)),
     };
 
     #[cfg(feature = "parallel")]
@@ -77,15 +78,12 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 }
 
 pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: Perk) {
-    if perk == Perk::HeavyArmor {
-        health.0 *= 1.1;
-        speed.0 *= 0.8;
+    (health.0, speed.0) = match perk {
+        Perk::HeavyArmor => (health.0 * 1.1, speed.0 * 0.8),
+        Perk::LightArmor => (health.0 * 0.8, speed.0 * 1.1),
+        _ => (health.0, speed.0)
 
-    } else if perk == Perk::LightArmor {
-        health.0 *= 0.8;
-        speed.0 *= 1.1;
-
-    }
+    };
 
 }
 
@@ -152,7 +150,7 @@ pub enum Ability {
     Cloak,
     PulseWave,
     Ghost,
-
+    Brute,
 }
 
 
@@ -179,6 +177,7 @@ impl From<u8> for Ability {
             6 => Ability::Cloak,
             7 => Ability::PulseWave,
             8 => Ability::Ghost,
+            9 => Ability::Brute,
             _ => panic!("Ability conversion out of bounds: {} was requested, max is {}", ability, NUM_OF_ABILITIES),
 
         }
@@ -199,6 +198,7 @@ impl From<Ability> for u8 {
             Ability::Cloak => 6,
             Ability::PulseWave => 7,
             Ability::Ghost => 8,
+            Ability::Brute => 9,
 
         }
 

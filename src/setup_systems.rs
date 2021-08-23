@@ -69,6 +69,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         });
     }
 
+    #[cfg(debug_assertions)]
     asset_server.watch_for_changes().unwrap();
 
     commands.insert_resource(Skin {
@@ -88,6 +89,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         molotov_fire: materials.add(molotov_fire_sprite.into()),
         molotov_liquid: materials.add(molotov_liquid_sprite.into()),
         pulsewave: materials.add(pulsewave_sprite.into()),
+        beam: materials.add(Color::rgba_u8(173, 216, 230, 50).into()),
     });
 
     commands.insert_resource(ButtonMaterials {
