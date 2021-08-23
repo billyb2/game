@@ -17,35 +17,35 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.76"}
 
 [tasks.cargo-build-web-release]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-release-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std", "--bin", "game"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
@@ -80,19 +80,19 @@ command = "wasm-bindgen"
 dependencies = ["cargo-build-web-fast-simd", "wasm-bindgen-cli"]
 
 [tasks.build-native]
-args = ["build", "--bin", "game", "--features", "native,bevy/bevy_wgpu,gui", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.build-native-release]
-args = ["build", "--bin", "game", "--features", "native,bevy/bevy_wgpu,gui", "--release", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics", "--release", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.build-native-fast]
-args = ["build", "--bin", "game", "--features", "native,bevy/bevy_wgpu,gui", "--features", "bevy/dynamic", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run]
-args = ["run", "--bin", "game", "--features", "native,bevy/bevy_wgpu,gui", "--features", "bevy/dynamic", "-Z", "unstable-options"]
+args = ["run", "--features", "native,use_wgpu,graphics", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run-release]
@@ -131,12 +131,8 @@ dependencies = ["build-web-fast", "build-web-fast-simd", "basic-http-server"]
 command = "basic-http-server"
 dependencies = ["build-web-fast-simd", "basic-http-server"]
 
-[tasks.server_cli]
-args = ["run", "--bin", "server_cli", "--features", "native"]
-command = "cargo"
-
 [tasks.check-native]
-args = ["clippy", "--bin", "game", "--features", "native,bevy/bevy_wgpu,gui", "--", "-D", "warnings", "-Z", "unstable-options"]
+args = ["clippy", "--features", "native,use_wgpu,graphics", "--", "-D", "warnings", "-Z", "unstable-options"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
@@ -148,3 +144,6 @@ dependencies = ["install-target-wasm32-unknown-unknown"]
 [tasks.check]
 dependencies = ["check-web", "check-native"]
 
+[tasks.server_cli]
+args = ["run", "--bin", "server_cli", "--features", "native"]
+command = "cargo"

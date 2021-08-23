@@ -21,7 +21,7 @@ inherits = "dev"
 opt-level = 3
 # You don't need overflow checks if your ints never overflow *taps head*
 overflow-checks = false
-lto = true
+lto = "fat"
 panic = "abort"
 debug = 0
 codegen-units = 1
@@ -39,6 +39,7 @@ opt-level = 3
 [profile.fast-web.package."*"]
 opt-level = 3
 
+# The gam library is the most time consuming to compile, so I lower the optimization level on just it
 [profile.dev.package.game]
 opt-level = 1
 
@@ -70,7 +71,7 @@ inherits = "release"
 
 [dependencies]
 # The bevy game engine
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["render"]}
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["render"] }
 
 # Allows for building bevy to the web
 bevy_webgl2 = { git = "https://github.com/billyb2/bevy_webgl2", optional = true }
@@ -101,10 +102,10 @@ winit = { version = "0.25.0" }
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
 
-# Enables running very slow tasks in parallel
+# Easier multi-threading
 rayon = { version = "1", optional = true }
 
-# Allows global variables 
+# Allows for lazily evaluated global variables
 lazy_static = { version = "1" }
 
 # A hashmap that's very fast at storing singular bytes as keys (made by me)
@@ -120,13 +121,17 @@ core_simd = { git = "https://github.com/rust-lang/portable-simd" }
 [features]
 default = [
   "native",
-  "gui",
 ]
 
-gui = [
+use_wgpu = [
+  "bevy/bevy_wgpu",
+]
+
+graphics = [
   "bevy/bevy_winit", 
   "bevy/png", 
 ]
+
 
 native = [
   # Since literally every 64 bit CPU has 128-bit SIMD support, I think it's fine to enable it for rand
@@ -140,9 +145,9 @@ parallel = [
 ]
 
 web = [
+  "graphics",
   "bevy_webgl2",
   "wasm-bindgen",
-  "gui",
 ]
 
 [lib]
