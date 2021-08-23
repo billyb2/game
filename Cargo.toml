@@ -166,5 +166,5 @@ bevy_tasks = { git = "https://github.com/bevyengine/bevy" }
 bevy_core = { git = "https://github.com/bevyengine/bevy" }
 bevy_reflect = { git = "https://github.com/bevyengine/bevy" }
 # Using a PR of mine until they merge it, it just bumps the rand crate to the latest version
-naia-socket-shared = { git = "https://github.com/billyb2/naia-socket" }
+naia-socket-shared = { git = "https://github.com/naia-rs/naia-socket" }
 glam = { git = "https://github.com/bitshifter/glam-rs", branch = "wasm32-simd" }

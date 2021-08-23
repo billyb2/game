@@ -2305,7 +2305,7 @@ dependencies = [
 [[package]]
 name = "naia-socket-shared"
 version = "0.4.2"
-source = "git+https://github.com/billyb2/naia-socket#f9401179a7aeb763000d403469fa32a3664ada2c"
+source = "git+https://github.com/naia-rs/naia-socket#130f2ea292919b7247a87fa93b1b7320a9797e52"
 dependencies = [
  "byteorder",
  "cfg-if 0.1.10",
