@@ -80,19 +80,19 @@ command = "wasm-bindgen"
 dependencies = ["cargo-build-web-fast-simd", "wasm-bindgen-cli"]
 
 [tasks.build-native]
-args = ["build", "--features", "native,use_wgpu,graphics", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.build-native-release]
-args = ["build", "--features", "native,use_wgpu,graphics", "--release", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--release", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.build-native-fast]
-args = ["build", "--features", "native,use_wgpu,graphics", "--features", "bevy/dynamic", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run]
-args = ["run", "--features", "native,use_wgpu,graphics", "--features", "bevy/dynamic", "-Z", "unstable-options"]
+args = ["run", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "bevy/dynamic", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run-release]
@@ -132,7 +132,7 @@ command = "basic-http-server"
 dependencies = ["build-web-fast-simd", "basic-http-server"]
 
 [tasks.check-native]
-args = ["clippy", "--features", "native,use_wgpu,graphics", "--", "-D", "warnings", "-Z", "unstable-options"]
+args = ["clippy", "--features", "native,use_wgpu,graphics", "--bin", "game", "--", "-D", "warnings", "-Z", "unstable-options"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
@@ -146,4 +146,8 @@ dependencies = ["check-web", "check-native"]
 
 [tasks.server_cli]
 args = ["run", "--bin", "server_cli", "--features", "native"]
+command = "cargo"
+
+[tasks.server_cli-release]
+args = ["run", "--bin", "server_cli", "--features", "native", "--release"]
 command = "cargo"
