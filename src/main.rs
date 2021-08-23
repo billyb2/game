@@ -1,6 +1,14 @@
+#![feature(core_intrinsics)]
+#![feature(drain_filter)]
+#![feature(option_result_unwrap_unchecked)]
+#![feature(portable_simd)]
+#![feature(stmt_expr_attributes)]
+
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
+
+mod logic;
 
 use bevy::prelude::*;
 use bevy::tasks::TaskPool;
@@ -23,7 +31,7 @@ use game_lib::player_attr::*;
 use game_lib::setup_systems::*;
 use game_lib::components::*;
 use game_lib::shaders::*;
-use game_lib::logic::move_objects;
+use logic::move_objects;
 
 
 fn main() {

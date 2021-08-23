@@ -31,7 +31,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 68, 0, 107)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 68, 25, 56)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates

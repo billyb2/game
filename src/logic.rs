@@ -1,13 +1,18 @@
 // Game math logic (basically move_objects)
+use std::intrinsics::*;
+use std::ops::DerefMut;
 
 use crate::*;
 use bevy::prelude::*;
+use game_lib::helper_functions::{collide, collide_rect_circle, out_of_bounds};
 
+use core_simd::*;
+
+const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
 
 //TODO: Turn RequestedMovement into an event
 //TODO: Maybe make all the bullet collisions into its own seperate system? (for readability and maybe performance)
 //TODO: Make it so molotovs are map objects and not bullets
-//TODO: Potentially move this fn into it's own module? Like it takes up a good 3/4 of the main.rs file, maybe something called logic.rs or something
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]

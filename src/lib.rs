@@ -21,11 +21,9 @@ pub mod player_attr;
 pub mod setup_systems;
 pub mod shaders;
 pub mod net;
-pub mod logic;
 
 use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
-use std::intrinsics::*;
 use core_simd::*;
 
 use bevy_networking_turbulence::*;
@@ -51,7 +49,6 @@ use rand::seq::SliceRandom;
 
 //use bots::*;
 use map::*;
-use helper_functions::{collide, collide_rect_circle, out_of_bounds};
 
 use components::*;
 use player_attr::*;
@@ -61,8 +58,6 @@ use net::*;
 use single_byte_hashmap::*;
 
 use rand::Rng;
-
-const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
 
 // Sets up logging for WASM
 #[wasm_bindgen]
