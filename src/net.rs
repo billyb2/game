@@ -29,7 +29,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 122)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -329,14 +329,14 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<&Transform>, 
     // Only start sending packets when your ID is set
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
-        if ready_to_send_packet.0.finished() {
+        //if ready_to_send_packet.0.finished() {
             let transform = players.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
             let quat_xyzw: [f32; 4] = transform.rotation.into();
 
             net.broadcast_message((my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw));
 
             ready_to_send_packet.0.reset();
-        }
+        //}
     }
 }
 
@@ -348,6 +348,8 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
         for (_handle, connection) in net.connections.iter_mut() {
             if let Some(channels) = connection.channels() {
                 while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w])) = channels.recv::<(u8, [f32; 2], [f32; 4])>() {
+                    println!("Player ID: {} x, y: {:?}", player_id, [x, y]);
+
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
                     if _hosting.0 {

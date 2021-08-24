@@ -5,7 +5,7 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
-use bevy::math::{Vec2, Vec4, const_vec2};
+use bevy::math::{Vec2, const_vec2};
 
 use std::f32::consts::PI;
 use std::convert::TryInto;

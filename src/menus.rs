@@ -364,6 +364,12 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                         false => {
                             let new_ability: Ability = (current_ability_int + 1).into();
                             *my_ability.deref_mut() = new_ability;
+
+                            if new_ability == Ability::Brute {
+                                *my_gun_model.deref_mut() = Model::Melee;
+                                *text = format!("Gun: {:?}", *my_gun_model);
+
+                            }
                         },
 
 
@@ -375,16 +381,25 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                 } else if text.starts_with("Gun") {
                     let current_gun_int: u8 = (*my_gun_model).into();
 
-                    match current_gun_int == NUM_OF_GUN_MODELS - 1 {
-                        true => {
-                            let new_gun_model: Model = 0.into();
-                            *my_gun_model.deref_mut() = new_gun_model;
-                        },
-                        false => {
-                            let new_gun_model: Model = (current_gun_int + 1).into();
-                            *my_gun_model.deref_mut() = new_gun_model;
-                        },
 
+                    // The Brute can only use melee
+                    match *my_ability.deref() == Ability::Brute {
+                        true => {
+                            *my_gun_model.deref_mut() = Model::Melee;
+                            *text = format!("Gun: {:?}", *my_gun_model);
+
+                        }, false => match current_gun_int == NUM_OF_GUN_MODELS - 1 {
+                            true => {
+                                let new_gun_model: Model = 0.into();
+                                *my_gun_model.deref_mut() = new_gun_model;
+
+                            },
+                            false => {
+                                let new_gun_model: Model = (current_gun_int + 1).into();
+                                *my_gun_model.deref_mut() = new_gun_model;
+
+                            },
+                        }
 
                     };
 
@@ -698,6 +713,12 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                                 false => {
                                     let new_ability: Ability = (current_ability_int + 1).into();
                                     *my_ability.deref_mut() = new_ability;
+
+                                    if new_ability == Ability::Brute {
+                                        *my_gun_model.deref_mut() = Model::Melee;
+                                        *text = format!("Gun: {:?}", *my_gun_model);
+
+                                    }
                                 },
 
 
@@ -709,16 +730,24 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                         } else if text.starts_with("Gun") {
                             let current_gun_int: u8 = (*my_gun_model).into();
 
-                            match current_gun_int == NUM_OF_GUN_MODELS - 1 {
+                            // The Brute can only use melee
+                            match *my_ability.deref() == Ability::Brute {
                                 true => {
-                                    let new_gun_model: Model = 0.into();
-                                    *my_gun_model.deref_mut() = new_gun_model;
-                                },
-                                false => {
-                                    let new_gun_model: Model = (current_gun_int + 1).into();
-                                    *my_gun_model.deref_mut() = new_gun_model;
-                                },
+                                    *my_gun_model.deref_mut() = Model::Melee;
+                                    *text = format!("Gun: {:?}", *my_gun_model);
 
+                                }, false => match current_gun_int == NUM_OF_GUN_MODELS - 1 {
+                                    true => {
+                                        let new_gun_model: Model = 0.into();
+                                        *my_gun_model.deref_mut() = new_gun_model;
+
+                                    },
+                                    false => {
+                                        let new_gun_model: Model = (current_gun_int + 1).into();
+                                        *my_gun_model.deref_mut() = new_gun_model;
+                                        
+                                    },
+                                }
 
                             };
 

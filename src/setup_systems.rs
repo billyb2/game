@@ -388,7 +388,7 @@ pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Maps>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, mut deathmatch_score: ResMut<DeathmatchScore>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>, map_crc32: Res<MapCRC32>) {
+pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Maps>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>, map_crc32: Res<MapCRC32>) {
     let mut i: u8 = 0;
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
@@ -1676,16 +1676,14 @@ pub fn setup_id(mut commands: Commands, hosting: Res<Hosting>, mut deathmatch_sc
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
 
     #[cfg(feature = "native")]
-    if hosting.0 {
+    {
         online_player_ids.insert(0);
         deathmatch_score.0.insert(0, 0);
         commands.insert_resource(MyPlayerID(Some(PlayerID(0))));
     }
 
     #[cfg(feature = "web")]
-    if !hosting.0 {
-        commands.insert_resource(MyPlayerID(None));
-    }
+    commands.insert_resource(MyPlayerID(None));
 
     commands.insert_resource(OnlinePlayerIDs(online_player_ids));
 }

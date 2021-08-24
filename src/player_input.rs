@@ -802,6 +802,7 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sp
         if dashing_info.dashing && dashing_info.time_till_stop_dash.finished() {
             speed.0 = match *ability {
                 Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
+                Ability::Brute => DEFAULT_PLAYER_SPEED * 1.4,
                 _ => DEFAULT_PLAYER_SPEED,
 
             };
