@@ -33,6 +33,7 @@ use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
 use bevy::tasks::TaskPool;
+use bevy::utils::Duration;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
@@ -106,6 +107,7 @@ pub enum ProjectileType {
     Molotov,
     MolotovFire,
     MolotovLiquid,
+    Melee,
 
 }
 
@@ -384,26 +386,34 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
 
         }
 
-        if using_ability.0 {
-            ability_completed.0.tick(delta);
 
-        } else {
-            ability_charge.0.tick(delta);
 
-        }
+        match *ability == Ability::Brute {
+            false => match using_ability.0 {
+                true => {ability_completed.0.tick(delta);},
+                false => {ability_charge.0.tick(delta);},
+            },
+            // Brute players constantly recharge their abilities, even when using it
+            true => {
+                if ability_charge.0.elapsed_secs() <= 8.0 {
+                    let elapsed_secs = ability_charge.0.elapsed_secs();
+                    ability_charge.0.set_elapsed(Duration::from_secs_f32(delta.as_secs_f32() + elapsed_secs))
+
+                }
+
+            },
+        };
+
 
         if health.0 == 0.0 && *game_mode == GameMode::Deathmatch {
             respawn_timer.0.tick(delta);
 
         }
 
-        if !dashing_info.dashing {
-            dashing_info.time_till_can_dash.tick(delta);
-
-        } else {
-            dashing_info.time_till_stop_dash.tick(delta);
-
-        }
+        match dashing_info.dashing {
+            false => dashing_info.time_till_can_dash.tick(delta),
+            true => dashing_info.time_till_stop_dash.tick(delta),
+        };
 
         if let Some(mut slowed_down_timer) = slowed_down {
             slowed_down_timer.0.tick(delta);
@@ -411,6 +421,7 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
             if slowed_down_timer.0.finished() {
                 player_speed.0 = match ability {
                     Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
+                    Ability::Brute => DEFAULT_PLAYER_SPEED * 1.4,
                     _ => DEFAULT_PLAYER_SPEED,
 
                 };

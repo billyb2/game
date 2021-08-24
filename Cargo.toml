@@ -39,7 +39,7 @@ opt-level = 3
 [profile.fast-web.package."*"]
 opt-level = 3
 
-# The gam library is the most time consuming to compile, so I lower the optimization level on just it
+# The game library is the most time consuming to compile, so I lower the optimization level on just it
 [profile.dev.package.game]
 opt-level = 1
 

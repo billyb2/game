@@ -52,7 +52,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
         Ability::Cloak => AbilityCharge(Timer::from_seconds(17.0, false)),
         Ability::PulseWave => AbilityCharge(Timer::from_seconds(8.0, false)),
         Ability::Ghost => AbilityCharge(Timer::from_seconds(15.0, false)),
-        Ability::Brute => AbilityCharge(Timer::from_seconds(0.01, false)),
+        Ability::Brute => AbilityCharge(Timer::from_seconds(8.0, false)),
 
     };
 
@@ -77,6 +77,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 
 }
 
+#[inline]
 pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: Perk) {
     (health.0, speed.0) = match perk {
         Perk::HeavyArmor => (health.0 * 1.1, speed.0 * 0.8),
@@ -87,6 +88,7 @@ pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: 
 
 }
 
+#[inline]
 pub fn set_perk_gun_attr(mut max_ammo: &mut MaxAmmo, mut ammo_in_mag: &mut AmmoInMag, perk: Perk) {
     if perk == Perk::ExtendedMag {
         max_ammo.0 = (max_ammo.0 as f32 * 1.5).ceil() as u8;
@@ -108,6 +110,7 @@ impl Player {
             speed: match ability {
                 // Stim players have a faster default running speed
                 Ability::Stim => PlayerSpeed(DEFAULT_PLAYER_SPEED + 1.0),
+                Ability::Brute => PlayerSpeed(DEFAULT_PLAYER_SPEED * 1.4),
                 _ => PlayerSpeed(DEFAULT_PLAYER_SPEED),
             },
             requested_movement: RequestedMovement::new(0.0, 0.0),
@@ -119,8 +122,15 @@ impl Player {
             using_ability: UsingAbility(false),
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false)),
             dashing_info: DashingInfo {
-                time_till_can_dash: Timer::from_seconds(3.0, false),
-                time_till_stop_dash: Timer::from_seconds(0.2, false),
+                time_till_can_dash: match ability {
+                    Ability::Brute => Timer::from_seconds(1.0, false),
+                    _ => Timer::from_seconds(3.0, false),
+
+                },
+                time_till_stop_dash: match ability {
+                    Ability::Brute => Timer::from_seconds(0.4, false),
+                    _ => Timer::from_seconds(0.2, false),
+                },
                 dashing: false,
             },
             perk,
@@ -282,6 +292,7 @@ pub enum Model {
     ClusterShotgun,
     Flamethrower,
     SniperRifle,
+    Melee,
 
 }
 
@@ -299,6 +310,7 @@ impl From<u8> for Model {
             6 => Model::ClusterShotgun,
             7 => Model::Flamethrower,
             8 => Model::SniperRifle,
+            9 => Model::Melee,
             _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
@@ -319,6 +331,7 @@ impl From<Model> for u8 {
             Model::ClusterShotgun => 6,
             Model::Flamethrower => 7,
             Model::SniperRifle => 8,
+            Model::Melee => 9,
 
         }
 
@@ -369,6 +382,7 @@ impl Gun {
                 Model::ClusterShotgun => TimeSinceLastShot(Timer::from_seconds(1.3, false)),
                 Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
                 Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(4.0, false)),
+                Model::Melee => TimeSinceLastShot(Timer::from_seconds(0.3, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -382,6 +396,7 @@ impl Gun {
                     Model::ClusterShotgun => Timer::from_seconds(4.0, false),
                     Model::Flamethrower => Timer::from_seconds(2.0, false),
                     Model::SniperRifle => Timer::from_seconds(7.0, false),
+                    Model::Melee => Timer::from_seconds(0.01, false),
 
                 },
                 reloading: false,
@@ -398,6 +413,7 @@ impl Gun {
                 Model::ClusterShotgun => AmmoInMag(5),
                 Model::Flamethrower => AmmoInMag(30),
                 Model::SniperRifle => AmmoInMag(1),
+                Model::Melee => AmmoInMag(1),
 
             },
             max_ammo: match model {
@@ -410,6 +426,7 @@ impl Gun {
                 Model::ClusterShotgun => MaxAmmo(5),
                 Model::Flamethrower => MaxAmmo(30),
                 Model::SniperRifle => MaxAmmo(1),
+                Model::Melee => MaxAmmo(1),
 
             },
             max_distance: match model {
@@ -422,6 +439,8 @@ impl Gun {
                 Model::ClusterShotgun => MaxDistance(275.0),
                 Model::Flamethrower => MaxDistance(200.0),
                 Model::SniperRifle => MaxDistance(5000.0),
+                Model::Melee => MaxDistance(50.0),
+
 
             },
             // The recoil range is in radians
@@ -433,12 +452,14 @@ impl Gun {
                 Model::ClusterShotgun => RecoilRange(0.07),
                 Model::Flamethrower => RecoilRange(0.15),
                 Model::SniperRifle => RecoilRange(0.012),
+                Model::Melee => RecoilRange(0.0),
                 _ => RecoilRange(0.075),
 
             },
             projectile_type: match model {
                 Model::Speedball => ProjectileType::Speedball,
                 Model::Flamethrower => ProjectileType::Flame,
+                Model::Melee => ProjectileType::Melee,
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
@@ -451,10 +472,12 @@ impl Gun {
                 Model::ClusterShotgun => Speed(14.0),
                 Model::Flamethrower => Speed(17.0),
                 Model::SniperRifle => Speed(100.0),
+                Model::Melee => Speed(30.0),
 
             },
             projectile_size: match model {
                 Model::SubmachineGun => Size::new(4.0, 4.0),
+                Model::Melee => Size::new(25.0, 25.0),
                 _ => Size::new(6.0, 6.0),
 
             },
@@ -469,6 +492,7 @@ impl Gun {
                 Model::ClusterShotgun => Damage(20.0),
                 Model::Flamethrower => Damage(4.25),
                 Model::SniperRifle => Damage(300.0),
+                Model::Melee => Damage(35.0),
 
 
             },

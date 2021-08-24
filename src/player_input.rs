@@ -378,7 +378,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         }
 
                         if ev.projectile_type != ProjectileType::TractorBeam {
-                            if shooting {
+                            if shooting && ev.projectile_type != ProjectileType::Melee {
                                 ammo_in_mag.0 -= 1;
 
                             }
@@ -426,6 +426,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::Flame => flame_material,
                                     ProjectileType::PulseWave => materials.pulsewave.clone(),
                                     ProjectileType::TractorBeam => materials.beam.clone(),
+                                    ProjectileType::Melee => materials.regular.clone(),
 
                                 }
 
@@ -438,12 +439,16 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             };
                             audio.play(sound);*/
 
-                        let negative_speed = ev.speed.signum();
+                        let angle = match speed.is_sign_negative() {
+                            true => angle - PI,
+                            false => angle,
+
+                        };
 
                         let avg_size = Vec3A::splat((ev.size.x + ev.size.y) / 2.0);
                         
-                        let angle_trig = Vec3A::new(angle.cos() * negative_speed, angle.sin(), 0.0);
-                        let mut translation = Vec3A::new(ev.start_pos.x, ev.start_pos.y, 3.0);
+                        let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
+                        let mut translation: Vec3A = ev.start_pos.into();
                         
                         translation += avg_size * angle_trig;
                         
@@ -453,13 +458,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 material,
                                 sprite: Sprite::new(ev.size),
                                 transform: Transform {
-                                    // Finally found a place to do a fused multiply and add, jaja
                                     translation: translation.into(),
-                                    rotation: match speed.is_sign_negative() {
-                                        true => Quat::from_rotation_z(angle - PI),
-                                        false => Quat::from_rotation_z(angle)
-
-                                    },
+                                    rotation: Quat::from_rotation_z(angle),
                                     ..Default::default()
 
                                 },
@@ -499,7 +499,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
             ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut phasing, mut shader_phasing) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
             // Events that come from other players dont need to wait for ability charge to finish
-            if ability_charge.0.finished() || ev_id.0 != my_player_id.0 {
+            if (*ability != Ability::Brute && ability_charge.0.finished()) || ev_id.0 != my_player_id.0 || (*ability == Ability::Brute && ability_charge.0.elapsed_secs() >= 0.5) {
                 match ability {
                     Ability::Wall => {
                         if requested_movement.speed != 0.0 || ev_id.0 != my_player_id.0 {
@@ -740,12 +740,21 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             projectile_type: ProjectileType::TractorBeam,
                             damage: Damage(0.0),
                             player_ability: Ability::Brute,
-                            size: Vec2::new(150.0, 45.0),
+                            size: Vec2::new(400.0, 45.0),
                             reloading: reload_timer.reloading,
 
                         };
 
                         shoot_event.send(event);
+
+                        if ability_charge.0.elapsed_secs() - 0.8 >= 0.0 {
+                            let new_charge_f32 = ability_charge.0.elapsed() - Duration::from_secs_f32(0.06);
+                            ability_charge.0.set_elapsed(new_charge_f32);
+
+                        } else {
+                            ability_charge.0.set_elapsed(Duration::from_secs_f32(0.0));
+
+                        }
 
                     }
                 };
