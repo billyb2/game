@@ -1,4 +1,3 @@
-#![feature(portable_simd)]
 #![feature(core_intrinsics)]
 #![feature(option_result_unwrap_unchecked)]
 
@@ -6,7 +5,7 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
-use bevy::math::Vec2;
+use bevy::math::{Vec2, Vec4, const_vec2};
 
 use std::f32::consts::PI;
 use std::convert::TryInto;
@@ -14,8 +13,6 @@ use std::intrinsics::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::UdpSocket;
-
-use core_simd::*;
 
 #[inline]
 pub fn slice_to_u32(data: &[u8]) -> u32 {
@@ -60,6 +57,8 @@ fn port_is_available(ip: &str, port: u16) -> bool {
     }
 }
 
+const TWO: Vec2 = const_vec2!([2.0; 2]);
+
 // Part of the collision code is taken from Bevy
 
 /*
@@ -86,17 +85,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: f32x2) -> (bool, bool) {
+pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: Vec2) -> (bool, bool) {
     // A bounding box collision test between two rectangles
     // This code is partially stolen from https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/collide_aabb.rs
     // It basically just adjusts the rectangles before doing a rectangle-rectangle collision test
     
     // So what this code essentially does is it tries to move object 1 a few increments for a certain distance at a certain angle, until it reaches its destination
 
-    let two = Vec2::splat(2.0);
-
-    let half_rect1_size = rect1_size / two; 
-    let half_rect2_size = rect2_size / two;
+    let half_rect1_size = rect1_size / TWO; 
+    let half_rect2_size = rect2_size / TWO;
 
     let rect2_min = rect2_coords - half_rect2_size;
     let rect2_max = rect2_coords + half_rect2_size;
@@ -110,30 +107,28 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
         let collision = |i: u32| -> (bool, bool) {
             let distance = Vec2::splat(interval_size * i as f32);
             
-            let new_rect1_coords = distance * Vec2::from_slice(&angle.to_array()) + Vec2::from_slice(&rect1_coords.to_array());
+            let new_rect1_coords = distance * angle + rect1_coords;
 
             // The coords when moving only in the x direction, and only in the y direction
             let coords_cos_sine = [Vec2::from_slice(&[new_rect1_coords[0], rect1_coords[1]]), Vec2::from_slice(&[rect1_coords[0], new_rect1_coords[1]])];
-
-            //TODO: Convert to into_iter when Rust 2021 hits to consume array
-            let res_vec = coords_cos_sine.iter().map(|&new_rect1_coords| {
+            let mut res = [false; 2];
+            
+            coords_cos_sine.iter().zip(res.iter_mut()).for_each(|(&new_rect1_coords, res)| {
                 let rect1_min = new_rect1_coords -  half_rect1_size;
                 let rect1_max = new_rect1_coords + half_rect1_size;
 
-                let min = Vec4::new(&[rect1_min.to_array(), rect2_min.to_array()].concat());
-                let max = Vec4::new(&[rect1_min.to_array(), rect2_min.to_array()].concat());
+                *res = unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all());
     
-                unlikely(min.cmple(max).all());
-                
-            }).collect::<Vec<bool>>();
+            });
 
-            unsafe { (*res_vec.get_unchecked(0), *res_vec.get_unchecked(1)) }
+
+            unsafe { (*res.get_unchecked(0), *res.get_unchecked(1)) }
 
         };
 
         // Tries to find whether the x coordinate collides or if the y coordinate collides
         // The map will never be empty, so it will always return Some
-        unsafe { (1..num_of_iters).into_iter().map(collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() }
+        unsafe { (2..num_of_iters).into_iter().map(collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() }
 
 
     } else {
@@ -154,41 +149,32 @@ pub fn collide(rect1_coords: f32x2, rect1_size: Vec2, rect2_coords: Vec2, rect2_
 
 }
 
-pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: f32x2, radius: f32) -> bool {
-    const TWO: f32x2 = f32x2::splat(2.0);
-
-    let rect_coords = f32x2::from_array(rect_coords.to_array());
-
-    let half_rect_size = f32x2::from_array(rect_size.to_array()) / TWO;
+pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Vec2, radius: f32) -> bool {
+    let half_rect_size = rect_size / TWO;
 
     let delta = circle_coords - (rect_coords - half_rect_size).max(circle_coords.min(rect_coords + half_rect_size)); 
 
-    (delta * delta).horizontal_sum() <= (radius / 2.0).powi(2)
+    // Sums delta squared
+    (unsafe { let delta_squared = (delta * delta).to_array(); delta_squared.get_unchecked(0) + delta_squared.get_unchecked(1) })
+    <= (radius / 2.0).powi(2)
 
 
 }
 
-pub fn out_of_bounds(rect_coords: f32x2, rect_size: Vec2, map_size: Vec2) -> bool {
-    const ZERO: f32x2 = f32x2::splat(0.0);
-    const TWO: f32x2 = f32x2::splat(2.0);
-
-    let half_rect_size = f32x2::from_array(rect_size.to_array()) / TWO;
+pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool {
+    let half_rect_size = rect_size / TWO;
 
     let min = rect_coords - half_rect_size;
     let max = rect_coords + half_rect_size;
 
-    let map_size = f32x2::from_array(map_size.to_array());
-
     unlikely(
-        min.lanes_le(ZERO) == mask32x2::splat(true) &&
-        max.lanes_ge(map_size) == mask32x2::splat(true)
+        min.cmple(Vec2::ZERO).all() &&
+        max.cmpge(map_size).all()
     )
 
-
-
 }
 
-#[inline]
+/*#[inline]
 pub fn vec_to_array<T, const N: usize>(v: Vec<T>) -> [T; N] {
     v.try_into().unwrap_or_else(|v: Vec<T>| panic!("Expected a Vec of length {} but it was {}", N, v.len()))
-}
+}*/

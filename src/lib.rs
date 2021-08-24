@@ -4,9 +4,9 @@
 #![feature(core_intrinsics)]
 #![feature(destructuring_assignment)]
 #![feature(drain_filter)]
-#![feature(portable_simd)]
 #![feature(option_result_unwrap_unchecked)]
 #![feature(stmt_expr_attributes)]
+#![feature(slice_as_chunks)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
@@ -24,7 +24,6 @@ pub mod net;
 
 use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
-use core_simd::*;
 
 use bevy_networking_turbulence::*;
 

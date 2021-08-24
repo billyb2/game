@@ -1,7 +1,6 @@
 #![feature(core_intrinsics)]
 #![feature(drain_filter)]
 #![feature(option_result_unwrap_unchecked)]
-#![feature(portable_simd)]
 #![feature(stmt_expr_attributes)]
 
 #![deny(clippy::all)]

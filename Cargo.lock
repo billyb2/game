@@ -703,7 +703,7 @@ dependencies = [
 [[package]]
 name = "bevy_webgl2"
 version = "0.5.2"
-source = "git+https://github.com/billyb2/bevy_webgl2#fe046fcdd78b8bd850d9becc0913e4a21732c8ce"
+source = "git+https://github.com/billyb2/bevy_webgl2#0b385c55373e5862823c6e289d5c2b18ea8dadd2"
 dependencies = [
  "bevy",
  "cfg-if 1.0.0",
@@ -1086,11 +1086,6 @@ dependencies = [
  "libc",
  "objc",
 ]
-
-[[package]]
-name = "core_simd"
-version = "0.1.0"
-source = "git+https://github.com/rust-lang/portable-simd#d42875302dd9e924f8d667b32e88989388989b79"
 
 [[package]]
 name = "crc"
@@ -1542,7 +1537,6 @@ dependencies = [
  "bevy",
  "bevy_networking_turbulence",
  "bevy_webgl2",
- "core_simd",
  "crc32fast",
  "helper_functions",
  "lazy_static",
@@ -1883,7 +1877,6 @@ name = "helper_functions"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "core_simd",
  "rayon",
 ]
 

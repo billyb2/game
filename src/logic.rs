@@ -5,7 +5,6 @@ use std::ops::DerefMut;
 use crate::*;
 use bevy::prelude::*;
 use helper_functions::{collide, collide_rect_circle, out_of_bounds};
-use core_simd::*;
 
 const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
 
@@ -45,12 +44,12 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
             let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
 
-            let angle_trig = f32x2::from_array([movement.angle.cos(), movement.angle.sin()]);
-            let translation = f32x2::from_array(object.translation.truncate().to_array());
+            let angle_trig = Vec2::from_slice(&[movement.angle.cos(), movement.angle.sin()]);
+            let speed_simd = Vec2::splat(speed);
 
-            let speed_simd = f32x2::splat(speed);
+            let translation = object.translation.truncate();
 
-            let next_potential_pos = speed_simd.mul_add(angle_trig, translation);
+            let next_potential_pos = speed_simd * angle_trig + translation;
 
             if phasing.0 || (!out_of_bounds(next_potential_pos, sprite.size, map.size)) {
                 let collision = map.collision_no_damage(translation, sprite.size, speed, angle_trig);
@@ -99,22 +98,18 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
 
 
-            let angle_trig = f32x2::from_array([movement.angle.cos(), movement.angle.sin()]);
-            let translation = f32x2::from_array(object.translation.truncate().to_array());
+            let translation = object.translation.truncate();
+            let angle_trig = Vec2::new(movement.angle.cos(), movement.angle.sin());
+            let speed_simd = Vec2::splat(speed);
 
-            let speed_simd = f32x2::splat(speed);
-
-            let next_potential_pos = speed_simd.mul_add(angle_trig, translation);
+            let next_potential_pos = speed_simd * angle_trig + translation;
             let mut player_collision = false;
 
             // Check to see if a player-projectile collision takes place
             player_movements.for_each_mut(|(entity, player, mut player_movement, _, _, player_sprite, player_id, mut health, ability, _visible, mut player_speed, _phasing, mut alpha) |{
                 // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
                 // Checks that players aren't already dead as well lol
-                // Check to see if a player-projectile collision takes place
-
-                let translation = f32x2::from_array(object.translation.truncate().to_array());
-                
+                // Check to see if a player-projectile collision takes place                
                 let collision = {
                     let collision = collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig);
 
@@ -200,7 +195,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             let (wall_collision, health_and_coords) = match *projectile_type {
                 // Pulsewaves and tractor beams move through walls
                 ProjectileType::PulseWave | ProjectileType::TractorBeam => (false, None),
-                _ =>  map.collision(translation, sprite.size, damage.0, speed, f32x2::from_array([movement.angle.cos(), movement.angle.sin()])),
+                _ =>  map.collision(translation, sprite.size, damage.0, speed, Vec2::new(movement.angle.cos(), movement.angle.sin())),
 
             };
 
@@ -284,7 +279,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             let (_entity, _, _, _, _, _, _, _, _ability, _, _player_speed, _phasing, _alpha) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
-                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, f32x2::from_array(coords.to_array()), *radius) {
+                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, *coords, *radius) {
                     molotovs_to_be_lit_on_fire.push((*coords, *radius));
 
                 }

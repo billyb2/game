@@ -22,8 +22,6 @@ use crate:: {
 #[cfg(feature = "native")]
 use helper_functions::get_available_port;
 
-use helper_functions::vec_to_array;
-
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::utils::Duration;
@@ -31,7 +29,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 68, 15, 34)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -311,7 +309,8 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     commands.insert_resource(SetAbility(false));
 
     #[cfg(feature = "native")]
-     _app_state.set(AppState::InGame).unwrap();
+    _app_state.set(AppState::InGame).unwrap();
+
 
     // Currently, only web builds can join games (until we add UDP servers or something)
     #[cfg(feature = "web")]
@@ -712,10 +711,8 @@ pub fn handle_map_object_request(mut net: ResMut<NetworkResource>, maps: Res<Map
             if let Some(map) = maps.0.get(&crc32) {
                 let index_usize: usize = index.try_into().unwrap();
                 let map_object = &map.objects[index_usize];
-                // Basically just makes sure that the map object is a u8 array
-                let bin = vec_to_array::<u8, 32>( map_object.to_bin() );
 
-                messages_to_send.push((*handle, (crc32, index, bin)));
+                messages_to_send.push((*handle, (crc32, index, map_object.to_bin())));
                 println!("crc32: {}, index: {}", crc32, index);
             }
 

@@ -770,8 +770,6 @@ TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbil
 AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sprite, &mut Health)>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
     query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
         mut using_ability, mut ability_charge, mut speed, mut dashing_info, mut phasing, transform, sprite, mut health)| {
-        const ZERO: f32x2 = f32x2::splat(0.0);
-
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -786,9 +784,7 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sp
 
             } else if *ability == Ability::Ghost {
                 let map = maps.0.get(&map_crc32.0).unwrap();
-                let translation = f32x2::from_array(transform.translation.truncate().to_array());
-
-                let collision = map.collision_no_damage(translation, sprite.size, 0.0, ZERO);
+                let collision = map.collision_no_damage(transform.translation.truncate(), sprite.size, 0.0, Vec2::splat(0.0));
 
                 if collision.0 || collision.1 {
                     health.0 = 0.0;

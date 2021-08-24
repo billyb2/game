@@ -8,8 +8,6 @@ use std::rc::Rc;
 use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
 
-use core_simd::*;
-
 use crate::components::WallMarker;
 use crate::{GameRelated, Health, MapCRC32};
 
@@ -53,10 +51,10 @@ pub struct Maps(pub FxHashMap<u32, Map>);
 impl MapObject {
     fn collision(
         &self,
-        other_object_coords: f32x2,
+        other_object_coords: Vec2,
         other_object_size: Vec2,
         distance: f32,
-        angle: f32x2,
+        angle: Vec2,
     ) -> (bool, bool) {
         //Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
         match self.collidable{
@@ -66,7 +64,7 @@ impl MapObject {
     }
 
     // Convert the map object to a bin array
-    pub fn to_bin(&self) -> Vec<u8> {
+    pub fn to_bin(&self) -> [u8; 32] {
         let bool_to_byte = 
         #[inline(always)]
         |boolean: bool| -> u8 {
@@ -76,23 +74,26 @@ impl MapObject {
             }
         };
 
-        let x = ((self.coords.x - (self.size.x / 2.0)) as u32).to_be_bytes();
-        let y = ((-self.coords.y - (self.size.y / 2.0)) as u32).to_be_bytes();
-        let z = (self.coords.z as u32).to_be_bytes();
-        let w = (self.coords.w as u32).to_be_bytes();
+        let mut bytes: [u8; 32] = [0; 32];
+        let byte_chunks = unsafe { bytes.as_chunks_unchecked_mut::<4>() };
 
-        let size_x = (self.size.x as u32).to_be_bytes();
-        let size_y = (self.size.y as u32).to_be_bytes();
+        byte_chunks[0] = ((self.coords.x - (self.size.x / 2.0)) as u32).to_be_bytes();
+        byte_chunks[1] = ((-self.coords.y - (self.size.y / 2.0)) as u32).to_be_bytes();
+        byte_chunks[2] = (self.coords.z as u32).to_be_bytes();
+        byte_chunks[3] = (self.coords.w as u32).to_be_bytes();
+
+        byte_chunks[4] = (self.size.x as u32).to_be_bytes();
+        byte_chunks[5] = (self.size.y as u32).to_be_bytes();
 
         // Arrays neeed to be the exact same size in order to be concactenated for some reason
-        let misc1: [u8; 4] = [
+        byte_chunks[6] = [
             bool_to_byte(self.player_spawn),
             bool_to_byte(self.collidable),
             bool_to_byte(self.using_image),
             self.sprite.x as u8
         ];
 
-        let misc2: [u8; 4] = [
+        byte_chunks[7] = [
             self.sprite.y as u8,
             self.sprite.z as u8,
             self.sprite.w as u8,
@@ -103,13 +104,12 @@ impl MapObject {
             }
         ];
 
-        let byte_vec = [x, y, z, w, size_x, size_y, misc1, misc2].concat();
 
-        debug_assert_eq!(byte_vec.len(), 32);
+        debug_assert_eq!(bytes.len(), 32);
         // If the entire map object byte is null, that means either it's a very very weird map object (will almost never happen naturally), or the function is bugged for some reason
-        debug_assert_ne!(byte_vec, vec![0; 32]);
+        debug_assert_ne!(bytes, [0; 32]);
 
-        byte_vec
+        bytes
     }
 
     pub fn from_bin(chunk: &[u8]) -> MapObject {
@@ -287,7 +287,7 @@ impl Map {
     }
 
     // Returns whether a collision took place, and the health of the wall (if it has health)
-    pub fn collision(&mut self, other_object_coords: f32x2, other_object_size: Vec2, damage: f32, distance: f32, angle: f32x2) -> (bool, Option<(f32, Vec2)>) {
+    pub fn collision(&mut self, other_object_coords: Vec2, other_object_size: Vec2, damage: f32, distance: f32, angle: Vec2) -> (bool, Option<(f32, Vec2)>) {
         // The collision function just iterates through each map object within the map, and runs the collide function within
         #[cfg(feature = "parallel")]
         let object = self.objects.par_iter_mut().enumerate()
@@ -340,7 +340,7 @@ impl Map {
     }
 
     // Identical to collision, except it's a non-mutable reference so it's safe to use in a parallel iterator
-    pub fn collision_no_damage(&self, other_object_coords: f32x2, other_object_size: Vec2, distance: f32, angle: f32x2) -> (bool, bool) {
+    pub fn collision_no_damage(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: Vec2) -> (bool, bool) {
         let map_collision = |object: &MapObject| object.collision(other_object_coords, other_object_size, distance, angle);
         
         // The collision function just iterates through each map object within the map, and runs the collide function within

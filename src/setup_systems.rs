@@ -392,12 +392,8 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
     let mut i: u8 = 0;
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
-    let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
     let mut player_entities: HashMap<u8, Entity> =
         HashMap::with_capacity_and_hasher(256, BuildHasher::default());
-
-    online_player_ids.insert(0);
-    deathmatch_score.0.insert(0, 0);
 
     let wnd = wnds.get_primary().unwrap();
 
@@ -495,7 +491,6 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
     }
 
     commands.insert_resource(availabie_player_ids);
-    commands.insert_resource(OnlinePlayerIDs(online_player_ids));
     commands.insert_resource(player_entities);
 }
 
@@ -1677,9 +1672,13 @@ pub fn setup_default_controls(mut commands: Commands) {
     });
 }
 
-pub fn setup_id(mut commands: Commands, hosting: Res<Hosting>) {
+pub fn setup_id(mut commands: Commands, hosting: Res<Hosting>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+    let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
+
     #[cfg(feature = "native")]
     if hosting.0 {
+        online_player_ids.insert(0);
+        deathmatch_score.0.insert(0, 0);
         commands.insert_resource(MyPlayerID(Some(PlayerID(0))));
     }
 
@@ -1687,4 +1686,6 @@ pub fn setup_id(mut commands: Commands, hosting: Res<Hosting>) {
     if !hosting.0 {
         commands.insert_resource(MyPlayerID(None));
     }
+
+    commands.insert_resource(OnlinePlayerIDs(online_player_ids));
 }

@@ -114,9 +114,6 @@ single_byte_hashmap = { version = "0.1", features = ["nightly"] }
 # Just a regular HashMap
 rustc-hash = { version = "1" }
 
-# Easy SIMD
-core_simd = { git = "https://github.com/rust-lang/portable-simd" }
-
 helper_functions = { path = "helper_functions" }
 
 
