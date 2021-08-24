@@ -117,6 +117,8 @@ rustc-hash = { version = "1" }
 # Easy SIMD
 core_simd = { git = "https://github.com/rust-lang/portable-simd" }
 
+helper_functions = { path = "helper_functions" }
+
 
 [features]
 default = [
@@ -142,6 +144,7 @@ native = [
 parallel = [
   "rayon",
   "single_byte_hashmap/rayon",
+  "helper_functions/parallel",
 ]
 
 web = [

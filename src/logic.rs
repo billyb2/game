@@ -4,8 +4,7 @@ use std::ops::DerefMut;
 
 use crate::*;
 use bevy::prelude::*;
-use game_lib::helper_functions::{collide, collide_rect_circle, out_of_bounds};
-
+use helper_functions::{collide, collide_rect_circle, out_of_bounds};
 use core_simd::*;
 
 const DESIRED_TICKS_PER_SECOND: f32 = 60.0;

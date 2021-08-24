@@ -15,7 +15,6 @@
 pub mod components;
 pub mod system_labels;
 pub mod map;
-pub mod helper_functions;
 pub mod menus;
 pub mod player_input;
 pub mod player_attr;

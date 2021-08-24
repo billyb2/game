@@ -19,7 +19,7 @@ use rayon::prelude::*;
 use crate::*;
 use crate::components::*;
 use crate::player_attr::*;
-use crate::helper_functions::get_angle;
+use helper_functions::get_angle;
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource

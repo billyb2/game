@@ -13,7 +13,7 @@ use core_simd::*;
 use crate::components::WallMarker;
 use crate::{GameRelated, Health, MapCRC32};
 
-use crate::helper_functions::*;
+use helper_functions::*;
 
 use crc32fast::Hasher;
 use lz4_flex::frame::{FrameEncoder, FrameDecoder};

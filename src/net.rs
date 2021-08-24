@@ -20,9 +20,9 @@ use crate:: {
 };
 
 #[cfg(feature = "native")]
-use crate::helper_functions::get_available_port;
+use helper_functions::get_available_port;
 
-use crate::helper_functions::vec_to_array;
+use helper_functions::vec_to_array;
 
 use bevy_networking_turbulence::*;
 use bevy::prelude::*;
@@ -31,7 +31,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(10, 68, 15, 34)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -62,8 +62,8 @@ pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSe
         },
         max_message_len: 128,
     },
-    message_buffer_size: 2048,
-    packet_buffer_size: 2048,
+    message_buffer_size: 8192,
+    packet_buffer_size: 8192,
 };
 
 // Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here

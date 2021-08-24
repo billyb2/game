@@ -8,3 +8,6 @@
 /.idea/
 
 /src/map.xml
+
+**/*/target
+helper_functions/Cargo.lock

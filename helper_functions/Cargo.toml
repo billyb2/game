@@ -1,0 +1,19 @@
+[package]
+name = "helper_functions"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+core_simd = { git = "https://github.com/rust-lang/portable-simd" }
+rayon = { version = "1", optional = true }
+
+[features]
+parallel = [
+    "rayon"
+]
+
+[patch.crates-io]
+glam = { git = "https://github.com/bitshifter/glam-rs" }
