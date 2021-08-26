@@ -74,6 +74,7 @@ inherits = "release"
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["render"] }
 
 # Allows for building bevy to the web
+# TODO: Switch to main smokku branch
 bevy_webgl2 = { git = "https://github.com/billyb2/bevy_webgl2", optional = true }
 
 # A more complex audio library than the one that Bevy uses
@@ -101,6 +102,7 @@ winit = { version = "0.25.0" }
 
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
+fastrand = { version = "1" }
 
 # Easier multi-threading
 rayon = { version = "1", optional = true }
@@ -120,6 +122,7 @@ helper_functions = { path = "helper_functions" }
 [features]
 default = [
   "native",
+  "graphics",
 ]
 
 use_wgpu = [
@@ -165,6 +168,6 @@ bevy_app = { git = "https://github.com/bevyengine/bevy" }
 bevy_tasks = { git = "https://github.com/bevyengine/bevy" }
 bevy_core = { git = "https://github.com/bevyengine/bevy" }
 bevy_reflect = { git = "https://github.com/bevyengine/bevy" }
-# Using a PR of mine until they merge it, it just bumps the rand crate to the latest version
+# Using the git naia-socket-shared for now since it has the latest rand version
 naia-socket-shared = { git = "https://github.com/naia-rs/naia-socket" }
 glam = { git = "https://github.com/bitshifter/glam-rs" }

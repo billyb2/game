@@ -98,54 +98,35 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     let rect2_min = rect2_coords - half_rect2_size;
     let rect2_max = rect2_coords + half_rect2_size;
 
+    let a_size_f32 = (rect1_size[0] + rect1_size[1]) / 2.0;
+    let interval_size = distance / a_size_f32 / 2.0;
+    let num_of_iters = (distance / interval_size).ceil() as u32;
 
-    if likely(distance != 0.0) {
-        let a_size_f32 = (rect1_size[0] + rect1_size[1]) / 2.0;
-        let interval_size = distance / a_size_f32;
-        let num_of_iters = (distance / interval_size).ceil() as u32;
+    let collision = |i: u32| -> (bool, bool) {
+        let distance = Vec2::splat(interval_size * i as f32);
+        
+        let new_rect1_coords = distance * angle + rect1_coords;
 
-        let collision = |i: u32| -> (bool, bool) {
-            let distance = Vec2::splat(interval_size * i as f32);
-            
-            let new_rect1_coords = distance * angle + rect1_coords;
+        // The coords when moving only in the x direction, and only in the y direction
+        let coords_cos_sine = [Vec2::from_slice(&[new_rect1_coords[0], rect1_coords[1]]), Vec2::from_slice(&[rect1_coords[0], new_rect1_coords[1]])];
+        let mut res = [false; 2];
+        
+        coords_cos_sine.iter().zip(res.iter_mut()).for_each(|(&new_rect1_coords, res)| {
+            let rect1_min = new_rect1_coords -  half_rect1_size;
+            let rect1_max = new_rect1_coords + half_rect1_size;
 
-            // The coords when moving only in the x direction, and only in the y direction
-            let coords_cos_sine = [Vec2::from_slice(&[new_rect1_coords[0], rect1_coords[1]]), Vec2::from_slice(&[rect1_coords[0], new_rect1_coords[1]])];
-            let mut res = [false; 2];
-            
-            coords_cos_sine.iter().zip(res.iter_mut()).for_each(|(&new_rect1_coords, res)| {
-                let rect1_min = new_rect1_coords -  half_rect1_size;
-                let rect1_max = new_rect1_coords + half_rect1_size;
+            *res = unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all());
 
-                *res = unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all());
-    
-            });
+        });
 
 
-            unsafe { (*res.get_unchecked(0), *res.get_unchecked(1)) }
+        unsafe { (*res.get_unchecked(0), *res.get_unchecked(1)) }
 
-        };
+    };
 
-        // Tries to find whether the x coordinate collides or if the y coordinate collides
-        // The map will never be empty, so it will always return Some
-        unsafe { (2..num_of_iters).into_iter().map(collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() }
-
-
-    } else {
-        let rect1_coords = distance * Vec2::from_slice(&angle.to_array()) + Vec2::from_slice(&rect1_coords.to_array());
-
-        let rect1_min = rect1_coords - half_rect1_size;
-        let rect1_max = rect1_coords + half_rect1_size;
-
-        // Check for collision
-        (
-            unlikely(rect1_min.cmple(rect2_max).all()), 
-            unlikely(rect2_min.cmple(rect1_max).all())
-
-        )
-
-
-    }
+    // Tries to find whether the x coordinate collides or if the y coordinate collides
+    // The map will never be empty, so it will always return Some
+    unsafe { (2..num_of_iters).into_iter().map(collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() }
 
 }
 

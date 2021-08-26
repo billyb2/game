@@ -15,10 +15,13 @@
 pub mod components;
 pub mod system_labels;
 pub mod map;
+#[cfg(feature = "graphics")]
 pub mod menus;
 pub mod player_input;
 pub mod player_attr;
 pub mod setup_systems;
+#[cfg(feature = "graphics")]
+pub mod setup_graphical_systems;
 pub mod shaders;
 pub mod net;
 
@@ -45,8 +48,6 @@ use rayon::prelude::*;
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
 
-use rand::seq::SliceRandom;
-
 //use bots::*;
 use map::*;
 
@@ -56,8 +57,6 @@ use setup_systems::*;
 use shaders::*;
 use net::*;
 use single_byte_hashmap::*;
-
-use rand::Rng;
 
 // Sets up logging for WASM
 #[wasm_bindgen]
@@ -291,8 +290,7 @@ pub fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventRead
 
 pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<&mut Visible>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     for ev in death_events.iter() {
-        let mut rng = rand::thread_rng();
-        let num = rng.gen_range(0..=2);
+        let num = fastrand::u8(0..=2);
 
         let message = match num {
             0 => format!("Player {} got murked", ev.0 + 1),
@@ -314,10 +312,8 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
 pub fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, task_pool: Res<TaskPool>, maps: Res<Maps>, map_crc32: Res<MapCRC32>) {
     players.par_for_each_mut(&task_pool, 1, |(mut health, mut transform, mut visibility, mut respawn_timer, perk, player_id)| {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains(&player_id.0) {
-            let mut rng = rand::thread_rng();
             let spawn_points = &maps.0.get(&map_crc32.0).unwrap().spawn_points;
-
-            transform.translation = spawn_points.choose(&mut rng).unwrap().extend(100.0);
+            transform.translation = unsafe { spawn_points.get_unchecked(fastrand::usize(..spawn_points.len())).extend(100.0) };
 
             health.0 = match perk {
                 Perk::HeavyArmor => 125.0,

@@ -13,8 +13,15 @@ command = "rustup"
 install_crate = {crate_name = "basic-http-server", binary = "basic-http-server", test_arg="--help"}
 
 [tasks.wasm-bindgen-cli]
-#Gotta install a slightly older verson of wasm-bindgen-cli
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.76"}
+
+[tasks.lz4_flex-util]
+install_crate = { crate_name = "lz4_flex-util", test_arg = "--help" }
+
+[tasks.compress]
+args = ["-f", "target/wasm-simd_bg.wasm"]
+command = "lz4"
+dependencies = ["lz4_flex-util"]
 
 [tasks.cargo-build-web-release]
 args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
@@ -49,35 +56,53 @@ args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--featu
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
-[tasks.build-web-release]
+[tasks.bindgen-release]
 args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/release-web/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-release", "wasm-bindgen-cli"]
 
-[tasks.build-web-opt]
+[tasks.bindgen-opt]
 args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/opt-web/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-opt", "wasm-bindgen-cli"]
 
-[tasks.build-web-fast]
+[tasks.bindgen-fast]
 args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/fast-web/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-fast", "wasm-bindgen-cli"]
 
-[tasks.build-web-release-simd]
+[tasks.bindgen-release-simd]
 args = ["--out-dir", "target/", "--out-name", "wasm-simd", "--target", "web", "target/wasm32-unknown-unknown/release-web-simd/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-release-simd", "wasm-bindgen-cli"]
 
-[tasks.build-web-opt-simd]
+[tasks.bindgen-opt-simd]
 args = ["--out-dir", "target/", "--out-name", "wasm-simd", "--target", "web", "target/wasm32-unknown-unknown/opt-web-simd/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-opt-simd", "wasm-bindgen-cli"]
 
-[tasks.build-web-fast-simd]
+[tasks.bindgen-fast-simd]
 args = ["--out-dir", "target/", "--out-name", "wasm-simd", "--target", "web", "target/wasm32-unknown-unknown/fast-web-simd/game.wasm"]
 command = "wasm-bindgen"
 dependencies = ["cargo-build-web-fast-simd", "wasm-bindgen-cli"]
+
+[tasks.build-web-fast-simd]
+dependencies = ["bindgen-fast-simd", "compress"]
+
+[tasks.build-web-opt-simd]
+dependencies = ["bindgen-opt-simd", "compress"]
+
+[tasks.build-web-release-simd]
+dependencies = ["bindgen-fast-simd", "compress"]
+
+[tasks.build-web-fast]
+dependencies = ["bindgen-fast", "compress"]
+
+[tasks.build-web-opt]
+dependencies = ["bindgen-opt", "compress"]
+
+[tasks.build-web-release]
+dependencies = ["bindgen-release", "compress"]
 
 [tasks.build-native]
 args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "-Z", "unstable-options"]
@@ -145,9 +170,9 @@ dependencies = ["install-target-wasm32-unknown-unknown"]
 dependencies = ["check-web", "check-native"]
 
 [tasks.server_cli]
-args = ["run", "--bin", "server_cli", "--features", "native"]
+args = ["run", "--bin", "server_cli", "--no-default-features", "--features", "native"]
 command = "cargo"
 
 [tasks.server_cli-release]
-args = ["run", "--bin", "server_cli", "--features", "native", "--release"]
+args = ["run", "--bin", "server_cli", "--no-default-features", "--features", "native", "--release"]
 command = "cargo"

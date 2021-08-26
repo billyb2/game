@@ -29,7 +29,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 86, 122)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 123, 69)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -220,6 +220,27 @@ const MAP_METADATA_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 2048,
 };
 
+pub const DEBUG_TEXT: MessageChannelSettings = MessageChannelSettings {
+    channel: 9,
+    channel_mode: MessageChannelMode::Reliable {
+        reliability_settings: ReliableChannelSettings {
+            bandwidth: 1024,
+            recv_window_size: 2048,
+            send_window_size: 2048,
+            burst_bandwidth: 2048,
+            init_send: 1024,
+            wakeup_time: Duration::from_millis(50),
+            initial_rtt: Duration::from_millis(200),
+            // Info requests time out after 10 seconds
+            max_rtt: Duration::from_secs(10),
+            rtt_update_factor: 0.1,
+            rtt_resend_factor: 1.5,
+        },
+        max_message_len: 1024,
+    },
+    message_buffer_size: 8192,
+    packet_buffer_size: 8192,
+};
 
 #[cfg(feature = "web")]
 macro_rules! console_log {
@@ -301,7 +322,9 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .register::<(String, u64, [f32; 3], [f32; 2], u32)>(MAP_METADATA_SETTINGS)
             .unwrap();
 
-
+        builder
+            .register::<String>(DEBUG_TEXT)
+            .unwrap();
 
     });
 
@@ -378,8 +401,8 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
 
     // Broadcast the location of all players to everyone
     #[cfg(feature = "native")]
-    for m in messages_to_send.iter() {
-        net.broadcast_message(*m);
+    for m in messages_to_send.into_iter() {
+        net.broadcast_message(m);
 
     }
 }
@@ -438,15 +461,18 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
     // Broadcast the location of all players to everyone
     #[cfg(feature = "native")]
-    for m in messages_to_send.iter() {
-        net.broadcast_message(*m);
+    for m in messages_to_send.into_iter() {
+        net.broadcast_message(m);
 
     }
 }
 
 pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(20);
+
+    #[cfg(feature = "web")]
+    let mut debug_messages: Vec<String> = Vec::with_capacity(10);
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
@@ -465,6 +491,9 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
                         }
 
+                        #[cfg(feature = "web")]
+                        debug_messages.push(String::from("Shot fired"));
+
                         shoot_event.send(event);
 
                     }
@@ -474,10 +503,15 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
         #[cfg(feature = "native")]
         if _hosting.0 {
-            for m in messages_to_send.iter() {
-                net.broadcast_message((*m).clone());
+            for m in messages_to_send.into_iter() {
+                net.broadcast_message(m);
 
             }
+        }
+
+        #[cfg(feature = "web")]
+        for m in debug_messages.into_iter() {
+            net.broadcast_message(m);
         }
     }
 }
@@ -524,8 +558,8 @@ pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Quer
 
         #[cfg(feature = "native")]
         if _hosting.0 {
-            for m in messages_to_send.iter() {
-                net.broadcast_message(*m);
+            for m in messages_to_send.into_iter() {
+                net.broadcast_message(m);
 
             }
         }

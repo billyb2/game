@@ -491,7 +491,8 @@ impl Gun {
                 Model::SubmachineGun => Damage(8.0),
                 Model::ClusterShotgun => Damage(20.0),
                 Model::Flamethrower => Damage(4.25),
-                Model::SniperRifle => Damage(300.0),
+                // Enough damage to kill any player without heavy armor
+                Model::SniperRifle => Damage(100.0),
                 Model::Melee => Damage(35.0),
 
 

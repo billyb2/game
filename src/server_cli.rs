@@ -63,6 +63,7 @@ fn main() {
     .add_system(handle_server_commands)
     .add_system(handle_ability_packets)
     .add_system(handle_projectile_packets)
+    .add_system(handle_debug_text)
     .run()
 
 }
@@ -117,6 +118,9 @@ fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, _h
             .register::<u32>(SET_MAP_SETTINGS)
             .unwrap();
 
+        builder.register::<String>(DEBUG_TEXT)
+            .unwrap();
+
     });
 
     commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), false)));
@@ -169,8 +173,18 @@ fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: 
         }
     }
 
-    for m in messages_to_send.iter() {
-        net.broadcast_message((*m).clone());
+    for m in messages_to_send.into_iter() {
+        net.broadcast_message(m);
 
+    }
+}
+
+fn handle_debug_text(mut net: ResMut<NetworkResource>) {
+    for (_handle, connection) in net.connections.iter_mut() {
+        if let Some(channels) = connection.channels() {
+            while let Some(event) = channels.recv::<String>() {   
+                println!("{}", event);
+            }
+        }
     }
 }

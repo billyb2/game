@@ -28,6 +28,7 @@ use game_lib::net::*;
 use game_lib::system_labels::*;
 use game_lib::player_attr::*;
 use game_lib::setup_systems::*;
+use game_lib::setup_graphical_systems::*;
 use game_lib::components::*;
 use game_lib::shaders::*;
 use logic::move_objects;

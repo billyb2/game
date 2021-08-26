@@ -1538,6 +1538,7 @@ dependencies = [
  "bevy_networking_turbulence",
  "bevy_webgl2",
  "crc32fast",
+ "fastrand",
  "helper_functions",
  "lazy_static",
  "lz4_flex",

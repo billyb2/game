@@ -3,16 +3,13 @@
 #![allow(clippy::too_many_arguments)]
 
 use std::f32::consts::PI;
+use std::iter::repeat_with;
 
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
 //use bevy_kira_audio::Audio;
-
-use rand::Rng;
-use rand::seq::SliceRandom;
-
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -288,31 +285,24 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MouseP
             let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, phasing) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
             if !phasing.0 && (btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0) {
-                let mut rng = rand::thread_rng();
-
                 // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
                 // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
 
                 // TODO: Make number of bullets into a part of the gun
-                let mut recoil_vec: Vec<f32> = match *model {
-                    Model::Shotgun => Vec::with_capacity(12),
-                    Model::ClusterShotgun => Vec::with_capacity(6),
-                    Model::Flamethrower => Vec::with_capacity(5),
-                    _ => Vec::with_capacity(1),
+                let num_of_recoil = match *model {
+                    Model::Shotgun => 12,
+                    Model::ClusterShotgun => 6,
+                    Model::Flamethrower => 5,
+                    _ => 1,
 
                 };
 
-                // Fill the recoil_vec to capacity
-                while recoil_vec.len() < recoil_vec.capacity() {
-                    let recoil = match recoil_range.0 == 0.0 {
-                        false => rng.gen_range(-recoil_range.0..=recoil_range.0),
-                        true => 0.0,
+                let rng = fastrand::Rng::new();
 
-                    };
-
-                    recoil_vec.push(recoil);
-
-                }
+                let recoil_vec: Vec<f32> = repeat_with(|| {
+                    let sign = rng.i8(..).signum() as f32;
+                    rng.f32() * recoil_range.0 * sign
+                }).take(num_of_recoil).collect();
 
                 let event = ShootEvent {
                     start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
@@ -348,8 +338,6 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 let angle = get_angle(ev.pos_direction.x, ev.pos_direction.y, ev.start_pos.x, ev.start_pos.y);
 
                 let mut shooting = false;
-
-                let mut rng = rand::thread_rng();
 
                 let speed = ev.speed;
 
@@ -408,7 +396,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 materials.engineer.clone()
 
                             } else {
-                                let num = rng.gen_range(0..=2);
+                                let num = fastrand::u8(0..=2);
 
                                 let flame_material = match num {
                                     0 => materials.flamethrower1.clone(),
@@ -603,11 +591,11 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             }
                         }
 
-                        let mut rng = rand::thread_rng();
-
                         if !potential_players_to_be_hacked.is_empty() {
                             // Get a random player that isn't the current player
-                            let player_to_be_hacked: u8 = *potential_players_to_be_hacked.choose(&mut rng).unwrap();
+                            let rand_index = fastrand::usize(..potential_players_to_be_hacked.len());
+
+                            let player_to_be_hacked: u8 = unsafe { *potential_players_to_be_hacked.get_unchecked(rand_index) };
 
                             let message: ([u8; 2], [f32; 3]) = ([player_to_be_hacked, Ability::Hacker.into()], [transform.translation.x, transform.translation.y, 0.0]);
                             
