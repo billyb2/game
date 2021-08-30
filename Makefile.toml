@@ -15,13 +15,52 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 [tasks.wasm-bindgen-cli]
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2"}
 
-[tasks.lz4_flex-util]
-install_crate = { crate_name = "lz4_flex-util", binary = "lz4_flex-util", test_arg = "--help" }
-
 [tasks.compress]
-args = ["-f", "target/wasm-simd_bg.wasm"]
-command = "lz4"
-dependencies = ["lz4_flex-util"]
+env = { "CARGO_MAKE_RUST_SCRIPT_PROVIDER" = "rust-script", RUSTFLAGS = "" }
+script_runner = "@rust"
+script = '''
+//! ```cargo
+//! [dependencies]
+//! brotli = { version = "3" }
+//! ```
+fn main() {
+	use std::fs::read;
+	use std::io::Cursor;
+
+	use brotli::BrotliCompress;
+	use brotli::enc::BrotliEncoderParams;
+
+	let (wasm_path, compressed_wasm_path) = {
+		let mut wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
+		wasm_path.push_str("/target/wasm-simd_bg.wasm");
+
+		let mut compressed_wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
+		compressed_wasm_path.push_str("/target/wasm-simd_bg.wasm.br");
+
+		(wasm_path, compressed_wasm_path)
+
+	};
+
+	let wasm_bytes = read(wasm_path).unwrap();
+	let len = wasm_bytes.len();
+	let mut wasm_bytes = Cursor::new(wasm_bytes);
+
+
+	let mut compressed_bytes = Vec::with_capacity(3000000);
+
+	println!("Original WASM file length: {}", len);
+	println!("Compressing WASM file...");
+
+	let params = BrotliEncoderParams::default();
+	BrotliCompress(&mut wasm_bytes, &mut compressed_bytes, &params).unwrap();
+
+	println!("New compressed WASM file length: {}\nThe compressed file is {:.1}% smaller than the uncompressed one", compressed_bytes.len(), (len as f32 / compressed_bytes.len() as f32) * 100.0 );
+
+	println!("Writing new wasm file...");
+	std::fs::write(compressed_wasm_path, compressed_bytes).unwrap();
+    
+}
+'''
 
 [tasks.cargo-build-web-release]
 args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
