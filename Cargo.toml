@@ -75,7 +75,7 @@ bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-fe
 
 # Allows for building bevy to the web
 # TODO: Switch to main smokku branch
-bevy_webgl2 = { git = "https://github.com/billyb2/bevy_webgl2", optional = true }
+bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true }
 
 # A more complex audio library than the one that Bevy uses
 #bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
