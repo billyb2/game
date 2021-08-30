@@ -1,3 +1,4 @@
+let wasm_bindgen;!function(){const e={};let r;const t=new Array(32).fill(void 0);t.push(void 0,null,!0,!1);let i=t.length;function a(e){i===t.length&&t.push(t.length+1);var n=i;return i=t[n],t[n]=e,n}function o(e){return t[e]}function s(e){var n=o(e);return(e=e)<36||(t[e]=i,i=e),n}let c=new TextDecoder("utf-8",{ignoreBOM:!0,fatal:!0});c.decode();let n=null;function f(){return null!==n&&n.buffer===r.memory.buffer||(n=new Uint8Array(r.memory.buffer)),n}e.main=function(){r.main()};let u=0;e.decompress=function(e){var n,n=(n=e,e=(e=r.__wbindgen_malloc)(+n.length),f().set(n,+e),u=n.length,e),e=u;return s(r.decompress(n,e))};async function b(n){if(void 0===n){let e;e="undefined"==typeof document?location.href:document.currentScript.src,n=e.replace(/\.js$/,"_bg.wasm")}const e={wbg:{}};e.wbg.__wbindgen_memory=function(){return a(r.memory)},e.wbg.__wbg_buffer_79a3294266d4e783=function(e){return a(o(e).buffer)},e.wbg.__wbg_newwithbyteoffsetandlength_22a36e6023ad3cd0=function(e,n,t){return a(new Uint8Array(o(e),n>>>0,t>>>0))},e.wbg.__wbindgen_object_drop_ref=function(e){s(e)},e.wbg.__wbg_new_945397fb09fec0b8=function(e){return a(new Uint8Array(o(e)))},e.wbg.__wbindgen_throw=function(e,n){throw new Error((e=e,n=n,c.decode(f().subarray(e,e+n))))},("string"==typeof n||"function"==typeof Request&&n instanceof Request||"function"==typeof URL&&n instanceof URL)&&(n=fetch(n));var{instance:t,module:n}=await async function(n,e){if("function"==typeof Response&&n instanceof Response){if("function"==typeof WebAssembly.instantiateStreaming)try{return await WebAssembly.instantiateStreaming(n,e)}catch(e){if("application/wasm"==n.headers.get("Content-Type"))throw e;console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n",e)}var t=await n.arrayBuffer();return await WebAssembly.instantiate(t,e)}return(t=await WebAssembly.instantiate(n,e))instanceof WebAssembly.Instance?{instance:t,module:n}:t}(await n,e);return r=t.exports,b.__wbindgen_wasm_module=n,r.__wbindgen_start(),r}wasm_bindgen=Object.assign(b,e)}();
 
 let wasm;
 
@@ -313,8 +314,11 @@ async function load(module, imports) {
         if (typeof WebAssembly.instantiateStreaming === 'function') {
             try {
                  if (module.headers.get('Content-Type') != 'application/wasm') {
+                     const { decompress } = wasm_bindgen;
+                    await wasm_bindgen('./wasm_decompress_bg.wasm');
+
                      // Decompress the LZ4 file
-                     let bytes = lz4.decompress(new Uint8Array(await module.arrayBuffer())).buffer;
+                     let bytes = decompress(new Uint8Array(await module.arrayBuffer())).buffer;
                      return await WebAssembly.instantiate(bytes, imports);
                  } else {
                      // If it's a wasm file, just load it as normal
