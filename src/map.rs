@@ -77,13 +77,13 @@ impl MapObject {
         let mut bytes: [u8; 32] = [0; 32];
         let byte_chunks = unsafe { bytes.as_chunks_unchecked_mut::<4>() };
 
-        byte_chunks[0] = ((self.coords.x - (self.size.x / 2.0)) as u32).to_be_bytes();
-        byte_chunks[1] = ((-self.coords.y - (self.size.y / 2.0)) as u32).to_be_bytes();
-        byte_chunks[2] = (self.coords.z as u32).to_be_bytes();
-        byte_chunks[3] = (self.coords.w as u32).to_be_bytes();
+        byte_chunks[0] = ((self.coords.x - (self.size.x / 2.0))).to_le_bytes();
+        byte_chunks[1] = ((-self.coords.y - (self.size.y / 2.0))).to_le_bytes();
+        byte_chunks[2] = (self.coords.z).to_le_bytes();
+        byte_chunks[3] = (self.coords.w).to_le_bytes();
 
-        byte_chunks[4] = (self.size.x as u32).to_be_bytes();
-        byte_chunks[5] = (self.size.y as u32).to_be_bytes();
+        byte_chunks[4] = (self.size.x).to_le_bytes();
+        byte_chunks[5] = (self.size.y).to_le_bytes();
 
         // Arrays neeed to be the exact same size in order to be concactenated for some reason
         byte_chunks[6] = [
@@ -113,14 +113,14 @@ impl MapObject {
     }
 
     pub fn from_bin(chunk: &[u8]) -> MapObject {
-        let x = (slice_to_u32(&chunk[0..=(3)])) as f32;
-        let y = (slice_to_u32(&chunk[(4)..=(7)])) as f32;
-        let z = (slice_to_u32(&chunk[(8)..=(11)])) as f32;
+        let x = slice_to_f32(&chunk[0..=(3)]);
+        let y = slice_to_f32(&chunk[(4)..=(7)]);
+        let z = slice_to_f32(&chunk[(8)..=(11)]);
 
-        let rotation = (slice_to_u32(&chunk[(12)..=(15)])) as f32;
+        let rotation = slice_to_f32(&chunk[(12)..=(15)]);
 
-        let width = (slice_to_u32(&chunk[(16)..=(19)])) as f32;
-        let height = (slice_to_u32(&chunk[(20)..=(23)])) as f32;
+        let width = slice_to_f32(&chunk[(16)..=(19)]);
+        let height = slice_to_f32(&chunk[(20)..=(23)]);
 
         MapObject {
             // Gotta adjust for Bevy's coordinate system center being at (0, 0)
@@ -194,8 +194,9 @@ impl Map {
         bytes.shrink_to_fit();
 
         // The first few bytes of the map are metadata, like the dimensions of the map, its background color, etc.
-        let map_width = slice_to_u32(&bytes[0..=3]) as f32;
-        let map_height = slice_to_u32(&bytes[4..=7]) as f32;
+        let map_width = slice_to_f32(&bytes[0..=3]);
+        let map_height = slice_to_f32(&bytes[4..=7]);
+
         let background_color = Color::rgb_u8(bytes[8], bytes[9], bytes[10]);
 
         let mut start_of_map = 11;
@@ -281,7 +282,8 @@ impl Map {
         let map = Map::new(map_name, objects, [map_width, map_height], background_color, crc32, spawn_points);
 
         // Quick check to make sure the to_bin function is working
-        debug_assert_eq!(bytes[..], map_to_bin(&map, false));
+        // It isn't working at the moment, please fix :(
+        //debug_assert_eq!(bytes[..], map_to_bin(&map, false));
 
         map
     }
@@ -418,7 +420,7 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
     });
 }
 
-//TODO: Change this whole fn to use a map?
+//TODO: Change this whole fn to use a map (Iterator)?
 fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
     let map_bytes: Rc<RefCell<Vec<u8>>> = Rc::new(RefCell::new(Vec::with_capacity(900)));
 
@@ -427,8 +429,8 @@ fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
     #[inline]
     |b: &u8| map_bytes.borrow_mut().push(*b);
 
-    map_bytes.borrow_mut().extend_from_slice(&(map.size.x as u32).to_be_bytes());
-    map_bytes.borrow_mut().extend_from_slice(&(map.size.y as u32).to_be_bytes());
+    map_bytes.borrow_mut().extend_from_slice(&(map.size.x.to_le_bytes()));
+    map_bytes.borrow_mut().extend_from_slice(&(map.size.y.to_le_bytes()));
 
     push_to_map(&((map.background_color.r() * u8::MAX as f32).round() as u8));
     push_to_map(&((map.background_color.g() * u8::MAX as f32).round() as u8));

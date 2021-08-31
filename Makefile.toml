@@ -21,6 +21,55 @@ script_runner = "@rust"
 script = '''
 //! ```cargo
 //! [dependencies]
+//! brotli = { git = "https://github.com/billyb2/rust-brotli", branch = "master", features = ["simd"] }
+//! ```
+fn main() {
+	use std::fs::read;
+	use std::io::Cursor;
+
+	use brotli::BrotliCompress;
+	use brotli::enc::BrotliEncoderParams;
+
+	let (wasm_path, compressed_wasm_path) = {
+		let mut wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
+		wasm_path.push_str("/target/wasm-simd_bg.wasm");
+
+		let mut compressed_wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
+		compressed_wasm_path.push_str("/target/wasm-simd_bg.wasm.br");
+
+		(wasm_path, compressed_wasm_path)
+
+	};
+
+	let wasm_bytes = read(wasm_path).unwrap();
+	let len = wasm_bytes.len();
+	let mut wasm_bytes = Cursor::new(wasm_bytes);
+
+
+	let mut compressed_bytes = Vec::with_capacity(3000000);
+
+	println!("Original WASM file length: {}", len);
+	println!("Compressing WASM file...");
+
+	let mut params = BrotliEncoderParams::default();
+	params.quality = 3;
+
+	BrotliCompress(&mut wasm_bytes, &mut compressed_bytes, &params).unwrap();
+
+	println!("New compressed WASM file length: {}\nThe compressed file is {:.1}% the size of the uncompressed one", compressed_bytes.len(), (compressed_bytes.len() as f32 / len as f32) * 100.0 );
+
+	println!("Writing new wasm file...");
+	std::fs::write(compressed_wasm_path, compressed_bytes).unwrap();
+    
+}
+'''
+
+[tasks.compress-release]
+env = { "CARGO_MAKE_RUST_SCRIPT_PROVIDER" = "rust-script", RUSTFLAGS = "" }
+script_runner = "@rust"
+script = '''
+//! ```cargo
+//! [dependencies]
 //! brotli = { version = "3" }
 //! ```
 fn main() {
@@ -51,16 +100,19 @@ fn main() {
 	println!("Original WASM file length: {}", len);
 	println!("Compressing WASM file...");
 
-	let params = BrotliEncoderParams::default();
+	let mut params = BrotliEncoderParams::default();
+	params.quality = 11;
+
 	BrotliCompress(&mut wasm_bytes, &mut compressed_bytes, &params).unwrap();
 
-	println!("New compressed WASM file length: {}\nThe compressed file is {:.1}% smaller than the uncompressed one", compressed_bytes.len(), (len as f32 / compressed_bytes.len() as f32) * 100.0 );
+	println!("New compressed WASM file length: {}\nThe compressed file is {:.1}% the size of the uncompressed one", compressed_bytes.len(), (compressed_bytes.len() as f32 / len as f32) * 100.0 );
 
 	println!("Writing new wasm file...");
 	std::fs::write(compressed_wasm_path, compressed_bytes).unwrap();
     
 }
 '''
+
 
 [tasks.cargo-build-web-release]
 args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
@@ -129,19 +181,19 @@ dependencies = ["cargo-build-web-fast-simd", "wasm-bindgen-cli"]
 dependencies = ["bindgen-fast-simd", "compress"]
 
 [tasks.build-web-opt-simd]
-dependencies = ["bindgen-opt-simd", "compress"]
+dependencies = ["bindgen-opt-simd", "compress-release"]
 
 [tasks.build-web-release-simd]
-dependencies = ["bindgen-fast-simd", "compress"]
+dependencies = ["bindgen-fast-simd", "compress-release"]
 
 [tasks.build-web-fast]
 dependencies = ["bindgen-fast", "compress"]
 
 [tasks.build-web-opt]
-dependencies = ["bindgen-opt", "compress"]
+dependencies = ["bindgen-opt", "compress-release"]
 
 [tasks.build-web-release]
-dependencies = ["bindgen-release", "compress"]
+dependencies = ["bindgen-release", "compress-release"]
 
 [tasks.build-native]
 args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "-Z", "unstable-options"]

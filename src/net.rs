@@ -371,8 +371,6 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
         for (_handle, connection) in net.connections.iter_mut() {
             if let Some(channels) = connection.channels() {
                 while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w])) = channels.recv::<(u8, [f32; 2], [f32; 4])>() {
-                    println!("Player ID: {} x, y: {:?}", player_id, [x, y]);
-
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
                     if _hosting.0 {

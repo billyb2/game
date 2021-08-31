@@ -14,28 +14,45 @@ use std::intrinsics::*;
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::UdpSocket;
 
+//TODO: Maybe genericize the slice_to function?
+#[inline]
+pub fn slice_to_i32(data: &[u8]) -> i32 {
+    let data_array: [u8; 4] = data.try_into().unwrap();
+    i32::from_be_bytes(data_array)
+
+}
+
 #[inline]
 pub fn slice_to_u32(data: &[u8]) -> u32 {
     let data_array: [u8; 4] = data.try_into().unwrap();
-
     u32::from_be_bytes(data_array)
+
+}
+
+#[inline]
+pub fn slice_to_f32(data: &[u8]) -> f32 {
+    let data_array: [u8; 4] = data.try_into().unwrap();
+    f32::from_le_bytes(data_array)
 
 }
 
 pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     let dy = unsafe { fsub_fast(ey, cy) };
     let dx = unsafe { fsub_fast(ex, cx) };
-    if dx != 0.0 {
+
+    match dx != 0.0 {
         // Returns the angle in radians
-        unsafe { fdiv_fast(dy, dx) }.atan()
+        true => unsafe { fdiv_fast(dy, dx) }.atan(),
+        false => match dy > 0.0 {
+            true => {
+                const HALF_PI: f32 = PI / 2.0;
+                HALF_PI
 
-    } else if dy > 0.0 {
-            unsafe { fdiv_fast(PI, 2.0) }
-
-    }  else {
-            PI
-
+            },
+            false => PI,
+        },
     }
+    
 }
 
 #[cfg(not(target_arch = "wasm32"))]

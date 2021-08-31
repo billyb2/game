@@ -102,7 +102,6 @@ const wasmModuleAsArrayBuffer = Base64Binary.decodeArrayBuffer(String.raw`AGFzbQ
 
 const lz4 = lz4init({ wasmBinary: wasmModuleAsArrayBuffer }).lz4js;
 
-
 var customMapFormat = {
     name: "Custom map format",
     extension: "custom",
@@ -113,15 +112,8 @@ var customMapFormat = {
         let map_width = map.width * 30.0;
         let map_height = map.height * 30.0;
 
-        array.push((map_width & 0xff000000) >> 24);
-        array.push((map_width & 0x00ff0000) >> 16);
-        array.push((map_width & 0x0000ff00) >> 8);
-        array.push((map_width & 0x000000ff));
-
-        array.push((map_height & 0xff000000) >> 24);
-        array.push((map_height & 0x00ff0000) >> 16);
-        array.push((map_height & 0x0000ff00) >> 8);
-        array.push((map_height & 0x000000ff));
+        array = array.concat(float_to_u8_array(map_width));
+        array = array.concat(float_to_u8_array(map_height));
 
         let rgb_hex = String(map.backgroundColor).substr(1).match(/.{1,2}/g);
 
@@ -175,40 +167,22 @@ var customMapFormat = {
                         }
 
                         // x coor
-                        array.push((x & 0xff000000) >> 24);
-                        array.push((x & 0x00ff0000) >> 16);
-                        array.push((x & 0x0000ff00) >> 8);
-                        array.push((x & 0x000000ff));
+                        array = array.concat(float_to_u8_array(x));
 
                         // y coor
-                        array.push((y & 0xff000000) >> 24);
-                        array.push((y & 0x00ff0000) >> 16);
-                        array.push((y & 0x0000ff00) >> 8);
-                        array.push(y & 0x000000ff);
+                        array = array.concat(float_to_u8_array(y));
 
                         // How objects stack onto each other (Z coord)
-                        array.push((z & 0xff000000) >> 24);
-                        array.push((z & 0x00ff0000) >> 16);
-                        array.push((z & 0x0000ff00) >> 8);
-                        array.push(z & 0x000000ff);
+                        array = array.concat(float_to_u8_array(z));
 
                         // Clockwise rotation
-                        array.push((rotation & 0xff000000) >> 24);
-                        array.push((rotation & 0x00ff0000) >> 16);
-                        array.push((rotation & 0x0000ff00) >> 8);
-                        array.push(rotation & 0x000000ff);
+                        array = array.concat(float_to_u8_array(rotation));
 
                         //width
-                        array.push((width & 0xff000000) >> 24);
-                        array.push((width & 0x00ff0000) >> 16);
-                        array.push((width & 0x0000ff00) >> 8);
-                        array.push(width & 0x000000ff);
+                        array = array.concat(float_to_u8_array(width));
 
                         //height
-                        array.push((height & 0xff000000) >> 24);
-                        array.push((height & 0x00ff0000) >> 16);
-                        array.push((height & 0x0000ff00) >> 8);
-                        array.push(height & 0x000000ff);
+                        array = array.concat(float_to_u8_array(height));
 
                         if (player_spawn == true) {
                             array.push(255);
@@ -279,3 +253,11 @@ var customMapFormat = {
 }
 
 tiled.registerMapFormat("custom", customMapFormat)
+
+function float_to_u8_array(f32) {
+   let f32_arr = new Float32Array(1);
+   f32_arr[0] = f32;
+
+   let u8 = new Uint8Array(f32_arr.buffer);
+   return Array.from(u8);
+}

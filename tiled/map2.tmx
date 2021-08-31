@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" compressionlevel="9" width="80" height="81" tilewidth="5" tileheight="5" infinite="0" backgroundcolor="#000000" nextlayerid="7" nextobjectid="203">
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" compressionlevel="9" width="80" height="81" tilewidth="5" tileheight="5" infinite="0" backgroundcolor="#000000" nextlayerid="8" nextobjectid="241">
  <editorsettings>
   <export target="map2.custom" format="custom"/>
  </editorsettings>
@@ -394,18 +394,10 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
-  <object id="122" x="180" y="0" width="25" height="70">
+  <object id="123" x="175" y="105" width="30" height="15">
    <properties>
     <property name="Z" type="int" value="2"/>
-    <property name="filename" type="int" value="0"/>
-    <property name="player_collidable" type="bool" value="true"/>
-    <property name="player_spawn" type="bool" value="false"/>
-   </properties>
-  </object>
-  <object id="123" x="180" y="95" width="25" height="25">
-   <properties>
-    <property name="Z" type="int" value="2"/>
-    <property name="filename" type="int" value="0"/>
+    <property name="filename" type="int" value="4"/>
     <property name="player_collidable" type="bool" value="true"/>
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
@@ -482,8 +474,306 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
+  <object id="205" x="175" y="60" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="206" x="175" y="45" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="blue" type="int" value="109"/>
+    <property name="green" type="int" value="192"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+    <property name="red" type="int" value="198"/>
+   </properties>
+  </object>
+  <object id="207" x="175" y="30" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="208" x="175" y="15" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="209" x="175" y="0" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="210" x="175" y="75" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="b" type="int" value="109"/>
+    <property name="g" type="int" value="192"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+    <property name="r" type="int" value="198"/>
+   </properties>
+  </object>
  </objectgroup>
- <objectgroup id="4" name="Spawn points">
+ <objectgroup id="7" name="Copy of Collidables">
+  <object id="211" x="150" y="295" width="55" height="105">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="212" x="305" y="145" width="55" height="255">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="213" x="150" y="165" width="55" height="85">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="214" x="205" y="175" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="215" x="285" y="175" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="216" x="205" y="225" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="217" x="285" y="225" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="218" x="205" y="300" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="219" x="285" y="300" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="220" x="285" y="350" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="221" x="205" y="350" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="222" x="285" y="125" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="223" x="205" y="125" width="20" height="20">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="2"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="224" x="25" y="0" width="155" height="25">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="225" x="175" y="105" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="226" x="305" y="0" width="55" height="145">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="227" x="0" y="0" width="25" height="120">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="228" x="0" y="120" width="50" height="25">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="229" x="120" y="60" width="10" height="60">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="230" x="70" y="25" width="10" height="50">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="231" x="85" y="120" width="120" height="25">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="232" x="0" y="145" width="50" height="190">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="233" x="50" y="310" width="120" height="25">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="234" x="205" y="0" width="100" height="50">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="235" x="175" y="60" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="236" x="175" y="45" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="blue" type="int" value="109"/>
+    <property name="green" type="int" value="192"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+    <property name="red" type="int" value="198"/>
+   </properties>
+  </object>
+  <object id="237" x="175" y="30" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="238" x="175" y="15" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="239" x="175" y="0" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="filename" type="int" value="4"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="240" x="175" y="75" width="30" height="15">
+   <properties>
+    <property name="Z" type="int" value="2"/>
+    <property name="b" type="int" value="109"/>
+    <property name="g" type="int" value="192"/>
+    <property name="player_collidable" type="bool" value="true"/>
+    <property name="player_spawn" type="bool" value="false"/>
+    <property name="r" type="int" value="198"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup id="4" name="Spawn points" visible="0">
   <object id="196" x="252.167" y="279.167" width="3" height="3">
    <properties>
     <property name="Z" type="int" value="1"/>
