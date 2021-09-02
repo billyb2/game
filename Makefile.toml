@@ -48,7 +48,7 @@ fn main() {
 
 	let mut compressed_bytes = Vec::with_capacity(3000000);
 
-	println!("Original WASM file length: {}", len);
+	println!("Original WASM file length: {:.1}MB", len as f32 / 1000000.0);
 	println!("Compressing WASM file...");
 
 	let mut params = BrotliEncoderParams::default();
@@ -56,7 +56,7 @@ fn main() {
 
 	BrotliCompress(&mut wasm_bytes, &mut compressed_bytes, &params).unwrap();
 
-	println!("New compressed WASM file length: {}\nThe compressed file is {:.1}% the size of the uncompressed one", compressed_bytes.len(), (compressed_bytes.len() as f32 / len as f32) * 100.0 );
+	println!("New compressed WASM file length: {:.1}MB\nThe compressed file is {:.1}% the size of the uncompressed one", compressed_bytes.len() as f32 / 1000000.0, (compressed_bytes.len() as f32 / len as f32) * 100.0 );
 
 	println!("Writing new wasm file...");
 	std::fs::write(compressed_wasm_path, compressed_bytes).unwrap();
@@ -97,19 +97,20 @@ fn main() {
 
 	let mut compressed_bytes = Vec::with_capacity(3000000);
 
-	println!("Original WASM file length: {}", len);
-	println!("Compressing WASM file...");
+        println!("Original WASM file length: {:.1}MB", len as f32 / 1000000.0);
+        println!("Compressing WASM file...");
 
-	let mut params = BrotliEncoderParams::default();
-	params.quality = 11;
+        let mut params = BrotliEncoderParams::default();
+        params.quality = 11;
 
-	BrotliCompress(&mut wasm_bytes, &mut compressed_bytes, &params).unwrap();
+        BrotliCompress(&mut wasm_bytes, &mut compressed_bytes, &params).unwrap();
 
-	println!("New compressed WASM file length: {}\nThe compressed file is {:.1}% the size of the uncompressed one", compressed_bytes.len(), (compressed_bytes.len() as f32 / len as f32) * 100.0 );
+        println!("New compressed WASM file length: {:.1}MB\nThe compressed file is {:.1}% the size of the uncompressed one", compressed_bytes.len() as f32 / 1000000.0, (compressed_bytes.len() as f32 / len as f32) * 100.0 );
 
-	println!("Writing new wasm file...");
-	std::fs::write(compressed_wasm_path, compressed_bytes).unwrap();
-    
+        println!("Writing new wasm file...");
+        std::fs::write(compressed_wasm_path, compressed_bytes).unwrap();
+
+ 
 }
 '''
 
@@ -204,11 +205,11 @@ args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--r
 command = "cargo"
 
 [tasks.build-native-fast]
-args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "bevy/dynamic", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run]
-args = ["run", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "bevy/dynamic", "-Z", "unstable-options"]
+args = ["run", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run-release]
@@ -259,6 +260,14 @@ dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.check]
 dependencies = ["check-web", "check-native"]
+
+[tasks.build-server_cli]
+args = ["build", "--bin", "server_cli", "--no-default-features", "--features", "native"]
+command = "cargo"
+
+[tasks.build-server_cli-release]
+args = ["build", "--bin", "server_cli", "--no-default-features", "--features", "native", "--release"]
+command = "cargo"
 
 [tasks.server_cli]
 args = ["run", "--bin", "server_cli", "--no-default-features", "--features", "native"]

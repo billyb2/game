@@ -13,6 +13,7 @@ debug = 0
 opt-level = 0
 overflow-checks = false
 split-debuginfo = "unpacked"
+panic = "abort"
 
 [profile.dev-windows]
 inherits = "dev"
@@ -98,7 +99,7 @@ lz4_flex = { version = "0.8", default-features = false, features = ["checked-dec
 crc32fast = { version = "1", features = ["nightly"] }
 
 # Idk why, but build always fails if winit isn't included as a dep
-winit = { version = "0.25.0" }
+# winit = { version = "0.25.0" }
 
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
@@ -127,6 +128,8 @@ default = [
 
 use_wgpu = [
   "bevy/bevy_wgpu",
+  "bevy/wayland",
+  "bevy/x11",
 ]
 
 graphics = [
@@ -170,4 +173,4 @@ bevy_core = { git = "https://github.com/bevyengine/bevy" }
 bevy_reflect = { git = "https://github.com/bevyengine/bevy" }
 # Using the git naia-socket-shared for now since it has the latest rand version
 naia-socket-shared = { git = "https://github.com/naia-rs/naia-socket" }
-glam = { git = "https://github.com/bitshifter/glam-rs" }
+glam = { git = "https://github.com/bitshifter/glam-rs", rev = "342176dde9addb331e7319616484f2edba5b6421" }

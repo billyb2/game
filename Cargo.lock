@@ -1548,7 +1548,6 @@ dependencies = [
  "serde",
  "single_byte_hashmap",
  "wasm-bindgen",
- "winit",
 ]
 
 [[package]]
@@ -1729,8 +1728,7 @@ dependencies = [
 [[package]]
 name = "glam"
 version = "0.17.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e01732b97afd8508eee3333a541b9f7610f454bb818669e66e90f5f57c93a776"
+source = "git+https://github.com/bitshifter/glam-rs?rev=342176dde9addb331e7319616484f2edba5b6421#342176dde9addb331e7319616484f2edba5b6421"
 dependencies = [
  "bytemuck",
  "serde",
@@ -3860,8 +3858,3 @@ source = "git+https://github.com/bevyengine/bevy#f6b42b86691bdea92613df3e1e754db
 name = "bevy_tasks"
 version = "0.5.0"
 source = "git+https://github.com/bevyengine/bevy#f6b42b86691bdea92613df3e1e754dbc9455dbc2"
-
-[[patch.unused]]
-name = "glam"
-version = "0.18.0"
-source = "git+https://github.com/bitshifter/glam-rs#71b1f43d5296baedbe283989ea3cab6b15263348"

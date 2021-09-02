@@ -33,7 +33,7 @@ pub struct Player {
     pub dashing_info: DashingInfo,
     pub perk: Perk,
     pub phasing: Phasing,
-
+    pub damage_source: DamageSource,
 }
 
 pub const DEFAULT_PLAYER_SPEED: f32 = 13.0;
@@ -135,7 +135,7 @@ impl Player {
             },
             perk,
             phasing: Phasing(false),
-
+            damage_source: DamageSource(None),
         };
 
         set_perk_player_attr(&mut player.health, &mut player.speed, player.perk);
@@ -268,6 +268,9 @@ impl Distribution<Perk> for Standard {
 
 #[derive(Debug)]
 pub struct PlayerSpeed(pub f32);
+
+#[derive(Debug)]
+pub struct DamageSource(pub Option<u8>);
 
 #[derive(Debug)]
 pub struct AbilityCharge(pub Timer);

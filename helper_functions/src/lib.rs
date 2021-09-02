@@ -125,7 +125,7 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
         let new_rect1_coords = distance * angle + rect1_coords;
 
         // The coords when moving only in the x direction, and only in the y direction
-        let coords_cos_sine = [Vec2::from_slice(&[new_rect1_coords[0], rect1_coords[1]]), Vec2::from_slice(&[rect1_coords[0], new_rect1_coords[1]])];
+        let coords_cos_sine = [Vec2::new(new_rect1_coords[0], rect1_coords[1]), Vec2::new(rect1_coords[0], new_rect1_coords[1])];
         let mut res = [false; 2];
         
         coords_cos_sine.iter().zip(res.iter_mut()).for_each(|(&new_rect1_coords, res)| {

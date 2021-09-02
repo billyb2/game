@@ -288,7 +288,7 @@ pub fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventRead
     }
 }
 
-pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<&mut Visible>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     for ev in death_events.iter() {
         let num = fastrand::u8(0..=2);
 
@@ -300,10 +300,11 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
 
         };
 
-        let mut visible = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
+        let (mut visible, mut respawn_timer) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
         visible.is_visible = false;
 
         log_event.send(LogEvent(message));
+        respawn_timer.0.reset();
 
     }
 }

@@ -263,8 +263,6 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
         //let ip_address = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
 
         // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
-        println!("Listening on {:?}", *SERVER_ADDRESS);
-
         // The WebRTC listening address just picks a random port
         let webrtc_listen_addr = {
             let webrtc_listen_ip: IpAddr = SERVER_ADDRESS.ip();
@@ -283,7 +281,8 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
-            .register::<(u8, [f32; 2], [f32; 4])>(CLIENT_STATE_MESSAGE_SETTINGS)
+            // (Player ID, [X, y], [Rotation; 4], health, damage_source
+            .register::<(u8, [f32; 2], [f32; 4], f32, Option<u8>)>(CLIENT_STATE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -348,42 +347,58 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     }
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<&Transform>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &mut DamageSource)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     // Only start sending packets when your ID is set
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
         //if ready_to_send_packet.0.finished() {
-            let transform = players.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
+            let (transform, health, mut damage_source) = players.get_mut(*player_entity.get(&my_id.0).unwrap()).unwrap();
             let quat_xyzw: [f32; 4] = transform.rotation.into();
 
-            net.broadcast_message((my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw));
+            net.broadcast_message((my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, damage_source.0));
 
             ready_to_send_packet.0.reset();
         //}
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Transform>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Health, &mut Visible)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<(u8, [f32; 2], [f32; 4])> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<(u8, [f32; 2], [f32; 4], f32, Option<u8>)> = Vec::with_capacity(20);
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             if let Some(channels) = connection.channels() {
-                while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w])) = channels.recv::<(u8, [f32; 2], [f32; 4])>() {
+                while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, damage_source)) = channels.recv::<(u8, [f32; 2], [f32; 4], f32, Option<u8>)>() {
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
                     if _hosting.0 {
-                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w]))
+                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, damage_source))
 
                     }
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
 
                     // Set the location of any local players to the location given
-                    let mut transform = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut transform, mut health, mut visible) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                     transform.rotation = Quat::from_xyzw(rot_x, rot_y, rot_z, rot_w);
+
+
+                    if my_id.0 != player_id {
+                        // The player has died                    
+                        if new_health == 0.0 && health.0 != 0.0 && damage_source.is_some() {
+                            death_event.send(DeathEvent(player_id));
+                            *deathmatch_score.0.get_mut(&damage_source.unwrap()).unwrap() += 1;
+
+                        } else if new_health != 0.0 {
+                            visible.is_visible = true;
+
+                        }
+
+                        health.0 = new_health;
+
+                    }
 
                     if player_id != my_id.0 {
                         transform.translation.x = x;
