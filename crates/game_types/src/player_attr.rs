@@ -17,7 +17,7 @@ use rayon::join;
 use crate::*;
 
 //Each player has a unique player id
-#[derive(Bundle, Debug)]
+#[derive(Bundle)]
 pub struct Player {
     pub id: PlayerID,
     pub health: Health,
@@ -265,22 +265,16 @@ impl Distribution<Perk> for Standard {
 }
 
 
-#[derive(Debug)]
 pub struct PlayerSpeed(pub f32);
 
-#[derive(Debug)]
 pub struct DamageSource(pub Option<u8>);
 
-#[derive(Debug)]
 pub struct AbilityCharge(pub Timer);
 
-#[derive(Debug)]
 pub struct AbilityCompleted(pub Timer);
 
-#[derive(Debug)]
 pub struct RespawnTimer(pub Timer);
 
-#[derive(Debug)]
 pub struct UsingAbility(pub bool);
 
 
@@ -367,7 +361,7 @@ impl Distribution<Model> for Standard {
 }
 
 
-#[derive(Bundle, Debug)]
+#[derive(Bundle)]
 pub struct Gun {
     pub model: Model,
     pub time_since_last_shot: TimeSinceLastShot,

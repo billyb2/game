@@ -240,34 +240,42 @@ command = "${CARGO_TARGET_DIR}/release/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
 dependencies = ["build-native-release"]
 
 [tasks.serve]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
 
 [tasks.serve-simd]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-opt-simd", "basic-http-server"]
 
 [tasks.serve-release]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-release", "build-web-release-simd", "basic-http-server"]
 
 [tasks.serve-release-simd]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-release-simd", "basic-http-server"]
 
 [tasks.serve-opt]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
 
 [tasks.serve-opt-simd]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-opt-simd", "basic-http-server"]
 
 [tasks.serve-fast]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-fast", "build-web-fast-simd", "basic-http-server"]
 
 [tasks.serve-fast-simd]
+args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-fast-simd", "basic-http-server"]
 

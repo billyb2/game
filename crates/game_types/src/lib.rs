@@ -10,7 +10,7 @@ use bevy::core::Timer;
 use bevy::math::Vec2;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum MovementType {
     // Stop moving after this frame passes
     // Used for things like player movement
@@ -19,7 +19,6 @@ pub enum MovementType {
 
 }
 
-#[derive(Debug, PartialEq)]
 pub struct DistanceTraveled(pub f32);
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -44,66 +43,52 @@ impl RequestedMovement {
     }
 }
 
-#[derive(Debug, PartialEq)]
 pub struct Health(pub f32);
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Damage(pub f32);
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct PlayerID(pub u8);
 
 // Projectile stuff
 // The value inside the struct is the player id of the person who shot it, so that player is immune from collisions
-#[derive(Clone, Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct ProjectileIdent(pub u8);
 
 // Gun stuff
-#[derive(Clone, Debug)]
 pub struct TimeSinceLastShot(pub Timer);
 
-#[derive(Clone, Debug)]
 pub struct DestructionTimer(pub Timer);
 
-#[derive(Clone, Debug)]
 pub struct DashingInfo {
     pub time_till_can_dash: Timer,
     pub time_till_stop_dash: Timer,
     pub dashing: bool,
 }
 
-#[derive(Clone, Debug)]
 pub struct TimeSinceStartReload {
     pub timer: Timer,
     pub reloading: bool,
 
 }
 
-#[derive(Clone, Debug)]
 pub struct AmmoInMag(pub u8);
 
-#[derive(Clone, Debug)]
 pub struct Bursting(pub bool);
 
-#[derive(Clone, Debug)]
 pub struct MaxAmmo(pub u8);
 
-#[derive(Clone, Debug)]
 pub struct MaxDistance(pub f32);
 
-#[derive(Clone, Debug)]
 pub struct RecoilRange(pub f32);
 
-#[derive(Clone, Debug)]
 pub struct ReloadTime(pub f32);
 
-#[derive(Clone, Debug)]
 pub struct ReloadEvent;
 
-#[derive(Clone, Debug)]
 pub struct AbilityEvent(pub u8);
 
-#[derive(Clone, Debug)]
 pub struct DespawnWhenDead {
     pub health: f32,
     pub coords: Vec2,
@@ -111,7 +96,6 @@ pub struct DespawnWhenDead {
 }
 
 // A timer for when a player wins a match, so the game knows when to return to the main menu
-#[derive(Clone)]
 pub struct PlayerContinueTimer(pub Timer);
 
 pub struct DamageTextTimer(pub Timer);
@@ -126,7 +110,6 @@ pub struct CustomizeHelpText;
 
 pub struct SlowedDown(pub Timer);
 
-#[derive(Debug, Clone)]
 pub struct Phasing(pub bool);
 
 pub struct GameRelated;

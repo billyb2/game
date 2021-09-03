@@ -45,22 +45,23 @@ pub const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannel
 // Projectile updates are reliable, since when someone shoots a bullet, the server *must* shoot
 pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 1,
-    channel_mode: MessageChannelMode::Reliable {
+    /*channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
             bandwidth: 8192,
-            recv_window_size: 4096,
-            send_window_size: 4096,
-            burst_bandwidth: 4096,
+            recv_window_size: 8192,
+            send_window_size: 8192,
+            burst_bandwidth: 8192,
             init_send: 1024,
             wakeup_time: Duration::from_millis(15),
-            initial_rtt: Duration::from_millis(160),
+            initial_rtt: Duration::from_millis(80),
             // Bullet shots won't register if ping is above 10 seconds
             max_rtt: Duration::from_secs(10),
             rtt_update_factor: 0.1,
             rtt_resend_factor: 1.5,
         },
-        max_message_len: 128,
-    },
+        max_message_len: 1024,
+    },*/
+    channel_mode: MessageChannelMode::Unreliable,
     message_buffer_size: 8192,
     packet_buffer_size: 8192,
 };
@@ -348,12 +349,12 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     }
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &mut DamageSource)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &DamageSource)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     // Only start sending packets when your ID is set
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
         //if ready_to_send_packet.0.finished() {
-            let (transform, health, mut damage_source) = players.get_mut(*player_entity.get(&my_id.0).unwrap()).unwrap();
+            let (transform, health, damage_source) = players.get_mut(*player_entity.get(&my_id.0).unwrap()).unwrap();
             let quat_xyzw: [f32; 4] = transform.rotation.into();
 
             net.broadcast_message((my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, damage_source.0));

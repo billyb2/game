@@ -88,7 +88,7 @@ pub enum AppState {
 
 }
 
-#[derive(Bundle, Debug, PartialEq)]
+#[derive(Bundle)]
 pub struct Projectile {
     pub distance_traveled: DistanceTraveled,
     pub requested_movement: RequestedMovement,

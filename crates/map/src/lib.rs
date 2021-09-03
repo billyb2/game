@@ -429,6 +429,8 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 }
 
 //TODO: Change this whole fn to use a map (Iterator)?
+//TODO: Fix this function
+#[allow(dead_code)]
 fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
     let map_bytes: Rc<RefCell<Vec<u8>>> = Rc::new(RefCell::new(Vec::with_capacity(900)));
 
@@ -452,8 +454,13 @@ fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
     #[cfg(not(feature = "parallel"))]
     let objects_iter = map.objects.iter();
 
-    let mut objects_vec: Vec<u8> = objects_iter.map(|object| object.to_bin()).flatten().collect();
-    map_bytes.borrow_mut().append(&mut objects_vec);
+    let flat_object_map = objects_iter.map(|object| object.to_bin()).flatten();
+
+    #[cfg(feature = "parallel")]
+    map_bytes.borrow_mut().par_extend(flat_object_map);
+
+    #[cfg(not(feature = "parallel"))]
+    map_bytes.borrow_mut().extend(flat_object_map);
 
     let crc32 = {
         let mut hasher = Hasher::new();
@@ -470,7 +477,9 @@ fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
         let mut compressor = FrameEncoder::new(&mut compressed_bytes);
 
         compressor.write_all(&map_bytes.borrow()).unwrap();
-        (*compressor.finish().unwrap()).clone()
+        compressor.finish().unwrap();
+
+        compressed_bytes
 
     } else {
         Rc::try_unwrap(map_bytes).unwrap().into_inner()
