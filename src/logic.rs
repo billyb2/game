@@ -3,6 +3,8 @@ use std::intrinsics::*;
 use std::ops::DerefMut;
 
 use crate::*;
+use game_types::player_attr::*;
+use map::MapCRC32;
 use bevy::prelude::*;
 use helper_functions::{collide, collide_rect_circle, out_of_bounds};
 

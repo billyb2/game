@@ -5,7 +5,7 @@
 use std::f32::consts::PI;
 use bevy::prelude::*;
 
-use crate::map::Map;
+use map::Map;
 
 // The returned value is the requested movement angle of the player
 

@@ -21,7 +21,7 @@ script_runner = "@rust"
 script = '''
 //! ```cargo
 //! [dependencies]
-//! brotli = { git = "https://github.com/billyb2/rust-brotli", branch = "master", features = ["simd"] }
+//! brotli = { git = "https://github.com/billyb2/rust-brotli", branch = "master" }
 //! ```
 fn main() {
 	use std::fs::{read, read_to_string, write};
@@ -155,19 +155,19 @@ dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-release-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "rand/simd_support", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 

@@ -5,6 +5,7 @@ use bevy::prelude::Rect;
 use bevy::prelude::*;
 
 use crate::*;
+use map::MapCRC32;
 use single_byte_hashmap::*;
 
 pub fn setup_cameras(mut commands: Commands) {

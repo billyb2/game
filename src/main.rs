@@ -21,17 +21,17 @@ use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
 
 use game_lib::*;
-use game_lib::map::*;
 use game_lib::player_input::*;
 use game_lib::menus::*;
 use game_lib::net::*;
 use game_lib::system_labels::*;
-use game_lib::player_attr::*;
 use game_lib::setup_systems::*;
 use game_lib::setup_graphical_systems::*;
-use game_lib::components::*;
+use game_types::*;
 use game_lib::shaders::*;
+use game_types::player_attr::*;
 use logic::move_objects;
+use map::*;
 
 
 fn main() {
@@ -50,7 +50,7 @@ fn main() {
     #[cfg(not(debug_assertions))]
     app
     // Antialiasing is lower for debug builds
-    .insert_resource(Msaa { samples: 4 });
+    .insert_resource(Msaa { samples: 2 });
 
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),

@@ -6,10 +6,10 @@ use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use game_lib::*;
-use game_lib::components::*;
-use game_lib::map::*;
+use game_types::*;
 use game_lib::net::*;
-use game_lib::player_attr::*;
+use game_types::player_attr::*;
+use map::*;
 
 use bevy::prelude::*;
 use bevy::utils::Duration;

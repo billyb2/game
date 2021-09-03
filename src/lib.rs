@@ -12,13 +12,10 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
-pub mod components;
 pub mod system_labels;
-pub mod map;
 #[cfg(feature = "graphics")]
 pub mod menus;
 pub mod player_input;
-pub mod player_attr;
 pub mod setup_systems;
 #[cfg(feature = "graphics")]
 pub mod setup_graphical_systems;
@@ -51,8 +48,8 @@ use wasm_bindgen::prelude::*;
 //use bots::*;
 use map::*;
 
-use components::*;
-use player_attr::*;
+use game_types::*;
+use game_types::player_attr::*;
 use setup_systems::*;
 use shaders::*;
 use net::*;
@@ -74,8 +71,6 @@ pub struct AbilityChargeText;
 pub struct GameLogText;
 pub struct HealthText;
 
-pub struct GameRelated;
-
 pub struct ScoreUI;
 pub struct ChampionText;
 
@@ -90,21 +85,6 @@ pub enum AppState {
     Settings,
     CustomizeGame,
     DownloadMapMenu,
-
-}
-
-
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub enum ProjectileType {
-    Regular,
-    Speedball,
-    PulseWave,
-    TractorBeam,
-    Flame,
-    Molotov,
-    MolotovFire,
-    MolotovLiquid,
-    Melee,
 
 }
 
@@ -263,9 +243,6 @@ pub struct LogEvent(pub String);
 pub struct DeathEvent(pub u8);
 
 pub struct OnlinePlayerIDs(pub BTreeSet<u8>);
-
-// The identifier for the map
-pub struct MapCRC32(pub u32);
 
 // If a player gets a score of 15 kills, the game ends
 const SCORE_LIMIT: u8 = 15;

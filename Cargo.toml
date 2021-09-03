@@ -47,6 +47,12 @@ opt-level = 1
 [profile.fast-web.package.game]
 opt-level = 2
 
+[profile.dev.package.map]
+opt-level = 1
+
+[profile.fast-web.package.map]
+opt-level = 2
+
 [profile.opt-web]
 inherits = "release"
 # Thin LTO still improves speed, but isn't as slow as fat (true) LTO
@@ -91,13 +97,6 @@ wasm-bindgen = { version = "0.2.76", optional = true }
 # Used for sending structs over networks easily and efficiently
 serde = { version = "1", features = ["derive"] }
 
-#LZ4 is a very fast compression algorithm
-lz4_flex = { version = "0.8", default-features = false, features = ["checked-decode", "frame"] }
-
-# CRC32 is a very fast hashing algorithm for verifying files
-# Nightly is enabled to do some optimizations
-crc32fast = { version = "1", features = ["nightly"] }
-
 # Idk why, but build always fails if winit isn't included as a dep
 # winit = { version = "0.25.0" }
 
@@ -114,11 +113,11 @@ lazy_static = { version = "1" }
 # A hashmap that's very fast at storing singular bytes as keys (made by me)
 single_byte_hashmap = { version = "0.1", features = ["nightly"] }
 
-# Just a regular HashMap
 rustc-hash = { version = "1" }
 
-helper_functions = { path = "helper_functions" }
-
+helper_functions = { path = "crates/helper_functions" }
+game_types = { path = "crates/game_types" }
+map = { path = "crates/map" }
 
 [features]
 default = [
@@ -139,8 +138,6 @@ graphics = [
 
 
 native = [
-  # Since literally every 64 bit CPU has 128-bit SIMD support, I think it's fine to enable it for rand
-  "rand/simd_support",
   "parallel",
 ]
 
@@ -148,6 +145,7 @@ parallel = [
   "rayon",
   "single_byte_hashmap/rayon",
   "helper_functions/parallel",
+  "map/parallel",
 ]
 
 web = [

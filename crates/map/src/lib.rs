@@ -1,3 +1,7 @@
+#![feature(stmt_expr_attributes)]
+#![feature(slice_as_chunks)]
+#![feature(option_result_unwrap_unchecked)]
+
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
@@ -8,8 +12,7 @@ use std::rc::Rc;
 use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
 
-use crate::components::WallMarker;
-use crate::{GameRelated, Health, MapCRC32};
+use game_types::{GameRelated, Health};
 
 use helper_functions::*;
 
@@ -23,6 +26,11 @@ use single_byte_hashmap::*;
 use rayon::join;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+// The identifier for the map
+pub struct MapCRC32(pub u32);
+
+pub struct WallMarker;
 
 #[derive(Bundle, Clone, PartialEq)]
 pub struct MapObject {

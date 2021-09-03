@@ -14,8 +14,7 @@ use rand::distributions::{Distribution, Standard};
 #[cfg(feature = "parallel")]
 use rayon::join;
 
-use crate::components::*;
-use crate::ProjectileType;
+use crate::*;
 
 //Each player has a unique player id
 #[derive(Bundle, Debug)]
@@ -283,6 +282,21 @@ pub struct RespawnTimer(pub Timer);
 
 #[derive(Debug)]
 pub struct UsingAbility(pub bool);
+
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub enum ProjectileType {
+    Regular,
+    Speedball,
+    PulseWave,
+    TractorBeam,
+    Flame,
+    Molotov,
+    MolotovFire,
+    MolotovLiquid,
+    Melee,
+
+}
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Model {

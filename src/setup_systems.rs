@@ -14,6 +14,7 @@ use bevy::render::{
 
 use crate::*;
 use crate::shaders::*;
+use map::MapCRC32;
 use single_byte_hashmap::*;
 
 #[allow(clippy::too_many_arguments)]

@@ -1,0 +1,32 @@
+[package]
+name = "map"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# CRC32 is a very fast hashing algorithm for verifying files
+# Nightly is enabled to do some optimizations
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+
+crc32fast = { version = "1", features = ["nightly"] }
+#LZ4 is a very fast compression algorithm
+lz4_flex = { version = "0.8", default-features = false, features = ["checked-decode", "frame"] }
+
+# Just a regular HashMap
+rustc-hash = { version = "1" }
+single_byte_hashmap = { version = "0.1", features = ["nightly"] }
+
+rayon = { version = "1", optional = true }
+
+game_types = { path = "../game_types" }
+helper_functions = { path = "../helper_functions" }
+
+
+[features]
+parallel = [
+    "rayon",
+	"single_byte_hashmap/rayon",
+	"helper_functions/parallel",
+]

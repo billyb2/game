@@ -14,8 +14,11 @@ use bevy::utils::Duration;
 use rayon::prelude::*;
 
 use crate::*;
-use crate::components::*;
-use crate::player_attr::*;
+use map::MapCRC32;
+use game_types::*;
+use game_types::player_attr::*;
+use map::WallMarker;
+
 use helper_functions::get_angle;
 
 // This just keeps the camera in sync with the player

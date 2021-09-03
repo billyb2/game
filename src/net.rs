@@ -7,8 +7,9 @@ use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use crate::*;
+use game_types::{AbilityEvent, RequestedMovement};
+use map::*;
 use single_byte_hashmap::HashMap;
-use crate::components::{AbilityEvent, RequestedMovement};
 
 #[cfg(feature = "native")]
 use crate::LogEvent;
