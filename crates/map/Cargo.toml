@@ -8,7 +8,7 @@ edition = "2018"
 [dependencies]
 # CRC32 is a very fast hashing algorithm for verifying files
 # Nightly is enabled to do some optimizations
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["render"] }
 
 crc32fast = { version = "1", features = ["nightly"] }
 #LZ4 is a very fast compression algorithm

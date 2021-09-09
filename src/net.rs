@@ -17,7 +17,6 @@ use crate::LogEvent;
 #[cfg(feature = "web")]
 use crate:: {
     log,
-    setup_systems::set_player_colors
 };
 
 #[cfg(feature = "native")]
@@ -30,7 +29,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 153, 26)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -62,8 +61,8 @@ pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSe
         max_message_len: 1024,
     },*/
     channel_mode: MessageChannelMode::Unreliable,
-    message_buffer_size: 8192,
-    packet_buffer_size: 8192,
+    message_buffer_size: 2048,
+    packet_buffer_size: 4096,
 };
 
 // Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here
@@ -88,12 +87,12 @@ pub const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSetti
     packet_buffer_size: 128,
 };
 
-// When requesting or sending meta data about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
+// When requesting or sending metadata about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
 pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 3,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
-            bandwidth: 8,
+            bandwidth: 512,
             recv_window_size: 2048,
             send_window_size: 2048,
             burst_bandwidth: 2048,
@@ -105,33 +104,17 @@ pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings
             rtt_update_factor: 0.1,
             rtt_resend_factor: 1.5,
         },
-        max_message_len: 128,
+        max_message_len: 512,
     },
-    message_buffer_size: 16,
-    packet_buffer_size: 16,
+    message_buffer_size: 1024,
+    packet_buffer_size: 1024,
 };
 
-// Damage is also reliable, with even more leeway since damage not registering is bad
-pub const DAMAGE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const SCORE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 4,
-    channel_mode: MessageChannelMode::Reliable {
-        reliability_settings: ReliableChannelSettings {
-            bandwidth: 256,
-            recv_window_size: 2048,
-            send_window_size: 2048,
-            burst_bandwidth: 2048,
-            init_send: 1024,
-            wakeup_time: Duration::from_millis(15),
-            initial_rtt: Duration::from_millis(160),
-            // Damage won't register if ping is above 10 seconds
-            max_rtt: Duration::from_secs(10),
-            rtt_update_factor: 0.1,
-            rtt_resend_factor: 1.5,
-        },
-        max_message_len: 128,
-    },
-    message_buffer_size: 512,
-    packet_buffer_size: 512,
+    channel_mode: MessageChannelMode::Unreliable,
+    message_buffer_size: 8192,
+    packet_buffer_size: 8192,
 };
 
 pub const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
@@ -156,7 +139,7 @@ pub const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 8,
 };
 
-const REQUEST_MAP_OBJECT_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const REQUEST_MAP_OBJECT_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 6,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -178,7 +161,7 @@ const REQUEST_MAP_OBJECT_SETTINGS: MessageChannelSettings = MessageChannelSettin
     packet_buffer_size: 4096,
 };
 
-const SEND_MAP_OBJECT_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const SEND_MAP_OBJECT_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 7,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -200,7 +183,7 @@ const SEND_MAP_OBJECT_SETTINGS: MessageChannelSettings = MessageChannelSettings 
     packet_buffer_size: 8192,
 };
 
-const MAP_METADATA_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+pub const MAP_METADATA_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 8,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
@@ -246,7 +229,7 @@ pub const DEBUG_TEXT: MessageChannelSettings = MessageChannelSettings {
 
 #[cfg(feature = "web")]
 macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+    ($($t:tt)*) => (log(&format!($($t)*).to_string()))
 }
 
 // A timer of around 15 miliseconds, thatshould be sent (instead of flooding)
@@ -292,7 +275,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .unwrap();
 
         builder
-            .register::<([u8; 2], f32)>(DAMAGE_MESSAGE_SETTINGS)
+            .register::<HashMap<u8, u8>>(SCORE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -329,7 +312,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
     });
 
-    commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), false)));
+    commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), true)));
     commands.insert_resource(SetAbility(false));
 
     #[cfg(feature = "native")]
@@ -349,18 +332,19 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     }
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &DamageSource)>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &DamageSource)>, ready_to_send_packet: Res<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     // Only start sending packets when your ID is set
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
-        //if ready_to_send_packet.0.finished() {
+        if ready_to_send_packet.0.finished() {
             let (transform, health, damage_source) = players.get_mut(*player_entity.get(&my_id.0).unwrap()).unwrap();
             let quat_xyzw: [f32; 4] = transform.rotation.into();
 
-            net.broadcast_message((my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, damage_source.0));
+            let message: (u8, [f32; 2], [f32; 4], f32, Option<u8>) = (my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, damage_source.0);
 
-            ready_to_send_packet.0.reset();
-        //}
+            net.broadcast_message(message);
+
+        }
     }
 }
 
@@ -419,6 +403,26 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     for m in messages_to_send.into_iter() {
         net.broadcast_message(m);
 
+    }
+}
+
+#[cfg(feature = "web")]
+pub fn handle_score_packets(mut net: ResMut<NetworkResource>, mut score: ResMut<DeathmatchScore>) {
+    for (_handle, connection) in net.connections.iter_mut() {
+        if let Some(channels) = connection.channels() {
+            while let Some(new_score) = channels.recv::<HashMap<u8, u8>>() {
+                *score = DeathmatchScore(new_score);
+
+            }
+        }
+    }
+}
+
+#[cfg(feature = "native")]
+#[inline]
+pub fn send_score(mut net: ResMut<NetworkResource>, score: Res<DeathmatchScore>, ready_to_send_packet: Res<ReadyToSendPacket>) {
+    if ready_to_send_packet.0.finished() {
+        net.broadcast_message(score.0.clone());
     }
 }
 
@@ -506,9 +510,6 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
                         }
 
-                        #[cfg(feature = "web")]
-                        debug_messages.push(String::from("Shot fired"));
-
                         shoot_event.send(event);
 
                     }
@@ -531,86 +532,42 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
     }
 }
 
-pub fn handle_damage_packets(mut net: ResMut<NetworkResource>, mut players: Query<&mut Health>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, player_entity: Res<HashMap<u8, Entity>>) {
-    #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<([u8; 2], f32)> = Vec::with_capacity(255);
-
-    if let Some(my_id) = &my_player_id.0 {
-        for (_handle, connection) in net.connections.iter_mut() {
-            if let Some(channels) = connection.channels() {
-                while let Some(([player_who_took_damage, player_who_fired_shot], damage)) = channels.recv::<([u8; 2], f32)>() {
-                    // This isn't allowed to happen, since if if you receive a message saying that your player took damage, you sent said message
-                    if my_id.0 != player_who_took_damage {
-                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_who_took_damage);
-                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_who_fired_shot);
-
-                        let mut health = players.get_mut(*player_entity.get(&player_who_took_damage).unwrap()).unwrap();
-
-                        if (health.0 - damage) <= 0.0 && health.0 != 0.0 {
-                            health.0 = 0.0;
-                            death_event.send(DeathEvent(player_who_took_damage));
-                            // The player who shot the bullet has their score increased 
-                            *deathmatch_score.0.get_mut(&player_who_fired_shot).unwrap() += 1;
-
-
-                        } else {
-                            health.0 -= damage;
-
-                        }
-
-                    }
-
-                    // The host broadcasts the shots fired of all other players
-                    #[cfg(feature = "native")]
-                    if _hosting.0 {
-                        messages_to_send.push(([player_who_took_damage, player_who_fired_shot], damage));
-
-                    }
-
-                }
-            }
-        }
-
-        #[cfg(feature = "native")]
-        if _hosting.0 {
-            for m in messages_to_send.into_iter() {
-                net.broadcast_message(m);
-
-            }
-        }
-    }
-}
-
 
 #[cfg(feature = "web")]
 pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>) {
     // Every few seconds, the client requests an ID from the host server until it gets one
-    console_log!("Net: Ability set: {}", my_player_id.0.is_some());
-
-    if !hosting.0 && my_player_id.0.is_none() && ready_to_send_packet.0.finished() && !ability_set.0 {
-        let request_id_message: [u8; 3] = [0; 3];
-        net.broadcast_message(request_id_message);
-
-        ready_to_send_packet.0.set_duration(Duration::from_secs(11));
-        ready_to_send_packet.0.reset();
-
-    } else if my_player_id.0.is_some() && !ability_set.0 {
-        let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
-        net.broadcast_message(set_ability_message);
-
-        ready_to_send_packet.0.reset();
-        app_state.set(AppState::InGame).unwrap();
-
-    } else if my_player_id.0.is_some() && ability_set.0 {
-        // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
-        ready_to_send_packet.0.set_duration(Duration::from_millis(15));
-        app_state.set(AppState::InGame).unwrap();
-  
+    if ready_to_send_packet.0.finished() {
+        if my_player_id.0.is_none() && !ability_set.0 {
+            const REQUEST_ID_MESSAGE: [u8; 3] = [0; 3];
+    
+            console_log!("Requesting ID");
+            net.broadcast_message(String::from("Requesting ID"));
+    
+            net.broadcast_message(REQUEST_ID_MESSAGE);
+    
+            ready_to_send_packet.0.set_duration(Duration::from_secs(5));
+    
+        } else if my_player_id.0.is_some() && !ability_set.0 {
+            console_log!("Requesting ability");
+            net.broadcast_message(String::from("Requesting ability"));
+    
+            let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
+            net.broadcast_message(set_ability_message);
+    
+        } else if my_player_id.0.is_some() && ability_set.0 {
+            console_log!("Starting game");
+            net.broadcast_message(String::from("Starting game"));
+            // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
+            ready_to_send_packet.0.set_duration(Duration::from_millis(15));
+    
+            app_state.set(AppState::InGame).unwrap();
+      
+        }
     }
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
         let mut messages_to_send: Vec<(u32, [u8; 3])> = Vec::with_capacity(255);
@@ -622,39 +579,37 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
             while let Some(command) = channels.recv::<[u8; 3]>() {
                 // Send a player ID as well as an ability back
                 if command[0] == 0 {
-                    if let Some(player_id) = available_ids.last() {
-                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id.0);
-
-                        println!("Player {} has joined!", player_id.0 + 1);
-                        log_event.send(LogEvent(format!("Player {} has joined!", player_id.0 + 1)));
-
-                        // Sending back the player id
-                        messages_to_send.push((*handle, [0, player_id.0, 0]));
-
-                        available_ids.pop();
-
+                    if available_ids.len() > 0 {
+                            let player_id = available_ids.remove(0);
+    
+                            // Sending back the player id
+                            messages_to_send.push((*handle, [0, player_id.0, 0]));
+    
                     } else {
+                        //TODO: Send back a lobby full command
                         println!("Lobby full");
-
+    
                     }
                 // Respond to the player's ability request
-                } else if command[0] == 1 {
+                } else if command[0] == 1 {                    
                     let player_id = command[2];
                     let player_ability: Ability = command[1].into();
 
-                    for (id, mut ability, mut helmet_color, mut inner_suit_color) in players.iter_mut() {
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
+    
+                    println!("Player {} has joined!", player_id + 1);
+                    log_event.send(LogEvent(format!("Player {} has joined!", player_id + 1)));
+
+                    for (id, mut ability) in players.iter_mut() {
                         if id.0 == player_id {
                             *ability.deref_mut() = player_ability;
 
-                            let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
+                            // Send the abilities of all players
+                            messages_to_send.push((*handle, [1, (*ability).into(), player_id]));
+                            println!("Sending ability back!");
 
-                            *helmet_color.deref_mut() = new_helmet_color;
-                            *inner_suit_color.deref_mut() = new_inner_suit_color;
-
+                            break;
                         }
-
-                        // Send the abilities of all players
-                        messages_to_send.push((*handle, [1, (*ability).into(), player_id]));
                     }
                 }
             }
@@ -672,7 +627,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 }
 
 #[cfg(feature = "web")]
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut HelmetColor, &mut InnerSuitColor, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>) {
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>) {    
     if !hosting.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             let channels = connection.channels().unwrap();
@@ -692,26 +647,21 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
                 // The set player ability command
                 } else if command[0] == 1 {
-                    let [_, ability, player_id] = command;
+                    let [_command, ability, player_id] = command;
                     let player_ability: Ability = ability.into();
 
-                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, command[2]);
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
 
-                    players.for_each_mut(|(id, mut ability, mut helmet_color, mut inner_suit_color, _sprite)| {
+                    players.for_each_mut(|(id, mut ability, _sprite)| {
                         if id.0 == player_id {
                             *ability = player_ability;
 
-                            let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
+                            /*let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
 
                             *helmet_color = new_helmet_color;
-                            *inner_suit_color = new_inner_suit_color;
+                            *inner_suit_color = new_inner_suit_color;*/
 
-                            if let Some(my_player_id) = &my_player_id.0 {
-                                if id.0 == my_player_id.0 {
-                                    ability_set.0 = true;
-
-                                }
-                            }
+                            ability_set.0 = true;
 
                         }
 
@@ -744,9 +694,8 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
                 }
 
                 map_crc32.0 = new_crc32;
-
             }
-        }
+        }    
     }
 }
 

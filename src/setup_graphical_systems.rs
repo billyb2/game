@@ -1366,3 +1366,47 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
             });
         });
 }
+
+
+pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
+    // Since shaders aren't (currently) using player colors, removing all the const fn calls should improve compile times
+/*    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
+    const INFERNO_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([232, 35, 0]);
+
+    const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const ENGINEER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([238, 166, 34]);
+
+    const HACKER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const HACKER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([107, 1, 1]);
+
+    const WARP_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const WARP_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([229, 2, 146]);
+
+    const WALL_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const WALL_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([43, 36, 245]);
+
+    const STIM_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const STIM_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([65, 238, 35]);
+
+    const CLOAK_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const CLOAK_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([158; 3]);
+
+    const PULSEWAVE_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const PULSEWAVE_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([230, 238, 35]);
+
+    let (helmet_color, inner_suit_color) = match ability {
+        Ability::Inferno => (INFERNO_HELMET_COLOR, INFERNO_SUIT_COLOR),
+        Ability::Engineer => (ENGINEER_HELMET_COLOR, ENGINEER_SUIT_COLOR),
+        Ability::Hacker => (HACKER_HELMET_COLOR, HACKER_SUIT_COLOR),
+        Ability::Warp => (WARP_HELMET_COLOR, WARP_SUIT_COLOR),
+        Ability::Wall => (WALL_HELMET_COLOR, WALL_SUIT_COLOR),
+        Ability::Stim => (STIM_HELMET_COLOR, STIM_SUIT_COLOR),
+        Ability::Cloak => (CLOAK_HELMET_COLOR, CLOAK_SUIT_COLOR),
+        Ability::PulseWave => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
+        Ability::Ghost => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
+
+    };*/
+    let (helmet_color, inner_suit_color) = (HelmetColor::new([9, 145, 160]), InnerSuitColor::new([9, 145, 160]));
+
+    (helmet_color, inner_suit_color)
+}

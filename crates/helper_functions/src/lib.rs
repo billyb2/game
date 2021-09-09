@@ -1,5 +1,6 @@
 #![feature(core_intrinsics)]
 #![feature(option_result_unwrap_unchecked)]
+#![feature(stmt_expr_attributes)]
 
 // A variety of (mostly math) functions that don't really fit anywhere, but are pretty useful
 #![deny(clippy::all)]
@@ -125,19 +126,23 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
         let new_rect1_coords = distance * angle + rect1_coords;
 
         // The coords when moving only in the x direction, and only in the y direction
-        let coords_cos_sine = [Vec2::new(new_rect1_coords[0], rect1_coords[1]), Vec2::new(rect1_coords[0], new_rect1_coords[1])];
-        let mut res = [false; 2];
+        let coords_cos_sine = (Vec2::new(new_rect1_coords[0], rect1_coords[1]), Vec2::new(rect1_coords[0], new_rect1_coords[1]));
+        let mut res = (false, false);
         
-        coords_cos_sine.iter().zip(res.iter_mut()).for_each(|(&new_rect1_coords, res)| {
+        let calc_res = 
+        #[inline(always)]
+        |new_rect1_coords: Vec2| -> bool {
             let rect1_min = new_rect1_coords -  half_rect1_size;
             let rect1_max = new_rect1_coords + half_rect1_size;
 
-            *res = unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all());
+            unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all())
 
-        });
+        };
 
+        res.0 = calc_res(coords_cos_sine.0);
+        res.1 = calc_res(coords_cos_sine.1);
 
-        unsafe { (*res.get_unchecked(0), *res.get_unchecked(1)) }
+        res
 
     };
 

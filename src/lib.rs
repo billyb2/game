@@ -50,10 +50,9 @@ use map::*;
 
 use game_types::*;
 use game_types::player_attr::*;
-use setup_systems::*;
 use shaders::*;
-use net::*;
 use single_byte_hashmap::*;
+use net::*;
 
 // Sets up logging for WASM
 #[wasm_bindgen]
@@ -270,10 +269,10 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
         let num = fastrand::u8(0..=2);
 
         let message = match num {
-            0 => format!("Player {} got murked", ev.0 + 1),
-            1 => format!("Player {} got gulaged", ev.0 + 1),
-            2 => format!("Player {} got sent to the shadow realm", ev.0 + 1),
-            _ => String::new(),
+            0 => format!("Player {} got murked\n", ev.0 + 1),
+            1 => format!("Player {} got gulaged\n", ev.0 + 1),
+            2 => format!("Player {} got sent to the shadow realm\n", ev.0 + 1),
+            _ => unimplemented!(),
 
         };
 
@@ -299,6 +298,8 @@ pub fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visibl
                 _ => 100.0,
 
             };
+
+            
             respawn_timer.0.reset();
             visibility.is_visible = true;
 
@@ -311,7 +312,9 @@ pub fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visibl
 pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>) {
     let deathmatch_score = &deathmatch_score.deref().0;
 
-    let mut display_win_text = |(player_id, _score)| {
+    let mut display_win_text = 
+    #[inline]
+    |(player_id, _score)| {
         let champion_string = format!("Player {} wins!", player_id + 1);
         let (mut text, mut visible) = champion_text.single_mut().unwrap();
 
@@ -346,7 +349,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>) {
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
     let delta = time.delta();
 
     player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down)| {
@@ -357,8 +360,6 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
             time_since_start_reload.timer.tick(delta);
 
         }
-
-
 
         match *ability == Ability::Brute {
             false => match using_ability.0 {
@@ -406,8 +407,6 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
 
     });
 
-    ready_to_send_packet.0.tick(delta);
-
     for game_log in logs.0.iter_mut() {
         game_log.timer.tick(delta);
 
@@ -427,6 +426,8 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
         damage_text_timer.0.tick(delta);
 
     });
+
+    ready_to_send_packet.0.tick(delta);
 }
 
 /*fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
@@ -520,7 +521,7 @@ pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, Wit
         logs.0.insert(0,
             GameLog {
                 text: TextSection {
-                    value: format!("{}\n", log_text.0.clone()),
+                    value: log_text.0.clone(),
                     style: TextStyle {
                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                         // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen

@@ -196,9 +196,8 @@ fn main() {
             .with_system(in_game_settings_menu_system.after(InputFromPlayer))
             .with_system(damage_text_system.after("move_objects"))
             .with_system(score_system.after("move_objects"))
-            .with_system(handle_damage_packets.label("handle_damage").before("move_objects"))
             .with_system(despawn_destroyed_walls.after("move_objects"))
-            .with_system(death_event_system.after("handle_damage").after("move_objects").after(InputFromPlayer).before("dead_players"))
+            .with_system(death_event_system.after("move_objects").after(InputFromPlayer).before("dead_players"))
             .with_system(dead_players.after("move_objects").label("dead_players"))
             .with_system(log_system.after("dead_players"))
             .with_system(move_camera.after(InputFromPlayer).after("move_objects"))
@@ -216,7 +215,7 @@ fn main() {
     app.add_system_set(
         SystemSet::on_update(AppState::InGame)
             .with_system(handle_server_commands)
-
+            .with_system(send_score)
     );
 
     #[cfg(feature = "web")]
@@ -231,6 +230,7 @@ fn main() {
     app.add_system_set(
         SystemSet::on_update(AppState::InGame)
             .with_system(handle_client_commands.before("player_attr").before(InputFromPlayer))
+            //.with_system(handle_score_packets)
 
     );
 

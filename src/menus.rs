@@ -7,6 +7,7 @@ use std::convert::TryInto;
 use bevy::prelude::*;
 
 use crate::*;
+use crate::setup_graphical_systems::*;
 use game_types::player_attr::*;
 
 #[cfg(feature = "web")]

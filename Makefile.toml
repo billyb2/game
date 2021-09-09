@@ -21,7 +21,7 @@ script_runner = "@rust"
 script = '''
 //! ```cargo
 //! [dependencies]
-//! brotli = { git = "https://github.com/billyb2/rust-brotli", branch = "master" }
+//! brotli = "3"
 //! ```
 fn main() {
 	use std::fs::{read, read_to_string, write};
@@ -82,7 +82,7 @@ script_runner = "@rust"
 script = '''
 //! ```cargo
 //! [dependencies]
-//! brotli = { git = "https://github.com/billyb2/rust-brotli", branch = "master", features = ["simd"] }
+//! brotli = "3"
 //! ```
 fn main() {
 	use std::fs::{read, read_to_string, write};
@@ -220,7 +220,7 @@ dependencies = ["bindgen-opt", "compress-release"]
 dependencies = ["bindgen-release", "compress-release"]
 
 [tasks.build-native]
-args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.build-native-release]
@@ -228,11 +228,11 @@ args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--r
 command = "cargo"
 
 [tasks.build-native-fast]
-args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "-Z", "unstable-options"]
+args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "--features", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run]
-args = ["run", "--features", "native,use_wgpu,graphics", "--bin", "game", "--features", "-Z", "unstable-options"]
+args = ["run", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "--features", "-Z", "unstable-options"]
 command = "cargo"
 
 [tasks.run-release]
@@ -293,7 +293,7 @@ dependencies = ["install-target-wasm32-unknown-unknown"]
 dependencies = ["check-web", "check-native"]
 
 [tasks.build-server_cli]
-args = ["build", "--bin", "server_cli", "--no-default-features", "--features", "native"]
+args = ["build", "--bin", "server_cli", "--no-default-features", "--features", "native,bevy/dynamic"]
 command = "cargo"
 
 [tasks.build-server_cli-release]
@@ -301,7 +301,7 @@ args = ["build", "--bin", "server_cli", "--no-default-features", "--features", "
 command = "cargo"
 
 [tasks.server_cli]
-args = ["run", "--bin", "server_cli", "--no-default-features", "--features", "native"]
+args = ["run", "--bin", "server_cli", "--no-default-features", "--features", "native,bevy/dynamic"]
 command = "cargo"
 
 [tasks.server_cli-release]

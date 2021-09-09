@@ -224,7 +224,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
                 text.sections.push(
                     TextSection {
-                        value: format!("Player {}: {} {}\n", *player_id + 1, kills, singular_or_plural_kills).to_string(),
+                        value: format!("Player {}: {} {}\n", *player_id + 1, kills, singular_or_plural_kills),
                         style: TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 45.0,
