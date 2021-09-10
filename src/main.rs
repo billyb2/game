@@ -230,7 +230,7 @@ fn main() {
     app.add_system_set(
         SystemSet::on_update(AppState::InGame)
             .with_system(handle_client_commands.before("player_attr").before(InputFromPlayer))
-            //.with_system(handle_score_packets)
+            .with_system(handle_score_packets)
 
     );
 

@@ -22,7 +22,7 @@ use crate::setup_graphical_systems::*;
 
 #[allow(clippy::too_many_arguments)]
 pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Maps>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>, map_crc32: Res<MapCRC32>) {
-    let mut i: u8 = 0;
+    let mut i: u8 = 1;
 
     let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
     let mut player_entities: HashMap<u8, Entity> =
@@ -81,7 +81,7 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
                 .insert_bundle(Gun::new(gun_model, ability, perk))
                 .insert_bundle(SpriteBundle {
                     material: match i {
-                        0 => materials.player.clone(),
+                        1 => materials.player.clone(),
                         _ => materials.enemy.clone(),
 
                     },
@@ -116,8 +116,12 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
                 .insert(helmet_color)
                 .insert(inner_suit_color);
 
+
             player_entities.insert(i, entity.id());
-            availabie_player_ids.push(PlayerID(i));
+
+            if i != 1 {
+                availabie_player_ids.push(PlayerID(i));
+            }
 
             living = false;
 
@@ -269,9 +273,9 @@ pub fn setup_id(mut commands: Commands, mut deathmatch_score: ResMut<DeathmatchS
 
     #[cfg(feature = "native")]
     {
-        online_player_ids.insert(0);
-        deathmatch_score.0.insert(0, 0);
-        commands.insert_resource(MyPlayerID(Some(PlayerID(0))));
+        online_player_ids.insert(1);
+        deathmatch_score.0.insert(1, 0);
+        commands.insert_resource(MyPlayerID(Some(PlayerID(1))));
     }
 
     #[cfg(feature = "web")]

@@ -69,7 +69,7 @@ fn main() {
             .with_system(handle_ability_packets)
             .with_system(handle_projectile_packets)
             .with_system(handle_debug_text)
-            //.with_system(send_score)
+            .with_system(send_score)
     )
     .run();
 
