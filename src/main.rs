@@ -33,6 +33,9 @@ use game_types::player_attr::*;
 use logic::move_objects;
 use map::*;
 
+#[cfg(feature = "web")]
+use wasm_bindgen::prelude::*;
+
 
 fn main() {
     let mut app = App::new();
@@ -59,13 +62,21 @@ fn main() {
 
     });
 
+    #[cfg(feature = "web")]
+    #[wasm_bindgen(module = "/screen.js")]
+    extern "C" {
+        fn screen_width() -> f32;
+        fn screen_height() -> f32;
+    }
+   
+
     // I want the screen size to be smaller on wasm
     #[cfg(feature = "web")]
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
         vsync: true,
-        width: 1366.0 * 0.85,
-        height: 768.0 * 0.85,
+        width: screen_width() as f32 * 0.9,
+        height: screen_height() as f32 * 0.9,
         ..Default::default()
 
     });
