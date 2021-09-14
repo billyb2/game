@@ -116,39 +116,75 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
     let rect2_min = rect2_coords - half_rect2_size;
     let rect2_max = rect2_coords + half_rect2_size;
 
-    let a_size_f32 = (rect1_size[0] + rect1_size[1]) / 2.0;
-    let interval_size = distance / a_size_f32 / 2.0;
-    let num_of_iters = (distance / interval_size).ceil() as u32;
+    let distance = distance * angle;
 
-    let collision = |i: u32| -> (bool, bool) {
-        let distance = Vec2::splat(interval_size * i as f32);
-        
-        let new_rect1_coords = distance * angle + rect1_coords;
+    // If the distance is less than the size of the object, there's no point in doing so many computations when I could just calculate the object's final position collision
+    if distance.cmple(rect1_size).all() {
+        let new_rect1_coords = distance + rect1_coords;
 
         // The coords when moving only in the x direction, and only in the y direction
-        let coords_cos_sine = (Vec2::new(new_rect1_coords[0], rect1_coords[1]), Vec2::new(rect1_coords[0], new_rect1_coords[1]));
-        let mut res = (false, false);
-        
-        let calc_res = 
+        let coords_cos_sin = (Vec2::new(new_rect1_coords[0], rect1_coords[1]), Vec2::new(rect1_coords[0], new_rect1_coords[1])) ;
+
+        ({
+            let rect1_min = coords_cos_sin.0 - half_rect1_size;
+            let rect1_max = coords_cos_sin.0 + half_rect1_size;
+
+            unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all())
+            
+        }, {
+            let rect1_min = coords_cos_sin.1 - half_rect1_size;
+            let rect1_max = coords_cos_sin.1 + half_rect1_size;
+
+            unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all())
+
+        })
+
+    } else {
+        let interval_size = distance / rect1_size;
+
+        let [x_interval_size, y_interval_size] = interval_size.to_array();
+
+        let x_num_of_iters = rect1_size[0] as u32;
+        let y_num_of_iters = rect1_size[1] as u32;
+
+
+        let collision_x = 
         #[inline(always)]
-        |new_rect1_coords: Vec2| -> bool {
-            let rect1_min = new_rect1_coords -  half_rect1_size;
-            let rect1_max = new_rect1_coords + half_rect1_size;
+        |i: u32| -> bool {
+            let distance = x_interval_size * i as f32;
+            let new_rect1_coords = distance + rect1_coords;
+
+            let coords_cos = Vec2::new(new_rect1_coords[0], rect1_coords[1]);
+
+            let rect1_min = coords_cos - half_rect1_size;
+            let rect1_max = coords_cos + half_rect1_size;
 
             unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all())
 
         };
 
-        res.0 = calc_res(coords_cos_sine.0);
-        res.1 = calc_res(coords_cos_sine.1);
+        let collision_y = 
+        #[inline(always)]
+        |i: u32| -> bool {
+            let distance = y_interval_size * i as f32;
+            let new_rect1_coords = distance + rect1_coords;
 
-        res
+            let coords_sin = Vec2::new(rect1_coords[0], new_rect1_coords[1]);
 
-    };
+            let rect1_min = coords_sin - half_rect1_size;
+            let rect1_max = coords_sin + half_rect1_size;
 
-    // Tries to find whether the x coordinate collides or if the y coordinate collides
-    // The map will never be empty, so it will always return Some
-    unsafe { (2..num_of_iters).into_iter().map(collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() }
+            unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all())
+
+        };
+
+        // Tries to find whether the x coordinate collides or if the y coordinate collides
+        let x_col = (1..=x_num_of_iters).into_iter().any(collision_x);
+        let y_col = (1..=y_num_of_iters).into_iter().any(collision_y);
+
+        (x_col, y_col)
+
+    }
 
 }
 
