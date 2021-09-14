@@ -22,6 +22,9 @@ script = '''
 //! ```cargo
 //! [dependencies]
 //! brotli = "3"
+//!
+//! [profile.dev]
+//! opt-level = 1
 //! ```
 fn main() {
 	use std::fs::{read, read_to_string, write};

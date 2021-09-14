@@ -71,6 +71,8 @@ pub struct AbilityChargeText;
 pub struct GameLogText;
 pub struct HealthText;
 
+pub struct IpText;
+
 #[cfg(feature = "graphics")]
 pub struct ScoreUI;
 

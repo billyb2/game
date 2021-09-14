@@ -1323,7 +1323,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
         });
 }
 
-pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {
     commands.insert_resource(ClearColor(Color::BLACK));
 
     commands
@@ -1353,7 +1353,7 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
             node_parent.spawn_bundle(TextBundle {
                 text: Text {
                     sections: vec![TextSection {
-                        value: "Connecting, please wait...".to_string(),
+                        value: String::from("IP to connect to:"),
                         style: TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 80.0,
@@ -1365,6 +1365,39 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
                 ..Default::default()
             })
             .insert(NetConnStateText);
+
+            node_parent.spawn_bundle(ButtonBundle {
+                style: Style {
+                    align_content: AlignContent::Center,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+    
+                    ..Default::default()
+                },
+                material: button_materials.normal.clone(),
+                ..Default::default()
+            })
+            .with_children(|button_parent| {
+                button_parent
+                    .spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::with_capacity(15),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .insert(IpText);
+                    
+            });
+            
         });
 }
 

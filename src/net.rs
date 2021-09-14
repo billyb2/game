@@ -2,7 +2,10 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
+#[cfg(feature = "native")]
+use std::net::{IpAddr, Ipv4Addr};
+
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 
@@ -26,10 +29,12 @@ use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
+#[cfg(feature = "native")]
 use lazy_static::lazy_static;
 
+#[cfg(feature = "native")]
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 209, 142)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -262,7 +267,7 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
     }
 }
 
-pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, mut _app_state: Option<ResMut<State<AppState>>>) {
+pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, mut _app_state: Option<ResMut<State<AppState>>>, server_addr: Option<Res<SocketAddr>>) {
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
@@ -319,17 +324,11 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     #[cfg(all(feature = "native", feature = "graphics"))]
     _app_state.unwrap().set(AppState::InGame).unwrap();
 
-
-    // Currently, only web builds can join games (until we add UDP servers or something)
     #[cfg(feature = "web")]
-    {
-        println!("Connecting to {:?}", *SERVER_ADDRESS);
-
-        #[cfg(feature = "web")]
-        console_log!("Net: Connecting to {:?}", *SERVER_ADDRESS);
-
-        net.connect(*SERVER_ADDRESS);
+    if let Some(server_addr) = server_addr {
+        net.connect(*server_addr);
     }
+
 }
 
 pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &DamageSource)>, ready_to_send_packet: Res<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
@@ -526,9 +525,9 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
 
 #[cfg(feature = "web")]
-pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>) {
+pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>, server_ip: Option<Res<SocketAddr>>) {
     // Every few seconds, the client requests an ID from the host server until it gets one
-    if ready_to_send_packet.0.finished() {
+    if ready_to_send_packet.0.finished() && server_ip.is_some() {
         let mut net_conn_state_text = net_conn_state_text.single_mut();
 
         if my_player_id.0.is_none() && !ability_set.0 {

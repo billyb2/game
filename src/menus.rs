@@ -3,6 +3,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use std::convert::TryInto;
+use std::net::{SocketAddr, IpAddr};
 
 use bevy::prelude::*;
 
@@ -253,6 +254,64 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
             }
         }
     });
+}
+
+pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut app_state: ResMut<State<AppState>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut net: ResMut<NetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>) {    
+    if addr.is_none() {
+        let (entity, mut text) = text_query.single_mut();
+        let text = &mut text.sections[0].value;
+        let header_text = &mut header_text.single_mut().sections[0].value;
+
+        let mut connect_or_clear = 
+        #[inline(always)]
+        |text: &mut String, header_text: &mut String| {
+            match text.parse::<IpAddr>() {
+                Ok(addr) => {
+                    let socket_addr = SocketAddr::new(addr, 9363);
+
+                    commands.entity(entity).despawn_recursive();
+                    commands.insert_resource(socket_addr);
+                    *text = String::from("Connecting, please wait...");
+    
+                    net.connect(socket_addr);
+                    
+                },
+                Err(err) => {
+                    text.clear();
+                    *header_text = format!("Error: {:?}", err);
+                },
+            }
+        };
+
+        interaction_query.for_each_mut(|(interaction, mut material, children)| {
+            match *interaction {
+                Interaction::Clicked => connect_or_clear(text, header_text),
+                Interaction::Hovered => {
+                    *material = button_materials.hovered.clone();
+                    *header_text = String::from("Connect");
+    
+                }
+                Interaction::None => {
+                    *material = button_materials.normal.clone();
+                    *header_text = String::from("IP to connect to:");
+    
+                }
+            }
+    
+        });
+    
+        char_input_events.iter().for_each(|c| text.push(c.char));
+    
+        if keyboard_input.just_pressed(KeyCode::Back) {
+            text.pop();
+    
+        }
+    
+        if keyboard_input.just_pressed(KeyCode::Return) {
+            connect_or_clear(text, header_text);
+        }
+
+    }
 }
 
 pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<NetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {

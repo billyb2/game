@@ -221,6 +221,7 @@ fn main() {
         SystemSet::on_update(AppState::Connecting)
             .with_system(request_player_info)
             .with_system(handle_client_commands)
+            .with_system(connection_menu)
 
     );
 

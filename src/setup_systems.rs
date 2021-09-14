@@ -32,7 +32,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     let wnd = wnd.get_primary().unwrap();
 
     #[cfg(feature = "graphics")]
-    let mut shader_assets = _shader_assets.unwrap();
+    let shader_assets = _shader_assets.unwrap();
 
     #[cfg(feature = "graphics")]
     let pipeline_handle = _pipelines.unwrap().add(PipelineDescriptor::default_config(ShaderStages {
@@ -279,13 +279,13 @@ pub fn setup_default_controls(mut commands: Commands) {
     });
 }
 
-pub fn setup_id(mut commands: Commands, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn setup_id(mut commands: Commands, mut _deathmatch_score: ResMut<DeathmatchScore>) {
     let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
 
     #[cfg(feature = "native")]
     {
         online_player_ids.insert(1);
-        deathmatch_score.0.insert(1, 0);
+        _deathmatch_score.0.insert(1, 0);
         commands.insert_resource(MyPlayerID(Some(PlayerID(1))));
     }
 
