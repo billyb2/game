@@ -29,7 +29,7 @@ use bevy::utils::Duration;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9363);
+    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 209, 142)), 9363);
 }
 
 // Location data is unreliable, since its okay if we skip a few frame updates
@@ -92,7 +92,7 @@ pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings
     channel: 3,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
-            bandwidth: 512,
+            bandwidth: 2048,
             recv_window_size: 2048,
             send_window_size: 2048,
             burst_bandwidth: 2048,
@@ -104,7 +104,7 @@ pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings
             rtt_update_factor: 0.1,
             rtt_resend_factor: 1.5,
         },
-        max_message_len: 512,
+        max_message_len: 1024,
     },
     message_buffer_size: 1024,
     packet_buffer_size: 1024,
@@ -262,7 +262,7 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
     }
 }
 
-pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, _hosting: Res<Hosting>, mut _app_state: ResMut<State<AppState>>) {
+pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, mut _app_state: Option<ResMut<State<AppState>>>) {
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
@@ -313,22 +313,22 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     });
 
     commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), true)));
+    #[cfg(feature = "graphics")]
     commands.insert_resource(SetAbility(false));
 
-    #[cfg(feature = "native")]
-    _app_state.set(AppState::InGame).unwrap();
+    #[cfg(all(feature = "native", feature = "graphics"))]
+    _app_state.unwrap().set(AppState::InGame).unwrap();
 
 
     // Currently, only web builds can join games (until we add UDP servers or something)
     #[cfg(feature = "web")]
-    if !_hosting.0 {
+    {
         println!("Connecting to {:?}", *SERVER_ADDRESS);
 
         #[cfg(feature = "web")]
         console_log!("Net: Connecting to {:?}", *SERVER_ADDRESS);
 
         net.connect(*SERVER_ADDRESS);
-
     }
 }
 
@@ -490,9 +490,6 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(20);
 
-    #[cfg(feature = "web")]
-    let mut debug_messages: Vec<String> = Vec::with_capacity(10);
-
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             if let Some(channels) = connection.channels() {
@@ -524,39 +521,33 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 
             }
         }
-
-        #[cfg(feature = "web")]
-        for m in debug_messages.into_iter() {
-            net.broadcast_message(m);
-        }
     }
 }
 
 
 #[cfg(feature = "web")]
-pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>) {
+pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>) {
     // Every few seconds, the client requests an ID from the host server until it gets one
     if ready_to_send_packet.0.finished() {
+        let mut net_conn_state_text = net_conn_state_text.single_mut();
+
         if my_player_id.0.is_none() && !ability_set.0 {
             const REQUEST_ID_MESSAGE: [u8; 3] = [0; 3];
-    
-            console_log!("Requesting ID");
-            net.broadcast_message(String::from("Requesting ID"));
+            net_conn_state_text.sections[0].value = String::from("Requesting ID from server...");
     
             net.broadcast_message(REQUEST_ID_MESSAGE);
     
             ready_to_send_packet.0.set_duration(Duration::from_secs(5));
     
         } else if my_player_id.0.is_some() && !ability_set.0 {
-            console_log!("Requesting ability");
-            net.broadcast_message(String::from("Requesting ability"));
+            net_conn_state_text.sections[0].value = String::from("Requesting ability from server...");
     
             let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
             net.broadcast_message(set_ability_message);
     
         } else if my_player_id.0.is_some() && ability_set.0 {
-            console_log!("Starting game");
-            net.broadcast_message(String::from("Starting game"));
+            net_conn_state_text.sections[0].value = String::from("Starting game!");
+
             // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
             ready_to_send_packet.0.set_duration(Duration::from_millis(15));
     

@@ -3,6 +3,7 @@
 
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::collections::BTreeSet;
+use std::convert::TryInto;
 
 use bevy::prelude::*;
 
@@ -21,16 +22,20 @@ use single_byte_hashmap::*;
 use crate::setup_graphical_systems::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Maps>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut render_graph: ResMut<RenderGraph>, wnds: Res<Windows>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, shader_assets: Res<AssetsLoading>, map_crc32: Res<MapCRC32>) {
-    let mut i: u8 = 1;
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>) {
+    let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
+    let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
-    let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(256);
-    let mut player_entities: HashMap<u8, Entity> =
-        HashMap::with_capacity_and_hasher(256, BuildHasher::default());
+    #[cfg(feature = "graphics")]
+    let wnd = _wnds.unwrap();
+    #[cfg(feature = "graphics")]
+    let wnd = wnd.get_primary().unwrap();
 
-    let wnd = wnds.get_primary().unwrap();
+    #[cfg(feature = "graphics")]
+    let mut shader_assets = _shader_assets.unwrap();
 
-    let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+    #[cfg(feature = "graphics")]
+    let pipeline_handle = _pipelines.unwrap().add(PipelineDescriptor::default_config(ShaderStages {
         // Vertex shaders are run once for every vertex in the mesh.
         // Each vertex can have attributes associated to it (e.g. position,
         // color, texture mapping). The output of a shader is per-vertex.
@@ -39,98 +44,104 @@ pub fn setup_players(mut commands: Commands, materials: Res<Skin>, maps: Res<Map
         fragment: Some(shader_assets.fragment_shader.clone()),
     }));
 
-    render_graph.add_system_node(
-        "mouse_position",
-        RenderResourcesNode::<ShaderMousePosition>::new(true),
-    );
+    #[cfg(feature = "graphics")]
+    {
+        let mut render_graph = _render_graph.unwrap();
+        render_graph.add_system_node(
+            "mouse_position",
+            RenderResourcesNode::<ShaderMousePosition>::new(true),
+        );
 
-    render_graph.add_system_node(
-        "screen_dimensions",
-        RenderResourcesNode::<WindowSize>::new(true),
-    );
+        render_graph.add_system_node(
+            "screen_dimensions",
+            RenderResourcesNode::<WindowSize>::new(true),
+        );
 
-    render_graph.add_system_node(
-        "helmet_color",
-        RenderResourcesNode::<HelmetColor>::new(true),
-    );
+        render_graph.add_system_node(
+            "helmet_color",
+            RenderResourcesNode::<HelmetColor>::new(true),
+        );
 
-    render_graph.add_system_node(
-        "inner_suit_color",
-        RenderResourcesNode::<InnerSuitColor>::new(true),
-    );
+        render_graph.add_system_node(
+            "inner_suit_color",
+            RenderResourcesNode::<InnerSuitColor>::new(true),
+        );
 
-    render_graph.add_system_node(
-        "alpha",
-        RenderResourcesNode::<Alpha>::new(true),
-    );
+        render_graph.add_system_node(
+            "alpha",
+            RenderResourcesNode::<Alpha>::new(true),
+        );
+    }
 
     let mut living = true;
 
-    if let Some(map) = maps.0.get(&map_crc32.0) {
-        map.spawn_points.iter().for_each(|coords| {
-            let ability = *my_ability;
-            let gun_model = *my_gun_model;
-            let perk = *my_perk;
+    let map = maps.0.get(&map_crc32.0).unwrap();
+    
+    map.spawn_points.iter().enumerate().for_each(|(mut i, coords)| {
+        i += 1;
 
-            #[cfg(feature = "graphics")]
-            let (helmet_color, inner_suit_color) = set_player_colors(&ability);
+        let ability = Ability::Engineer;
+        let gun_model = Model::AssaultRifle;
+        let perk = Perk::ExtendedMag;
 
-            let mut entity = commands.spawn_bundle(Player::new(i, ability, perk, living));
-                
-            entity
-                .insert_bundle(Gun::new(gun_model, ability, perk))
-                .insert_bundle(SpriteBundle {
-                    material: match i {
-                        1 => materials.player.clone(),
-                        _ => materials.enemy.clone(),
 
-                    },
-                    sprite: Sprite {
-                        size: Vec2::new(120.0, 75.0),
-                        flip_x: true,
-                        resize_mode: SpriteResizeMode::Manual,
+        #[cfg(feature = "graphics")]
+        let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
-                        ..Default::default()
-                    },
-                    visible: Visible {
-                        is_visible: living,
-                        is_transparent: true,
-                    },
-                    transform: Transform::from_translation(coords.extend(101.0)),
-                    render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                        pipeline_handle.clone(),
-                    )]),
+        let mut entity = 
+        commands
+            .spawn_bundle(Player::new(i.try_into().unwrap(), ability, perk, living));
+
+        entity
+            .insert_bundle(Gun::new(gun_model, ability, perk))
+            .insert(Transform::from_translation(coords.extend(101.0)));
+
+        #[cfg(feature = "graphics")]
+        entity
+            .insert_bundle(SpriteBundle {
+                material: match i {
+                    1 => _materials.as_ref().unwrap().player.clone(),
+                    _ => _materials.as_ref().unwrap().enemy.clone(),
+
+                },
+                sprite: Sprite {
+                    size: Vec2::new(120.0, 75.0),
+                    flip_x: true,
+                    resize_mode: SpriteResizeMode::Automatic,
 
                     ..Default::default()
-                })
-                .insert(ShaderMousePosition { value: Vec2::ZERO })
-                .insert(WindowSize {
-                    value: Vec2::new(wnd.width(), wnd.height()),
-                })
-                .insert(GameRelated)
-                .insert(Alpha { value: 1.0});
+                },
+                visible: Visible {
+                    is_visible: living,
+                    is_transparent: true,
+                },
+                transform: Transform::from_translation(coords.extend(101.0)),
+                render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
+                    pipeline_handle.clone(),
+                )]),
 
+                ..Default::default()
+            })
+            .insert(ShaderMousePosition { value: Vec2::ZERO })
+            .insert(WindowSize {
+                value: Vec2::new(wnd.width(), wnd.height()),
+            })
+            .insert(GameRelated)
+            .insert(Alpha { value: 1.0})
+            .insert(helmet_color)
+            .insert(inner_suit_color);
 
-            #[cfg(feature = "graphics")]
-            entity
-                .insert(helmet_color)
-                .insert(inner_suit_color);
+        player_entities.insert(i.try_into().unwrap(), entity.id());
+        availabie_player_ids.push(PlayerID(i.try_into().unwrap()));
 
-
-            player_entities.insert(i, entity.id());
-
-            if i != 1 {
-                availabie_player_ids.push(PlayerID(i));
-            }
-
-            living = false;
-
-            i += 1;
-        });
-    }
+        living = false;
+    });
 
     commands.insert_resource(availabie_player_ids);
     commands.insert_resource(player_entities);
+
+    #[cfg(not(feature = "graphics"))]
+    commands.insert_resource(OnlinePlayerIDs(BTreeSet::new()));
 }
 
 /*pub fn setup_continue_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {

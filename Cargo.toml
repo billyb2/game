@@ -48,7 +48,7 @@ opt-level = 2
 
 [profile.opt-web]
 inherits = "release"
-# Thin LTO still improves speed, but isn't as slow as fat (true) LTO
+# Thin LTO still improves speed, but isn't as slow to compile as fat (true) LTO
 lto = "thin"
 codegen-units = 32
 

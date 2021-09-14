@@ -1363,7 +1363,8 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
                     ..Default::default()
                 },
                 ..Default::default()
-            });
+            })
+            .insert(NetConnStateText);
         });
 }
 

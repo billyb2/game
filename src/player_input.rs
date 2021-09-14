@@ -32,7 +32,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         let mut x = player.translation.x - sprite.size.x / 2.0;
         let mut y = player.translation.y + sprite.size.y / 2.0;
 
-        let camera = &mut camera.single_mut().unwrap();
+        let camera = &mut camera.single_mut();
 
         if x - window.width / 2.0 < 0.0 {
             x = window.width / 2.0;
@@ -197,7 +197,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
         }
 
         if keyboard_input.just_pressed(keybindings.show_score) {
-            let (mut text, mut visible) = score_ui.single_mut().unwrap();
+            let (mut text, mut visible) = score_ui.single_mut();
 
             visible.is_visible = true;
 
@@ -238,7 +238,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
 
         } else if keyboard_input.just_released(keybindings.show_score) {
-            let (mut text, mut visible) = score_ui.single_mut().unwrap();
+            let (mut text, mut visible) = score_ui.single_mut();
 
             visible.is_visible = false;
 
@@ -277,7 +277,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
         }
 
     } else if keyboard_input.just_pressed(KeyCode::Escape) {
-        let entity = in_game_settings.single().unwrap().0;
+        let entity = in_game_settings.single().0;
         commands.entity(entity).despawn_recursive();
     }
 }
@@ -817,7 +817,7 @@ pub fn reset_player_phasing(mut query: Query<(&UsingAbility, &Ability, &mut Alph
 
 pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition>, mut shader_mouse_pos: Query<&mut ShaderMousePosition> ) {
     // assuming there is exactly one main camera entity, so this is OK
-    let camera_transform = camera.single().unwrap();
+    let camera_transform = camera.single();
 
     // get the size of the window that the event is for
     let wnd = wnds.get_primary().unwrap();

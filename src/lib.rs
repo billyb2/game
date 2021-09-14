@@ -15,6 +15,7 @@
 pub mod system_labels;
 #[cfg(feature = "graphics")]
 pub mod menus;
+#[cfg(feature = "graphics")]
 pub mod player_input;
 pub mod setup_systems;
 #[cfg(feature = "graphics")]
@@ -70,8 +71,14 @@ pub struct AbilityChargeText;
 pub struct GameLogText;
 pub struct HealthText;
 
+#[cfg(feature = "graphics")]
 pub struct ScoreUI;
+
+#[cfg(feature = "graphics")]
 pub struct ChampionText;
+
+#[cfg(feature = "graphics")]
+pub struct NetConnStateText;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -309,6 +316,7 @@ pub fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visibl
 
 }
 
+#[cfg(feature = "graphics")]
 pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>) {
     let deathmatch_score = &deathmatch_score.deref().0;
 
@@ -316,7 +324,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
     #[inline]
     |(player_id, _score)| {
         let champion_string = format!("Player {} wins!", player_id + 1);
-        let (mut text, mut visible) = champion_text.single_mut().unwrap();
+        let (mut text, mut visible) = champion_text.single_mut();
 
         text.sections[0].value = champion_string;
         visible.is_visible = true;
@@ -326,7 +334,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
                 .spawn()
                 .insert(PlayerContinueTimer(Timer::from_seconds(5.0, false)))
                 .insert(GameRelated);
-        } else if player_continue_timer.single().unwrap().0.finished() {
+        } else if player_continue_timer.single().0.finished() {
             app_state.set(AppState::GameMenu).unwrap();
 
         }
@@ -417,7 +425,7 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
 
     });
 
-    if let Ok(mut player_continue_timer) = player_continue_timer.single_mut() {
+    if let Ok(mut player_continue_timer) = player_continue_timer.get_single_mut() {
         player_continue_timer.0.tick(delta);
 
     }
@@ -458,8 +466,8 @@ pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeS
         let reloading = reload_timer.reloading;
         let health = player_health.0;
 
-        let mut ammo_text = ammo_text.single_mut().unwrap();
-        let mut ammo_pos = ammo_style.single_mut().unwrap();
+        let mut ammo_text = ammo_text.single_mut();
+        let mut ammo_pos = ammo_style.single_mut();
 
         if !reloading {
             ammo_text.sections[0].value = ammo_in_mag.to_string();
@@ -478,7 +486,7 @@ pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeS
 
         }
 
-        let mut ability_charge_text = ability_charge_text.single_mut().unwrap();
+        let mut ability_charge_text = ability_charge_text.single_mut();
         ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
 
         let ability_charge_percent = ability_charge_percent as u8;
@@ -494,7 +502,7 @@ pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeS
 
         }
 
-        let mut health_text = health_text.single_mut().unwrap();
+        let mut health_text = health_text.single_mut();
         health_text.sections[0].value = format!("Health: {:.0}%", health);
 
     }
@@ -556,7 +564,7 @@ pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, Wit
 
     logs.0.truncate(new_len);
 
-    let mut game_log = game_log.single_mut().unwrap();
+    let mut game_log = game_log.single_mut();
 
     game_log.sections = text_vec;
 
@@ -596,7 +604,7 @@ pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<Gam
     let wnd = wnds.get_primary().unwrap();
     let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
 
-    let camera = camera.single().unwrap();
+    let camera = camera.single();
 
     let camera_size = window_size * camera.scale.truncate();
 

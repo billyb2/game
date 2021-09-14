@@ -98,8 +98,6 @@ fn main() {
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
 
     app.add_plugins(DefaultPlugins)
-    // Using this only temporarily to quit apps on escape
-    //.add_system(bevy::input::system::exit_on_esc_system)
     .add_plugin(NetworkingPlugin::default())
     //.add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()

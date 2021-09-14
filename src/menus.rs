@@ -20,7 +20,7 @@ macro_rules! console_log {
 
 pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
-        let mut selected_key_button = selected_key_button.single_mut().unwrap();
+        let mut selected_key_button = selected_key_button.single_mut();
 
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -433,7 +433,7 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
             Interaction::Hovered => {
                 let button_text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
-                let help_text = &mut help_text.single_mut().unwrap().sections[0].value;
+                let help_text = &mut help_text.single_mut().sections[0].value;
 
                 *help_text = if button_text.starts_with("Ability") {
                     match *my_ability {
@@ -544,11 +544,11 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
-            let menu = *in_game_settings.single().unwrap().1;
+            let menu = *in_game_settings.single().1;
 
             match *interaction {
                 Interaction::Clicked => {
-                    let entity = in_game_settings.single().unwrap().0;
+                    let entity = in_game_settings.single().0;
 
                     if menu == InGameSettings::Settings {
                         if text == "Customize" {
