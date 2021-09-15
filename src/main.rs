@@ -30,8 +30,11 @@ use game_lib::setup_graphical_systems::*;
 use game_types::*;
 use game_lib::shaders::*;
 use game_types::player_attr::*;
+use game_lib::config::*;
 use logic::move_objects;
 use map::*;
+
+use ron::de::from_str;
 
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
@@ -63,7 +66,7 @@ fn main() {
     });
 
     #[cfg(feature = "web")]
-    #[wasm_bindgen(module = "/screen.js")]
+    #[wasm_bindgen(module = "/js_functions.js")]
     extern "C" {
         fn screen_width() -> f32;
         fn screen_height() -> f32;
@@ -80,6 +83,39 @@ fn main() {
         ..Default::default()
 
     });
+
+    let model = match get_data(String::from("model")) {
+        Some(string) => from_str(&string).unwrap(),
+        None => {
+            let model = rng.gen::<Model>();
+            write_data(String::from("model"), model);
+
+            model
+
+        }
+    };
+
+    let ability = match get_data(String::from("ability")) {
+        Some(string) => from_str(&string).unwrap(),
+        None => {
+            let ability = rng.gen::<Ability>();
+            write_data(String::from("ability"), ability);
+
+            ability
+
+        }
+    };
+
+    let perk = match get_data(String::from("perk")) {
+        Some(string) => from_str(&string).unwrap(),
+        None => {
+            let perk = rng.gen::<Perk>();
+            write_data(String::from("perk"), perk);
+
+            perk
+
+        }
+    };
 
     app
     //Start in the main menu
@@ -103,9 +139,9 @@ fn main() {
     .insert_resource(GameMode::Deathmatch)
     .insert_resource(GameLogs::new())
     // Randomly generate some aspects of the player
-    .insert_resource(rng.gen::<Model>())
-    .insert_resource(rng.gen::<Ability>())
-    .insert_resource(rng.gen::<Perk>())
+    .insert_resource(ability)
+    .insert_resource(model)
+    .insert_resource(perk)
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
 
     app.add_plugins(DefaultPlugins)

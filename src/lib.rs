@@ -22,9 +22,12 @@ pub mod setup_systems;
 pub mod setup_graphical_systems;
 pub mod shaders;
 pub mod net;
+pub mod config;
 
 use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
+
+use serde::{Serialize, Deserialize};
 
 use bevy_networking_turbulence::*;
 
@@ -37,8 +40,6 @@ use bevy::utils::Duration;
 use bevy::render::draw::OutsideFrustum;
 
 //use bevy_kira_audio::AudioPlugin;
-
-use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -208,7 +209,7 @@ pub struct ShootEvent {
 
 //impl Into<(Vec3, u8, Vec2, f32, Model, f32, Vec<f32>, f32, ProjectileType, Damage)
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KeyBindings {
     pub up: KeyCode,
     pub down: KeyCode,

@@ -15,8 +15,11 @@ use bevy::render::{
 
 use crate::*;
 use crate::shaders::*;
+use crate::config::get_data;
 use map::MapCRC32;
 use single_byte_hashmap::*;
+
+use ron::de::from_str;
 
 #[cfg(feature = "graphics")]
 use crate::setup_graphical_systems::*;
@@ -144,139 +147,27 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     commands.insert_resource(OnlinePlayerIDs(BTreeSet::new()));
 }
 
-/*pub fn setup_continue_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
-    commands.insert_resource(ClearColor(Color::ORANGE));
-
-    commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                flex_direction: FlexDirection::ColumnReverse,
-                align_self: AlignSelf::FlexStart,
-                margin: Rect {
-                   bottom: Val::Auto,
-
-                    ..Default::default()
-                },
-                justify_content: JustifyContent::FlexEnd,
-                align_content: AlignContent::FlexStart,
-                align_items: AlignItems::FlexStart,
-
-                ..Default::default()
-            },
-            visible: Visible {
-                is_visible: false,
-                ..Default::default()
-            },
-            ..Default::default()
-
-        })
-        .with_children(|node_parent| {
-            node_parent.spawn_bundle(TextBundle {
-                text: Text {
-                    sections: vec![
-                        TextSection {
-                            value: String::from("Continue playing?"),
-                            style: TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 80.0,
-                                color: Color::WHITE,
-                            },
-                        },
-                    ],
-                    ..Default::default()
-                },
-                ..Default::default()
-
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                margin: Rect {
-                    bottom: Val::Percent(10.0),
-
-                    ..Default::default()
-                },
-                size: Size::new(Val::Px(350.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("Yes"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
-                });
-            });
-
-            node_parent.spawn_bundle(ButtonBundle {
-            style: Style {
-                align_content: AlignContent::Center,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                size: Size::new(Val::Px(450.0), Val::Px(85.0)),
-
-                ..Default::default()
-            },
-            material: button_materials.normal.clone(),
-            ..Default::default()
-            })
-            .with_children(|button_parent| {
-                button_parent
-                    .spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![
-                                TextSection {
-                                    value: String::from("No"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                },
-                            ],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-
-                })
-                .insert(KeyBindingButtons::Down);
-            });
-
-        });
-}*/
-
 pub fn setup_default_controls(mut commands: Commands) {
-    commands.insert_resource(KeyBindings {
-        up: KeyCode::W,
-        down: KeyCode::S,
-        left: KeyCode::A,
-        right: KeyCode::D,
+    let key_bindings: KeyBindings = match get_data(String::from("key_bindings")) {
+        Some(key_bindings) => {
+            from_str(&key_bindings).unwrap()
+        },
+        None => KeyBindings {
+            up: KeyCode::W,
+            down: KeyCode::S,
+            left: KeyCode::A,
+            right: KeyCode::D,
+    
+            use_ability: KeyCode::LShift,
+            reload: KeyCode::R,
+    
+            show_score: KeyCode::Tab,
+            dash: KeyCode::E,
+        },
+        
+    };
 
-        use_ability: KeyCode::LShift,
-        reload: KeyCode::R,
-
-        show_score: KeyCode::Tab,
-        dash: KeyCode::E,
-    });
+    commands.insert_resource(key_bindings);
 }
 
 pub fn setup_id(mut commands: Commands, mut _deathmatch_score: ResMut<DeathmatchScore>) {

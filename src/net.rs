@@ -267,7 +267,7 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
     }
 }
 
-pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, mut _app_state: Option<ResMut<State<AppState>>>, server_addr: Option<Res<SocketAddr>>) {
+pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, mut _app_state: Option<ResMut<State<AppState>>>, _server_addr: Option<Res<SocketAddr>>) {
     // Registers message types
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
@@ -325,7 +325,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     _app_state.unwrap().set(AppState::InGame).unwrap();
 
     #[cfg(feature = "web")]
-    if let Some(server_addr) = server_addr {
+    if let Some(server_addr) = _server_addr {
         net.connect(*server_addr);
     }
 

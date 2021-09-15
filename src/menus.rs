@@ -8,6 +8,7 @@ use std::net::{SocketAddr, IpAddr};
 use bevy::prelude::*;
 
 use crate::*;
+use crate::config::write_data;
 use crate::setup_graphical_systems::*;
 use game_types::player_attr::*;
 
@@ -101,6 +102,8 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
         match *interaction {
             Interaction::Clicked => {
                 if text == "Back" {
+                    write_data(String::from("key_bindings"), &*keybindings);
+
                     app_state.set(AppState::MainMenu).unwrap();
 
                 } else if text.starts_with("Up") {
@@ -147,6 +150,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
 
         if keyboard_input.just_pressed(KeyCode::Escape) {
+            write_data(String::from("key_bindings"), &*keybindings);
             app_state.set(AppState::MainMenu).unwrap();
             keyboard_input.clear();
 
@@ -484,6 +488,10 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                     *text = format!("Perk: {:?}", *my_perk);
 
                 } else if text == "Back" {
+                    write_data(String::from("model"), *my_gun_model);
+                    write_data(String::from("ability"), *my_ability);
+                    write_data(String::from("perk"), *my_perk);
+                    
                     app_state.set(AppState::GameMenu).unwrap();
 
                 }

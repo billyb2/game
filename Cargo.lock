@@ -416,6 +416,7 @@ dependencies = [
  "bevy_ecs",
  "bevy_math",
  "bevy_utils",
+ "serde",
 ]
 
 [[package]]
@@ -1242,6 +1243,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "directories-next"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "339ee130d97a610ea5a5872d2bbb130fdf68884ff09d3028b81bec8a1ac23bbc"
+dependencies = [
+ "cfg-if 1.0.0",
+ "dirs-sys-next",
+]
+
+[[package]]
+name = "dirs-sys-next"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
+dependencies = [
+ "libc",
+ "redox_users",
+ "winapi",
+]
+
+[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1538,6 +1560,7 @@ dependencies = [
  "bevy",
  "bevy_networking_turbulence",
  "bevy_webgl2",
+ "directories-next",
  "fastrand",
  "game_types",
  "helper_functions",
@@ -1545,6 +1568,7 @@ dependencies = [
  "map",
  "rand",
  "rayon",
+ "ron",
  "rustc-hash",
  "serde",
  "single_byte_hashmap",
@@ -2867,6 +2891,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8383f39639269cde97d255a32bdb68c047337295414940c68bdd30c2e13203ff"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "redox_users"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "528532f3d801c87aec9def2add9ca802fe569e44a544afe633765267840abe64"
+dependencies = [
+ "getrandom",
+ "redox_syscall",
 ]
 
 [[package]]

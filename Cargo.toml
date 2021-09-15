@@ -71,7 +71,7 @@ inherits = "release"
 
 [dependencies]
 # The bevy game engine
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["serialize"] }
 
 # Allows for building bevy to the web
 # TODO: Switch to main smokku branch
@@ -89,6 +89,7 @@ wasm-bindgen = { version = "0.2.77", optional = true }
 
 # Used for sending structs over networks easily and efficiently
 serde = { version = "1", features = ["derive"] }
+ron = { version = "0.6"}
 
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
@@ -103,7 +104,11 @@ lazy_static = { version = "1" }
 # A hashmap that's very fast at storing singular bytes as keys (made by me)
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 
+# A faster HashMap
 rustc-hash = { version = "1" }
+
+# Config directory locations
+directories-next = { version = "2", optional = true }
 
 helper_functions = { path = "crates/helper_functions" }
 game_types = { path = "crates/game_types" }
@@ -130,6 +135,7 @@ graphics = [
 
 native = [
   "parallel",
+  "directories-next",
 ]
 
 parallel = [
