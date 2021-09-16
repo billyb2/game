@@ -10,18 +10,18 @@ Please follow the instructions below in order, while it seems complicated, it ma
 - [Install CMake](https://cmake.org/download/)
 - [Install OpenSSL](https://slproweb.com/download/Win64OpenSSL-1_1_1k.msi)
 - Add the *OPENSSL_DIR* system environment variable, with the value being the *exact* path you installed OpenSSL to (default is C:\Program Files\OpenSSL-Win64 , but please double check to make sure)
-- `cargo install -f cargo-binutils && cargo install -f wasm-bindgen-cli --version 0.2.77 && cargo install -f basic-http-server`
+- `cargo install -f cargo-binutils && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
 - `rustup component add llvm-tools-preview`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 - ### Ubuntu/Debian Linux
 - `sudo apt-get install cmake clang lld libx11 pkgconf alsa-lib openssl`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.77 && cargo install -f basic-http-server`
+- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
 ### Arch/Manjaro Linux
 - `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl --needed`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.77 && cargo install -f basic-http-server`
+- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
 ### MacOS
 MacOS, of course, does not have a working LLD linker (thanks Apple), though the ZLD linker is still faster than the default
 - [Install CMake](https://cmake.org/download/)

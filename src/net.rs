@@ -25,17 +25,8 @@ use crate:: {
 #[cfg(feature = "native")]
 use helper_functions::get_available_port;
 
-use bevy_networking_turbulence::*;
 use bevy::prelude::*;
 use bevy::utils::Duration;
-
-#[cfg(feature = "native")]
-use lazy_static::lazy_static;
-
-#[cfg(feature = "native")]
-lazy_static! {
-    static ref SERVER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9363);
-}
 
 // Location data is unreliable, since its okay if we skip a few frame updates
 pub const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
@@ -250,19 +241,17 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
     // Currently, only PC builds can host
     #[cfg(feature = "native")]
     if hosting.0 {
-        //let ip_address = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
-
-        // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
         // The WebRTC listening address just picks a random port
-        let webrtc_listen_addr = {
-            let webrtc_listen_ip: IpAddr = SERVER_ADDRESS.ip();
-
+        let webrtc_listen_socket = {
+            let webrtc_listen_ip = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
             let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str()).expect("No available port");
 
             SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
         };
 
-        net.listen(*SERVER_ADDRESS, Some(webrtc_listen_addr), Some(webrtc_listen_addr));
+        const IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)); 
+
+        net.listen(SocketAddr::new(IP_ADDR, 9363), Some(webrtc_listen_socket), Some(webrtc_listen_socket));
 
     }
 }
@@ -527,7 +516,7 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 #[cfg(feature = "web")]
 pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>, server_ip: Option<Res<SocketAddr>>) {
     // Every few seconds, the client requests an ID from the host server until it gets one
-    if ready_to_send_packet.0.finished() && server_ip.is_some() {
+    if ready_to_send_packet.0.finished() && server_ip.is_some() && net.connections.len() > 0 {
         let mut net_conn_state_text = net_conn_state_text.single_mut();
 
         if my_player_id.0.is_none() && !ability_set.0 {

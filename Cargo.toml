@@ -85,7 +85,7 @@ bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true 
 bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", default-features = false, features = ["use-webrtc"] }
 
 # WASM logging
-wasm-bindgen = { version = "0.2.77", optional = true }
+wasm-bindgen = { version = "0.2.78", optional = true }
 
 # Used for sending structs over networks easily and efficiently
 serde = { version = "1", features = ["derive"] }

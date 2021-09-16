@@ -10,10 +10,12 @@ args = ["target", "install", "wasm32-unknown-unknown"]
 command = "rustup"
 
 [tasks.basic-http-server]
+env = { RUSTFLAGS = "" }
 install_crate = {crate_name = "basic-http-server", binary = "basic-http-server", test_arg="--help"}
 
 [tasks.wasm-bindgen-cli]
-install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.77"}
+env = { RUSTFLAGS = "" }
+install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.78"}
 
 [tasks.compress]
 env = { "CARGO_MAKE_RUST_SCRIPT_PROVIDER" = "rust-script", RUSTFLAGS = "" }
@@ -140,22 +142,6 @@ fn main() {
 }
 '''
 
-
-[tasks.cargo-build-web-release]
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
-command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown"]
-
-[tasks.cargo-build-web-opt]
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "opt-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
-command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown"]
-
-[tasks.cargo-build-web-fast]
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "fast-web", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
-command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown"]
-
 [tasks.cargo-build-web-release-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
 args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
@@ -173,21 +159,6 @@ env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoi
 args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
-
-[tasks.bindgen-release]
-args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/release-web/game.wasm"]
-command = "wasm-bindgen"
-dependencies = ["cargo-build-web-release", "wasm-bindgen-cli"]
-
-[tasks.bindgen-opt]
-args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/opt-web/game.wasm"]
-command = "wasm-bindgen"
-dependencies = ["cargo-build-web-opt", "wasm-bindgen-cli"]
-
-[tasks.bindgen-fast]
-args = ["--out-dir", "target/", "--out-name", "wasm", "--target", "web", "target/wasm32-unknown-unknown/fast-web/game.wasm"]
-command = "wasm-bindgen"
-dependencies = ["cargo-build-web-fast", "wasm-bindgen-cli"]
 
 [tasks.bindgen-release-simd]
 args = ["--out-dir", "target/", "--out-name", "wasm-simd", "--target", "web", "target/wasm32-unknown-unknown/release-web-simd/game.wasm"]
@@ -213,27 +184,6 @@ dependencies = ["bindgen-opt-simd", "compress-release"]
 [tasks.build-web-release-simd]
 dependencies = ["bindgen-fast-simd", "compress-release"]
 
-[tasks.build-web-fast]
-dependencies = ["bindgen-fast", "compress"]
-
-[tasks.build-web-opt]
-dependencies = ["bindgen-opt", "compress-release"]
-
-[tasks.build-web-release]
-dependencies = ["bindgen-release", "compress-release"]
-
-[tasks.build-native]
-args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "-Z", "unstable-options"]
-command = "cargo"
-
-[tasks.build-native-release]
-args = ["build", "--features", "native,use_wgpu,graphics", "--bin", "game", "--release", "-Z", "unstable-options"]
-command = "cargo"
-
-[tasks.build-native-fast]
-args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "--features", "-Z", "unstable-options"]
-command = "cargo"
-
 [tasks.run]
 args = ["run", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "--features", "-Z", "unstable-options"]
 command = "cargo"
@@ -242,40 +192,20 @@ command = "cargo"
 command = "${CARGO_TARGET_DIR}/release/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
 dependencies = ["build-native-release"]
 
-[tasks.serve]
-args = ["-a", "0.0.0.0:4000"]
-command = "basic-http-server"
-dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
-
 [tasks.serve-simd]
 args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-opt-simd", "basic-http-server"]
-
-[tasks.serve-release]
-args = ["-a", "0.0.0.0:4000"]
-command = "basic-http-server"
-dependencies = ["build-web-release", "build-web-release-simd", "basic-http-server"]
 
 [tasks.serve-release-simd]
 args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-release-simd", "basic-http-server"]
 
-[tasks.serve-opt]
-args = ["-a", "0.0.0.0:4000"]
-command = "basic-http-server"
-dependencies = ["build-web-opt", "build-web-opt-simd", "basic-http-server"]
-
 [tasks.serve-opt-simd]
 args = ["-a", "0.0.0.0:4000"]
 command = "basic-http-server"
 dependencies = ["build-web-opt-simd", "basic-http-server"]
-
-[tasks.serve-fast]
-args = ["-a", "0.0.0.0:4000"]
-command = "basic-http-server"
-dependencies = ["build-web-fast", "build-web-fast-simd", "basic-http-server"]
 
 [tasks.serve-fast-simd]
 args = ["-a", "0.0.0.0:4000"]

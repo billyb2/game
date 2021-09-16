@@ -275,7 +275,7 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
 
                     commands.entity(entity).despawn_recursive();
                     commands.insert_resource(socket_addr);
-                    *text = String::from("Connecting, please wait...");
+                    *text = format!("Connecting to {}...", socket_addr);
     
                     net.connect(socket_addr);
                     

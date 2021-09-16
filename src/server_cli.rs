@@ -55,8 +55,9 @@ fn main() {
     .add_startup_system(setup_networking)
     .add_startup_system(setup_listening)
     .add_startup_system(setup_players)
-    .add_system_set(
-        SystemSet::new()
+    .add_stage(
+    "server",
+    SystemStage::parallel()
             .with_run_criteria(FixedTimestep::step(SIXTY_FRAMES))
             .with_system(tick_timers)
             .with_system(handle_stat_packets)
