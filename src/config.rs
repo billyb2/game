@@ -1,5 +1,6 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use ron::ser::{to_string_pretty, PrettyConfig};
+use ron::de::from_str;
 
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
@@ -17,13 +18,23 @@ extern "C" {
 
 #[cfg(feature = "web")]
 #[inline]
-pub fn get_data(key: String) -> Option<String> {
-    js_get_data(key)
+pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
+    let string = js_get_data(key);
+
+    match string {
+        Some(string) => {
+            let string = Box::leak(string.into_boxed_str());
+            let val: T = from_str(string).expect("Failed to deserialize");
+            Some(val)
+
+        },
+        None => None,
+    }
 }
 
 
 #[cfg(feature = "native")]
-pub fn get_data(key: String) -> Option<String>{
+pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
     use std::fs::{File, create_dir_all, read_to_string};
     use std::io::ErrorKind;
 
@@ -36,7 +47,10 @@ pub fn get_data(key: String) -> Option<String>{
 
     match read_to_string(&key_path) {
         Ok(string) => {
-            Some(string)
+            let string = Box::leak(string.into_boxed_str());
+            let val: T = from_str(string).expect("Failed to deserialize");
+            
+            Some(val)
         },
         Err(error) => match error.kind() {
             ErrorKind::NotFound => {

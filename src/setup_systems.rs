@@ -19,8 +19,6 @@ use crate::config::get_data;
 use map::MapCRC32;
 use single_byte_hashmap::*;
 
-use ron::de::from_str;
-
 #[cfg(feature = "graphics")]
 use crate::setup_graphical_systems::*;
 
@@ -149,9 +147,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
 pub fn setup_default_controls(mut commands: Commands) {
     let key_bindings: KeyBindings = match get_data(String::from("key_bindings")) {
-        Some(key_bindings) => {
-            from_str(&key_bindings).unwrap()
-        },
+        Some(key_bindings) => key_bindings,
         None => KeyBindings {
             up: KeyCode::W,
             down: KeyCode::S,

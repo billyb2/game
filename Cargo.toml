@@ -33,14 +33,26 @@ overflow-checks = false
 # Since web builds run like garbage, using a higher optimization level is nice
 opt-level = 1
 
+[profile.server_cli]
+inherits = "dev"
+
+[profile.server_cli-release]
+inherits = "release"
+
 [profile.dev.package."*"]
 opt-level = 3
 
 [profile.fast-web.package."*"]
 opt-level = 3
 
+[profile.server_cli.package."*"]
+opt-level = 3
+
 # The game library is the most time consuming to compile, so I lower the optimization level on just it
 [profile.dev.package.game]
+opt-level = 1
+
+[profile.server_cli.package.game]
 opt-level = 1
 
 [profile.fast-web.package.game]

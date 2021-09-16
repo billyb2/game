@@ -10,14 +10,12 @@
 mod logic;
 
 use bevy::prelude::*;
-use bevy::tasks::TaskPool;
 
 use bevy_networking_turbulence::*;
 
 use rand::Rng;
 
 use rustc_hash::FxHashMap;
-
 use single_byte_hashmap::*;
 
 use game_lib::*;
@@ -33,8 +31,6 @@ use game_types::player_attr::*;
 use game_lib::config::*;
 use logic::move_objects;
 use map::*;
-
-use ron::de::from_str;
 
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
@@ -85,7 +81,7 @@ fn main() {
     });
 
     let model = match get_data(String::from("model")) {
-        Some(string) => from_str(&string).unwrap(),
+        Some(object) => object,
         None => {
             let model = rng.gen::<Model>();
             write_data(String::from("model"), model);
@@ -95,8 +91,9 @@ fn main() {
         }
     };
 
+    // If the player has played the game before, this gets their previous ability/perk/gun. If they haven't, it just randomly generates a new one
     let ability = match get_data(String::from("ability")) {
-        Some(string) => from_str(&string).unwrap(),
+        Some(object) => object,
         None => {
             let ability = rng.gen::<Ability>();
             write_data(String::from("ability"), ability);
@@ -107,7 +104,7 @@ fn main() {
     };
 
     let perk = match get_data(String::from("perk")) {
-        Some(string) => from_str(&string).unwrap(),
+        Some(object) => object,
         None => {
             let perk = rng.gen::<Perk>();
             write_data(String::from("perk"), perk);
@@ -120,8 +117,6 @@ fn main() {
     app
     //Start in the main menu
     .add_state(AppState::MainMenu)
-
-    .insert_resource(TaskPool::new())
     .insert_resource(MapCRC32(map2.crc32))
     // Embed the map into the binary
     .insert_resource({
@@ -138,7 +133,6 @@ fn main() {
     .insert_resource(MyPlayerID(None))
     .insert_resource(GameMode::Deathmatch)
     .insert_resource(GameLogs::new())
-    // Randomly generate some aspects of the player
     .insert_resource(ability)
     .insert_resource(model)
     .insert_resource(perk)
