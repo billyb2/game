@@ -389,7 +389,10 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 }
 
                 if shooting || player_id != my_player_id.0 {
-                    net.broadcast_message((*ev).clone());
+                    // Only broadcast shots that the player shoots
+                    if player_id == my_player_id.0 {
+                        net.broadcast_message((*ev).clone());
+                    }
 
                     for recoil in ev.recoil_vec.iter() {
                         let movement = RequestedMovement::new(angle + recoil, speed);
