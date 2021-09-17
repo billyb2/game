@@ -15,7 +15,7 @@ use bevy::render::{
 
 use crate::*;
 use crate::shaders::*;
-use crate::config::get_data;
+use crate::config::*;
 use map::MapCRC32;
 use single_byte_hashmap::*;
 
@@ -23,14 +23,15 @@ use single_byte_hashmap::*;
 use crate::setup_graphical_systems::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>) {
-    let mut availabie_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>) {
+    let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
     #[cfg(feature = "graphics")]
-    let wnd = _wnds.unwrap();
+    let wnds = _wnds.unwrap();
+
     #[cfg(feature = "graphics")]
-    let wnd = wnd.get_primary().unwrap();
+    let wnd = wnds.get_primary().unwrap();
 
     #[cfg(feature = "graphics")]
     let shader_assets = _shader_assets.unwrap();
@@ -74,8 +75,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         );
     }
 
-    let mut living = true;
-
     let map = maps.0.get(&map_crc32.0).unwrap();
     
     map.spawn_points.iter().enumerate().for_each(|(mut i, coords)| {
@@ -89,9 +88,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         #[cfg(feature = "graphics")]
         let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
-        let mut entity = 
-        commands
-            .spawn_bundle(Player::new(i.try_into().unwrap(), ability, perk, living));
+        let mut entity = commands.spawn_bundle(Player::new(i.try_into().unwrap(), ability, perk, false));
 
         entity
             .insert_bundle(Gun::new(gun_model, ability, perk))
@@ -113,7 +110,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                     ..Default::default()
                 },
                 visible: Visible {
-                    is_visible: living,
+                    is_visible: false,
                     is_transparent: true,
                 },
                 transform: Transform::from_translation(coords.extend(101.0)),
@@ -133,51 +130,53 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .insert(inner_suit_color);
 
         player_entities.insert(i.try_into().unwrap(), entity.id());
-        availabie_player_ids.push(PlayerID(i.try_into().unwrap()));
+        available_player_ids.push(PlayerID(i.try_into().unwrap()));
 
-        living = false;
     });
+    #[allow(unused_mut)]
+    let mut online_player_ids = BTreeSet::new();
 
-    commands.insert_resource(availabie_player_ids);
-    commands.insert_resource(player_entities);
-
-    #[cfg(not(feature = "graphics"))]
-    commands.insert_resource(OnlinePlayerIDs(BTreeSet::new()));
-}
-
-pub fn setup_default_controls(mut commands: Commands) {
-    let key_bindings: KeyBindings = match get_data(String::from("key_bindings")) {
-        Some(key_bindings) => key_bindings,
-        None => KeyBindings {
-            up: KeyCode::W,
-            down: KeyCode::S,
-            left: KeyCode::A,
-            right: KeyCode::D,
-    
-            use_ability: KeyCode::LShift,
-            reload: KeyCode::R,
-    
-            show_score: KeyCode::Tab,
-            dash: KeyCode::E,
-        },
-        
-    };
-
-    commands.insert_resource(key_bindings);
-}
-
-pub fn setup_id(mut commands: Commands, mut _deathmatch_score: ResMut<DeathmatchScore>) {
-    let mut online_player_ids: BTreeSet<u8> = BTreeSet::new();
-
-    #[cfg(feature = "native")]
+    #[cfg(all(feature = "native", feature = "graphics"))]
     {
         online_player_ids.insert(1);
         _deathmatch_score.0.insert(1, 0);
-        commands.insert_resource(MyPlayerID(Some(PlayerID(1))));
+        commands.insert_resource(MyPlayerID(Some(available_player_ids.remove(0))));
+        
     }
 
     #[cfg(feature = "web")]
     commands.insert_resource(MyPlayerID(None));
 
     commands.insert_resource(OnlinePlayerIDs(online_player_ids));
+
+    commands.insert_resource(available_player_ids);
+    commands.insert_resource(player_entities);
+}
+
+pub fn setup_default_controls(mut commands: Commands) {
+    let key_bindings: KeyBindings = match get_data(String::from("key_bindings")) {
+        Some(key_bindings) => key_bindings,
+        None => {
+            let key_bindings = KeyBindings {
+                up: KeyCode::W,
+                down: KeyCode::S,
+                left: KeyCode::A,
+                right: KeyCode::D,
+    
+                use_ability: KeyCode::LShift,
+                reload: KeyCode::R,
+    
+                show_score: KeyCode::Tab,
+                dash: KeyCode::E,
+            };
+
+            write_data(String::from("key_bindings"), key_bindings);
+
+            key_bindings
+
+        },
+        
+    };
+
+    commands.insert_resource(key_bindings);
 }

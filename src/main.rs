@@ -185,7 +185,6 @@ fn main() {
         SystemSet::on_enter(AppState::Connecting)
             .with_system(setup_players)
             .with_system(setup_networking)
-            .with_system(setup_id)
             .with_system(setup_connection_menu)
 
     );
