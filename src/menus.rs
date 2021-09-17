@@ -57,6 +57,11 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
             }
 
+            if text.starts_with("Reload") && selected_key != &KeyBindingButtons::Reload {
+                *text = format!("Melee: {:?}", keybindings.melee);
+
+            }
+
             if text.starts_with("Score") && selected_key != &KeyBindingButtons::ShowScore {
                 *text = format!("Score: {:?}", keybindings.show_score);
 
@@ -93,6 +98,11 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
             }
 
+            if text.starts_with("Melee") {
+                *text = format!("Melee: {:?}", keybindings.melee);
+
+            }
+
             if text.starts_with("Score") {
                 *text = format!("Score: {:?}", keybindings.show_score);
 
@@ -103,7 +113,6 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
             Interaction::Clicked => {
                 if text == "Back" {
                     write_data(String::from("key_bindings"), &*keybindings);
-
                     app_state.set(AppState::MainMenu).unwrap();
 
                 } else if text.starts_with("Up") {
@@ -129,6 +138,10 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                 } else if text.starts_with("Reload") {
                     *text = "Reload:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::Reload);
+
+                } else if text.starts_with("Melee") {
+                    *text = "Melee:".to_string();
+                    selected_key_button.0 = Some(KeyBindingButtons::Melee);
 
                 } else if text.starts_with("Score") {
                     *text = "Score:".to_string();
@@ -213,6 +226,16 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
                         if text.starts_with("Reload") {
                             *text = format!("Reload: {:?}", *key);
+
+                        }
+
+                    },
+                    KeyBindingButtons::Melee => {
+                        keybindings.melee = *key;
+                        selected_key_button.0 = None;
+
+                        if text.starts_with("Melee") {
+                            *text = format!("Melee: {:?}", *key);
 
                         }
 

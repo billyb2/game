@@ -1562,7 +1562,6 @@ dependencies = [
  "fastrand",
  "game_types",
  "helper_functions",
- "lazy_static",
  "map",
  "rand",
  "rayon",

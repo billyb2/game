@@ -165,6 +165,7 @@ pub fn setup_default_controls(mut commands: Commands) {
     
                 show_score: KeyCode::Tab,
                 dash: KeyCode::E,
+                melee: KeyCode::F,
             };
 
             write_data(String::from("key_bindings"), key_bindings);

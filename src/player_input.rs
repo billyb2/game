@@ -282,59 +282,84 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
     }
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &Phasing)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &Phasing, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
-            let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, phasing) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, phasing, perk) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-            if !phasing.0 && (btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0) {
-                // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
-                // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
+            if !phasing.0 {
+                if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
+                    // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
+                    // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
 
-                // TODO: Make number of bullets into a part of the gun
-                let num_of_recoil = match *model {
-                    Model::Shotgun => 12,
-                    Model::ClusterShotgun => 6,
-                    Model::Flamethrower => 5,
-                    _ => 1,
+                    // TODO: Make number of bullets into a part of the gun
+                    let num_of_recoil = match *model {
+                        Model::Shotgun => 12,
+                        Model::ClusterShotgun => 6,
+                        Model::Flamethrower => 5,
+                        _ => 1,
 
-                };
+                    };
 
-                let rng = fastrand::Rng::new();
+                    let rng = fastrand::Rng::new();
 
-                let recoil_vec: Vec<f32> = repeat_with(|| {
-                    let sign = rng.i8(..).signum() as f32;
-                    rng.f32() * recoil_range.0 * sign
-                }).take(num_of_recoil).collect();
+                    let recoil_vec: Vec<f32> = repeat_with(|| {
+                        let sign = rng.i8(..).signum() as f32;
+                        rng.f32() * recoil_range.0 * sign
+                    }).take(num_of_recoil).collect();
 
-                let event = ShootEvent {
-                    start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
-                    player_id: my_player_id.0,
-                    pos_direction: mouse_pos.0,
-                    health: health.0,
-                    model: *model,
-                    max_distance: max_distance.0,
-                    recoil_vec,
-                    // Bullets need to travel "backwards" when moving to the left
-                    speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
-                    projectile_type: *projectile_type,
-                    damage: *damage,
-                    player_ability: *player_ability,
-                    size: Vec2::new(size.width, size.height),
-                    reloading: reload_timer.reloading,
+                    let event = ShootEvent {
+                        start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
+                        player_id: my_player_id.0,
+                        pos_direction: mouse_pos.0,
+                        health: health.0,
+                        model: *model,
+                        max_distance: max_distance.0,
+                        recoil_vec,
+                        // Bullets need to travel "backwards" when moving to the left
+                        speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                        projectile_type: *projectile_type,
+                        damage: *damage,
+                        player_ability: *player_ability,
+                        size: Vec2::new(size.width, size.height),
+                        reloading: reload_timer.reloading,
 
-                };
+                    };
 
-                shoot_event.send(event);
+                    shoot_event.send(event);
 
+                // Melee is the F key
+                } else if keyboard_input.pressed(keybindings.melee) {
+                    let melee = Gun::new(Model::Melee, *player_ability, *perk);
+
+                    let event = ShootEvent {
+                        start_pos: transform.translation + Vec3::new(melee.projectile_size.width, melee.projectile_size.height, 0.0) / 2.0,
+                        player_id: my_player_id.0,
+                        pos_direction: mouse_pos.0,
+                        health: health.0,
+                        model: Model::Melee,
+                        max_distance: melee.max_distance.0,
+                        recoil_vec: vec![0.0],
+                        // Bullets need to travel "backwards" when moving to the left
+                        speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                        projectile_type: ProjectileType::Melee,
+                        damage: melee.damage,
+                        player_ability: *player_ability,
+                        size: Vec2::new(melee.projectile_size.width, melee.projectile_size.height),
+                        reloading: reload_timer.reloading,
+
+                    };
+
+                    shoot_event.send(event);
+                }
+                
             }
-
         }
     }
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee, &Perk)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev in shoot_event.iter() {
             if ev.health != 0.0 {
@@ -347,13 +372,17 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 let player_id = ev.player_id;
 
                 if ev.projectile_type != ProjectileType::Molotov && ev.projectile_type != ProjectileType::PulseWave {
-                    let (mut bursting, mut time_since_last_shot, mut ammo_in_mag) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut bursting, mut time_since_last_shot, mut ammo_in_mag, mut can_melee, perk) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                    // Checks that said player can shoot, and isnt reloading
-                    if (time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading) || ev.projectile_type == ProjectileType::TractorBeam {
+                    let melee = Gun::new(Model::Melee, ev.player_ability, *perk);
+                    // Checks that said player can shoot, and isn't reloading
+                    if (time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading && ev.projectile_type != ProjectileType::Melee) || ev.projectile_type == ProjectileType::TractorBeam  || (ev.projectile_type == ProjectileType::Melee && can_melee.0.finished()) {
                         shooting = true;
 
-                        if ev.model == Model::BurstRifle {
+                        if ev.model == Model::Melee {
+                            can_melee.0.reset();
+
+                        } else if ev.model == Model::BurstRifle {
                             if !bursting.0 {
                                 bursting.0 = true;
                                 time_since_last_shot.0.set_duration(Duration::from_millis(45));

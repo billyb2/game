@@ -101,9 +101,6 @@ fastrand = { version = "1" }
 # Easier multi-threading
 rayon = { version = "1", optional = true }
 
-# Allows for lazily evaluated global variables
-lazy_static = { version = "1" }
-
 # A hashmap that's very fast at storing singular bytes as keys (made by me)
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 

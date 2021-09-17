@@ -59,6 +59,8 @@ pub struct ProjectileIdent(pub u8);
 // Gun stuff
 pub struct TimeSinceLastShot(pub Timer);
 
+pub struct CanMelee(pub Timer);
+
 pub struct DestructionTimer(pub Timer);
 
 pub struct DashingInfo {

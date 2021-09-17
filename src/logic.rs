@@ -94,6 +94,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
                 liquid_molotovs.push((object.translation.truncate(), sprite.size.x));
 
             }
+            
 
             let lag_compensation = unsafe { fmul_fast(DESIRED_TICKS_PER_SECOND, time.delta_seconds()) };
 
@@ -106,6 +107,14 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
             let next_potential_pos = speed_simd * angle_trig + translation;
             let mut player_collision = false;
+
+            let delta_readjustment = time.delta().as_secs_f32() * 60.0;
+
+            // Molotov fire does too little damage if there is lag, so I need to adjust it depending on the amt of lag. For example, fi the game is running at 30 fps, it'll do twice the damage
+            let damage_adj = match *projectile_type == ProjectileType::MolotovFire {
+                false => damage.0,
+                true => damage.0 * delta_readjustment,
+            };
 
             // Check to see if a player-projectile collision takes place
             player_movements.for_each_mut(|(entity, player, mut player_movement, _, _, player_sprite, player_id, mut health, ability, _visible, mut player_speed, _phasing, mut alpha, mut damage_source) |{
@@ -137,13 +146,13 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
                     // Players can only do damage to other players if they receive a network event about it, if they don't, then damage can only happen to themselves
                     if let Some(my_player_id) = &my_player_id.0 {
-                        let player_died = (health.0 - damage.0) <= 0.0;
+                        let player_died = (health.0 - damage_adj) <= 0.0;
 
                         commands.spawn_bundle(Text2dBundle {
                             text: Text {
                                 sections: vec![
                                     TextSection {
-                                        value: format!("{:.0}", damage.0),
+                                        value: format!("{:.0}", damage_adj),
                                         style: TextStyle {
                                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                             font_size: 11.0,
@@ -174,7 +183,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
                                 *deathmatch_score.0.get_mut(&shot_from.0).unwrap() += 1;
 
                             } else {
-                                health.0 -= damage.0;
+                                health.0 -= damage_adj;
 
                                 if *projectile_type == ProjectileType::PulseWave {
                                     player_speed.0 =  unsafe { fmul_fast(player_speed.0, 0.25) };
@@ -197,7 +206,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             let (wall_collision, health_and_coords) = match *projectile_type {
                 // Pulsewaves and tractor beams move through walls
                 ProjectileType::PulseWave | ProjectileType::TractorBeam => (false, None),
-                _ =>  map.collision(translation, sprite.size, damage.0, speed, Vec2::new(movement.angle.cos(), movement.angle.sin())),
+                _ =>  map.collision(translation, sprite.size, damage_adj, speed, Vec2::new(movement.angle.cos(), movement.angle.sin())),
 
             };
 
@@ -218,16 +227,16 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
                 // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
                 // The speedball's weapon speeds up and gets bigger
                 if *projectile_type == ProjectileType::Speedball {
-                    movement.speed = unsafe { fmul_fast(movement.speed, 1.1) };
-                    sprite.size = unsafe { Vec2::new(fmul_fast(sprite.size.x, 1.03), fmul_fast(sprite.size.y, 1.03))};
+                    movement.speed = unsafe { fmul_fast(movement.speed, 1.1) } * delta_readjustment;
+                    sprite.size = unsafe { Vec2::new(fmul_fast(sprite.size.x, 1.03), fmul_fast(sprite.size.y, 1.03))} * delta_readjustment;
 
                     if damage.0 <= 80.0 {
-                        damage.0 += distance_traveled.as_ref().unwrap().0  / 60.0;
+                        damage.0 += (distance_traveled.as_ref().unwrap().0  / 60.0) * delta_readjustment;
 
                     }
 
                 } else if *projectile_type == ProjectileType::Flame && sprite.size.x <= 20.0 {
-                    sprite.size *= 1.3;
+                    sprite.size *= 1.3 * delta_readjustment;
 
                 }
 
@@ -277,7 +286,6 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
     // Find molotovs that are to be lit on fire
     projectile_movements.for_each_mut(|(_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) |{
         if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
-            // Firstly, find if the player ID is that of an inferno
             let (_entity, _, _, _, _, _, _, _, _ability, _, _player_speed, _phasing, _alpha, _damage_source) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
 
             for (coords, radius) in liquid_molotovs.iter() {
@@ -306,7 +314,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
                     *projectile_type.deref_mut() = ProjectileType::MolotovFire;
                     *material.deref_mut() = materials.molotov_fire.clone();
-                    damage.deref_mut().0 = 75.0 / 60.0;
+                    damage.0 = 75.0 / 60.0;
                     sprite.deref_mut().size = Vec2::new(250.0, 250.0);
                     commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
 

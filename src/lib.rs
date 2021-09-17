@@ -219,6 +219,7 @@ pub struct KeyBindings {
     pub reload: KeyCode,
     pub show_score: KeyCode,
     pub dash: KeyCode,
+    pub melee: KeyCode,
 
 }
 
@@ -231,6 +232,7 @@ pub enum KeyBindingButtons {
     UseAbility,
     Reload,
     ShowScore,
+    Melee,
 }
 
 #[derive(Debug, PartialEq)]
@@ -360,10 +362,10 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
     let delta = time.delta();
 
-    player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down)| {
+    player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee)| {
         time_since_last_shot.0.tick(delta);
 
         // If the player is reloading
@@ -371,6 +373,8 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
             time_since_start_reload.timer.tick(delta);
 
         }
+
+        can_melee.0.tick(delta);
 
         match *ability == Ability::Brute {
             false => match using_ability.0 {
