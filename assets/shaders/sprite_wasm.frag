@@ -29,8 +29,6 @@ layout(std140) uniform Alpha_value {
 };
 
 
-
-
 # ifdef COLORMATERIAL_TEXTURE 
 uniform sampler2D ColorMaterial_texture;  // set = 1, binding = 1
 # endif
@@ -60,6 +58,15 @@ void add_lighting(inout vec4 color) {
     color *= color_change;
 
 }
+
+vec4 color_encode(vec4 linearRGB_in) {
+    vec3 linearRGB = linearRGB_in.rgb;
+    vec3 a = 12.92 * linearRGB;
+    vec3 b = 1.055 * pow(linearRGB, vec3(1.0 / 2.4)) - 0.055;
+    vec3 c = step(vec3(0.0031308), linearRGB);
+    return vec4(mix(a, b, c), linearRGB_in.a);
+}
+
 
 void set_color_of_player(inout vec4 color) {
     // Set color of player parts
@@ -94,5 +101,5 @@ void main() {
     //set_color_of_player(color);
     //add_lighting(color);
 
-    o_Target = color;
+    o_Target = color_encode(color);
 }

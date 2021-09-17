@@ -5,7 +5,7 @@
 use std::f32::consts::PI;
 use std::iter::repeat_with;
 
-use bevy::math::Vec3A;
+use bevy::math::{Vec3A, const_vec3};
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
@@ -54,10 +54,10 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.y = y;
 
 
-        if perk == Perk::ExtendedVision {
-            camera.scale = Vec3::splat(1.25);
-
-        }
+        camera.scale = match perk {
+            Perk::ExtendedVision => const_vec3!([0.7; 3]),
+            _ => const_vec3!([1.0; 3]),
+        };
 
     }
 }
@@ -224,7 +224,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
                 text.sections.push(
                     TextSection {
-                        value: format!("Player {}: {} {}\n", *player_id + 1, kills, singular_or_plural_kills),
+                        value: format!("Player {}: {} {}\n", *player_id, kills, singular_or_plural_kills),
                         style: TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 45.0,
@@ -439,12 +439,13 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                         };
 
-                        let avg_size = Vec3A::splat((ev.size.x + ev.size.y) / 2.0);
+                        // Move the projectile in front of the player according to the projectile's size
+                        let size_vec3a = Vec3A::from((ev.size, 1.0));
                         
                         let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
                         let mut translation: Vec3A = ev.start_pos.into();
                         
-                        translation += avg_size * angle_trig;
+                        translation += size_vec3a * angle_trig;
                         
                         commands
                             .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))

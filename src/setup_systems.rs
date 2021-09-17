@@ -97,14 +97,10 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         #[cfg(feature = "graphics")]
         entity
             .insert_bundle(SpriteBundle {
-                material: match i {
-                    1 => _materials.as_ref().unwrap().player.clone(),
-                    _ => _materials.as_ref().unwrap().enemy.clone(),
-
-                },
+                material: _materials.as_ref().unwrap().player.clone(),
                 sprite: Sprite {
                     size: Vec2::new(120.0, 75.0),
-                    flip_x: true,
+                    flip_x: true, 
                     resize_mode: SpriteResizeMode::Automatic,
 
                     ..Default::default()
@@ -138,9 +134,10 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     #[cfg(all(feature = "native", feature = "graphics"))]
     {
-        online_player_ids.insert(1);
-        _deathmatch_score.0.insert(1, 0);
-        commands.insert_resource(MyPlayerID(Some(available_player_ids.remove(0))));
+        let id = available_player_ids.remove(0);
+        online_player_ids.insert(id.0);
+        _deathmatch_score.0.insert(id.0, 0);
+        commands.insert_resource(MyPlayerID(Some(id)));
         
     }
 

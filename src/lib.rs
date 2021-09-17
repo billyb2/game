@@ -40,7 +40,7 @@ use bevy::render::draw::OutsideFrustum;
 
 //use bevy_kira_audio::AudioPlugin;
 
-#[cfg(feature = "parallel")]
+#[cfg(all(feature = "parallel", feature = "graphics"))]
 use rayon::prelude::*;
 
 #[cfg(feature = "web")]
@@ -51,6 +51,7 @@ use map::*;
 
 use game_types::*;
 use game_types::player_attr::*;
+#[cfg(feature = "graphics")]
 use shaders::*;
 use single_byte_hashmap::*;
 use net::*;
@@ -278,9 +279,9 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
         let num = fastrand::u8(0..=2);
 
         let message = match num {
-            0 => format!("Player {} got murked\n", ev.0 + 1),
-            1 => format!("Player {} got gulaged\n", ev.0 + 1),
-            2 => format!("Player {} got sent to the shadow realm\n", ev.0 + 1),
+            0 => format!("Player {} got murked\n", ev.0),
+            1 => format!("Player {} got gulaged\n", ev.0),
+            2 => format!("Player {} got sent to the shadow realm\n", ev.0),
             _ => unimplemented!(),
 
         };
@@ -325,7 +326,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
     let mut display_win_text = 
     #[inline]
     |(player_id, _score)| {
-        let champion_string = format!("Player {} wins!", player_id + 1);
+        let champion_string = format!("Player {} wins!", player_id);
         let (mut text, mut visible) = champion_text.single_mut();
 
         text.sections[0].value = champion_string;

@@ -42,7 +42,7 @@ inherits = "release"
 [profile.dev.package."*"]
 opt-level = 3
 
-[profile.fast-web.package."*"]
+[profile.fast-web-simd.package."*"]
 opt-level = 3
 
 [profile.server_cli.package."*"]
@@ -55,17 +55,8 @@ opt-level = 1
 [profile.server_cli.package.game]
 opt-level = 1
 
-[profile.fast-web.package.game]
+[profile.fast-web-simd.package.game]
 opt-level = 1
-
-[profile.opt-web]
-inherits = "release"
-# Thin LTO still improves speed, but isn't as slow to compile as fat (true) LTO
-lto = "thin"
-codegen-units = 32
-
-[profile.release-web]
-inherits = "release"
 
 [profile.fast-web-simd]
 inherits = "dev"
@@ -76,7 +67,7 @@ opt-level = 2
 [profile.opt-web-simd]
 inherits = "release"
 lto = "thin"
-codegen-units = 32
+codegen-units = 16
 
 [profile.release-web-simd]
 inherits = "release"

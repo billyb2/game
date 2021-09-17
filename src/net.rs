@@ -576,8 +576,8 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
     
-                    println!("Player {} has joined!", player_id + 1);
-                    log_event.send(LogEvent(format!("Player {} has joined!", player_id + 1)));
+                    println!("Player {} has joined!", player_id);
+                    log_event.send(LogEvent(format!("Player {} has joined!", player_id)));
 
                     for (id, mut ability) in players.iter_mut() {
                         if id.0 == player_id {
