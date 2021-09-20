@@ -24,7 +24,7 @@ pub mod shaders;
 pub mod net;
 
 use std::collections::BTreeSet;
-use std::ops::{Deref, DerefMut};
+use std::convert::TryInto;
 
 use serde::{Serialize, Deserialize};
 
@@ -260,6 +260,7 @@ pub struct LogEvent(pub String);
 
 pub struct DeathEvent(pub u8);
 
+// TODO: Make a BTreeMap for storing the ID for handling disconnects
 pub struct OnlinePlayerIDs(pub BTreeSet<u8>);
 
 // If a player gets a score of 15 kills, the game ends
@@ -330,11 +331,11 @@ pub fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visibl
 
 #[cfg(feature = "graphics")]
 pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>) {
-    let deathmatch_score = &deathmatch_score.deref().0;
+    let deathmatch_score = &deathmatch_score.0;
 
     let mut display_win_text = 
     #[inline]
-    |(player_id, _score)| {
+    |(player_id)| {
         let champion_string = format!("Player {} wins!", player_id);
         let (mut text, mut visible) = champion_text.single_mut();
 
@@ -346,6 +347,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
                 .spawn()
                 .insert(PlayerContinueTimer(Timer::from_seconds(5.0, false)))
                 .insert(GameRelated);
+
         } else if player_continue_timer.single().0.finished() {
             app_state.set(AppState::GameMenu).unwrap();
 
@@ -354,13 +356,13 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 
     #[cfg(feature = "parallel")]
     if let Some((player_id, _score)) = deathmatch_score.into_par_iter().find_any(|(_player_id, score)| **score >= SCORE_LIMIT) {
-        display_win_text((player_id, _score));
+        display_win_text((player_id));
 
     }
 
     #[cfg(not(feature = "parallel"))]
     if let Some((player_id, _score)) = deathmatch_score.into_iter().find(|(_player_id, score)| **score >= SCORE_LIMIT) {
-        display_win_text((player_id, _score));
+        display_win_text((player_id));
 
     }
 
@@ -528,7 +530,7 @@ pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut
             commands.entity(entity).despawn_recursive();
 
         } else {
-            let text = &mut text.deref_mut().sections[0];
+            let text = &mut text.sections[0];
             text.style.color.set_a(timer.0.percent_left());
 
         }
@@ -648,7 +650,7 @@ pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<Gam
 
 }
 
-pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>) {
+pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut my_player_id: ResMut<MyPlayerID>) {
     query.for_each(|q| {
         commands.entity(q.0).despawn_recursive();
 
@@ -668,4 +670,24 @@ pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>
         commands.entity(q.0).despawn_recursive();
 
     });
+}
+
+pub fn reset_game(mut deathmatch_score: ResMut<DeathmatchScore>, mut my_player_id: ResMut<MyPlayerID>, mut available_player_ids: ResMut<Vec<PlayerID>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+    if cfg!(feature = "graphics") || deathmatch_score.0.iter().any(|(_id, score)| *score >= SCORE_LIMIT) {
+        deathmatch_score.0.clear();
+
+    }
+
+    available_player_ids.clear();
+    online_player_ids.0.clear();
+
+    let map = maps.0.get(&map_crc32.0).unwrap();
+
+    let num_of_spawn_points: u8 = map.spawn_points.len().try_into().unwrap();
+    available_player_ids.extend((0..num_of_spawn_points).into_iter().map(|i| PlayerID(i)));
+
+
+    #[cfg(feature = "graphics")]
+    {my_player_id.0 = None;}
+
 }

@@ -234,6 +234,7 @@ fn main() {
     app.add_system_set(
         SystemSet::on_exit(AppState::InGame)
             .with_system(exit_in_game)
+            .with_system(reset_game)
             .with_system(disconnect)
 
     );

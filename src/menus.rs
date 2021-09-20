@@ -450,14 +450,14 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                     match current_ability_int == NUM_OF_ABILITIES - 1 {
                         true => {
                             let new_ability: Ability = 0.into();
-                            *my_ability.deref_mut() = new_ability;
+                            *my_ability = new_ability;
                         },
                         false => {
                             let new_ability: Ability = (current_ability_int + 1).into();
-                            *my_ability.deref_mut() = new_ability;
+                            *my_ability = new_ability;
 
                             if new_ability == Ability::Brute {
-                                *my_gun_model.deref_mut() = Model::Melee;
+                                *my_gun_model = Model::Melee;
                                 *text = format!("Gun: {:?}", *my_gun_model);
 
                             }
@@ -474,20 +474,20 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
 
 
                     // The Brute can only use melee
-                    match *my_ability.deref() == Ability::Brute {
+                    match *my_ability == Ability::Brute {
                         true => {
-                            *my_gun_model.deref_mut() = Model::Melee;
+                            *my_gun_model = Model::Melee;
                             *text = format!("Gun: {:?}", *my_gun_model);
 
                         }, false => match current_gun_int == NUM_OF_GUN_MODELS - 1 {
                             true => {
                                 let new_gun_model: Model = 0.into();
-                                *my_gun_model.deref_mut() = new_gun_model;
+                                *my_gun_model = new_gun_model;
 
                             },
                             false => {
                                 let new_gun_model: Model = (current_gun_int + 1).into();
-                                *my_gun_model.deref_mut() = new_gun_model;
+                                *my_gun_model = new_gun_model;
 
                             },
                         }
@@ -502,11 +502,11 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                     match current_perk_int == NUM_OF_PERKS - 1 {
                         true => {
                             let new_perk: Perk = 0.into();
-                            *my_perk.deref_mut() = new_perk;
+                            *my_perk = new_perk;
                         },
                         false => {
                             let new_perk: Perk = (current_perk_int + 1).into();
-                            *my_perk.deref_mut() = new_perk;
+                            *my_perk = new_perk;
                         },
 
 
@@ -803,14 +803,14 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             match current_ability_int == NUM_OF_ABILITIES - 1 {
                                 true => {
                                     let new_ability: Ability = 0.into();
-                                    *my_ability.deref_mut() = new_ability;
+                                    *my_ability = new_ability;
                                 },
                                 false => {
                                     let new_ability: Ability = (current_ability_int + 1).into();
-                                    *my_ability.deref_mut() = new_ability;
+                                    *my_ability = new_ability;
 
                                     if new_ability == Ability::Brute {
-                                        *my_gun_model.deref_mut() = Model::Melee;
+                                        *my_gun_model = Model::Melee;
                                         *text = format!("Gun: {:?}", *my_gun_model);
 
                                     }
@@ -826,20 +826,20 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             let current_gun_int: u8 = (*my_gun_model).into();
 
                             // The Brute can only use melee
-                            match *my_ability.deref() == Ability::Brute {
+                            match *my_ability == Ability::Brute {
                                 true => {
-                                    *my_gun_model.deref_mut() = Model::Melee;
+                                    *my_gun_model = Model::Melee;
                                     *text = format!("Gun: {:?}", *my_gun_model);
 
                                 }, false => match current_gun_int == NUM_OF_GUN_MODELS - 1 {
                                     true => {
                                         let new_gun_model: Model = 0.into();
-                                        *my_gun_model.deref_mut() = new_gun_model;
+                                        *my_gun_model = new_gun_model;
 
                                     },
                                     false => {
                                         let new_gun_model: Model = (current_gun_int + 1).into();
-                                        *my_gun_model.deref_mut() = new_gun_model;
+                                        *my_gun_model = new_gun_model;
                                         
                                     },
                                 }
@@ -855,21 +855,21 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
                             net.broadcast_message(set_ability_message);
 
-                            let my_ability = *my_ability.deref();
-                            let my_player_id = my_player_id.deref().0.as_ref();
+                            let my_ability = *my_ability;
+                            let my_player_id = my_player_id.0.as_ref();
 
                             let (entity, mut ability, mut ability_charge, mut ability_completed, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
 
-                            *ability.deref_mut() = my_ability;
+                            *ability = my_ability;
 
                             let (new_helmet_color, new_inner_suit_color) = set_player_colors(&my_ability);
 
-                            *helmet_color.deref_mut() = new_helmet_color;
-                            *inner_suit_color.deref_mut() = new_inner_suit_color;
+                            *helmet_color = new_helmet_color;
+                            *inner_suit_color = new_inner_suit_color;
 
-                            set_ability_player_attr(ability_charge.deref_mut(), ability_completed.deref_mut(), *ability.deref());
+                            set_ability_player_attr(&mut ability_charge, &mut ability_completed, *ability);
 
-                            commands.entity(entity).insert_bundle(Gun::new(*my_gun_model.deref(), *ability, *my_perk));
+                            commands.entity(entity).insert_bundle(Gun::new(*my_gun_model, *ability, *my_perk));
 
                             commands
                             .spawn_bundle(NodeBundle {
