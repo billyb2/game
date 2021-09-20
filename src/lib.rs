@@ -65,6 +65,14 @@ extern "C" {
 
 }
 
+#[cfg(feature = "web")]
+#[wasm_bindgen(module = "/js_functions.js")]
+extern "C" {
+    pub fn screen_width() -> f32;
+    pub fn screen_height() -> f32;
+}
+
+
 pub struct GameCamera;
 
 pub struct AmmoText;

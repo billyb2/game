@@ -61,21 +61,15 @@ fn main() {
 
     });
 
-    #[cfg(feature = "web")]
-    #[wasm_bindgen(module = "/js_functions.js")]
-    extern "C" {
-        fn screen_width() -> f32;
-        fn screen_height() -> f32;
-    }
-   
+
 
     // I want the screen size to be smaller on wasm
     #[cfg(feature = "web")]
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
         vsync: true,
-        width: screen_width() as f32 * 0.9,
-        height: screen_height() as f32 * 0.9,
+        width: screen_width() as f32 * 0.95,
+        height: screen_height() as f32 * 0.95,
         ..Default::default()
 
     });

@@ -110,6 +110,9 @@ rustc-hash = { version = "1" }
 # Config directory locations
 directories-next = { version = "2", optional = true }
 
+# Lazily initialized vars
+lazy_static = { version = "1", optional = true }
+
 helper_functions = { path = "crates/helper_functions" }
 game_types = { path = "crates/game_types" }
 map = { path = "crates/map" }
@@ -149,6 +152,7 @@ web = [
   "graphics",
   "bevy_webgl2",
   "wasm-bindgen",
+  "lazy_static",
 ]
 
 [lib]
