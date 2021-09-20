@@ -22,7 +22,6 @@ pub mod setup_systems;
 pub mod setup_graphical_systems;
 pub mod shaders;
 pub mod net;
-pub mod config;
 
 use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
@@ -64,6 +63,14 @@ extern "C" {
     pub fn log(s: &str);
 
 }
+
+#[cfg(feature = "web")]
+#[wasm_bindgen(module = "js/js_functions.js")]
+extern "C" {
+    pub fn screen_width() -> f32;
+    pub fn screen_height() -> f32;
+}
+
 
 pub struct GameCamera;
 

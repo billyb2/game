@@ -92,7 +92,6 @@ wasm-bindgen = { version = "0.2.78", optional = true }
 
 # Used for sending structs over networks easily and efficiently
 serde = { version = "1", features = ["derive"] }
-ron = { version = "0.6"}
 
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
@@ -107,12 +106,13 @@ single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 # A faster HashMap
 rustc-hash = { version = "1" }
 
-# Config directory locations
-directories-next = { version = "2", optional = true }
+# Lazily initialized vars
+lazy_static = { version = "1", optional = true }
 
 helper_functions = { path = "crates/helper_functions" }
 game_types = { path = "crates/game_types" }
 map = { path = "crates/map" }
+config = { path = "crates/config" }
 
 [features]
 default = [
@@ -135,7 +135,7 @@ graphics = [
 
 native = [
   "parallel",
-  "directories-next",
+  "config/native",
 ]
 
 parallel = [
@@ -149,6 +149,8 @@ web = [
   "graphics",
   "bevy_webgl2",
   "wasm-bindgen",
+  "lazy_static",
+  "config/web",
 ]
 
 [lib]

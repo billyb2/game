@@ -579,7 +579,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                     println!("Player {} has joined!", player_id);
                     log_event.send(LogEvent(format!("Player {} has joined!", player_id)));
 
-                    let (id, mut ability) = players.iter_mut().find(id.0 == player_id).unwrap();
+                    let (id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).unwrap();
                     *ability = player_ability;
                     // Send the abilities of all players
                     messages_to_send.push((*handle, [1, (*ability).into(), player_id]));

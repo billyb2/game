@@ -1,0 +1,21 @@
+[package]
+name = "config"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# A file format for storing Rust objects
+ron = { version = "0.6"}
+serde = { version = "1", features = ["derive"] }
+
+# Config directory locations
+directories-next = { version = "2", optional = true }
+wasm-bindgen = { version = "0.2.78", optional = true }
+
+[features]
+web = [
+    "wasm-bindgen",
+]
+native = [
+    "directories-next",
+]

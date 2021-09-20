@@ -8,11 +8,16 @@ use crate::*;
 use map::MapCRC32;
 use single_byte_hashmap::*;
 
+use bevy::render::camera::ScalingMode;
+
 pub fn setup_cameras(mut commands: Commands) {
     commands.spawn_bundle(UiCameraBundle::default());
 
+    let mut orthographic_camera = OrthographicCameraBundle::new_2d();
+    orthographic_camera.orthographic_projection.scaling_mode = ScalingMode::WindowSize;
+
     commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .spawn_bundle(orthographic_camera)
         .insert(GameCamera);
 }
 

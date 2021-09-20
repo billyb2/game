@@ -5,13 +5,16 @@
 use std::f32::consts::PI;
 use std::iter::repeat_with;
 
-use bevy::math::{Vec3A, const_vec3};
+use bevy::math::{Vec3A, const_vec2};
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
 //use bevy_kira_audio::Audio;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+#[cfg(feature = "web")]
+use lazy_static::lazy_static;
 
 use crate::*;
 use map::MapCRC32;
@@ -54,9 +57,21 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.y = y;
 
 
+        let mut new_scale = Vec2::ONE;
+
+        #[cfg(feature = "web")]
+        {
+            lazy_static! {
+                static ref DEFAULT_SCALE: Vec2 = Vec2::new(1366.0 / crate::screen_width(), 768.0/ crate::screen_height());
+            }
+
+            new_scale = *DEFAULT_SCALE;
+        };
+
+
         camera.scale = match perk {
-            Perk::ExtendedVision => const_vec3!([0.7; 3]),
-            _ => const_vec3!([1.0; 3]),
+            Perk::ExtendedVision => (new_scale * const_vec2!([0.7; 2])).extend(1.0),
+            _ => new_scale.extend(1.0),
         };
 
     }

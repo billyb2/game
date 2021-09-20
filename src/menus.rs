@@ -8,7 +8,7 @@ use std::net::{SocketAddr, IpAddr};
 use bevy::prelude::*;
 
 use crate::*;
-use crate::config::write_data;
+use config::write_data;
 use crate::setup_graphical_systems::*;
 use game_types::player_attr::*;
 
