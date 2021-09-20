@@ -65,7 +65,7 @@ extern "C" {
 }
 
 #[cfg(feature = "web")]
-#[wasm_bindgen(module = "js/js_functions.js")]
+#[wasm_bindgen(inline_js = "export function screen_width(){return window.innerWidth}export function screen_height(){return window.innerHeight}")]
 extern "C" {
     pub fn screen_width() -> f32;
     pub fn screen_height() -> f32;

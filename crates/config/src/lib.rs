@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 use directories_next::ProjectDirs;
 
 #[cfg(feature = "web")]
-#[wasm_bindgen(module = "js/js_functions.js")]
+#[wasm_bindgen(inline_js = "export function js_get_data(a){return localStorage.getItem(a)}export function js_write_data(a,b){localStorage.setItem(a,b)}")]
 extern "C" {
     fn js_get_data(key: String) -> Option<String>;
     fn js_write_data(key: String, value: String);
