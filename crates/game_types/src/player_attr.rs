@@ -48,8 +48,8 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
         Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
         Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
         Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
-        Ability::Inferno => AbilityCharge(Timer::from_seconds(15.0, false)),
-        Ability::Cloak => AbilityCharge(Timer::from_seconds(17.0, false)),
+        Ability::Inferno => AbilityCharge(Timer::from_seconds(10.0, false)),
+        Ability::Cloak => AbilityCharge(Timer::from_seconds(7.0, false)),
         Ability::PulseWave => AbilityCharge(Timer::from_seconds(8.0, false)),
         Ability::Ghost => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Brute => AbilityCharge(Timer::from_seconds(8.0, false)),
@@ -60,7 +60,7 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
     let mut set_ability_completed = || *ability_completed = match ability {
         Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
         Ability::Ghost => AbilityCompleted(Timer::from_seconds(4.75, false)),
-        Ability::Cloak => AbilityCompleted(Timer::from_seconds(5.0, false)),
+        Ability::Cloak => AbilityCompleted(Timer::from_seconds(3.5, false)),
         // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
         _ => AbilityCompleted(Timer::from_seconds(0.0, false)),
     };

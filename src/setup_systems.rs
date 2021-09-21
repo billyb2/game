@@ -99,7 +99,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .insert_bundle(SpriteBundle {
                 material: _materials.as_ref().unwrap().player.clone(),
                 sprite: Sprite {
-                    size: Vec2::new(120.0, 75.0),
+                    size: Vec2::new(150.0, 93.75),
                     flip_x: true, 
                     resize_mode: SpriteResizeMode::Automatic,
 

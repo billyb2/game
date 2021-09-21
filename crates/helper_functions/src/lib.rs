@@ -38,12 +38,15 @@ pub fn slice_to_f32(data: &[u8]) -> f32 {
 }
 
 pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
-    let dy = unsafe { fsub_fast(ey, cy) };
-    let dx = unsafe { fsub_fast(ex, cx) };
+    //let dy = unsafe { fsub_fast(ey, cy) };
+    //let dx = unsafe { fsub_fast(ex, cx) };
+    let dy = ey - cy;
+    let dx = ex - cx;
 
     match dx != 0.0 {
         // Returns the angle in radians
-        true => unsafe { fdiv_fast(dy, dx) }.atan(),
+        //true => unsafe { fdiv_fast(dy, dx) }.atan(),
+        true => (dy / dx).atan(),
         false => match dy > 0.0 {
             true => {
                 const HALF_PI: f32 = PI / 2.0;
@@ -140,12 +143,13 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
         })
 
     } else {
-        let interval_size = distance / rect1_size;
+        let interval_size = rect1_size;
 
         let [x_interval_size, y_interval_size] = interval_size.to_array();
 
-        let x_num_of_iters = rect1_size[0] as u32;
-        let y_num_of_iters = rect1_size[1] as u32;
+        let [x_num_of_iters, y_num_of_iters] = (distance / interval_size).to_array();
+        let x_num_of_iters = x_num_of_iters as u32;
+        let y_num_of_iters = y_num_of_iters as u32;
 
 
         let collision_x = 

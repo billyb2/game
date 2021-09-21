@@ -53,18 +53,24 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
             let next_potential_pos = speed_simd * angle_trig + translation;
 
-            if phasing.0 || (!out_of_bounds(next_potential_pos, sprite.size, map.size)) {
+            if !out_of_bounds(next_potential_pos, sprite.size, map.size) {
                 let collision = map.collision_no_damage(translation, sprite.size, speed, angle_trig);
 
-                let next_potential_pos = next_potential_pos.to_array();
+                if phasing.0 {
+                    object.translation = next_potential_pos.extend(100.0);
+            
+                } else {
+                    let next_potential_pos = next_potential_pos.to_array();
 
-                if !collision.0 {
-                    object.translation.x = next_potential_pos[0];
+                    if !collision.0 {
+                        object.translation.x = next_potential_pos[0];
 
-                }
+                    }
 
-                if !collision.1 {
-                    object.translation.y = next_potential_pos[1];
+                    if !collision.1 {
+                        object.translation.y = next_potential_pos[1];
+
+                    }
 
                 }
 

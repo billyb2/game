@@ -184,6 +184,15 @@ dependencies = ["bindgen-opt-simd", "compress-release"]
 [tasks.build-web-release-simd]
 dependencies = ["bindgen-release-simd", "compress-release"]
 
+[tasks.build-native]
+args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "--features", "-Z", "unstable-options"]
+command = "cargo"
+
+
+[tasks.build-native-release]
+args = ["run", "--features", "native,use_wgpu,graphics", "--release", "--bin", "game", "--features", "-Z", "unstable-options"]
+command = "cargo"
+
 [tasks.run]
 args = ["run", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "--features", "-Z", "unstable-options"]
 command = "cargo"

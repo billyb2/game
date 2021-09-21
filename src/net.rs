@@ -40,7 +40,7 @@ pub const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannel
 // Projectile updates are reliable, since when someone shoots a bullet, the server *must* shoot
 pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 1,
-    /*channel_mode: MessageChannelMode::Reliable {
+    channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
             bandwidth: 8192,
             recv_window_size: 8192,
@@ -55,8 +55,8 @@ pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSe
             rtt_resend_factor: 1.5,
         },
         max_message_len: 1024,
-    },*/
-    channel_mode: MessageChannelMode::Unreliable,
+    },
+    //channel_mode: MessageChannelMode::Unreliable,
     message_buffer_size: 2048,
     packet_buffer_size: 4096,
 };
