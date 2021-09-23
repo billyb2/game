@@ -211,8 +211,8 @@ pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool
     let max = rect_coords + half_rect_size;
 
     unlikely(
-        min.cmple(Vec2::ZERO).all() &&
-        max.cmpge(map_size).all()
+        min.cmple(Vec2::ZERO).any() &&
+        max.cmpge(map_size).any()
     )
 
 }

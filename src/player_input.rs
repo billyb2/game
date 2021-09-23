@@ -5,7 +5,7 @@
 use std::f32::consts::PI;
 use std::iter::repeat_with;
 
-use bevy::math::{Vec3A, const_vec2};
+use bevy::math::{Vec3A, const_vec3};
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
@@ -57,21 +57,10 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.y = y;
 
 
-        let mut new_scale = Vec2::ONE;
-
-        #[cfg(feature = "web")]
-        {
-            lazy_static! {
-                static ref DEFAULT_SCALE: Vec2 = Vec2::new(1366.0 / crate::screen_width(), 768.0/ crate::screen_height());
-            }
-
-            new_scale = *DEFAULT_SCALE;
-        };
-
 
         camera.scale = match perk {
-            Perk::ExtendedVision => (new_scale * const_vec2!([0.7; 2])).extend(1.0),
-            _ => new_scale.extend(1.0),
+            Perk::ExtendedVision => const_vec3!([3.0; 3]),
+            _ => const_vec3!([1.5; 3]),
         };
 
     }
@@ -662,7 +651,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                     Ability::Engineer => {},
                     // Inferno throws a molotov that lights an area on fire for a few seconds
                     Ability::Inferno => {
-                        let projectile_speed: f32 = 6.0;
+                        const PROJECTILE_SPEED: f32 = 6.0;
 
                         let event = ShootEvent {
                             start_pos: transform.translation,
@@ -674,10 +663,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             max_distance: mouse_pos.0.distance(transform.translation.truncate()),
                             recoil_vec: vec![0.0],
                             // Bullets need to travel "backwards" when moving to the left
-                            speed: match mouse_pos.0.x <= transform.translation.x {
-                                true => -projectile_speed,
-                                false => projectile_speed,
-                            },
+                            speed: PROJECTILE_SPEED.copysign(mouse_pos.0.x - transform.translation.x),
                             projectile_type: ProjectileType::Molotov,
                             damage: Damage(5.0),
                             player_ability: *ability,
@@ -854,9 +840,9 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sp
     });
 }
 
-pub fn reset_player_phasing(mut query: Query<(&UsingAbility, &Ability, &mut Alpha)>) {
-    query.for_each_mut(|(using_ability, ability, mut shader_phasing)| {
-        if !using_ability.0 && *ability != Ability::Stim {
+pub fn reset_player_phasing(mut query: Query<(&PlayerID, &UsingAbility, &Ability, &mut Alpha)>, my_player_id: Res<MyPlayerID>) {
+    query.for_each_mut(|(player_id, using_ability, ability, mut shader_phasing)| {
+        if !using_ability.0 && *ability != Ability::Stim && player_id.0 == my_player_id.0.as_ref().unwrap().0 {
             shader_phasing.value = 1.0;
 
         }

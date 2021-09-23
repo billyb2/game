@@ -118,7 +118,10 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
             // Molotov fire does too little damage if there is lag, so I need to adjust it depending on the amt of lag. For example, fi the game is running at 30 fps, it'll do twice the damage
             let damage_adj = match *projectile_type == ProjectileType::MolotovFire {
-                false => damage.0,
+                false => match *projectile_type == ProjectileType::MolotovLiquid {
+                    false => damage.0,
+                    true => 0.0, 
+        }
                 true => damage.0 * delta_readjustment,
             };
 
@@ -134,7 +137,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
                 };
 
-                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid && collision) || (*projectile_type == ProjectileType::MolotovFire && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
+                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && collision) || ((*projectile_type == ProjectileType::MolotovFire || *projectile_type == ProjectileType::MolotovLiquid) && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
                     if *projectile_type == ProjectileType::TractorBeam {
                         const BEAM_STRENGTH: f32 = 6.5;
                         let angle_add = Vec2::new(player_movement.angle.cos(), player_movement.angle.sin()) + Vec2::new(movement.angle.cos(), movement.angle.sin());
@@ -196,6 +199,9 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
 
+                                } else if *projectile_type == ProjectileType::MolotovLiquid && player_speed.0 >= DEFAULT_PLAYER_SPEED {
+                                    player_speed.0 = unsafe { fmul_fast(player_speed.0, 0.65) };
+                                    commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
                                 }
 
                             }

@@ -23,7 +23,7 @@ use single_byte_hashmap::*;
 use crate::setup_graphical_systems::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -80,9 +80,23 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     map.spawn_points.iter().enumerate().for_each(|(mut i, coords)| {
         i += 1;
 
-        let ability = Ability::Engineer;
-        let gun_model = Model::AssaultRifle;
-        let perk = Perk::ExtendedMag;
+        let ability = match &my_ability {
+            Some(ability) => **ability,
+            None => Ability::Engineer,
+
+        };
+
+        let gun_model = match &my_gun_model {
+            Some(gun_model) => **gun_model,
+            None => Model::Pistol,
+
+        };
+
+        let perk = match &my_perk {
+            Some(perk) => **perk,
+            None => Perk::ExtendedMag,
+
+        };
 
 
         #[cfg(feature = "graphics")]

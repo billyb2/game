@@ -10,6 +10,7 @@ use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use crate::*;
+use crate::shaders::Alpha;
 use game_types::{AbilityEvent, RequestedMovement};
 use map::*;
 use single_byte_hashmap::HashMap;
@@ -261,7 +262,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder
             // (Player ID, [X, y], [Rotation; 4], health, damage_source
-            .register::<(u8, [f32; 2], [f32; 4], f32, Option<u8>)>(CLIENT_STATE_MESSAGE_SETTINGS)
+            .register::<(u8, [f32; 2], [f32; 4], f32, f32, Option<u8>)>(CLIENT_STATE_MESSAGE_SETTINGS)
             .unwrap();
 
         builder
@@ -320,15 +321,21 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &DamageSource)>, ready_to_send_packet: Res<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility)>, ready_to_send_packet: Res<ReadyToSendPacket>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     // Only start sending packets when your ID is set
     if let Some(my_id) = &my_player_id.0 {
         // Rate limiting so that the game sends 66 updates every second
         if ready_to_send_packet.0.finished() {
-            let (transform, health, damage_source) = players.get_mut(*player_entity.get(&my_id.0).unwrap()).unwrap();
+            let (transform, health, damage_source, alpha, ability, using_ability) = players.get_mut(*player_entity.get(&my_id.0).unwrap()).unwrap();
             let quat_xyzw: [f32; 4] = transform.rotation.into();
 
-            let message: (u8, [f32; 2], [f32; 4], f32, Option<u8>) = (my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, damage_source.0);
+            let alpha = match *ability == Ability::Cloak && using_ability.0 {
+                true => 0.0,
+                false => alpha.value,
+
+            };
+
+            let message: (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>) = (my_id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, alpha, damage_source.0);
 
             net.broadcast_message(message);
 
@@ -336,25 +343,26 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transfo
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Health, &mut Visible)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Health, &mut Visible, &mut Alpha)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<(u8, [f32; 2], [f32; 4], f32, Option<u8>)> = Vec::with_capacity(20);
+    let mut messages_to_send: Vec<(u8, [f32; 2], [f32; 4], f32, f32, Option<u8>)> = Vec::with_capacity(20);
+    
 
     if let Some(my_id) = &my_player_id.0 {
         for (_handle, connection) in net.connections.iter_mut() {
             if let Some(channels) = connection.channels() {
-                while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, damage_source)) = channels.recv::<(u8, [f32; 2], [f32; 4], f32, Option<u8>)>() {
+                while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source)) = channels.recv::<(u8, [f32; 2], [f32; 4], f32, f32, Option<u8>)>() {
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
                     if _hosting.0 {
-                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, damage_source))
+                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source))
 
                     }
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id);
 
                     // Set the location of any local players to the location given
-                    let (mut transform, mut health, mut visible) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut transform, mut health, mut visible, mut player_alpha) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                     transform.rotation = Quat::from_xyzw(rot_x, rot_y, rot_z, rot_w);
 
@@ -367,6 +375,7 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
 
                         } else if new_health != 0.0 {
                             visible.is_visible = true;
+                            player_alpha.value = alpha;
 
                         }
 
