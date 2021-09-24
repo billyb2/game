@@ -622,7 +622,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                     Ability::Hacker => {
                         let mut potential_players_to_be_hacked: Vec<u8> = Vec::with_capacity(255);
 
-                        for id in online_player_ids.0.iter() {
+                        for (id, _handle_and_timer) in online_player_ids.0.iter() {
                             if *id != my_player_id.0 {
                                 potential_players_to_be_hacked.push(*id);
 

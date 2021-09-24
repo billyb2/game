@@ -7,6 +7,7 @@
 #![feature(option_result_unwrap_unchecked)]
 #![feature(stmt_expr_attributes)]
 #![feature(slice_as_chunks)]
+#![feature(format_args_capture)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
@@ -23,7 +24,6 @@ pub mod setup_graphical_systems;
 pub mod shaders;
 pub mod net;
 
-use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use serde::{Serialize, Deserialize};
@@ -260,8 +260,8 @@ pub struct LogEvent(pub String);
 
 pub struct DeathEvent(pub u8);
 
-// TODO: Make a BTreeMap for storing the ID for handling disconnects
-pub struct OnlinePlayerIDs(pub BTreeSet<u8>);
+// The first item is the player ID, the second item is the network handle and a timeout timer
+pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(u32, Timer)>>);
 
 // If a player gets a score of 15 kills, the game ends
 const SCORE_LIMIT: u8 = 15;
@@ -308,7 +308,7 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
 // This system just deals respawning players
 pub fn dead_players(mut players: Query<(&mut Health, &mut Transform, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>) {
     players.for_each_mut(|(mut health, mut transform, mut visibility, mut respawn_timer, perk, player_id)| {
-        if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains(&player_id.0) {
+        if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains_key(&player_id.0) {
             let spawn_points = &maps.0.get(&map_crc32.0).unwrap().spawn_points;
             transform.translation = unsafe { spawn_points.get_unchecked(fastrand::usize(..spawn_points.len())).extend(100.0) };
 
@@ -371,10 +371,10 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>) {
-    let delta = time.delta();
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+    let delta = Duration::from_secs_f32(time.delta().as_secs_f32() / 2.0);
 
-    player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee)| {
+    player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee, _player_id)| {
         time_since_last_shot.0.tick(delta);
 
         // If the player is reloading
@@ -429,6 +429,29 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
 
         }
 
+    });
+
+    online_player_ids.0.drain_filter(|id, handle_and_timer| {
+        if let Some((handle, timer)) = handle_and_timer {
+            timer.tick(delta);
+            let timer_finished = timer.finished();
+
+            if timer_finished {
+                println!("Player {id} at handle {handle} has timed out!");
+                
+                let (entity, _, _, _, _, _, _, _, _, _, _, _, _, _) = player_timers.iter_mut().find(|(entity, _ability, _ability_charge, _ability_completed, _using_ability, _health, _time_since_last_shot, _time_since_start_reload, _respawn_timer, _dashing_info, _player_speed, _slowed_down, _can_melee, player_id)| player_id.0 == *id).unwrap();
+                commands.entity(entity).despawn_recursive();
+                deathmatch_score.0.remove(id);
+                
+            }
+
+            // Remove players who's timers have finished
+            timer_finished
+            
+         } else {
+             false
+             
+         }
     });
 
     for game_log in logs.0.iter_mut() {
