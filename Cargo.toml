@@ -4,7 +4,7 @@ cargo-features = ["named-profiles"]
 name = "game"
 version = "0.1.0"
 authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgaston@myhoosierneighbors.com>"]
-edition = "2018"
+edition = "2021"
 resolver = "2"
 
 [profile.dev]

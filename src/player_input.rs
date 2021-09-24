@@ -26,7 +26,7 @@ use helper_functions::get_angle;
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
-pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, res_scale: Res<ResScale>) {
     if let Some(my_player_id) = &my_player_id.0 {
         let (player, sprite, &perk) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
@@ -56,11 +56,9 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.x = x;
         camera.translation.y = y;
 
-
-
         camera.scale = match perk {
-            Perk::ExtendedVision => const_vec3!([3.0; 3]),
-            _ => const_vec3!([1.5; 3]),
+            Perk::ExtendedVision => const_vec3!([3.0; 3]) * res_scale.0,
+            _ => const_vec3!([1.5; 3]) * res_scale.0,
         };
 
     }

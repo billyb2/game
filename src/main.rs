@@ -57,15 +57,16 @@ fn main() {
 
     });
 
-
+    #[cfg(feature = "web")]
+    let res_scale = (screen_width() as f32 / 1366.0).min(screen_height() as f32 / 768.0) * 0.95;
 
     // I want the screen size to be smaller on wasm
     #[cfg(feature = "web")]
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
         vsync: true,
-        width: screen_width() as f32 * 0.95,
-        height: screen_height() as f32 * 0.95,
+        width: 1366.0 * res_scale,
+        height: 768.0 * res_scale,
         ..Default::default()
 
     });
@@ -126,9 +127,8 @@ fn main() {
     .insert_resource(ability)
     .insert_resource(model)
     .insert_resource(perk)
-    .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
-
-    app.add_plugins(DefaultPlugins)
+    .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())))
+    .add_plugins(DefaultPlugins)
     .add_plugin(NetworkingPlugin::default())
     //.add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
@@ -139,6 +139,19 @@ fn main() {
     .add_event::<DespawnWhenDead>()
     .add_event::<DeathEvent>()
     .add_event::<LogEvent>();
+
+    #[cfg(feature = "web")]
+    app.insert_resource(ResScale(res_scale.recip()));
+
+    #[cfg(feature = "native")]
+    {
+        let windows = app.world.get_resource::<Windows>().unwrap();
+        let window = windows.get_primary().unwrap();
+        let res_scale = (window.width() / 1366.0).min(window.height() / 768.0) * 0.95;
+
+
+        app.insert_resource(ResScale(res_scale.recip()));
+    };
 
     //The WebGL2 plugin is only added if we're compiling to WASM
     #[cfg(feature = "web")]
