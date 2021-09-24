@@ -10,6 +10,8 @@
 mod logic;
 
 use bevy::prelude::*;
+use bevy::math::const_vec2;
+use bevy::render::draw::OutsideFrustum;
 
 use bevy_networking_turbulence::*;
 
@@ -17,6 +19,8 @@ use rand::Rng;
 
 use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
+
+use helper_functions::collide;
 
 use game_lib::*;
 use game_lib::player_input::*;
@@ -178,7 +182,6 @@ fn main() {
 
     // Sprite culling
     // For some reason, sprite culling fails on WASM
-    #[cfg(feature = "native")]
     app.add_system_to_stage(
         CoreStage::PostUpdate,
         sprite_culling,
@@ -360,3 +363,50 @@ fn main() {
 
     app.run();
 }
+
+// Sprite culling doesn't render sprites outside of the camera viewport when enabled
+// Culling doesn't work for WASM builds, atm
+// Adapted from Bevy, https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/frustum_culling.rs
+/*
+MIT License
+
+Copyright (c) 2020 Carter Anderson
+*/
+
+pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCamera>>, query: Query<(Entity, &Transform, &Sprite), Without<GameCamera>>, wnds: Res<Windows>, culled_sprites: Query<&OutsideFrustum, With<Sprite>>) {
+    let wnd = wnds.get_primary().unwrap();
+    let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+    let camera = camera.single();
+
+    let camera_size = window_size * camera.scale.truncate();
+
+    let camera_pos = camera.translation.truncate();
+    let camera_size = camera_size;
+
+
+    query.for_each(|(entity, transform, sprite)| {
+        let sprite_pos = transform.translation.truncate();
+        let sprite_size = sprite.size;
+
+        let collision = {
+            let collision = collide(camera_pos, camera_size, sprite_pos, sprite_size, 0.0, const_vec2!([0.0; 2]));
+            collision.0 || collision.1
+
+        };
+
+        if collision {
+            if culled_sprites.get(entity).is_ok() {
+                commands.entity(entity).remove::<OutsideFrustum>();
+
+            }
+
+        } else if culled_sprites.get(entity).is_err() {
+            commands.entity(entity).insert(OutsideFrustum);
+
+        }
+
+    });
+
+}
+

@@ -34,8 +34,6 @@ use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
 use bevy::utils::Duration;
-#[cfg(feature = "native")]
-use bevy::render::draw::OutsideFrustum;
 
 //use bevy_kira_audio::AudioPlugin;
 
@@ -606,70 +604,6 @@ pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, Wit
     let mut game_log = game_log.single_mut();
 
     game_log.sections = text_vec;
-
-}
-
-#[cfg(feature = "native")]
-struct MyRect {
-    position: Vec2,
-    size: Vec2,
-}
-
-#[cfg(feature = "native")]
-impl MyRect {
-    #[inline]
-    pub fn is_intersecting(&self, other: MyRect) -> bool {
-        self.position.distance(other.position) < (self.get_radius() + other.get_radius())
-    }
-
-    #[inline]
-    pub fn get_radius(&self) -> f32 {
-        let half_size = self.size / Vec2::splat(2.0);
-        (half_size.x.powf(2.0) + half_size.y.powf(2.0)).sqrt()
-    }
-}
-
-// Sprite culling doesn't render sprites outside of the camera viewport when enabled
-// Culling doesn't work for WASM builds, atm
-// Adapted from Bevy, https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/frustum_culling.rs
-/*
-MIT License
-
-Copyright (c) 2020 Carter Anderson
-*/
-
-#[cfg(feature = "native")]
-pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCamera>>, query: Query<(Entity, &Transform, &Sprite), Without<GameCamera>>, wnds: Res<Windows>, culled_sprites: Query<&OutsideFrustum, With<Sprite>>) {
-    let wnd = wnds.get_primary().unwrap();
-    let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
-
-    let camera = camera.single();
-
-    let camera_size = window_size * camera.scale.truncate();
-
-    let rect = MyRect {
-        position: camera.translation.truncate(),
-        size: camera_size,
-    };
-
-    query.for_each(|(entity, transform, sprite)| {
-        let sprite_rect = MyRect {
-            position: transform.translation.truncate(),
-            size: sprite.size,
-        };
-
-        if rect.is_intersecting(sprite_rect) {
-            if culled_sprites.get(entity).is_ok() {
-                commands.entity(entity).remove::<OutsideFrustum>();
-
-            }
-
-        } else if culled_sprites.get(entity).is_err() {
-            commands.entity(entity).insert(OutsideFrustum);
-
-        }
-
-    });
 
 }
 
