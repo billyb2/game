@@ -10,7 +10,7 @@ use single_byte_hashmap::*;
 
 use bevy::render::camera::ScalingMode;
 
-pub fn setup_cameras(mut commands: Commands) {
+pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
     commands.spawn_bundle(UiCameraBundle::default());
 
     let mut orthographic_camera = OrthographicCameraBundle::new_2d();
@@ -19,6 +19,14 @@ pub fn setup_cameras(mut commands: Commands) {
     commands
         .spawn_bundle(orthographic_camera)
         .insert(GameCamera);
+
+    #[cfg(feature = "native")]
+    {
+        let res_scale = (window.width / 1366.0).min(window.height / 768.0) * 0.95;
+
+
+        commands.insert_resource(ResScale(res_scale.recip()));
+    };
 }
 
 pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {

@@ -1,9 +1,7 @@
 [package]
 name = "map"
 version = "0.1.0"
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition = "2021"
 
 [dependencies]
 # CRC32 is a very fast hashing algorithm for verifying files
@@ -12,7 +10,7 @@ bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-fe
 
 crc32fast = { version = "1", features = ["nightly"] }
 #LZ4 is a very fast compression algorithm
-lz4_flex = { version = "0.8", default-features = false, features = ["checked-decode", "frame"] }
+lz4_flex = { version = "0.9", default-features = false, features = ["checked-decode", "frame"] }
 
 # Just a regular HashMap
 rustc-hash = { version = "1" }

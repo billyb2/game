@@ -147,16 +147,6 @@ fn main() {
     #[cfg(feature = "web")]
     app.insert_resource(ResScale(res_scale.recip()));
 
-    #[cfg(feature = "native")]
-    {
-        let windows = app.world.get_resource::<Windows>().unwrap();
-        let window = windows.get_primary().unwrap();
-        let res_scale = (window.width() / 1366.0).min(window.height() / 768.0) * 0.95;
-
-
-        app.insert_resource(ResScale(res_scale.recip()));
-    };
-
     //The WebGL2 plugin is only added if we're compiling to WASM
     #[cfg(feature = "web")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
@@ -182,6 +172,7 @@ fn main() {
 
     // Sprite culling
     // For some reason, sprite culling fails on WASM
+    #[cfg(feature = "native")]
     app.add_system_to_stage(
         CoreStage::PostUpdate,
         sprite_culling,
@@ -372,7 +363,7 @@ MIT License
 
 Copyright (c) 2020 Carter Anderson
 */
-
+#[cfg(feature = "native")]
 pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCamera>>, query: Query<(Entity, &Transform, &Sprite), Without<GameCamera>>, wnds: Res<Windows>, culled_sprites: Query<&OutsideFrustum, With<Sprite>>) {
     let wnd = wnds.get_primary().unwrap();
     let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
