@@ -143,50 +143,73 @@ pub fn collide(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect2_s
         })
 
     } else {
-        let interval_size = rect1_size;
+        let velocity = distance * angle;
 
-        let [x_interval_size, y_interval_size] = interval_size.to_array();
+        let (inv_entry, inv_exit) = if velocity.cmpgt(Vec2::ZERO).all() {
+            let inv_entry = rect2_coords - (rect1_coords + rect1_size);
+            let inv_exit = (rect2_coords + rect2_size) - rect1_coords;
 
-        let [x_num_of_iters, y_num_of_iters] = (distance / interval_size).to_array();
-        let x_num_of_iters = x_num_of_iters as u32;
-        let y_num_of_iters = y_num_of_iters as u32;
+            (inv_entry, inv_exit)
 
+        } else {
+            let (x_inv_entry, x_inv_exit) = match velocity[0] > 0.0 {
+                true => ((rect2_coords[0] - (rect1_coords[0] + rect1_size[0])), (rect2_coords[0] + rect2_size[0]) - rect1_coords[0]),
+                false => ((rect2_coords[0] + rect2_size[0]) - rect1_coords[0], (rect2_coords[0] - (rect1_coords[0] + rect1_size[0]))),
+            };
 
-        let collision_x = 
-        #[inline(always)]
-        |i: u32| -> bool {
-            let distance = x_interval_size * i as f32;
-            let new_rect1_coords = distance + rect1_coords;
+            let (y_inv_entry, y_inv_exit) = match velocity[1] > 0.0 {
+                true => ((rect2_coords[1] - (rect1_coords[1] + rect1_size[1])), (rect2_coords[1] + rect2_size[1]) - rect1_coords[1]),
+                false => ((rect2_coords[1] + rect2_size[1]) - rect1_coords[1], (rect2_coords[1] - (rect1_coords[1] + rect1_size[1]))),
+            };
 
-            let coords_cos = Vec2::new(new_rect1_coords[0], rect1_coords[1]);
-
-            let rect1_min = coords_cos - half_rect1_size;
-            let rect1_max = coords_cos + half_rect1_size;
-
-            unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all())
-
-        };
-
-        let collision_y = 
-        #[inline(always)]
-        |i: u32| -> bool {
-            let distance = y_interval_size * i as f32;
-            let new_rect1_coords = distance + rect1_coords;
-
-            let coords_sin = Vec2::new(rect1_coords[0], new_rect1_coords[1]);
-
-            let rect1_min = coords_sin - half_rect1_size;
-            let rect1_max = coords_sin + half_rect1_size;
-
-            unlikely(rect1_min.cmple(rect2_max).all() && rect2_min.cmple(rect1_max).all())
+            (Vec2::new(x_inv_entry, y_inv_entry), Vec2::new(x_inv_exit, y_inv_exit))
 
         };
 
-        // Tries to find whether the x coordinate collides or if the y coordinate collides
-        let x_col = (1..=x_num_of_iters).into_iter().any(collision_x);
-        let y_col = (1..=y_num_of_iters).into_iter().any(collision_y);
+        let (entry, exit) = match likely(velocity.cmpne(Vec2::ZERO).all()) {
+            true => (inv_entry / velocity, inv_exit / velocity),
+            false => {
+                let (x_entry, x_exit) = match velocity[0] == 0.0 {
+                    true => (f32::NEG_INFINITY, f32::INFINITY),
+                    false => (inv_entry[0] / velocity[0], inv_exit[0] / velocity[0]),
+                };
 
-        (x_col, y_col)
+                let (y_entry, y_exit) = match velocity[1] == 0.0 {
+                    true => (f32::NEG_INFINITY, f32::INFINITY),
+                    false => (inv_entry[1] / velocity[1], inv_exit[1] / velocity[1]),
+                };
+
+                (Vec2::new(x_entry, y_entry), Vec2::new(x_exit, y_exit))
+            }
+        };
+
+        let entry_time = f32::max(entry[0], entry[1]);
+        let exit_time = f32::min(exit[0], exit[1]);
+
+        // No collision
+        if entry_time > exit_time || entry.cmplt(Vec2::ZERO).all() || entry.cmpgt(Vec2::ONE).any() { 
+            /*let normalx = 0.0f; 
+            let normaly = 0.0f; 
+            return 1.0f; */
+
+            (false, false)
+
+        } else {
+            // Calculate normal of collided surface
+            let (normal_x, normal_y) = match entry[0] > entry[1] {
+                true => match inv_entry[0] < 0.0 {
+                    true => (1.0, 0.0),
+                    false => (-1.0, 0.0),
+                },
+                false => match inv_entry[1] < 0.0 {
+                    true => (0.0, 1.0),
+                    false => (0.0, -1.0),
+                }
+            };
+
+            (true, true)
+
+        }
 
     }
 
