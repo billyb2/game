@@ -19,11 +19,13 @@ use config::*;
 use map::MapCRC32;
 use single_byte_hashmap::*;
 
+use rapier2d::prelude::*;
+
 #[cfg(feature = "graphics")]
 use crate::setup_graphical_systems::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -141,6 +143,32 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
         player_entities.insert(i.try_into().unwrap(), entity.id());
         available_player_ids.push(PlayerID(i.try_into().unwrap()));
+
+        #[cfg(feature = "graphics")]
+        { 
+            let rigid_body_set = _rigid_body_set.as_mut().unwrap();
+            let collider_set = _collider_set.as_mut().unwrap();
+
+        let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+            .translation(vector![coords[0], coords[1]] / 10.0)
+            .linvel(vector![0.0, 0.0])
+            .gravity_scale(0.0)
+            .ccd_enabled(true)
+            .build();
+
+        let collider = ColliderBuilder::cuboid(7.50, 4.6875)
+            .translation(vector![coords[0], coords[1]] / 10.0)
+            .mass_properties(MassProperties::new(point![0.0, 0.0], 0.01, 0.0))
+            .friction(0.4)
+            .build();
+
+        let rigid_body_handle = rigid_body_set.insert(rigid_body);
+        let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, rigid_body_set);
+
+        entity.insert(rigid_body_handle);
+        entity.insert(collider_handle);
+
+        }
 
     });
     #[allow(unused_mut)]

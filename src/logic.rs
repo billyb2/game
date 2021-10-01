@@ -1,13 +1,63 @@
-// Game math logic (basically move_objects)
-use std::intrinsics::*;
-use std::ops::DerefMut;
-
-use crate::*;
-use game_types::player_attr::*;
-use map::MapCRC32;
+use game_types::RequestedMovement;
+use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
 use bevy::prelude::*;
-use helper_functions::{collide, collide_rect_circle, out_of_bounds};
 
+use bevy_networking_turbulence::NetworkResource;
+
+pub fn move_objects(mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut net: ResMut<NetworkResource>, mut players: Query<(&RigidBodyHandle, &ColliderHandle, &mut Transform, &mut RequestedMovement)>) {
+    players.iter_mut().for_each(|(rigid_body_handle, collider_handle, mut transform, mut movement)| {
+        let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+
+        let angle_trig = Vector2::new(movement.angle.cos(), movement.angle.sin());
+        let speed_simd = Vector2::new(movement.speed, movement.speed) * 250.0;
+
+        rigid_body.set_linvel(Vector2::new(angle_trig.x * speed_simd.x, angle_trig.y * speed_simd.y), true);
+        let rigid_body_translation = rigid_body.translation();
+
+        transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, 100.0);
+        
+
+    });
+
+    const GRAVITY: Vector2<f32> = vector![0.0, 0.0];
+    const INTEGRATION_PARAMETERS: IntegrationParameters = IntegrationParameters {
+        dt: 1.0 / 60.0,
+        min_ccd_dt: 1.0 / 60.0 / 100.0,
+        erp: 0.2,
+        joint_erp: 0.2,
+        velocity_solve_fraction: 1.0,
+        velocity_based_erp: 0.0,
+        warmstart_coeff: 1.0,
+        warmstart_correction_slope: 10.0,
+        allowed_linear_error: 0.005,
+        prediction_distance: 0.002,
+        allowed_angular_error: 0.001,
+        max_linear_correction: 0.2,
+        max_angular_correction: 0.2,
+        max_velocity_iterations: 4,
+        max_position_iterations: 1,
+        min_island_size: 128,
+        max_ccd_substeps: 1,
+    };
+
+    physics_pipeline.step(
+        &GRAVITY,
+        &INTEGRATION_PARAMETERS,
+        &mut island_manager,
+        &mut broad_phase,
+        &mut narrow_phase,
+        &mut rigid_body_set,
+        &mut collider_set,
+        &mut joint_set,
+        &mut ccd_solver,
+        &(),
+        &()
+    );
+
+}
+
+/*
 const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
 
 //TODO: Turn RequestedMovement into an event
@@ -16,7 +66,7 @@ const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
 // Move objects will first validate whether a movement can be done, and if so move them
 // Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
 #[allow(clippy::too_many_arguments)]
-pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed, &Phasing, &mut Alpha, &mut DamageSource), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
+pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed, &Phasing, &mut Alpha, &mut DamageSource), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, projectile_materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>, mut net: ResMut<NetworkResource>, mut materials: ResMut<Assets<ColorMaterial>>) {
 
     let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
 
@@ -54,23 +104,33 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             let next_potential_pos = speed_simd * angle_trig + translation;
 
             if !out_of_bounds(next_potential_pos, sprite.size, map.size) {
-                let collision = map.collision_no_damage(translation, sprite.size, speed, angle_trig);
-
                 if phasing.0 {
                     object.translation = next_potential_pos.extend(100.0);
             
                 } else {
-                    let next_potential_pos = next_potential_pos.to_array();
+                    let mut velocity = speed * angle_trig;
+                    let (broadphase_box_coords, broadphase_box_size) = get_swept_broadphase_box(translation, sprite.size, velocity);
 
-                    if !collision.0 {
-                        object.translation.x = next_potential_pos[0];
+                    if map.aabb_check(broadphase_box_coords, broadphase_box_size) {
+                        let (normal_x, normal_y, collision_time) = map.collision_no_damage(translation, sprite.size, speed, angle_trig);
+                        let normal = Vec2::new(normal_x, normal_y);
 
+                        // The normal just shows whether the collision happened on the right or the left, which is cool
+                        velocity[0] = match normal[0] == 0.0 {
+                            true => velocity[0],
+                            false => 0.0,
+                        };
+
+                        velocity[1] = match normal[1] == 0.0 {
+                            true => velocity[1],
+                            false => 0.0,
+                        };
+
+                        velocity *= collision_time;
                     }
 
-                    if !collision.1 {
-                        object.translation.y = next_potential_pos[1];
-
-                    }
+                    let z = object.translation.z;
+                    object.translation = (translation + velocity).extend(z);
 
                 }
 
@@ -112,9 +172,10 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             let speed_simd = Vec2::splat(speed);
 
             let next_potential_pos = speed_simd * angle_trig + translation;
+
             let mut player_collision = false;
 
-            let delta_readjustment = time.delta().as_secs_f32() * 60.0;
+            let delta_readjustment = 1.0 + (time.delta().as_secs_f32() * 60.0).recip();
 
             // Molotov fire does too little damage if there is lag, so I need to adjust it depending on the amt of lag. For example, fi the game is running at 30 fps, it'll do twice the damage
             let damage_adj = match *projectile_type == ProjectileType::MolotovFire {
@@ -131,9 +192,8 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
                 // Checks that players aren't already dead as well lol
                 // Check to see if a player-projectile collision takes place                
                 let collision = {
-                    let collision = collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig);
-
-                    collision.0 || collision.1
+                    let res = collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig);
+                    res != (0.0, 0.0, 1.0)
 
                 };
 
@@ -215,9 +275,9 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
             });
 
-            let (wall_collision, health_and_coords) = match *projectile_type {
+            let (result, health_and_coords) = match *projectile_type {
                 // Pulsewaves and tractor beams move through walls
-                ProjectileType::PulseWave | ProjectileType::TractorBeam => (false, None),
+                ProjectileType::PulseWave | ProjectileType::TractorBeam => ((0.0, 0.0, 1.0), None),
                 _ =>  map.collision(translation, sprite.size, damage_adj, speed, Vec2::new(movement.angle.cos(), movement.angle.sin())),
 
             };
@@ -231,19 +291,25 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
 
             }
 
-            // Pulsewaves move through walls, but not players
-            if !(player_collision || wall_collision) {
+            if !(player_collision || result != (0.0, 0.0, 1.0)) {
                 object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(3.0);
 
                 // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
                 // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
                 // The speedball's weapon speeds up and gets bigger
                 if *projectile_type == ProjectileType::Speedball {
-                    movement.speed = unsafe { fmul_fast(movement.speed, 1.1) } * delta_readjustment;
-                    sprite.size = unsafe { Vec2::new(fmul_fast(sprite.size.x, 1.03), fmul_fast(sprite.size.y, 1.03))} * delta_readjustment;
+                    if movement.speed <= 35.0 {
+                        movement.speed = movement.speed * 1.006 * delta_readjustment;
+
+                    }
+
+                    if sprite.size.x <= 50.0 {
+                        sprite.size *= Vec2::splat(1.01 * delta_readjustment);
+
+                    }
 
                     if damage.0 <= 80.0 {
-                        damage.0 += (distance_traveled.as_ref().unwrap().0  / 60.0) * delta_readjustment;
+                        damage.0 += distance_traveled.as_ref().unwrap().0  / 60.0;
 
                     }
 
@@ -281,7 +347,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
             if *projectile_type == ProjectileType::Molotov {
                 // Once the molotov reaches it's destination, or hits a player, it becomes molotov liquid, waiting to be lit by an Inferno player
                 *projectile_type.deref_mut() = ProjectileType::MolotovLiquid;
-                *material.deref_mut() = materials.molotov_liquid.clone();
+                *material.deref_mut() = projectile_materials.molotov_liquid.clone();
                 sprite.deref_mut().size = Vec2::new(175.0, 175.0);
                 // Molotov liquid disappears after a little while
                 commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
@@ -325,7 +391,7 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
                     // Once the molotov is hit by a bullet, it becomes molotov fire
 
                     *projectile_type.deref_mut() = ProjectileType::MolotovFire;
-                    *material.deref_mut() = materials.molotov_fire.clone();
+                    *material.deref_mut() = projectile_materials.molotov_fire.clone();
                     damage.0 = 75.0 / 60.0;
                     sprite.deref_mut().size = Vec2::new(250.0, 250.0);
                     commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
@@ -340,4 +406,4 @@ pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity,
         }
 
     });
-}
+}*/

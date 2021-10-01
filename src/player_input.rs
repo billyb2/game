@@ -809,7 +809,7 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sp
                 let map = maps.0.get(&map_crc32.0).unwrap();
                 let collision = map.collision_no_damage(transform.translation.truncate(), sprite.size, 0.0, Vec2::splat(0.0));
 
-                if collision.0 || collision.1 {
+                if collision != (0.0, 0.0, 1.0) {
                     health.0 = 0.0;
                     death_event.send(DeathEvent(my_player_id.0.as_ref().unwrap().0));
                 }

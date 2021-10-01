@@ -20,6 +20,8 @@ use rand::Rng;
 use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
 
+use rapier2d::prelude::{RigidBodySet, ColliderSet};
+
 use helper_functions::collide;
 
 use game_lib::*;
@@ -112,6 +114,8 @@ fn main() {
     app
     //Start in the main menu
     .add_state(AppState::MainMenu)
+    .insert_resource(RigidBodySet::new())
+    .insert_resource(ColliderSet::new())
     .insert_resource(MapCRC32(map2.crc32))
     // Embed the map into the binary
     .insert_resource({
@@ -159,6 +163,7 @@ fn main() {
     .add_startup_system(setup_default_controls)
     // Hot asset reloading
     .add_startup_system(setup_asset_loading)
+    .add_startup_system(setup_physics)
     .add_system(check_assets_ready);
 
     #[cfg(feature = "native")]
@@ -381,8 +386,8 @@ pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<Gam
         let sprite_size = sprite.size;
 
         let collision = {
-            let collision = collide(camera_pos, camera_size, sprite_pos, sprite_size, 0.0, const_vec2!([0.0; 2]));
-            collision.0 || collision.1
+            let (_normal_x, _normal_y, collision_time) = collide(camera_pos, camera_size, sprite_pos, sprite_size, 0.0, Vec2::ZERO);
+            collision_time != 1.0
 
         };
 
@@ -400,4 +405,3 @@ pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<Gam
     });
 
 }
-

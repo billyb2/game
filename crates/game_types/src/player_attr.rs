@@ -36,7 +36,7 @@ pub struct Player {
     pub damage_source: DamageSource,
 }
 
-pub const DEFAULT_PLAYER_SPEED: f32 = 13.0;
+pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
@@ -108,7 +108,7 @@ impl Player {
                 false => Health(0.0),
             },
             speed: match ability {
-                // Stim players have a faster default running speed
+                // Stim and Brute players have a faster default running speed
                 Ability::Stim => PlayerSpeed(DEFAULT_PLAYER_SPEED + 1.0),
                 Ability::Brute => PlayerSpeed(DEFAULT_PLAYER_SPEED * 1.4),
                 _ => PlayerSpeed(DEFAULT_PLAYER_SPEED),
@@ -123,8 +123,8 @@ impl Player {
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false)),
             dashing_info: DashingInfo {
                 time_till_can_dash: match ability {
-                    Ability::Brute => Timer::from_seconds(1.0, false),
-                    _ => Timer::from_seconds(3.0, false),
+                    Ability::Brute => Timer::from_seconds(2.0, false),
+                    _ => Timer::from_seconds(4.0, false),
 
                 },
                 time_till_stop_dash: match ability {
@@ -390,7 +390,7 @@ impl Gun {
                 Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(0.8, false)),
                 Model::Speedball => TimeSinceLastShot(Timer::from_seconds(0.9, false)),
                 Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
-                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.12, false)),
+                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.09, false)),
                 Model::SubmachineGun => TimeSinceLastShot(Timer::from_seconds(0.07, false)),
                 Model::ClusterShotgun => TimeSinceLastShot(Timer::from_seconds(1.3, false)),
                 Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
@@ -443,25 +443,25 @@ impl Gun {
 
             },
             max_distance: match model {
-                Model::Pistol => MaxDistance(1250.0),
-                Model::Shotgun => MaxDistance(700.0),
-                Model::Speedball => MaxDistance(3000.0),
-                Model::BurstRifle => MaxDistance(1000.0),
-                Model::AssaultRifle => MaxDistance(1000.0),
-                Model::SubmachineGun => MaxDistance(600.0),
-                Model::ClusterShotgun => MaxDistance(275.0),
-                Model::Flamethrower => MaxDistance(200.0),
+                Model::Pistol => MaxDistance(1750.0),
+                Model::Shotgun => MaxDistance(1000.0),
+                Model::Speedball => MaxDistance(3300.0),
+                Model::BurstRifle => MaxDistance(1500.0),
+                Model::AssaultRifle => MaxDistance(1300.0),
+                Model::SubmachineGun => MaxDistance(900.0),
+                Model::ClusterShotgun => MaxDistance(575.0),
+                Model::Flamethrower => MaxDistance(400.0),
                 Model::SniperRifle => MaxDistance(5000.0),
-                Model::Melee => MaxDistance(50.0),
+                Model::Melee => MaxDistance(100.0),
 
 
             },
             // The recoil range is in radians
             recoil_range: match model {
-                Model::Shotgun => RecoilRange(0.2),
+                Model::Shotgun => RecoilRange(0.18),
                 Model::Speedball => RecoilRange(0.0),
-                Model::BurstRifle => RecoilRange(0.025),
-                Model::SubmachineGun => RecoilRange(0.12),
+                Model::BurstRifle => RecoilRange(0.021),
+                Model::SubmachineGun => RecoilRange(0.09),
                 Model::ClusterShotgun => RecoilRange(0.07),
                 Model::Flamethrower => RecoilRange(0.15),
                 Model::SniperRifle => RecoilRange(0.012),
@@ -476,37 +476,37 @@ impl Gun {
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
-                Model::Pistol => Speed(23.0),
-                Model::Shotgun => Speed(19.0),
+                Model::Pistol => Speed(33.0),
+                Model::Shotgun => Speed(29.0),
                 Model::Speedball => Speed(0.7),
-                Model::BurstRifle => Speed(20.0),
-                Model::AssaultRifle => Speed(21.0),
-                Model::SubmachineGun => Speed(19.5),
-                Model::ClusterShotgun => Speed(14.0),
-                Model::Flamethrower => Speed(17.0),
+                Model::BurstRifle => Speed(40.0),
+                Model::AssaultRifle => Speed(31.0),
+                Model::SubmachineGun => Speed(29.5),
+                Model::ClusterShotgun => Speed(24.0),
+                Model::Flamethrower => Speed(27.0),
                 Model::SniperRifle => Speed(100.0),
-                Model::Melee => Speed(30.0),
+                Model::Melee => Speed(40.0),
 
             },
             projectile_size: match model {
-                Model::SubmachineGun => Size::new(4.0, 4.0),
+                Model::SubmachineGun => Size::new(5.5, 5.5),
                 Model::Melee => Size::new(25.0, 25.0),
-                _ => Size::new(6.0, 6.0),
+                _ => Size::new(7.0, 7.0),
 
             },
 
             damage: match model {
                 Model::Pistol => Damage(45.0),
-                Model::Shotgun => Damage(8.0),
+                Model::Shotgun => Damage(12.0),
                 Model::Speedball => Damage(1.5),
-                Model::BurstRifle => Damage(18.0),
-                Model::AssaultRifle => Damage(15.0),
-                Model::SubmachineGun => Damage(8.0),
-                Model::ClusterShotgun => Damage(20.0),
-                Model::Flamethrower => Damage(4.25),
+                Model::BurstRifle => Damage(22.0),
+                Model::AssaultRifle => Damage(19.0),
+                Model::SubmachineGun => Damage(12.0),
+                Model::ClusterShotgun => Damage(24.0),
+                Model::Flamethrower => Damage(7.25),
                 // Enough damage to kill any player without heavy armor
                 Model::SniperRifle => Damage(100.0),
-                Model::Melee => Damage(35.0),
+                Model::Melee => Damage(45.0),
 
 
             },
