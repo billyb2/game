@@ -147,18 +147,20 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
         #[cfg(feature = "graphics")]
         { 
-            let rigid_body_set = _rigid_body_set.as_mut().unwrap();
-            let collider_set = _collider_set.as_mut().unwrap();
+        let rigid_body_set = _rigid_body_set.as_mut().unwrap();
+        let collider_set = _collider_set.as_mut().unwrap();
 
         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
             .translation(Vector2::new(coords.x, coords.y).component_div(&Vector2::new(250.0, 250.0)))
-            .linvel(vector![0.0, 0.0])
+            .linvel(Vector2::new(0.0, 0.0))
             .gravity_scale(0.0)
             .linear_damping(80.0)
             .build();
 
-        let collider = ColliderBuilder::cuboid(7.50, 4.6875)
-            .mass_properties(MassProperties::new(point![0.0, 0.0], 0.01, 0.0))
+        let collider_size = (Vec2::new(150.0, 93.75) - Vec2::new(20.0, 20.0)) / Vec2::new(500.0, 500.0);
+
+        let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+            .restitution(0.000001)
             .friction(0.4)
             .build();
 

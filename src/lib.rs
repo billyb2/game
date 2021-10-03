@@ -30,6 +30,8 @@ use serde::{Serialize, Deserialize};
 
 use bevy_networking_turbulence::*;
 
+use rapier2d::na::Vector2;
+
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
@@ -105,7 +107,6 @@ pub enum AppState {
 #[derive(Bundle)]
 pub struct Projectile {
     pub distance_traveled: DistanceTraveled,
-    pub requested_movement: RequestedMovement,
     pub movement_type: MovementType,
     pub projectile_type: ProjectileType,
     // A general purpose identifier for projectiles, to distinguish between guns and projectiles
@@ -131,10 +132,9 @@ pub struct GameLog {
 }
 
 impl Projectile {
-    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
+    pub fn new(projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
         Projectile {
             distance_traveled: DistanceTraveled(0.0),
-            requested_movement,
             movement_type: MovementType::StopAfterDistance(max_distance),
             projectile_type,
             projectile: ProjectileIdent(player_id),

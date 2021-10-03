@@ -20,6 +20,7 @@ use crc32fast::Hasher;
 use lz4_flex::frame::{FrameEncoder, FrameDecoder};
 
 use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
 
 use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
@@ -448,23 +449,32 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             ),
         };
 
-        let half_extents = (map_object_size / bevy::math::const_vec2!([2.0; 2])).to_array();
 
-        let rigid_body = RigidBodyBuilder::new(RigidBodyType::Static)
-            .translation(vector![map_coords[0], map_coords[1]]) 
-            .gravity_scale(0.0)
-            .build();
+        // Only do physics calcs on an object if it's collidable
+        let physics_handles = if object.collidable {
+            let half_extents = ((map_object_size - bevy::math::const_vec2!([20.0; 2])) / bevy::math::const_vec2!([500.0; 2]));
+
+            let rigid_body = RigidBodyBuilder::new(RigidBodyType::Static)
+                .translation(Vector2::new(map_coords.x, map_coords.y).component_div(&Vector2::new(250.0, 250.0))) 
+                .gravity_scale(0.0)
+                .build();
 
 
-        let collider = ColliderBuilder::cuboid(half_extents[0], half_extents[1])
-            .density(0.0)
-            .build();
+            let collider = ColliderBuilder::cuboid(half_extents.x, half_extents.y)
+                .build();
 
-        //let rigid_body_handle = rigid_body_set.insert(rigid_body);
-        //let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
+            let rigid_body_handle = rigid_body_set.insert(rigid_body);
+            let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
+
+            Some((rigid_body_handle, collider_handle))
+
+        } else {
+            None
+
+        };
 
         // Spawn a new map sprite
-        commands
+        let mut entity = commands
             .spawn_bundle(SpriteBundle {
                 material: color_handle,
                 sprite: Sprite::new(map_object_size),
@@ -476,12 +486,18 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 
                 },
                 ..Default::default()
-            })
+            });
+
+        entity
             .insert(Health(100.0))
             .insert(WallMarker)
             .insert(GameRelated);
-            //.insert(rigid_body_handle)
-            //.insert(collider_handle);
+
+        if let Some((rigid_body_handle, collider_handle)) = physics_handles {
+            entity
+                .insert(rigid_body_handle)
+                .insert(collider_handle);
+        }
 
     });
 }

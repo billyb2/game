@@ -16,7 +16,7 @@ use rayon::prelude::*;
 #[cfg(feature = "web")]
 use lazy_static::lazy_static;
 
-use rapier2d::prelude::{RigidBodyHandle, RigidBodySet};
+use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use crate::*;
@@ -306,7 +306,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
                     let recoil_vec: Vec<f32> = repeat_with(|| {
                         let sign = rng.i8(..).signum() as f32;
-                        rng.f32() * recoil_range.0 * sign
+                        rng.f32() * recoil_range.0 * 2.0 * sign
                     }).take(num_of_recoil).collect();
 
                     let event = ShootEvent {
@@ -360,7 +360,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee, &Perk)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee, &Perk)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev in shoot_event.iter() {
             if ev.health != 0.0 {
@@ -425,7 +425,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                     }
 
                     for recoil in ev.recoil_vec.iter() {
-                        let movement = RequestedMovement::new(angle + recoil, speed);
+                        let movement = Vector2::new(recoil + angle.cos(), recoil + angle.sin()).component_mul(&Vector2::new(speed, speed));
 
                         let material =
                             if ev.player_ability == Ability::Engineer && ev.model != Model::Flamethrower {
@@ -476,9 +476,26 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         let mut translation: Vec3A = ev.start_pos.into();
                         
                         translation += size_vec3a * angle_trig;
+
+                        let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+                            .translation(Vector2::new(translation.x, translation.y).component_div(&Vector2::new(250.0, 250.0)))
+                            .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
+                            .gravity_scale(0.0)
+                            .ccd_enabled(true)
+                            .build();
+
+                        let collider_size = Vec2::new(ev.size.x, ev.size.y) / Vec2::new(500.0, 500.0);
+
+                        /*let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+                            .restitution(1.0)
+                            .friction(0.0)
+                            .build();*/
+
+                    let rigid_body_handle = rigid_body_set.insert(rigid_body);
+                    //let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
                         
                         commands
-                            .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
+                            .spawn_bundle(Projectile::new(ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
                                 material,
                                 sprite: Sprite::new(ev.size),
@@ -489,7 +506,9 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                                 },
                                 ..Default::default()
-                            });
+                            })
+                            .insert(rigid_body_handle);
+                            //.insert(collider_handle);
                     }
                 }
 
