@@ -177,11 +177,11 @@ fn main() {
 
     // Sprite culling
     // For some reason, sprite culling fails on WASM
-    #[cfg(feature = "native")]
+    /*#[cfg(feature = "native")]
     app.add_system_to_stage(
         CoreStage::PostUpdate,
         sprite_culling,
-    );
+    );*/
 
     app.add_system_set(
         SystemSet::on_enter(AppState::Connecting)

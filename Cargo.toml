@@ -146,6 +146,7 @@ parallel = [
   "single_byte_hashmap/rayon",
   "helper_functions/parallel",
   "map/parallel",
+  "rapier2d/parallel"
 ]
 
 web = [

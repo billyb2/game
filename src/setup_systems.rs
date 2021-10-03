@@ -20,6 +20,7 @@ use map::MapCRC32;
 use single_byte_hashmap::*;
 
 use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
 
 #[cfg(feature = "graphics")]
 use crate::setup_graphical_systems::*;
@@ -150,14 +151,13 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             let collider_set = _collider_set.as_mut().unwrap();
 
         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
-            .translation(vector![coords[0], coords[1]] / 10.0)
+            .translation(Vector2::new(coords.x, coords.y).component_div(&Vector2::new(250.0, 250.0)))
             .linvel(vector![0.0, 0.0])
             .gravity_scale(0.0)
-            .ccd_enabled(true)
+            .linear_damping(80.0)
             .build();
 
         let collider = ColliderBuilder::cuboid(7.50, 4.6875)
-            .translation(vector![coords[0], coords[1]] / 10.0)
             .mass_properties(MassProperties::new(point![0.0, 0.0], 0.01, 0.0))
             .friction(0.4)
             .build();

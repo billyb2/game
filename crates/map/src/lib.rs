@@ -460,8 +460,8 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             .density(0.0)
             .build();
 
-        let rigid_body_handle = rigid_body_set.insert(rigid_body);
-        let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
+        //let rigid_body_handle = rigid_body_set.insert(rigid_body);
+        //let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
 
         // Spawn a new map sprite
         commands
@@ -479,9 +479,9 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             })
             .insert(Health(100.0))
             .insert(WallMarker)
-            .insert(GameRelated)
-            .insert(rigid_body_handle)
-            .insert(collider_handle);
+            .insert(GameRelated);
+            //.insert(rigid_body_handle)
+            //.insert(collider_handle);
 
     });
 }

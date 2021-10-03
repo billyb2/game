@@ -38,7 +38,6 @@ pub struct Player {
 
 pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 
-
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
 
     #[allow(unused_mut)]

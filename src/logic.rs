@@ -6,16 +6,12 @@ use bevy::prelude::*;
 use bevy_networking_turbulence::NetworkResource;
 
 pub fn move_objects(mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut net: ResMut<NetworkResource>, mut players: Query<(&RigidBodyHandle, &ColliderHandle, &mut Transform, &mut RequestedMovement)>) {
+    // Update the locations of all rigid bodies to their graphics counterparts
     players.iter_mut().for_each(|(rigid_body_handle, collider_handle, mut transform, mut movement)| {
-        let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+       let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+        let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
 
-        let angle_trig = Vector2::new(movement.angle.cos(), movement.angle.sin());
-        let speed_simd = Vector2::new(movement.speed, movement.speed) * 250.0;
-
-        rigid_body.set_linvel(Vector2::new(angle_trig.x * speed_simd.x, angle_trig.y * speed_simd.y), true);
-        let rigid_body_translation = rigid_body.translation();
-
-        transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, 100.0);
+        transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
         
 
     });
@@ -38,7 +34,7 @@ pub fn move_objects(mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_ma
         max_velocity_iterations: 4,
         max_position_iterations: 1,
         min_island_size: 128,
-        max_ccd_substeps: 1,
+        max_ccd_substeps: 8,
     };
 
     physics_pipeline.step(
