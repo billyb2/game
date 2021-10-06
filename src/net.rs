@@ -244,7 +244,17 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
     if hosting.0 {
         // The WebRTC listening address just picks a random port
         let webrtc_listen_socket = {
-            let webrtc_listen_ip = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
+            let webrtc_listen_ip = match bevy_networking_turbulence::find_my_ip_address() {
+                Some(ip) => ip,
+                None => {
+                    println!("Couldn't find IP address, using 127.0.0.1");
+                    println!("Warning: Firefox doesn't allow WebRTC connections to 127.0.0.1, but Chromium does");
+
+                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
+
+                },
+
+            };
             let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str()).expect("No available port");
 
             SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)

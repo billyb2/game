@@ -157,9 +157,10 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .linear_damping(80.0)
             .build();
 
-        let collider_size = (Vec2::new(150.0, 93.75) - Vec2::new(20.0, 20.0)) / Vec2::new(500.0, 500.0);
+        let collider_size = Vec2::new(150.0, 93.75) / Vec2::new(500.0, 500.0);
 
         let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+            .collision_groups(InteractionGroups::new(0b1000, 0b1111))
             .restitution(0.000001)
             .friction(0.4)
             .build();

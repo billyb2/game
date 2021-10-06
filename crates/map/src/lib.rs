@@ -461,6 +461,7 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 
 
             let collider = ColliderBuilder::cuboid(half_extents.x, half_extents.y)
+                .collision_groups(InteractionGroups::new(0b0100, 0b1010))
                 .build();
 
             let rigid_body_handle = rigid_body_set.insert(rigid_body);
@@ -489,7 +490,6 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             });
 
         entity
-            .insert(Health(100.0))
             .insert(WallMarker)
             .insert(GameRelated);
 

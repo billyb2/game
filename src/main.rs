@@ -10,7 +10,6 @@
 mod logic;
 
 use bevy::prelude::*;
-use bevy::math::const_vec2;
 use bevy::render::draw::OutsideFrustum;
 
 use bevy_networking_turbulence::*;

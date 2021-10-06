@@ -110,7 +110,7 @@ rustc-hash = { version = "1" }
 lazy_static = { version = "1", optional = true }
 
 # Physics
-rapier2d = { version = "0.11", features = ["simd-nightly"]}
+rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
 
 helper_functions = { path = "crates/helper_functions" }
 game_types = { path = "crates/game_types" }

@@ -25,7 +25,7 @@ use game_types::*;
 use game_types::player_attr::*;
 use map::WallMarker;
 
-use helper_functions::get_angle;
+use helper_functions::{get_angle, f32_to_u128};
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
@@ -470,7 +470,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         };
 
                         // Move the projectile in front of the player according to the projectile's size
-                        let size_vec3a = Vec3A::from((ev.size, 1.0));
+                        let size_vec3a = Vec3A::from((ev.size * 12.5, 1.0));
                         
                         let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
                         let mut translation: Vec3A = ev.start_pos.into();
@@ -478,21 +478,35 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         translation += size_vec3a * angle_trig;
 
                         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+                            // Colliders with the user_data value of 100 are always bullets, and will be destroyed when they have 0 movement speed
+                            .user_data(f32_to_u128(ev.damage.0))
                             .translation(Vector2::new(translation.x, translation.y).component_div(&Vector2::new(250.0, 250.0)))
                             .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
+                            // The Speedball's projectiles move faster over time, thus, a negative linear dampening
+                            .linear_damping(match ev.projectile_type == ProjectileType::Speedball {
+                                true => -4.5,
+                                false => 0.0,
+                            })
                             .gravity_scale(0.0)
                             .ccd_enabled(true)
                             .build();
 
                         let collider_size = Vec2::new(ev.size.x, ev.size.y) / Vec2::new(500.0, 500.0);
 
-                        /*let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
-                            .restitution(1.0)
+                        let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+                            .user_data(f32_to_u128(ev.damage.0))
+                            .restitution(0.0)
                             .friction(0.0)
-                            .build();*/
+                            .restitution_combine_rule(CoefficientCombineRule::Min)
+                            .collision_groups(match ev.projectile_type {
+                                ProjectileType::PulseWave => InteractionGroups::new(0b0001, 0b0001),
+                                _ => InteractionGroups::new(0b0010, 0b1111),
+
+                            })
+                            .build();
 
                     let rigid_body_handle = rigid_body_set.insert(rigid_body);
-                    //let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
+                    let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
                         
                         commands
                             .spawn_bundle(Projectile::new(ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
@@ -507,8 +521,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 },
                                 ..Default::default()
                             })
-                            .insert(rigid_body_handle);
-                            //.insert(collider_handle);
+                            .insert(rigid_body_handle)
+                            .insert(collider_handle);
                     }
                 }
 
