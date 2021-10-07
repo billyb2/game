@@ -60,8 +60,8 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.y = y;
 
         camera.scale = match perk {
-            Perk::ExtendedVision => const_vec3!([3.0; 3]) * res_scale.0,
-            _ => const_vec3!([1.5; 3]) * res_scale.0,
+            Perk::ExtendedVision => const_vec3!([1.3; 3]) * res_scale.0,
+            _ => const_vec3!([1.1; 3]) * res_scale.0,
         };
 
     }
