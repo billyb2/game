@@ -452,7 +452,7 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 
         // Only do physics calcs on an object if it's collidable
         let physics_handles = if object.collidable {
-            let half_extents = ((map_object_size - bevy::math::const_vec2!([20.0; 2])) / bevy::math::const_vec2!([500.0; 2]));
+            let half_extents = (map_object_size - bevy::math::const_vec2!([50.0; 2]) ) / bevy::math::const_vec2!([500.0; 2]);
 
             let rigid_body = RigidBodyBuilder::new(RigidBodyType::Static)
                 .translation(Vector2::new(map_coords.x, map_coords.y).component_div(&Vector2::new(250.0, 250.0))) 
@@ -462,6 +462,7 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 
             let collider = ColliderBuilder::cuboid(half_extents.x, half_extents.y)
                 .collision_groups(InteractionGroups::new(0b0100, 0b1010))
+                .friction(0.5)
                 .build();
 
             let rigid_body_handle = rigid_body_set.insert(rigid_body);

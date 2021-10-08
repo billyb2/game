@@ -39,9 +39,7 @@ pub struct Player {
 pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
-
-    #[allow(unused_mut)]
-    let mut set_ability_charge = || *ability_charge = match ability {
+    *ability_charge = match ability {
         Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
         Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
@@ -55,23 +53,12 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 
     };
 
-    #[allow(unused_mut)]
-    let mut set_ability_completed = || *ability_completed = match ability {
+    *ability_completed = match ability {
         Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
         Ability::Ghost => AbilityCompleted(Timer::from_seconds(4.75, false)),
         Ability::Cloak => AbilityCompleted(Timer::from_seconds(3.5, false)),
         // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
         _ => AbilityCompleted(Timer::from_seconds(0.0, false)),
-    };
-
-    #[cfg(feature = "parallel")]
-    join(set_ability_charge, set_ability_completed);
-
-    #[cfg(not(feature = "parallel"))]
-    {
-        set_ability_charge();
-        set_ability_completed();
-
     };
 
 }

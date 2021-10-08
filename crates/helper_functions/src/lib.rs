@@ -40,19 +40,22 @@ pub fn slice_to_f32(data: &[u8]) -> f32 {
 // Store an f32 as a u128, completely in safe Rust
 // It just stores the 4 f32 bytes as the last 4 bytes of a u128
 #[inline]
-pub fn f32_to_u128(data: f32) -> u128 {
+pub fn f32_u8_to_u128(data_f32: f32, data_u8: u8) -> u128 {
     let mut slice = [0; 16];
-    let (_left, right) = slice.split_at_mut(12);
+    let (left, right) = slice.split_at_mut(12);
 
-    right.copy_from_slice(&data.to_be_bytes());
+    right.copy_from_slice(&data_f32.to_be_bytes());
+    left[11] = data_u8;
 
     u128::from_be_bytes(slice)
 }
 
 #[inline(always)]
 // Just the reverse of f32_to_u128
-pub fn u128_to_f32(data: u128) -> f32 {
-    f32::from_be_bytes(data.to_be_bytes()[12..16].try_into().unwrap())
+pub fn u128_to_f32_u8(data: u128) -> (f32, u8) {
+    let bytes = data.to_be_bytes();
+
+    (f32::from_be_bytes(bytes[12..16].try_into().unwrap()), bytes[11])
 }
 
 pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {

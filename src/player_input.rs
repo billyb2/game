@@ -25,7 +25,7 @@ use game_types::*;
 use game_types::player_attr::*;
 use map::WallMarker;
 
-use helper_functions::{get_angle, f32_to_u128};
+use helper_functions::{get_angle, f32_u8_to_u128};
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
@@ -479,7 +479,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
                             // Colliders with the user_data value of 100 are always bullets, and will be destroyed when they have 0 movement speed
-                            .user_data(f32_to_u128(ev.damage.0))
+                            .user_data(f32_u8_to_u128(ev.damage.0, player_id))
                             .translation(Vector2::new(translation.x, translation.y).component_div(&Vector2::new(250.0, 250.0)))
                             .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
                             // The Speedball's projectiles move faster over time, thus, a negative linear dampening
@@ -494,7 +494,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         let collider_size = Vec2::new(ev.size.x, ev.size.y) / Vec2::new(500.0, 500.0);
 
                         let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
-                            .user_data(f32_to_u128(ev.damage.0))
+                            .user_data(f32_u8_to_u128(ev.damage.0, player_id))
                             .restitution(0.0)
                             .friction(0.0)
                             .restitution_combine_rule(CoefficientCombineRule::Min)
