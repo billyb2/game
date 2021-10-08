@@ -9,11 +9,8 @@ use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
 //TODO: StopAfterDistance
 //TODO: Molotovs
-//TODO: Warping, Ghosting
 //TODO: PulseWave
-//TODO: Send damage net events
 pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
-    // Update the locations of all rigid bodies to their graphics counterparts
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source)| {
         if let Some(rigid_body) = rigid_body_set.get(*rigid_body_handle) {
             // Update the rigid body's sprite to the correct translation            

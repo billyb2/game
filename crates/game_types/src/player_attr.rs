@@ -32,7 +32,6 @@ pub struct Player {
     pub can_melee: CanMelee,
     pub dashing_info: DashingInfo,
     pub perk: Perk,
-    pub phasing: Phasing,
     pub damage_source: DamageSource,
 }
 
@@ -121,7 +120,6 @@ impl Player {
             },
             can_melee: CanMelee(Timer::from_seconds(0.6, false)),
             perk,
-            phasing: Phasing(false),
             damage_source: DamageSource(None),
         };
 

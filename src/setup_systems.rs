@@ -155,6 +155,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .linvel(Vector2::new(0.0, 0.0))
             .gravity_scale(0.0)
             .linear_damping(80.0)
+            //CCD is purposely disabled so stuff like warping works
+            .ccd_enabled(false)
             .build();
 
         let collider_size = Vec2::new(150.0, 93.75) / Vec2::new(500.0, 500.0);

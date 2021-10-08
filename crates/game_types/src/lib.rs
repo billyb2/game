@@ -112,8 +112,6 @@ pub struct CustomizeHelpText;
 
 pub struct SlowedDown(pub Timer);
 
-pub struct Phasing(pub bool);
-
 pub struct GameRelated;
 
 pub struct ResScale(pub f32);
