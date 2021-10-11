@@ -24,9 +24,8 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
     #[cfg(feature = "native")]
     {
         let res_scale = (window.width / 1366.0).min(window.height / 768.0) * 0.95;
-
-
         commands.insert_resource(ResScale(res_scale.recip()));
+        
     };
 }
 
@@ -1493,18 +1492,11 @@ pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 
 
 pub fn setup_physics(mut commands: Commands) {
-    let mut physics_pipeline = PhysicsPipeline::new();
-    let mut island_manager = IslandManager::new();
-    let mut broad_phase = BroadPhase::new();
-    let mut narrow_phase = NarrowPhase::new();
-    let mut joint_set = JointSet::new();
-    let mut ccd_solver = CCDSolver::new();
-
-    commands.insert_resource(physics_pipeline);
-    commands.insert_resource(island_manager);
-    commands.insert_resource(broad_phase);
-    commands.insert_resource(narrow_phase);
-    commands.insert_resource(joint_set);
-    commands.insert_resource(ccd_solver);
+    commands.insert_resource(PhysicsPipeline::new());
+    commands.insert_resource(IslandManager::new());
+    commands.insert_resource(BroadPhase::new());
+    commands.insert_resource(NarrowPhase::new());
+    commands.insert_resource(JointSet::new());
+    commands.insert_resource(CCDSolver::new());
 
 }

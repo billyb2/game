@@ -278,6 +278,47 @@ pub enum ProjectileType {
 
 }
 
+pub const NUM_OF_PROJECTILE_TYPES: u8 = variant_count::<ProjectileType>() as u8;
+
+impl From<u8> for ProjectileType {
+    fn from(projectile_type: u8)  -> Self {
+        match projectile_type {
+            0 => ProjectileType::Regular,
+            1 => ProjectileType::Speedball,
+            2 => ProjectileType::PulseWave,
+            3 => ProjectileType::TractorBeam,
+            4 => ProjectileType::Flame,
+            5 => ProjectileType::Molotov,
+            6 => ProjectileType::MolotovFire,
+            7 => ProjectileType::MolotovLiquid,
+            8 => ProjectileType::Melee,
+            _ => panic!("Projectile conversion out of bounds: {} was requested, max is {}", projectile_type, NUM_OF_PROJECTILE_TYPES),
+
+        }
+
+    }
+
+}
+
+impl From<ProjectileType> for u8 {
+    fn from(projectile_type: ProjectileType)  -> Self {
+        match projectile_type {
+            ProjectileType::Regular => 0,
+            ProjectileType::Speedball => 1,
+            ProjectileType::PulseWave => 2,
+            ProjectileType::TractorBeam => 3,
+            ProjectileType::Flame => 4,
+            ProjectileType::Molotov => 5,
+            ProjectileType::MolotovFire => 6,
+            ProjectileType::MolotovLiquid => 7,
+            ProjectileType::Melee => 8,
+
+        }
+
+    }
+
+}
+
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Model {
     Pistol,

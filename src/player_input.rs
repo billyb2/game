@@ -68,7 +68,6 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 }
 
 
-//TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
 pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>) {
     if in_game_settings.is_empty() {
         let mut angle = None;
@@ -271,7 +270,8 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
             if let Some(angle) = angle {
                 let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
                 // If the player is dashing then they can't change the angle that they move in
-                rigid_body.set_linvel(Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0)), true);
+                let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
+                rigid_body.set_linvel(new_linvel, true);
 
             }
 
@@ -467,16 +467,16 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         };
 
                         // Move the projectile in front of the player according to the projectile's size
-                        let size_vec3a = Vec3A::from((ev.size * 12.5, 1.0));
+                        let size_vec3a = Vec3A::from((ev.size, 1.0));
                         
                         let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
                         let mut translation: Vec3A = ev.start_pos.into();
                         
-                        translation += size_vec3a * angle_trig;
+                        translation += size_vec3a * angle_trig + (Vec3A::new(movement.x, movement.y, 0.0) * 2.0);
 
                         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
                             // Colliders with the user_data value of 100 are always bullets, and will be destroyed when they have 0 movement speed
-                            .user_data(f32_u8_to_u128(ev.damage.0, player_id))
+                            .user_data(f32_u8_to_u128(ev.damage.0, (player_id, ev.projectile_type.into())))
                             .translation(Vector2::new(translation.x, translation.y).component_div(&Vector2::new(250.0, 250.0)))
                             .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
                             // The Speedball's projectiles move faster over time, thus, a negative linear dampening
@@ -491,12 +491,11 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         let collider_size = Vec2::new(ev.size.x, ev.size.y) / Vec2::new(500.0, 500.0);
 
                         let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
-                            .user_data(f32_u8_to_u128(ev.damage.0, player_id))
+                            .user_data(f32_u8_to_u128(ev.damage.0, (player_id, ev.projectile_type.into())))
                             .restitution(0.0)
                             .friction(0.0)
-                            .restitution_combine_rule(CoefficientCombineRule::Min)
                             .collision_groups(match ev.projectile_type {
-                                ProjectileType::PulseWave => InteractionGroups::new(0b0001, 0b0001),
+                                ProjectileType::PulseWave => InteractionGroups::new(0b0001, 0b1000),
                                 _ => InteractionGroups::new(0b0010, 0b1111),
 
                             })

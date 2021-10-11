@@ -61,7 +61,7 @@ opt-level = 1
 inherits = "dev"
 panic = "abort"
 # Since web builds run like garbage, using a higher optimization level is nice
-opt-level = 2
+opt-level = 1
 
 [profile.opt-web-simd]
 inherits = "release"

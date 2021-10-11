@@ -155,6 +155,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .linvel(Vector2::new(0.0, 0.0))
             .gravity_scale(0.0)
             .linear_damping(80.0)
+            .user_data(u128::MAX)
             //CCD is purposely disabled so stuff like warping works
             .ccd_enabled(false)
             .build();
@@ -165,6 +166,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .collision_groups(InteractionGroups::new(0b1000, 0b1111))
             .restitution(0.000001)
             .friction(0.4)
+            .user_data(u128::MAX)
             .build();
 
         let rigid_body_handle = rigid_body_set.insert(rigid_body);
