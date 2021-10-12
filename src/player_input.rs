@@ -301,6 +301,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
                 };
 
+<<<<<<< Updated upstream
                 let rng = fastrand::Rng::new();
 
                 let recoil_vec: Vec<f32> = repeat_with(|| {
@@ -325,6 +326,70 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     reloading: reload_timer.reloading,
 
                 };
+=======
+                    let rng = fastrand::Rng::new();
+
+                    let recoil_vec: Vec<f32> = repeat_with(|| {
+                        let sign = rng.i8(..).signum() as f32;
+                        rng.f32() * recoil_range.0 * 2.0 * sign
+                    }).take(num_of_recoil).collect();
+
+                    let event = match *model {
+                        Model::Widowmaker => ShootEvent {
+                            start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
+                            player_id: my_player_id.0,
+                            pos_direction: mouse_pos.0,
+                            health: health.0 - 30.0,
+                            model: *model,
+                            max_distance: max_distance.0,
+                            recoil_vec,
+                            // Bullets need to travel "backwards" when moving to the left
+                            speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                            projectile_type: *projectile_type,
+                            damage: *damage,
+                            player_ability: *player_ability,
+                            size: Vec2::new(size.width, size.height),
+                            reloading: reload_timer.reloading,
+                        },
+                        _ => ShootEvent {
+                            start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
+                            player_id: my_player_id.0,
+                            pos_direction: mouse_pos.0,
+                            health: health.0,
+                            model: *model,
+                            max_distance: max_distance.0,
+                            recoil_vec,
+                            // Bullets need to travel "backwards" when moving to the left
+                            speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                            projectile_type: *projectile_type,
+                            damage: *damage,
+                            player_ability: *player_ability,
+                            size: Vec2::new(size.width, size.height),
+                            reloading: reload_timer.reloading,
+                        },
+                    };
+
+
+                    /*
+                    let event = ShootEvent {
+                        start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
+                        player_id: my_player_id.0,
+                        pos_direction: mouse_pos.0,
+                        health: health.0,
+                        model: *model,
+                        max_distance: max_distance.0,
+                        recoil_vec,
+                        // Bullets need to travel "backwards" when moving to the left
+                        speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                        projectile_type: *projectile_type,
+                        damage: *damage,
+                        player_ability: *player_ability,
+                        size: Vec2::new(size.width, size.height),
+                        reloading: reload_timer.reloading,
+
+                    };
+                    */
+>>>>>>> Stashed changes
 
                 shoot_event.send(event);
 

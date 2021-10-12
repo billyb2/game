@@ -331,6 +331,7 @@ pub enum Model {
     Flamethrower,
     SniperRifle,
     Melee,
+    Widowmaker,
 
 }
 
@@ -349,6 +350,7 @@ impl From<u8> for Model {
             7 => Model::Flamethrower,
             8 => Model::SniperRifle,
             9 => Model::Melee,
+            10 => Model::Widowmaker,
             _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
@@ -370,6 +372,7 @@ impl From<Model> for u8 {
             Model::Flamethrower => 7,
             Model::SniperRifle => 8,
             Model::Melee => 9,
+            Model::Widowmaker => 10,
 
         }
 
@@ -421,6 +424,7 @@ impl Gun {
                 Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
                 Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(4.0, false)),
                 Model::Melee => TimeSinceLastShot(Timer::from_seconds(0.3, false)),
+                Model::Widowmaker => TimeSinceLastShot(Timer::from_seconds(0.8, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -435,6 +439,7 @@ impl Gun {
                     Model::Flamethrower => Timer::from_seconds(2.0, false),
                     Model::SniperRifle => Timer::from_seconds(7.0, false),
                     Model::Melee => Timer::from_seconds(0.01, false),
+                    Model::Widowmaker => Timer::from_seconds(4.0, false),
 
                 },
                 reloading: false,
@@ -452,6 +457,7 @@ impl Gun {
                 Model::Flamethrower => AmmoInMag(30),
                 Model::SniperRifle => AmmoInMag(1),
                 Model::Melee => AmmoInMag(1),
+                Model::Widowmaker => AmmoInMag(255),
 
             },
             max_ammo: match model {
@@ -465,6 +471,7 @@ impl Gun {
                 Model::Flamethrower => MaxAmmo(30),
                 Model::SniperRifle => MaxAmmo(1),
                 Model::Melee => MaxAmmo(1),
+                Model::Widowmaker => MaxAmmo(255),
 
             },
             max_distance: match model {
@@ -478,6 +485,7 @@ impl Gun {
                 Model::Flamethrower => MaxDistance(400.0),
                 Model::SniperRifle => MaxDistance(5000.0),
                 Model::Melee => MaxDistance(100.0),
+                Model::Widowmaker => MaxDistance(1000.0),
 
 
             },
@@ -491,6 +499,7 @@ impl Gun {
                 Model::Flamethrower => RecoilRange(0.15),
                 Model::SniperRifle => RecoilRange(0.012),
                 Model::Melee => RecoilRange(0.0),
+                Model::Widowmaker => RecoilRange(0.18),
                 _ => RecoilRange(0.075),
 
             },
@@ -510,6 +519,7 @@ impl Gun {
                 Model::ClusterShotgun => Speed(24.0),
                 Model::Flamethrower => Speed(27.0),
                 Model::SniperRifle => Speed(100.0),
+                Model::Widowmaker => Speed(29.0),
                 Model::Melee => Speed(40.0),
 
             },
@@ -532,6 +542,7 @@ impl Gun {
                 // Enough damage to kill any player without heavy armor
                 Model::SniperRifle => Damage(100.0),
                 Model::Melee => Damage(45.0),
+                Model::Widowmaker => Damage(12.0),
 
 
             },

@@ -16,7 +16,7 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
 
     let mut orthographic_camera = OrthographicCameraBundle::new_2d();
     orthographic_camera.orthographic_projection.scaling_mode = ScalingMode::WindowSize;
-
+    // orthographic_camera.transform.local_z() = Vec3::new(x, y, 1.0);
     commands
         .spawn_bundle(orthographic_camera)
         .insert(GameCamera);
