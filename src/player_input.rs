@@ -300,8 +300,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     _ => 1,
 
                 };
-
-<<<<<<< Updated upstream
                 let rng = fastrand::Rng::new();
 
                 let recoil_vec: Vec<f32> = repeat_with(|| {
@@ -326,7 +324,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     reloading: reload_timer.reloading,
 
                 };
-=======
                     let rng = fastrand::Rng::new();
 
                     let recoil_vec: Vec<f32> = repeat_with(|| {
@@ -389,7 +386,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
                     };
                     */
->>>>>>> Stashed changes
 
                 shoot_event.send(event);
 
