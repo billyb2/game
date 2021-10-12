@@ -10,9 +10,10 @@ use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
-//TODO: Molotovs
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
-    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut color_material)| {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>, proj_materials: Res<ProjectileMaterials>) {
+    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
+
+        let mut rigid_body_to_remove: Option<(RigidBodyHandle, Entity)> = None;
 
         if let Some(rigid_body) = rigid_body_set.get_mut(*rigid_body_handle) {
             // Update the rigid body's sprite to the correct translation            
@@ -50,14 +51,25 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                     distance_traveled.0 += speed;
 
                     if distance_traveled.0 >= max_distance.0 {
-                        let projectile_type = projectile_type.as_ref().unwrap();
+                        let projectile_type = projectile_type.as_mut().unwrap();
 
-                        if **projectile_type != ProjectileType::Molotov {
-                            rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
-                            commands.entity(entity).despawn_recursive();
+                        if !rigid_body.is_static() && **projectile_type != ProjectileType::Molotov {
+                            rigid_body_to_remove = Some((*rigid_body_handle, entity));
 
-                        } else {
+                        } else if **projectile_type == ProjectileType::Molotov {
+                            let collider = collider_set.get_mut(*collider_handle).unwrap();
+                            *material = proj_materials.molotov_liquid.clone();
+                            **projectile_type = ProjectileType::MolotovLiquid;
+                            sprite.size = Vec2::splat(200.0);
+                            collider.set_shape(SharedShape::ball(200.0 / 500.0));
                             rigid_body.set_linvel(Vector2::new(0.0, 0.0), false);
+                            rigid_body.set_body_type(RigidBodyType::Static);
+                            collider.set_collision_groups(InteractionGroups::new(0b0010, 0b0100));
+
+                            let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
+
+                            rigid_body.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
+                            collider.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
 
                         }
                     }
@@ -126,10 +138,36 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         }
 
                     // Destroy any projectiles
-                    } else if shot_from.is_some() && (hit_map_object || hit_player) && (*projectile_type.unwrap() != ProjectileType::PulseWave || hit_player) {
-                        // Projectiles upon collision with any object destroy themselves, except for collisions with other bullets
-                        rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
-                        commands.entity(entity).despawn_recursive();
+                    } else if shot_from.is_some() {
+                        let projectile_type_ref = **projectile_type.as_ref().unwrap();
+                        if 
+                        // None of the molov type should be destroyed when hit
+                        (projectile_type_ref != ProjectileType::MolotovLiquid && projectile_type_ref != ProjectileType::Molotov && projectile_type_ref != ProjectileType::MolotovFire)
+                        // the projecitle hit a wall or a player
+                         && (hit_map_object || hit_player) 
+                         // If it's a pulsewave, it has to have hit a player to dissapear
+                         && (projectile_type_ref != ProjectileType::PulseWave || hit_player) {
+                                // Projectiles upon collision with any object destroy themselves, except for collisions with other bullets
+                                rigid_body_to_remove = Some((*rigid_body_handle, entity));
+
+                        // Molotov liquid only becomes molotov fire when it hits something other than a player or a map object (almost always a projectile)
+                        } else if projectile_type_ref == ProjectileType::MolotovLiquid && !(hit_player || hit_map_object) {
+                            let collider = collider_set.get_mut(*collider_handle).unwrap();
+
+                           let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
+
+                            // 75.0 / 60.0 * 60 FPS = 75 damage per second
+                            const MOLOTOV_FIRE_DAMAGE: f32 = 75.0 / 60.0;
+
+                            rigid_body.user_data = f32_u8_to_u128(MOLOTOV_FIRE_DAMAGE, (shot_from, ProjectileType::MolotovFire.into()));
+                            collider.user_data = f32_u8_to_u128(MOLOTOV_FIRE_DAMAGE, (shot_from, ProjectileType::MolotovFire.into()));
+
+                            *material = proj_materials.molotov_fire.clone();
+                            **projectile_type.as_mut().unwrap() = ProjectileType::MolotovFire;
+                            sprite.size = Vec2::splat(400.0);
+                            collider.set_shape(SharedShape::ball(400.0 / 500.0));
+                            
+                        }
 
                     }
 
@@ -137,6 +175,11 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
             });
 
+        }
+
+        if let Some((rigid_body_handle, entity)) = rigid_body_to_remove {
+            rigid_body_set.remove(rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
+            commands.entity(entity).despawn_recursive();
         }
     });
 

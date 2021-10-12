@@ -166,6 +166,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .collision_groups(InteractionGroups::new(0b1000, 0b1111))
             .restitution(0.000001)
             .friction(0.4)
+            // A user_data set to u128::MAX is an indicator that this is a player
             .user_data(u128::MAX)
             .build();
 

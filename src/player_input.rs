@@ -467,7 +467,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         };
 
                         // Move the projectile in front of the player according to the projectile's size
-                        let size_vec3a = Vec3A::from((ev.size, 1.0));
+                        let size_vec3a = Vec3A::from((ev.size, 0.0));
                         
                         let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
                         let mut translation: Vec3A = ev.start_pos.into();
@@ -475,7 +475,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         translation += (size_vec3a * angle_trig) + (angle_trig * Vec3A::new(100.0, 100.0, 0.0)) + (angle_trig * Vec3A::new(movement.x, movement.y, 0.0));
 
                         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
-                            // Colliders with the user_data value of 100 are always bullets, and will be destroyed when they have 0 movement speed
+                            // The user_data is the damage, (shot_from, projectile_type) (f32, (u8, u8)) of the bullet
                             .user_data(f32_u8_to_u128(ev.damage.0, (player_id, ev.projectile_type.into())))
                             .translation((Vector2::new(translation.x, translation.y)).component_div(&Vector2::new(250.0, 250.0)))
                             .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
