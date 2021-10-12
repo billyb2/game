@@ -275,6 +275,7 @@ pub enum ProjectileType {
     MolotovFire,
     MolotovLiquid,
     Melee,
+    WidowMaker,
 
 }
 
@@ -292,6 +293,7 @@ impl From<u8> for ProjectileType {
             6 => ProjectileType::MolotovFire,
             7 => ProjectileType::MolotovLiquid,
             8 => ProjectileType::Melee,
+            9 => ProjectileType::WidowMaker,
             _ => panic!("Projectile conversion out of bounds: {} was requested, max is {}", projectile_type, NUM_OF_PROJECTILE_TYPES),
 
         }
@@ -312,6 +314,7 @@ impl From<ProjectileType> for u8 {
             ProjectileType::MolotovFire => 6,
             ProjectileType::MolotovLiquid => 7,
             ProjectileType::Melee => 8,
+            ProjectileType::WidowMaker => 9,
 
         }
 
@@ -424,7 +427,7 @@ impl Gun {
                 Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
                 Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(4.0, false)),
                 Model::Melee => TimeSinceLastShot(Timer::from_seconds(0.3, false)),
-                Model::Widowmaker => TimeSinceLastShot(Timer::from_seconds(0.8, false)),
+                Model::Widowmaker => TimeSinceLastShot(Timer::from_seconds(1.0, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -457,7 +460,7 @@ impl Gun {
                 Model::Flamethrower => AmmoInMag(30),
                 Model::SniperRifle => AmmoInMag(1),
                 Model::Melee => AmmoInMag(1),
-                Model::Widowmaker => AmmoInMag(255),
+                Model::Widowmaker => AmmoInMag(6),
 
             },
             max_ammo: match model {
@@ -471,7 +474,7 @@ impl Gun {
                 Model::Flamethrower => MaxAmmo(30),
                 Model::SniperRifle => MaxAmmo(1),
                 Model::Melee => MaxAmmo(1),
-                Model::Widowmaker => MaxAmmo(255),
+                Model::Widowmaker => MaxAmmo(6),
 
             },
             max_distance: match model {
@@ -499,7 +502,7 @@ impl Gun {
                 Model::Flamethrower => RecoilRange(0.15),
                 Model::SniperRifle => RecoilRange(0.012),
                 Model::Melee => RecoilRange(0.0),
-                Model::Widowmaker => RecoilRange(0.18),
+                Model::Widowmaker => RecoilRange(0.05),
                 _ => RecoilRange(0.075),
 
             },
@@ -507,6 +510,7 @@ impl Gun {
                 Model::Speedball => ProjectileType::Speedball,
                 Model::Flamethrower => ProjectileType::Flame,
                 Model::Melee => ProjectileType::Melee,
+                Model::Widowmaker => ProjectileType::WidowMaker,
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
@@ -519,7 +523,7 @@ impl Gun {
                 Model::ClusterShotgun => Speed(24.0),
                 Model::Flamethrower => Speed(27.0),
                 Model::SniperRifle => Speed(100.0),
-                Model::Widowmaker => Speed(29.0),
+                Model::Widowmaker => Speed(60.0),
                 Model::Melee => Speed(40.0),
 
             },

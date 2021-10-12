@@ -10,8 +10,20 @@ use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>, proj_materials: Res<ProjectileMaterials>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
+
+        if let Some(player_id) = player_id.as_ref() {
+            if let Some(health_to_heal) = widow_maker_heals.0.remove(&player_id.0) {
+                let health = health.as_mut().unwrap();
+                // The health can only go as high as 150.0
+                if health.0 <= 150.0 {
+                    health.0 += health_to_heal;
+                }
+
+            }
+        }
+
 
         let mut rigid_body_to_remove: Option<(RigidBodyHandle, Entity)> = None;
 
@@ -98,7 +110,20 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             if shot_from != player_id {
                                 let new_health = health.0 - damage;
                                 let player_died = new_health <= 0.0;
+                                
+                                let projectile_type: ProjectileType = projectile_type.into();          
 
+
+                                if my_player_id.0.as_ref().unwrap().0 != player_id && projectile_type == ProjectileType::WidowMaker {
+                                    if let Some(health_to_heal) = widow_maker_heals.0.get_mut(&shot_from) {
+                                        *health_to_heal += damage * 1.5;
+
+                                    } else {
+                                        widow_maker_heals.0.insert(shot_from, damage * 1.5);
+
+                                    }
+
+                                }
                                 // Only directly edit the local health of our player, other players send their health over the net
                                 if health.0 > 0.0 && my_player_id.0.as_ref().unwrap().0 == player_id {
                                     damage_source.as_mut().unwrap().0 = Some(shot_from);
@@ -112,9 +137,6 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                         },
                                         false => {
                                             let speed = p_speed.as_mut().unwrap();
-                                            // Only do the conversion if the game needs to figure out the projectile type
-                                            let projectile_type: ProjectileType = projectile_type.into();          
-
                                             // Slow down players for X amount of seconds
                                             if projectile_type == ProjectileType::PulseWave {
                                                 speed.0 =  unsafe { fmul_fast(speed.0, 0.25) };

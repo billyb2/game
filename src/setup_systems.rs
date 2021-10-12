@@ -198,6 +198,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     commands.insert_resource(available_player_ids);
     commands.insert_resource(player_entities);
+
+    commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
 }
 
 pub fn setup_default_controls(mut commands: Commands) {

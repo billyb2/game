@@ -283,10 +283,10 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
     }
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
-            let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, perk) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
             if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
                 // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
@@ -300,6 +300,11 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     _ => 1,
 
                 };
+
+                if *model == Model::Widowmaker && time_since_last_shot.0.finished() {
+                    health.0 -= damage.0;
+                }
+
                 let rng = fastrand::Rng::new();
 
                 let recoil_vec: Vec<f32> = repeat_with(|| {
@@ -324,68 +329,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     reloading: reload_timer.reloading,
 
                 };
-                    let rng = fastrand::Rng::new();
-
-                    let recoil_vec: Vec<f32> = repeat_with(|| {
-                        let sign = rng.i8(..).signum() as f32;
-                        rng.f32() * recoil_range.0 * 2.0 * sign
-                    }).take(num_of_recoil).collect();
-
-                    let event = match *model {
-                        Model::Widowmaker => ShootEvent {
-                            start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
-                            player_id: my_player_id.0,
-                            pos_direction: mouse_pos.0,
-                            health: health.0 - 30.0,
-                            model: *model,
-                            max_distance: max_distance.0,
-                            recoil_vec,
-                            // Bullets need to travel "backwards" when moving to the left
-                            speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
-                            projectile_type: *projectile_type,
-                            damage: *damage,
-                            player_ability: *player_ability,
-                            size: Vec2::new(size.width, size.height),
-                            reloading: reload_timer.reloading,
-                        },
-                        _ => ShootEvent {
-                            start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
-                            player_id: my_player_id.0,
-                            pos_direction: mouse_pos.0,
-                            health: health.0,
-                            model: *model,
-                            max_distance: max_distance.0,
-                            recoil_vec,
-                            // Bullets need to travel "backwards" when moving to the left
-                            speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
-                            projectile_type: *projectile_type,
-                            damage: *damage,
-                            player_ability: *player_ability,
-                            size: Vec2::new(size.width, size.height),
-                            reloading: reload_timer.reloading,
-                        },
-                    };
-
-
-                    /*
-                    let event = ShootEvent {
-                        start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
-                        player_id: my_player_id.0,
-                        pos_direction: mouse_pos.0,
-                        health: health.0,
-                        model: *model,
-                        max_distance: max_distance.0,
-                        recoil_vec,
-                        // Bullets need to travel "backwards" when moving to the left
-                        speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
-                        projectile_type: *projectile_type,
-                        damage: *damage,
-                        player_ability: *player_ability,
-                        size: Vec2::new(size.width, size.height),
-                        reloading: reload_timer.reloading,
-
-                    };
-                    */
 
                 shoot_event.send(event);
 
@@ -500,7 +443,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 };
 
                                 match ev.projectile_type {
-                                    ProjectileType::Regular => materials.regular.clone(),
+                                    // TODO: Add a projectile material for WidowMaker
+                                    ProjectileType::Regular | ProjectileType::WidowMaker => materials.regular.clone(),
                                     ProjectileType::Speedball => materials.speedball.clone(),
                                     ProjectileType::Molotov => materials.molotov.clone(),
                                     ProjectileType::MolotovFire => materials.molotov_fire.clone(),

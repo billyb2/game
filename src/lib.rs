@@ -90,6 +90,8 @@ pub struct ChampionText;
 #[cfg(feature = "graphics")]
 pub struct NetConnStateText;
 
+pub struct WidowMakerHeals(pub HashMap<u8, f32>);
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
     Connecting,
