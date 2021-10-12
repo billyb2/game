@@ -530,16 +530,12 @@ pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeS
 
         let ability_charge_percent = ability_charge_percent as u8;
 
-        if ability_charge_percent < 50 {
-            ability_charge_text.sections[0].style.color = Color::RED;
 
-        } else if (50..100).contains(&ability_charge_percent) {
-            ability_charge_text.sections[0].style.color = Color::YELLOW;
-
-        } else if ability_charge_percent == 100 {
-            ability_charge_text.sections[0].style.color = Color::GREEN;
-
-        }
+        ability_charge_text.sections[0].style.color = match ability_charge_percent {
+            0..=49 => Color::RED,
+            50..=99 => Color::YELLOW,
+            100.. => Color::GREEN,
+        };
 
         let mut health_text = health_text.single_mut();
         health_text.sections[0].value = format!("Health: {:.0}%", health);

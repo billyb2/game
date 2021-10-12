@@ -472,12 +472,12 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
                         let mut translation: Vec3A = ev.start_pos.into();
                         
-                        translation += size_vec3a * angle_trig + (Vec3A::new(movement.x, movement.y, 0.0) * 2.0);
+                        translation += (size_vec3a * angle_trig) + (angle_trig * Vec3A::new(100.0, 100.0, 0.0)) + (angle_trig * Vec3A::new(movement.x, movement.y, 0.0));
 
                         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
                             // Colliders with the user_data value of 100 are always bullets, and will be destroyed when they have 0 movement speed
                             .user_data(f32_u8_to_u128(ev.damage.0, (player_id, ev.projectile_type.into())))
-                            .translation(Vector2::new(translation.x, translation.y).component_div(&Vector2::new(250.0, 250.0)))
+                            .translation((Vector2::new(translation.x, translation.y)).component_div(&Vector2::new(250.0, 250.0)))
                             .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
                             // The Speedball's projectiles move faster over time, thus, a negative linear dampening
                             .linear_damping(match ev.projectile_type == ProjectileType::Speedball {
@@ -518,7 +518,10 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 ..Default::default()
                             })
                             .insert(rigid_body_handle)
-                            .insert(collider_handle);
+                            .insert(collider_handle)
+                            .insert(MaxDistance(ev.max_distance))
+                            .insert(DistanceTraveled(0.0))
+                            .insert(Speed(ev.speed.abs()));
                     }
                 }
 
@@ -680,7 +683,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                     Ability::Engineer => {},
                     // Inferno throws a molotov that lights an area on fire for a few seconds
                     Ability::Inferno => {
-                        const PROJECTILE_SPEED: f32 = 6.0;
+                        const PROJECTILE_SPEED: f32 = 20.0;
 
                         let event = ShootEvent {
                             start_pos: transform.translation,
@@ -696,7 +699,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             projectile_type: ProjectileType::Molotov,
                             damage: Damage(5.0),
                             player_ability: *ability,
-                            size: Vec2::new(3.0, 3.0),
+                            size: Vec2::new(7.0, 7.0),
                             reloading: reload_timer.reloading,
 
                         };

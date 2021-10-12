@@ -10,11 +10,11 @@ use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
-//TODO: StopAfterDistance
 //TODO: Molotovs
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&ProjectileType>, Option<&mut PlayerSpeed>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
-    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, projectile_type, mut speed)| {
-        if let Some(rigid_body) = rigid_body_set.get(*rigid_body_handle) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
+    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut color_material)| {
+
+        if let Some(rigid_body) = rigid_body_set.get_mut(*rigid_body_handle) {
             // Update the rigid body's sprite to the correct translation            
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
             transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
@@ -42,7 +42,27 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                 let new_damage = linvel * 1.5;
                 collider.user_data = f32_u8_to_u128(new_damage, proj_info);
 
+            }
 
+            if let Some(max_distance) = max_distance {
+                if let Some(distance_traveled) = distance_traveled.as_mut() {
+                    let speed = speed.as_ref().unwrap().0;
+                    distance_traveled.0 += speed;
+
+                    if distance_traveled.0 >= max_distance.0 {
+                        let projectile_type = projectile_type.as_ref().unwrap();
+
+                        if **projectile_type != ProjectileType::Molotov {
+                            rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
+                            commands.entity(entity).despawn_recursive();
+
+                        } else {
+                            rigid_body.set_linvel(Vector2::new(0.0, 0.0), false);
+
+                        }
+                    }
+
+                }
             }
 
             contacts.for_each(|contact_pair| {
@@ -55,6 +75,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
                 if let Some(other_collider) = collider_set.get(other_collider_handle) {
                     let hit_player = other_collider.user_data == u128::MAX;
+                    let hit_map_object = other_collider.user_data == 0;
 
                     // Deal damage to objects that can take damage
                     if let Some(health) = &mut health {
@@ -78,9 +99,9 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                             0.0
                                         },
                                         false => {
-                                            let speed = speed.as_mut().unwrap();
+                                            let speed = p_speed.as_mut().unwrap();
                                             // Only do the conversion if the game needs to figure out the projectile type
-                                            let projectile_type: ProjectileType = projectile_type.into();                                            
+                                            let projectile_type: ProjectileType = projectile_type.into();          
 
                                             // Slow down players for X amount of seconds
                                             if projectile_type == ProjectileType::PulseWave {
@@ -105,10 +126,11 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         }
 
                     // Destroy any projectiles
-                    } else if shot_from.is_some() && (other_collider.user_data == 0 || hit_player) && (*projectile_type.unwrap() != ProjectileType::PulseWave || hit_player) {
+                    } else if shot_from.is_some() && (hit_map_object || hit_player) && (*projectile_type.unwrap() != ProjectileType::PulseWave || hit_player) {
                         // Projectiles upon collision with any object destroy themselves, except for collisions with other bullets
                         rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
                         commands.entity(entity).despawn_recursive();
+
                     }
 
                 }
