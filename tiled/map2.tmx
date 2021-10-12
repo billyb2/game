@@ -7,7 +7,7 @@
   <property name="name" value="office"/>
  </properties>
  <objectgroup id="6" name="Out of bounds" visible="0" locked="1"/>
- <objectgroup id="3" name="Floor">
+ <objectgroup id="3" name="Floor" visible="0">
   <object id="137" x="205" y="150" width="50" height="50.5652">
    <properties>
     <property name="Z" type="int" value="1"/>
@@ -538,7 +538,7 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
-  <object id="115" x="205" y="125" width="20" height="20">
+  <object id="115" x="205" y="110" width="20" height="20">
    <properties>
     <property name="Z" type="int" value="2"/>
     <property name="filename" type="int" value="2"/>
@@ -550,14 +550,6 @@
    <properties>
     <property name="Z" type="int" value="2"/>
     <property name="filename" type="int" value="0"/>
-    <property name="player_collidable" type="bool" value="true"/>
-    <property name="player_spawn" type="bool" value="false"/>
-   </properties>
-  </object>
-  <object id="123" x="175" y="105" width="30" height="15">
-   <properties>
-    <property name="Z" type="int" value="2"/>
-    <property name="filename" type="int" value="4"/>
     <property name="player_collidable" type="bool" value="true"/>
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
@@ -676,7 +668,7 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
-  <object id="241" x="165" y="120" width="40" height="25">
+  <object id="241" x="165" y="110" width="40" height="25">
    <properties>
     <property name="Z" type="int" value="2"/>
     <property name="filename" type="int" value="0"/>

@@ -1,343 +1,243 @@
-// Game math logic (basically move_objects)
 use std::intrinsics::*;
-use std::ops::DerefMut;
+
+use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
+
+use bevy::prelude::*;
 
 use crate::*;
-use game_types::player_attr::*;
-use map::MapCRC32;
-use bevy::prelude::*;
-use helper_functions::{collide, collide_rect_circle, out_of_bounds};
+use game_types::*;
+use game_types::player_attr::DEFAULT_PLAYER_SPEED;
+use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
-const DESIRED_TICKS_PER_SECOND: f32 = 60.0;
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>) {
+    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
 
-//TODO: Turn RequestedMovement into an event
-//TODO: Maybe make all the bullet collisions into its own seperate system? (for readability and maybe performance)
-//TODO: Make it so molotovs are map objects and not bullets
-// Move objects will first validate whether a movement can be done, and if so move them
-// Probably the biggest function in the entire project, since it's a frankenstein amalgamation of multiple different functions from the original ggez version. It basically does damage for bullets, and moves any object that requested to be moved
-#[allow(clippy::too_many_arguments)]
-pub fn move_objects(mut commands: Commands, mut player_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &Sprite, &PlayerID, &mut Health, &Ability, &mut Visible, &mut PlayerSpeed, &Phasing, &mut Alpha, &mut DamageSource), Without<ProjectileIdent>>, mut projectile_movements: Query<(Entity, &mut Transform, &mut RequestedMovement, &MovementType, Option<&mut DistanceTraveled>, &mut Sprite, &mut ProjectileType, &ProjectileIdent, &mut Damage, &mut Handle<ColorMaterial>, Option<&DestructionTimer>), (Without<PlayerID>, With<ProjectileIdent>)>, mut maps: ResMut<Maps>, map_crc32: Res<MapCRC32>, time: Res<Time>, mut death_event: EventWriter<DeathEvent>, materials: Res<ProjectileMaterials>, mut wall_event: EventWriter<DespawnWhenDead>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, asset_server: Res<AssetServer>) {
-
-    let mut liquid_molotovs: Vec<(Vec2, f32)> = Vec::with_capacity(5);
-
-    let map = maps.0.get_mut(&map_crc32.0).unwrap();
-
-    let stop_after_distance = 
-    #[inline(always)]
-    |movement_speed: &mut f32, distance_traveled: &mut f32, distance_to_stop_at: f32| {
-        *distance_traveled = unsafe { fadd_fast(movement_speed.abs(), *distance_traveled) };
-
-        if *distance_traveled >= distance_to_stop_at {
-            *movement_speed = 0.0;
-
-        }
-    };
-
-    player_movements.for_each_mut(|(_entity, mut object, mut movement, movement_type, mut distance_traveled, sprite, _player_id, health, _ability, _visible, _player_speed, phasing, _alpha, _damage_source)| {
-        if movement.speed != 0.0 && health.0 != 0.0 {
-            // The next potential movement is multipled by the amount of time that's passed since the last frame times how fast I want the game to be, so that the game doesn't run slower even with lag or very fast PC's, so the game moves at the same frame rate no matter the power of each device
-            let mut lag_compensation = unsafe { fmul_fast(DESIRED_TICKS_PER_SECOND, time.delta_seconds()) };
-
-
-            if lag_compensation > 4.0 {
-                lag_compensation = 4.0;
-
-            }
-
-            let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
-
-            let angle_trig = Vec2::from_slice(&[movement.angle.cos(), movement.angle.sin()]);
-            let speed_simd = Vec2::splat(speed);
-
-            let translation = object.translation.truncate();
-
-            let next_potential_pos = speed_simd * angle_trig + translation;
-
-            if !out_of_bounds(next_potential_pos, sprite.size, map.size) {
-                let collision = map.collision_no_damage(translation, sprite.size, speed, angle_trig);
-
-                if phasing.0 {
-                    object.translation = next_potential_pos.extend(100.0);
-            
-                } else {
-                    let next_potential_pos = next_potential_pos.to_array();
-
-                    if !collision.0 {
-                        object.translation.x = next_potential_pos[0];
-
-                    }
-
-                    if !collision.1 {
-                        object.translation.y = next_potential_pos[1];
-
-                    }
-
+        if let Some(player_id) = player_id.as_ref() {
+            if let Some(health_to_heal) = widow_maker_heals.0.remove(&player_id.0) {
+                let health = health.as_mut().unwrap();
+                // The health can only go as high as 150.0
+                if health.0 <= 150.0 {
+                    health.0 += health_to_heal;
                 }
 
-                match movement_type {
-                    // The object moves one frame, and then stops
-                    MovementType::SingleFrame => {
-                        movement.speed = 0.0;
-
-                    },
-
-                    MovementType::StopAfterDistance(distance_to_stop_at) => {
-                        stop_after_distance(&mut movement.speed, unsafe { &mut distance_traveled.as_mut().unwrap_unchecked().0 }, *distance_to_stop_at);
-
-                    },
-                }
-
-            } else {
-                movement.speed = 0.0;
-
             }
         }
-    });
-
-    projectile_movements.for_each_mut(|(_, mut object, mut movement, movement_type, mut distance_traveled, mut sprite, projectile_type, shot_from, mut damage, _, _)| {
-        if movement.speed != 0.0 || *projectile_type == ProjectileType::MolotovFire || *projectile_type == ProjectileType::MolotovLiquid {
-            if *projectile_type == ProjectileType::MolotovLiquid {
-                liquid_molotovs.push((object.translation.truncate(), sprite.size.x));
-
-            }
-            
-
-            let lag_compensation = unsafe { fmul_fast(DESIRED_TICKS_PER_SECOND, time.delta_seconds()) };
-
-            let speed = unsafe { fmul_fast(movement.speed, lag_compensation) };
 
 
-            let translation = object.translation.truncate();
-            let angle_trig = Vec2::new(movement.angle.cos(), movement.angle.sin());
-            let speed_simd = Vec2::splat(speed);
+        let mut rigid_body_to_remove: Option<(RigidBodyHandle, Entity)> = None;
 
-            let next_potential_pos = speed_simd * angle_trig + translation;
-            let mut player_collision = false;
+        if let Some(rigid_body) = rigid_body_set.get_mut(*rigid_body_handle) {
+            // Update the rigid body's sprite to the correct translation            
+            let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
+            transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
 
-            let delta_readjustment = time.delta().as_secs_f32() * 60.0;
+            let contacts = narrow_phase.contacts_with(*collider_handle);
 
-            // Molotov fire does too little damage if there is lag, so I need to adjust it depending on the amt of lag. For example, fi the game is running at 30 fps, it'll do twice the damage
-            let damage_adj = match *projectile_type == ProjectileType::MolotovFire {
-                false => match *projectile_type == ProjectileType::MolotovLiquid {
-                    false => damage.0,
-                    true => 0.0, 
-        }
-                true => damage.0 * delta_readjustment,
-            };
-
-            // Check to see if a player-projectile collision takes place
-            player_movements.for_each_mut(|(entity, player, mut player_movement, _, _, player_sprite, player_id, mut health, ability, _visible, mut player_speed, _phasing, mut alpha, mut damage_source) |{
-                // Player bullets cannot collide with the player who shot them (thanks @Susorodni for the idea)
-                // Checks that players aren't already dead as well lol
-                // Check to see if a player-projectile collision takes place                
-                let collision = {
-                    let collision = collide(translation, sprite.size, player.translation.truncate(), player_sprite.size, movement.speed, angle_trig);
-
-                    collision.0 || collision.1
-
+            // Increase the size of speedballs
+            // Only speedballs have a negative linear damping, meaning they increase in speed over time
+            // TODO: Replace this with projectile_type == Speedball
+            if rigid_body.linear_damping() < 0.0 {
+                let mut linvel = rigid_body.linvel().abs().amax() * 25.0;
+                // The maximum speed of Speedball projectiles is 50, so that they aren't horribly difficult to doge
+                linvel = match linvel > 50.0 {
+                    true => 50.0,
+                    false => linvel,
                 };
 
-                if health.0 > 0.0 && ((*projectile_type != ProjectileType::MolotovFire && collision) || ((*projectile_type == ProjectileType::MolotovFire || *projectile_type == ProjectileType::MolotovLiquid) && collide_rect_circle(player.translation.truncate(), player_sprite.size, next_potential_pos, sprite.size.x))) && (player_id.0 != shot_from.0 || *projectile_type == ProjectileType::MolotovFire) {
-                    if *projectile_type == ProjectileType::TractorBeam {
-                        const BEAM_STRENGTH: f32 = 6.5;
-                        let angle_add = Vec2::new(player_movement.angle.cos(), player_movement.angle.sin()) + Vec2::new(movement.angle.cos(), movement.angle.sin());
-                        player_movement.angle = angle_add.y.atan2(angle_add.x);
+                sprite.size = Vec2::splat(linvel);
 
-                        player_movement.speed += BEAM_STRENGTH * -speed.signum();
+                let collider = collider_set.get_mut(*collider_handle).unwrap();
+                collider.set_shape(SharedShape::cuboid(linvel / 500.0, linvel / 500.0));
 
-                    }
+                let (_damage, proj_info) = u128_to_f32_u8(collider.user_data);                
+                // Speedballs do more damage as their velocity increases
+                let new_damage = linvel * 1.5;
+                collider.user_data = f32_u8_to_u128(new_damage, proj_info);
 
-                    
-                    if *ability == Ability::Cloak && (alpha.value - 1.0).abs() > f32::EPSILON {
-                        alpha.value = 1.0;
+            }
 
-                    }
+            if let Some(max_distance) = max_distance {
+                if let Some(distance_traveled) = distance_traveled.as_mut() {
+                    let speed = speed.as_ref().unwrap().0;
+                    distance_traveled.0 += speed;
 
-                    // Players can only do damage to other players if they receive a network event about it, if they don't, then damage can only happen to themselves
-                    if let Some(my_player_id) = &my_player_id.0 {
-                        let player_died = (health.0 - damage_adj) <= 0.0;
+                    if distance_traveled.0 >= max_distance.0 {
+                        let projectile_type = projectile_type.as_mut().unwrap();
 
-                        commands.spawn_bundle(Text2dBundle {
-                            text: Text {
-                                sections: vec![
-                                    TextSection {
-                                        value: format!("{:.0}", damage_adj),
-                                        style: TextStyle {
-                                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                            font_size: 11.0,
-                                            color: match player_died {
-                                                false => Color::WHITE,
-                                                true => Color::RED,
-    
-                                            },
-                                        },
-                                    },
-                                ],
-                                ..Default::default()
-                            },
-                            transform: Transform::from_translation(Vec2::from_slice(&next_potential_pos.to_array()).extend(5.0)),
-                            ..Default::default()
-    
-                        })
-                        .insert(DamageTextTimer(Timer::from_seconds(2.0, false)));
-    
-                        
-                        if my_player_id.0 == player_id.0 {
-                            damage_source.0 = Some(shot_from.0);
+                        if !rigid_body.is_static() && **projectile_type != ProjectileType::Molotov {
+                            rigid_body_to_remove = Some((*rigid_body_handle, entity));
 
-                            if player_died {
-                                health.0 = 0.0;
-                                death_event.send(DeathEvent(player_id.0));
-                                // The player who shot the bullet has their score increased 
-                                *deathmatch_score.0.get_mut(&shot_from.0).unwrap() += 1;
+                        } else if **projectile_type == ProjectileType::Molotov {
+                            let collider = collider_set.get_mut(*collider_handle).unwrap();
+                            *material = proj_materials.molotov_liquid.clone();
+                            **projectile_type = ProjectileType::MolotovLiquid;
+                            sprite.size = Vec2::splat(200.0);
+                            collider.set_shape(SharedShape::ball(200.0 / 500.0));
+                            rigid_body.set_linvel(Vector2::new(0.0, 0.0), false);
+                            rigid_body.set_body_type(RigidBodyType::Static);
+                            collider.set_collision_groups(InteractionGroups::new(0b0010, 0b0100));
 
-                            } else {
-                                health.0 -= damage_adj;
+                            let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
 
-                                if *projectile_type == ProjectileType::PulseWave {
-                                    player_speed.0 =  unsafe { fmul_fast(player_speed.0, 0.25) };
-
-                                    commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
-
-                                } else if *projectile_type == ProjectileType::MolotovLiquid && player_speed.0 >= DEFAULT_PLAYER_SPEED {
-                                    player_speed.0 = unsafe { fmul_fast(player_speed.0, 0.65) };
-                                    commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
-                                }
-
-                            }
+                            rigid_body.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
+                            collider.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
 
                         }
                     }
 
-                    player_collision = true;
-
                 }
-
-            });
-
-            let (wall_collision, health_and_coords) = match *projectile_type {
-                // Pulsewaves and tractor beams move through walls
-                ProjectileType::PulseWave | ProjectileType::TractorBeam => (false, None),
-                _ =>  map.collision(translation, sprite.size, damage_adj, speed, Vec2::new(movement.angle.cos(), movement.angle.sin())),
-
-            };
-
-            if let Some((health, coords)) = health_and_coords {
-                wall_event.send(DespawnWhenDead {
-                    health,
-                    coords,
-
-                });
-
             }
 
-            // Pulsewaves move through walls, but not players
-            if !(player_collision || wall_collision) {
-                object.translation = Vec2::from_slice(&next_potential_pos.to_array()).extend(3.0);
+            contacts.for_each(|contact_pair| {
+                // Finds the collider handle that isn't equal to the current collider handle, and then grabs a reference to the actual collider object
+                let other_collider_handle = match contact_pair.collider1 != *collider_handle {
+                    true => contact_pair.collider1,
+                    false => contact_pair.collider2,
 
-                // Gotta make sure that it's both a projectile and has a projectile type, since guns also have a projectile type
-                // If you don't do the is_projectile bit, you get a great bug where a player's size will increase as it moves (if they're using the speedball weapon)
-                // The speedball's weapon speeds up and gets bigger
-                if *projectile_type == ProjectileType::Speedball {
-                    movement.speed = unsafe { fmul_fast(movement.speed, 1.1) } * delta_readjustment;
-                    sprite.size = unsafe { Vec2::new(fmul_fast(sprite.size.x, 1.03), fmul_fast(sprite.size.y, 1.03))} * delta_readjustment;
+                };
 
-                    if damage.0 <= 80.0 {
-                        damage.0 += (distance_traveled.as_ref().unwrap().0  / 60.0) * delta_readjustment;
+                if let Some(other_collider) = collider_set.get(other_collider_handle) {
+                    let hit_player = other_collider.user_data == u128::MAX;
+                    let hit_map_object = other_collider.user_data == 0;
+
+                    // Deal damage to objects that can take damage
+                    if let Some(health) = &mut health {
+                        if other_collider.user_data != 0  && other_collider.user_data != u128::MAX{
+                            let (damage, (shot_from, projectile_type)) = u128_to_f32_u8(other_collider.user_data);
+                            let player_id = player_id.unwrap().0; 
+
+                            if shot_from != player_id {
+                                let new_health = health.0 - damage;
+                                let player_died = new_health <= 0.0;
+                                
+                                let projectile_type: ProjectileType = projectile_type.into();          
+
+
+                                if my_player_id.0.as_ref().unwrap().0 != player_id && projectile_type == ProjectileType::WidowMaker {
+                                    if let Some(health_to_heal) = widow_maker_heals.0.get_mut(&shot_from) {
+                                        *health_to_heal += damage * 1.5;
+
+                                    } else {
+                                        widow_maker_heals.0.insert(shot_from, damage * 1.5);
+
+                                    }
+
+                                }
+                                // Only directly edit the local health of our player, other players send their health over the net
+                                if health.0 > 0.0 && my_player_id.0.as_ref().unwrap().0 == player_id {
+                                    damage_source.as_mut().unwrap().0 = Some(shot_from);
+
+                                    health.0 = match player_died {
+                                        true => {
+                                            death_event.send(DeathEvent(player_id));
+                                            // The player who shot the bullet has their score increased 
+                                            *deathmatch_score.0.get_mut(&shot_from).unwrap() += 1;
+                                            0.0
+                                        },
+                                        false => {
+                                            let speed = p_speed.as_mut().unwrap();
+                                            // Slow down players for X amount of seconds
+                                            if projectile_type == ProjectileType::PulseWave {
+                                                speed.0 =  unsafe { fmul_fast(speed.0, 0.25) };
+                                                commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.5, false)));
+
+
+                                            } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED {
+                                                speed.0 = unsafe { fmul_fast(speed.0, 0.65) };
+                                                commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
+
+                                            }
+
+                                            new_health
+
+                                        },
+                                    };
+
+                                }
+
+                            }
+                        }
+
+                    // Destroy any projectiles
+                    } else if shot_from.is_some() {
+                        let projectile_type_ref = **projectile_type.as_ref().unwrap();
+                        if 
+                        // None of the molov type should be destroyed when hit
+                        (projectile_type_ref != ProjectileType::MolotovLiquid && projectile_type_ref != ProjectileType::Molotov && projectile_type_ref != ProjectileType::MolotovFire)
+                        // the projecitle hit a wall or a player
+                         && (hit_map_object || hit_player) 
+                         // If it's a pulsewave, it has to have hit a player to dissapear
+                         && (projectile_type_ref != ProjectileType::PulseWave || hit_player) {
+                                // Projectiles upon collision with any object destroy themselves, except for collisions with other bullets
+                                rigid_body_to_remove = Some((*rigid_body_handle, entity));
+
+                        // Molotov liquid only becomes molotov fire when it hits something other than a player or a map object (almost always a projectile)
+                        } else if projectile_type_ref == ProjectileType::MolotovLiquid && !(hit_player || hit_map_object) {
+                            let collider = collider_set.get_mut(*collider_handle).unwrap();
+
+                           let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
+
+                            // 75.0 / 60.0 * 60 FPS = 75 damage per second
+                            const MOLOTOV_FIRE_DAMAGE: f32 = 75.0 / 60.0;
+
+                            rigid_body.user_data = f32_u8_to_u128(MOLOTOV_FIRE_DAMAGE, (shot_from, ProjectileType::MolotovFire.into()));
+                            collider.user_data = f32_u8_to_u128(MOLOTOV_FIRE_DAMAGE, (shot_from, ProjectileType::MolotovFire.into()));
+
+                            *material = proj_materials.molotov_fire.clone();
+                            **projectile_type.as_mut().unwrap() = ProjectileType::MolotovFire;
+                            sprite.size = Vec2::splat(400.0);
+                            collider.set_shape(SharedShape::ball(400.0 / 500.0));
+                            
+                        }
 
                     }
 
-                } else if *projectile_type == ProjectileType::Flame && sprite.size.x <= 20.0 {
-                    sprite.size *= 1.3 * delta_readjustment;
-
                 }
-
-                match movement_type {
-                    // The object moves one frame, and then stops
-                    MovementType::SingleFrame => {
-                        movement.speed = 0.0;
-
-                    },
-
-                    MovementType::StopAfterDistance(distance_to_stop_at) => {
-                        stop_after_distance(&mut movement.speed, unsafe { &mut distance_traveled.as_mut().unwrap_unchecked().0 }, *distance_to_stop_at)
-
-                    },
-                }
-
-            } else {
-                // Stop any bullets that hit players or walls
-                movement.speed = 0.0;
-
-            }
-
-        }
-    });
-
-
-    // Remove all stopped bullets
-    projectile_movements.for_each_mut(|(entity, _, req_mov, _, _, mut sprite, mut projectile_type, _, _, mut material, destruction_timer)| {
-        if req_mov.speed == 0.0 {
-            if *projectile_type == ProjectileType::Molotov {
-                // Once the molotov reaches it's destination, or hits a player, it becomes molotov liquid, waiting to be lit by an Inferno player
-                *projectile_type.deref_mut() = ProjectileType::MolotovLiquid;
-                *material.deref_mut() = materials.molotov_liquid.clone();
-                sprite.deref_mut().size = Vec2::new(175.0, 175.0);
-                // Molotov liquid disappears after a little while
-                commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
-
-            } else if likely(*projectile_type != ProjectileType::MolotovLiquid && *projectile_type != ProjectileType::MolotovFire || ((*projectile_type == ProjectileType::MolotovLiquid || *projectile_type == ProjectileType::MolotovFire) && destruction_timer.unwrap().0.finished())) {
-                commands.entity(entity).despawn_recursive();
-
-            }
-        }
-    });
-
-    let mut molotovs_to_be_lit_on_fire: Vec<(Vec2, f32)> = Vec::new();
-
-    // Find molotovs that are to be lit on fire
-    projectile_movements.for_each_mut(|(_, proj_coords, _, _, _, sprite, projectile_type, shot_from, _, _, _) |{
-        if *projectile_type != ProjectileType::MolotovFire && *projectile_type != ProjectileType::MolotovLiquid {
-            let (_entity, _, _, _, _, _, _, _, _ability, _, _player_speed, _phasing, _alpha, _damage_source) = player_movements.get_mut(*player_entity.get(&shot_from.0).unwrap()).unwrap();
-
-            for (coords, radius) in liquid_molotovs.iter() {
-                if collide_rect_circle(proj_coords.translation.truncate(), sprite.size, *coords, *radius) {
-                    molotovs_to_be_lit_on_fire.push((*coords, *radius));
-
-                }
-
-            }
-
-        }
-
-    });
-
-    // Finally, light any molotovs on fire that need to be lit
-    projectile_movements.for_each_mut(|(entity, proj_coords, _, _, _, mut sprite, mut projectile_type, _, mut damage, mut material, _) |{
-        if *projectile_type == ProjectileType::MolotovLiquid {
-
-            molotovs_to_be_lit_on_fire.drain_filter(|potential_molotov| {
-                let should_light_molotov = proj_coords.translation.truncate() == potential_molotov.0 && (sprite.size.x - potential_molotov.1).abs() < f32::EPSILON;
-
-                if should_light_molotov {
-                    // Does 75 damage every second (since there are 60 frames per second)
-                    // This might seem excessive, but most players have the sense to run if they catch on fire, so the high damage done forces them to take the fire as a threat instead of just running through it to engage the slow and weak Inferno
-                    // Once the molotov is hit by a bullet, it becomes molotov fire
-
-                    *projectile_type.deref_mut() = ProjectileType::MolotovFire;
-                    *material.deref_mut() = materials.molotov_fire.clone();
-                    damage.0 = 75.0 / 60.0;
-                    sprite.deref_mut().size = Vec2::new(250.0, 250.0);
-                    commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
-
-                }
-
-                // Remove any lit molotovs w. drain filter
-                should_light_molotov
 
             });
 
         }
 
+        if let Some((rigid_body_handle, entity)) = rigid_body_to_remove {
+            rigid_body_set.remove(rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
+            commands.entity(entity).despawn_recursive();
+        }
     });
+
+    const GRAVITY: Vector2<f32> = Vector2::new(0.0, 0.0);
+    const INTEGRATION_PARAMETERS: IntegrationParameters = IntegrationParameters {
+        dt: 1.0 / 60.0,
+        min_ccd_dt: 1.0 / 60.0 / 100.0,
+        erp: 0.2,
+        joint_erp: 0.2,
+        velocity_solve_fraction: 1.0,
+        velocity_based_erp: 0.0,
+        warmstart_coeff: 1.0,
+        warmstart_correction_slope: 10.0,
+        allowed_linear_error: 0.005,
+        prediction_distance: 0.002,
+        allowed_angular_error: 0.001,
+        max_linear_correction: 0.2,
+        max_angular_correction: 0.2,
+        max_velocity_iterations: 4,
+        max_position_iterations: 1,
+        min_island_size: 128,
+        max_ccd_substeps: 20,
+    };
+
+    physics_pipeline.step(
+        &GRAVITY,
+        &INTEGRATION_PARAMETERS,
+        &mut island_manager,
+        &mut broad_phase,
+        &mut narrow_phase,
+        &mut rigid_body_set,
+        &mut collider_set,
+        &mut joint_set,
+        &mut ccd_solver,
+        &(),
+        &()
+    );
+
 }

@@ -32,17 +32,13 @@ pub struct Player {
     pub can_melee: CanMelee,
     pub dashing_info: DashingInfo,
     pub perk: Perk,
-    pub phasing: Phasing,
     pub damage_source: DamageSource,
 }
 
-pub const DEFAULT_PLAYER_SPEED: f32 = 13.0;
-
+pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
-
-    #[allow(unused_mut)]
-    let mut set_ability_charge = || *ability_charge = match ability {
+    *ability_charge = match ability {
         Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
         Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
@@ -56,23 +52,12 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 
     };
 
-    #[allow(unused_mut)]
-    let mut set_ability_completed = || *ability_completed = match ability {
+    *ability_completed = match ability {
         Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
         Ability::Ghost => AbilityCompleted(Timer::from_seconds(4.75, false)),
         Ability::Cloak => AbilityCompleted(Timer::from_seconds(3.5, false)),
         // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
         _ => AbilityCompleted(Timer::from_seconds(0.0, false)),
-    };
-
-    #[cfg(feature = "parallel")]
-    join(set_ability_charge, set_ability_completed);
-
-    #[cfg(not(feature = "parallel"))]
-    {
-        set_ability_charge();
-        set_ability_completed();
-
     };
 
 }
@@ -108,7 +93,7 @@ impl Player {
                 false => Health(0.0),
             },
             speed: match ability {
-                // Stim players have a faster default running speed
+                // Stim and Brute players have a faster default running speed
                 Ability::Stim => PlayerSpeed(DEFAULT_PLAYER_SPEED + 1.0),
                 Ability::Brute => PlayerSpeed(DEFAULT_PLAYER_SPEED * 1.4),
                 _ => PlayerSpeed(DEFAULT_PLAYER_SPEED),
@@ -123,8 +108,8 @@ impl Player {
             can_respawn: RespawnTimer(Timer::from_seconds(2.5, false)),
             dashing_info: DashingInfo {
                 time_till_can_dash: match ability {
-                    Ability::Brute => Timer::from_seconds(1.0, false),
-                    _ => Timer::from_seconds(3.0, false),
+                    Ability::Brute => Timer::from_seconds(2.0, false),
+                    _ => Timer::from_seconds(4.0, false),
 
                 },
                 time_till_stop_dash: match ability {
@@ -135,7 +120,6 @@ impl Player {
             },
             can_melee: CanMelee(Timer::from_seconds(0.6, false)),
             perk,
-            phasing: Phasing(false),
             damage_source: DamageSource(None),
         };
 
@@ -291,6 +275,50 @@ pub enum ProjectileType {
     MolotovFire,
     MolotovLiquid,
     Melee,
+    WidowMaker,
+
+}
+
+pub const NUM_OF_PROJECTILE_TYPES: u8 = variant_count::<ProjectileType>() as u8;
+
+impl From<u8> for ProjectileType {
+    fn from(projectile_type: u8)  -> Self {
+        match projectile_type {
+            0 => ProjectileType::Regular,
+            1 => ProjectileType::Speedball,
+            2 => ProjectileType::PulseWave,
+            3 => ProjectileType::TractorBeam,
+            4 => ProjectileType::Flame,
+            5 => ProjectileType::Molotov,
+            6 => ProjectileType::MolotovFire,
+            7 => ProjectileType::MolotovLiquid,
+            8 => ProjectileType::Melee,
+            9 => ProjectileType::WidowMaker,
+            _ => panic!("Projectile conversion out of bounds: {} was requested, max is {}", projectile_type, NUM_OF_PROJECTILE_TYPES),
+
+        }
+
+    }
+
+}
+
+impl From<ProjectileType> for u8 {
+    fn from(projectile_type: ProjectileType)  -> Self {
+        match projectile_type {
+            ProjectileType::Regular => 0,
+            ProjectileType::Speedball => 1,
+            ProjectileType::PulseWave => 2,
+            ProjectileType::TractorBeam => 3,
+            ProjectileType::Flame => 4,
+            ProjectileType::Molotov => 5,
+            ProjectileType::MolotovFire => 6,
+            ProjectileType::MolotovLiquid => 7,
+            ProjectileType::Melee => 8,
+            ProjectileType::WidowMaker => 9,
+
+        }
+
+    }
 
 }
 
@@ -306,6 +334,7 @@ pub enum Model {
     Flamethrower,
     SniperRifle,
     Melee,
+    Widowmaker,
 
 }
 
@@ -324,6 +353,7 @@ impl From<u8> for Model {
             7 => Model::Flamethrower,
             8 => Model::SniperRifle,
             9 => Model::Melee,
+            10 => Model::Widowmaker,
             _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
@@ -345,6 +375,7 @@ impl From<Model> for u8 {
             Model::Flamethrower => 7,
             Model::SniperRifle => 8,
             Model::Melee => 9,
+            Model::Widowmaker => 10,
 
         }
 
@@ -390,12 +421,13 @@ impl Gun {
                 Model::Shotgun => TimeSinceLastShot(Timer::from_seconds(0.8, false)),
                 Model::Speedball => TimeSinceLastShot(Timer::from_seconds(0.9, false)),
                 Model::BurstRifle => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
-                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.12, false)),
+                Model::AssaultRifle => TimeSinceLastShot(Timer::from_seconds(0.09, false)),
                 Model::SubmachineGun => TimeSinceLastShot(Timer::from_seconds(0.07, false)),
                 Model::ClusterShotgun => TimeSinceLastShot(Timer::from_seconds(1.3, false)),
                 Model::Flamethrower => TimeSinceLastShot(Timer::from_seconds(0.1, false)),
                 Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(4.0, false)),
                 Model::Melee => TimeSinceLastShot(Timer::from_seconds(0.3, false)),
+                Model::Widowmaker => TimeSinceLastShot(Timer::from_seconds(1.0, false)),
 
             },
             time_since_start_reload: TimeSinceStartReload {
@@ -410,6 +442,7 @@ impl Gun {
                     Model::Flamethrower => Timer::from_seconds(2.0, false),
                     Model::SniperRifle => Timer::from_seconds(7.0, false),
                     Model::Melee => Timer::from_seconds(0.01, false),
+                    Model::Widowmaker => Timer::from_seconds(4.0, false),
 
                 },
                 reloading: false,
@@ -427,6 +460,7 @@ impl Gun {
                 Model::Flamethrower => AmmoInMag(30),
                 Model::SniperRifle => AmmoInMag(1),
                 Model::Melee => AmmoInMag(1),
+                Model::Widowmaker => AmmoInMag(6),
 
             },
             max_ammo: match model {
@@ -440,32 +474,35 @@ impl Gun {
                 Model::Flamethrower => MaxAmmo(30),
                 Model::SniperRifle => MaxAmmo(1),
                 Model::Melee => MaxAmmo(1),
+                Model::Widowmaker => MaxAmmo(6),
 
             },
             max_distance: match model {
-                Model::Pistol => MaxDistance(1250.0),
-                Model::Shotgun => MaxDistance(700.0),
-                Model::Speedball => MaxDistance(3000.0),
-                Model::BurstRifle => MaxDistance(1000.0),
-                Model::AssaultRifle => MaxDistance(1000.0),
-                Model::SubmachineGun => MaxDistance(600.0),
-                Model::ClusterShotgun => MaxDistance(275.0),
-                Model::Flamethrower => MaxDistance(200.0),
+                Model::Pistol => MaxDistance(1750.0),
+                Model::Shotgun => MaxDistance(1000.0),
+                Model::Speedball => MaxDistance(3300.0),
+                Model::BurstRifle => MaxDistance(1500.0),
+                Model::AssaultRifle => MaxDistance(1300.0),
+                Model::SubmachineGun => MaxDistance(900.0),
+                Model::ClusterShotgun => MaxDistance(575.0),
+                Model::Flamethrower => MaxDistance(400.0),
                 Model::SniperRifle => MaxDistance(5000.0),
-                Model::Melee => MaxDistance(50.0),
+                Model::Melee => MaxDistance(100.0),
+                Model::Widowmaker => MaxDistance(1000.0),
 
 
             },
             // The recoil range is in radians
             recoil_range: match model {
-                Model::Shotgun => RecoilRange(0.2),
+                Model::Shotgun => RecoilRange(0.18),
                 Model::Speedball => RecoilRange(0.0),
-                Model::BurstRifle => RecoilRange(0.025),
-                Model::SubmachineGun => RecoilRange(0.12),
+                Model::BurstRifle => RecoilRange(0.021),
+                Model::SubmachineGun => RecoilRange(0.09),
                 Model::ClusterShotgun => RecoilRange(0.07),
                 Model::Flamethrower => RecoilRange(0.15),
                 Model::SniperRifle => RecoilRange(0.012),
                 Model::Melee => RecoilRange(0.0),
+                Model::Widowmaker => RecoilRange(0.05),
                 _ => RecoilRange(0.075),
 
             },
@@ -473,40 +510,43 @@ impl Gun {
                 Model::Speedball => ProjectileType::Speedball,
                 Model::Flamethrower => ProjectileType::Flame,
                 Model::Melee => ProjectileType::Melee,
+                Model::Widowmaker => ProjectileType::WidowMaker,
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
-                Model::Pistol => Speed(23.0),
-                Model::Shotgun => Speed(19.0),
+                Model::Pistol => Speed(33.0),
+                Model::Shotgun => Speed(29.0),
                 Model::Speedball => Speed(0.7),
-                Model::BurstRifle => Speed(20.0),
-                Model::AssaultRifle => Speed(21.0),
-                Model::SubmachineGun => Speed(19.5),
-                Model::ClusterShotgun => Speed(14.0),
-                Model::Flamethrower => Speed(17.0),
+                Model::BurstRifle => Speed(40.0),
+                Model::AssaultRifle => Speed(31.0),
+                Model::SubmachineGun => Speed(29.5),
+                Model::ClusterShotgun => Speed(24.0),
+                Model::Flamethrower => Speed(27.0),
                 Model::SniperRifle => Speed(100.0),
-                Model::Melee => Speed(30.0),
+                Model::Widowmaker => Speed(60.0),
+                Model::Melee => Speed(40.0),
 
             },
             projectile_size: match model {
-                Model::SubmachineGun => Size::new(4.0, 4.0),
+                Model::SubmachineGun => Size::new(5.5, 5.5),
                 Model::Melee => Size::new(25.0, 25.0),
-                _ => Size::new(6.0, 6.0),
+                _ => Size::new(7.0, 7.0),
 
             },
 
             damage: match model {
                 Model::Pistol => Damage(45.0),
-                Model::Shotgun => Damage(8.0),
+                Model::Shotgun => Damage(12.0),
                 Model::Speedball => Damage(1.5),
-                Model::BurstRifle => Damage(18.0),
-                Model::AssaultRifle => Damage(15.0),
-                Model::SubmachineGun => Damage(8.0),
-                Model::ClusterShotgun => Damage(20.0),
-                Model::Flamethrower => Damage(4.25),
+                Model::BurstRifle => Damage(22.0),
+                Model::AssaultRifle => Damage(19.0),
+                Model::SubmachineGun => Damage(12.0),
+                Model::ClusterShotgun => Damage(24.0),
+                Model::Flamethrower => Damage(7.25),
                 // Enough damage to kill any player without heavy armor
                 Model::SniperRifle => Damage(100.0),
-                Model::Melee => Damage(35.0),
+                Model::Melee => Damage(45.0),
+                Model::Widowmaker => Damage(12.0),
 
 
             },

@@ -30,6 +30,8 @@ use serde::{Serialize, Deserialize};
 
 use bevy_networking_turbulence::*;
 
+use rapier2d::na::Vector2;
+
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
@@ -88,6 +90,8 @@ pub struct ChampionText;
 #[cfg(feature = "graphics")]
 pub struct NetConnStateText;
 
+pub struct WidowMakerHeals(pub HashMap<u8, f32>);
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
     Connecting,
@@ -105,7 +109,6 @@ pub enum AppState {
 #[derive(Bundle)]
 pub struct Projectile {
     pub distance_traveled: DistanceTraveled,
-    pub requested_movement: RequestedMovement,
     pub movement_type: MovementType,
     pub projectile_type: ProjectileType,
     // A general purpose identifier for projectiles, to distinguish between guns and projectiles
@@ -131,10 +134,9 @@ pub struct GameLog {
 }
 
 impl Projectile {
-    pub fn new(requested_movement: RequestedMovement, projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
+    pub fn new(projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
         Projectile {
             distance_traveled: DistanceTraveled(0.0),
-            requested_movement,
             movement_type: MovementType::StopAfterDistance(max_distance),
             projectile_type,
             projectile: ProjectileIdent(player_id),
@@ -369,8 +371,8 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>) {
-    let delta = Duration::from_secs_f32(time.delta().as_secs_f32() / 2.0);
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>) {
+    let delta = time.delta();
 
     player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee, _player_id)| {
         time_since_last_shot.0.tick(delta);
@@ -440,6 +442,8 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
                 let (entity, _, _, _, _, _, _, _, _, _, _, _, _, _) = player_timers.iter_mut().find(|(entity, _ability, _ability_charge, _ability_completed, _using_ability, _health, _time_since_last_shot, _time_since_start_reload, _respawn_timer, _dashing_info, _player_speed, _slowed_down, _can_melee, player_id)| player_id.0 == *id).unwrap();
                 commands.entity(entity).despawn_recursive();
                 deathmatch_score.0.remove(id);
+                // TODO: Switch to VecDequeue
+                available_player_ids.push(PlayerID(*id));
                 
             }
 
@@ -528,16 +532,12 @@ pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeS
 
         let ability_charge_percent = ability_charge_percent as u8;
 
-        if ability_charge_percent < 50 {
-            ability_charge_text.sections[0].style.color = Color::RED;
 
-        } else if (50..100).contains(&ability_charge_percent) {
-            ability_charge_text.sections[0].style.color = Color::YELLOW;
-
-        } else if ability_charge_percent == 100 {
-            ability_charge_text.sections[0].style.color = Color::GREEN;
-
-        }
+        ability_charge_text.sections[0].style.color = match ability_charge_percent {
+            0..=49 => Color::RED,
+            50..=99 => Color::YELLOW,
+            100.. => Color::GREEN,
+        };
 
         let mut health_text = health_text.single_mut();
         health_text.sections[0].value = format!("Health: {:.0}%", health);

@@ -18,6 +18,8 @@ single_byte_hashmap = { version = "0.1", features = ["nightly"] }
 
 rayon = { version = "1", optional = true }
 
+rapier2d = { version = "0.11", features = ["simd-nightly"]}
+
 game_types = { path = "../game_types" }
 helper_functions = { path = "../helper_functions" }
 

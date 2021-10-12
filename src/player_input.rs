@@ -16,13 +16,16 @@ use rayon::prelude::*;
 #[cfg(feature = "web")]
 use lazy_static::lazy_static;
 
+use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
+
 use crate::*;
 use map::MapCRC32;
 use game_types::*;
 use game_types::player_attr::*;
 use map::WallMarker;
 
-use helper_functions::get_angle;
+use helper_functions::{get_angle, f32_u8_to_u128};
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
@@ -57,16 +60,15 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.y = y;
 
         camera.scale = match perk {
-            Perk::ExtendedVision => const_vec3!([3.0; 3]) * res_scale.0,
-            _ => const_vec3!([1.5; 3]) * res_scale.0,
+            Perk::ExtendedVision => const_vec3!([1.3; 3]) * res_scale.0,
+            _ => const_vec3!([1.1; 3]) * res_scale.0,
         };
 
     }
 }
 
 
-//TODO: Use EventReader<KeyboardInput> for more efficient input checking (https://bevy-cheatbook.github.io/features/input-handling.html)
-pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut RequestedMovement, &mut PlayerSpeed, &mut DashingInfo)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>) {
+pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>) {
     if in_game_settings.is_empty() {
         let mut angle = None;
 
@@ -250,7 +252,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
         }
 
         if let Some(my_player_id) = &my_player_id.0 {
-            let (mut requested_movement, mut speed, mut dashing_info) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            let (mut speed, mut dashing_info, rigid_body_handle) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
             if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
                 speed.0 *= 3.1;
@@ -260,19 +262,16 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
             }
 
-            // Only do a change event if a key has been pressed
             if keyboard_input.pressed(keybindings.use_ability) {
                 ev_use_ability.send(AbilityEvent(my_player_id.0));
 
             }
 
             if let Some(angle) = angle {
+                let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
                 // If the player is dashing then they can't change the angle that they move in
-                if !dashing_info.dashing {
-                    requested_movement.angle = angle;
-
-                }
-                requested_movement.speed = speed.0;
+                let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
+                rigid_body.set_linvel(new_linvel, true);
 
             }
 
@@ -284,84 +283,85 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
     }
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, query: Query<(&Bursting, &Transform, &Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &Phasing, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
-            let (bursting, transform, health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, phasing, perk) = query.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-            if !phasing.0 {
-                if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
-                    // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
-                    // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
+            if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
+                // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
+                // It needs to be a vector since shotguns, for example, send multiple bulelts at a time, each with a different amount of recoil
 
-                    // TODO: Make number of bullets into a part of the gun
-                    let num_of_recoil = match *model {
-                        Model::Shotgun => 12,
-                        Model::ClusterShotgun => 6,
-                        Model::Flamethrower => 5,
-                        _ => 1,
+                // TODO: Make number of bullets into a part of the gun
+                let num_of_recoil = match *model {
+                    Model::Shotgun => 12,
+                    Model::ClusterShotgun => 6,
+                    Model::Flamethrower => 5,
+                    _ => 1,
 
-                    };
+                };
 
-                    let rng = fastrand::Rng::new();
-
-                    let recoil_vec: Vec<f32> = repeat_with(|| {
-                        let sign = rng.i8(..).signum() as f32;
-                        rng.f32() * recoil_range.0 * sign
-                    }).take(num_of_recoil).collect();
-
-                    let event = ShootEvent {
-                        start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
-                        player_id: my_player_id.0,
-                        pos_direction: mouse_pos.0,
-                        health: health.0,
-                        model: *model,
-                        max_distance: max_distance.0,
-                        recoil_vec,
-                        // Bullets need to travel "backwards" when moving to the left
-                        speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
-                        projectile_type: *projectile_type,
-                        damage: *damage,
-                        player_ability: *player_ability,
-                        size: Vec2::new(size.width, size.height),
-                        reloading: reload_timer.reloading,
-
-                    };
-
-                    shoot_event.send(event);
-
-                // Melee is the F key
-                } else if keyboard_input.pressed(keybindings.melee) {
-                    let melee = Gun::new(Model::Melee, *player_ability, *perk);
-
-                    let event = ShootEvent {
-                        start_pos: transform.translation + Vec3::new(melee.projectile_size.width, melee.projectile_size.height, 0.0) / 2.0,
-                        player_id: my_player_id.0,
-                        pos_direction: mouse_pos.0,
-                        health: health.0,
-                        model: Model::Melee,
-                        max_distance: melee.max_distance.0,
-                        recoil_vec: vec![0.0],
-                        // Bullets need to travel "backwards" when moving to the left
-                        speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
-                        projectile_type: ProjectileType::Melee,
-                        damage: melee.damage,
-                        player_ability: *player_ability,
-                        size: Vec2::new(melee.projectile_size.width, melee.projectile_size.height),
-                        reloading: reload_timer.reloading,
-
-                    };
-
-                    shoot_event.send(event);
+                if *model == Model::Widowmaker && time_since_last_shot.0.finished() {
+                    health.0 -= damage.0;
                 }
-                
-            }
+
+                let rng = fastrand::Rng::new();
+
+                let recoil_vec: Vec<f32> = repeat_with(|| {
+                    let sign = rng.i8(..).signum() as f32;
+                    rng.f32() * recoil_range.0 * 2.0 * sign
+                }).take(num_of_recoil).collect();
+
+                let event = ShootEvent {
+                    start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
+                    player_id: my_player_id.0,
+                    pos_direction: mouse_pos.0,
+                    health: health.0,
+                    model: *model,
+                    max_distance: max_distance.0,
+                    recoil_vec,
+                    // Bullets need to travel "backwards" when moving to the left
+                    speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                    projectile_type: *projectile_type,
+                    damage: *damage,
+                    player_ability: *player_ability,
+                    size: Vec2::new(size.width, size.height),
+                    reloading: reload_timer.reloading,
+
+                };
+
+                shoot_event.send(event);
+
+            // Melee is the F key
+            } else if keyboard_input.pressed(keybindings.melee) {
+                let melee = Gun::new(Model::Melee, *player_ability, *perk);
+
+                let event = ShootEvent {
+                    start_pos: transform.translation + Vec3::new(melee.projectile_size.width, melee.projectile_size.height, 0.0) / 2.0,
+                    player_id: my_player_id.0,
+                    pos_direction: mouse_pos.0,
+                    health: health.0,
+                    model: Model::Melee,
+                    max_distance: melee.max_distance.0,
+                    recoil_vec: vec![0.0],
+                    // Bullets need to travel "backwards" when moving to the left
+                    speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                    projectile_type: ProjectileType::Melee,
+                    damage: melee.damage,
+                    player_ability: *player_ability,
+                    size: Vec2::new(melee.projectile_size.width, melee.projectile_size.height),
+                    reloading: reload_timer.reloading,
+
+                };
+
+                shoot_event.send(event);
+            }                
         }
     }
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee, &Perk)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee, &Perk)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev in shoot_event.iter() {
             if ev.health != 0.0 {
@@ -426,7 +426,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                     }
 
                     for recoil in ev.recoil_vec.iter() {
-                        let movement = RequestedMovement::new(angle + recoil, speed);
+                        let movement = Vector2::new(recoil + angle.cos(), recoil + angle.sin()).component_mul(&Vector2::new(speed, speed));
 
                         let material =
                             if ev.player_ability == Ability::Engineer && ev.model != Model::Flamethrower {
@@ -443,7 +443,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 };
 
                                 match ev.projectile_type {
-                                    ProjectileType::Regular => materials.regular.clone(),
+                                    // TODO: Add a projectile material for WidowMaker
+                                    ProjectileType::Regular | ProjectileType::WidowMaker => materials.regular.clone(),
                                     ProjectileType::Speedball => materials.speedball.clone(),
                                     ProjectileType::Molotov => materials.molotov.clone(),
                                     ProjectileType::MolotovFire => materials.molotov_fire.clone(),
@@ -471,15 +472,45 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         };
 
                         // Move the projectile in front of the player according to the projectile's size
-                        let size_vec3a = Vec3A::from((ev.size, 1.0));
+                        let size_vec3a = Vec3A::from((ev.size, 0.0));
                         
                         let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
                         let mut translation: Vec3A = ev.start_pos.into();
                         
-                        translation += size_vec3a * angle_trig;
+                        translation += (size_vec3a * angle_trig) + (angle_trig * Vec3A::new(100.0, 100.0, 0.0)) + (angle_trig * Vec3A::new(movement.x, movement.y, 0.0));
+
+                        let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+                            // The user_data is the damage, (shot_from, projectile_type) (f32, (u8, u8)) of the bullet
+                            .user_data(f32_u8_to_u128(ev.damage.0, (player_id, ev.projectile_type.into())))
+                            .translation((Vector2::new(translation.x, translation.y)).component_div(&Vector2::new(250.0, 250.0)))
+                            .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
+                            // The Speedball's projectiles move faster over time, thus, a negative linear dampening
+                            .linear_damping(match ev.projectile_type == ProjectileType::Speedball {
+                                true => -4.5,
+                                false => 0.0,
+                            })
+                            .gravity_scale(0.0)
+                            .ccd_enabled(true)
+                            .build();
+
+                        let collider_size = Vec2::new(ev.size.x, ev.size.y) / Vec2::new(500.0, 500.0);
+
+                        let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+                            .user_data(f32_u8_to_u128(ev.damage.0, (player_id, ev.projectile_type.into())))
+                            .restitution(0.0)
+                            .friction(0.0)
+                            .collision_groups(match ev.projectile_type {
+                                ProjectileType::PulseWave => InteractionGroups::new(0b0001, 0b1000),
+                                _ => InteractionGroups::new(0b0010, 0b1111),
+
+                            })
+                            .build();
+
+                    let rigid_body_handle = rigid_body_set.insert(rigid_body);
+                    let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
                         
                         commands
-                            .spawn_bundle(Projectile::new(movement, ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
+                            .spawn_bundle(Projectile::new(ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
                                 material,
                                 sprite: Sprite::new(ev.size),
@@ -490,7 +521,12 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                                 },
                                 ..Default::default()
-                            });
+                            })
+                            .insert(rigid_body_handle)
+                            .insert(collider_handle)
+                            .insert(MaxDistance(ev.max_distance))
+                            .insert(DistanceTraveled(0.0))
+                            .insert(Speed(ev.speed.abs()));
                     }
                 }
 
@@ -517,12 +553,12 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Phasing, &mut Alpha)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
-ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>) {
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandle, &RigidBodyHandle)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
+ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, mut requested_movement, ability, mut ability_charge, mut
-            ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut phasing, mut shader_phasing) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
+            ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut shader_phasing, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
             // Events that come from other players dont need to wait for ability charge to finish
             if (*ability != Ability::Brute && ability_charge.0.finished()) || ev_id.0 != my_player_id.0 || (*ability == Ability::Brute && ability_charge.0.elapsed_secs() >= 0.5) {
@@ -607,6 +643,9 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                         }
                     },
                     Ability::Warp => {
+                        let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+
+                        rigid_body.set_linvel(rigid_body.linvel() * 25.0, true);
                         requested_movement.speed = 550.0;
                         ability_charge.0.reset();
 
@@ -649,7 +688,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                     Ability::Engineer => {},
                     // Inferno throws a molotov that lights an area on fire for a few seconds
                     Ability::Inferno => {
-                        const PROJECTILE_SPEED: f32 = 6.0;
+                        const PROJECTILE_SPEED: f32 = 20.0;
 
                         let event = ShootEvent {
                             start_pos: transform.translation,
@@ -665,7 +704,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             projectile_type: ProjectileType::Molotov,
                             damage: Damage(5.0),
                             player_ability: *ability,
-                            size: Vec2::new(3.0, 3.0),
+                            size: Vec2::new(7.0, 7.0),
                             reloading: reload_timer.reloading,
 
                         };
@@ -728,8 +767,6 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                         let my_player_used_ability = ev_id.0 == my_player_id.0;
 
                         if !my_player_used_ability || (!using_ability.0 && ability_charge.0.finished()) {
-                            phasing.0 = true;
-
                             shader_phasing.value = 0.5;
 
                             if my_player_used_ability {
@@ -739,6 +776,9 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                                 net.broadcast_message(message);
 
                             }
+
+                            let collider = collider_set.get_mut(*collider_handle).unwrap();
+                            collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1011));
 
                             using_ability.0 = true;
                             ability_completed.0.reset();
@@ -790,9 +830,9 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
 TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
-AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sprite, &mut Health)>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>) {
+AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &Transform, &Sprite, &mut Health, &ColliderHandle)>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>, mut collider_set: ResMut<ColliderSet>) {
     query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
-        mut using_ability, mut ability_charge, mut speed, mut dashing_info, mut phasing, transform, sprite, mut health)| {
+        mut using_ability, mut ability_charge, mut speed, mut dashing_info, transform, sprite, mut health, collider_handle)| {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -809,12 +849,9 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &mut Phasing, &Transform, &Sp
                 let map = maps.0.get(&map_crc32.0).unwrap();
                 let collision = map.collision_no_damage(transform.translation.truncate(), sprite.size, 0.0, Vec2::splat(0.0));
 
-                if collision.0 || collision.1 {
-                    health.0 = 0.0;
-                    death_event.send(DeathEvent(my_player_id.0.as_ref().unwrap().0));
-                }
+                let collider = collider_set.get_mut(*collider_handle).unwrap();
+                collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1111));
 
-                phasing.0 = false;
             }
 
             using_ability.0 = false;

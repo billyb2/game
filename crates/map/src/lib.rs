@@ -19,6 +19,9 @@ use helper_functions::*;
 use crc32fast::Hasher;
 use lz4_flex::frame::{FrameEncoder, FrameDecoder};
 
+use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
+
 use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
 
@@ -63,11 +66,18 @@ impl MapObject {
         other_object_size: Vec2,
         distance: f32,
         angle: Vec2,
-    ) -> (bool, bool) {
+    ) -> (f32, f32, f32) {
         //Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
         match self.collidable{
             true => collide(other_object_coords, other_object_size, self.coords.xy(), self.size, distance, angle),
-            false => (false, false)
+            false => (0.0, 0.0, 1.0),
+        }
+    }
+
+    fn aabb_check(&self, other_rect_coords: Vec2, other_rect_size: Vec2) -> bool {
+        match self.collidable {
+            true => aabb_check(other_rect_coords, other_rect_size, self.coords.xy(), self.size),
+            false => false,
         }
     }
 
@@ -297,35 +307,45 @@ impl Map {
     }
 
     // Returns whether a collision took place, and the health of the wall (if it has health)
-    pub fn collision(&mut self, other_object_coords: Vec2, other_object_size: Vec2, damage: f32, distance: f32, angle: Vec2) -> (bool, Option<(f32, Vec2)>) {
+    pub fn collision(&mut self, other_object_coords: Vec2, other_object_size: Vec2, damage: f32, distance: f32, angle: Vec2) -> ((f32, f32, f32), Option<(f32, Vec2)>) {
         // The collision function just iterates through each map object within the map, and runs the collide function within
         #[cfg(feature = "parallel")]
         let object = self.objects.par_iter_mut().enumerate()
-            .find_any(|(_i, object)| {
-                let c = object.collision(other_object_coords, other_object_size, distance, angle);
-                c.0 || c.1
-
-            });
-
-        #[cfg(not(feature = "parallel"))]
-        let object = self.objects.iter_mut().enumerate()
-        .find(|(_i, object)| {
+        .find_map_any(|(i, object)| {
             let c = object.collision(other_object_coords, other_object_size, distance, angle);
-            c.0 || c.1
+            match c != (0.0, 0.0, 1.0) {
+                true => Some((i, c, object)),
+                false => None,
+            }
 
         });
 
-        let found_object = object.is_some();
+        #[cfg(not(feature = "parallel"))]
+        let object = self.objects.iter_mut().enumerate()
+        .find_map(|(i, object)| {
+            let c = object.collision(other_object_coords, other_object_size, distance, angle);
+            match c != (0.0, 0.0, 1.0) {
+                true => Some((i, c, object)),
+                false => None,
+            }
+
+        });
+
+        let result = match &object {
+            Some((_i, result, _object)) => *result,
+            None => (0.0, 0.0, 1.0),
+        };
         // The map object to remove if a player dies
         let mut object_to_remove = None;
 
         let health_and_coords = match object {
-            Some((index, object)) => {
+            Some((index, _res, object)) => {
                 if let Some(mut health) = &mut object.health {
+                    let new_health = health - damage;
                     // Damagable objects take damage
-                    health = match health as i16 - damage as i16 <= 0 {
+                    health = match new_health <= 0.0 {
                         true => 0.0,
-                        false => health - damage,
+                        false => new_health,
                     };
  
                     if health == 0.0 {
@@ -346,28 +366,49 @@ impl Map {
 
         }
 
-        (found_object, health_and_coords)
+        (result, health_and_coords)
     }
 
     // Identical to collision, except it's a non-mutable reference so it's safe to use in a parallel iterator
-    pub fn collision_no_damage(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: Vec2) -> (bool, bool) {
-        let map_collision = |object: &MapObject| object.collision(other_object_coords, other_object_size, distance, angle);
+    pub fn collision_no_damage(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: Vec2) -> (f32, f32, f32) {
+        let map_collision = |object: &MapObject| {
+            let res = object.collision(other_object_coords, other_object_size, distance, angle);
+
+            match res != (0.0, 0.0, 1.0) {
+                true => Some(res),
+                false => None,
+            }
+        };
         
         // The collision function just iterates through each map object within the map, and runs the collide function within
         // Since this function is only used in par_for_each loops, we don't need extra parallelism
         #[cfg(not(feature = "parallel"))]
         // The collision only returns None if the Iterator is emtpy, which it never will be
-        let collision = unsafe { self.objects.iter().map(map_collision).reduce(|old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1)).unwrap_unchecked() };
+        let collision = self.objects.iter().find_map(map_collision);
 
         #[cfg(feature = "parallel")]
-        let collision = self.objects.par_iter().map(map_collision).reduce(|| (false, false), |old_coll, new_coll| (old_coll.0 || new_coll.0, old_coll.1 || new_coll.1));
+        let collision = self.objects.par_iter().find_map_any(map_collision);
+
+        match collision {
+            Some(res) => res,
+            None => (0.0, 0.0, 1.0),
+        }
+    }
+
+    pub fn aabb_check(&self, other_object_coords: Vec2, other_object_size: Vec2) -> bool {
+        let map_collision = |object: &MapObject| {object.aabb_check(other_object_coords, other_object_size)};
+        #[cfg(not(feature = "parallel"))]
+        let collision = self.objects.iter().any(map_collision);
+
+        #[cfg(feature = "parallel")]
+        let collision = self.objects.par_iter().any(map_collision);
 
         collision
     }
 }
 
 // This system just iterates through the map and draws each MapObject
-pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>) {
+pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>) {
     let map = maps.0.get(&map_crc32.0).unwrap();
 
     // Set the background color to the map's specified color
@@ -408,8 +449,34 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             ),
         };
 
+
+        // Only do physics calcs on an object if it's collidable
+        let physics_handles = if object.collidable {
+            let half_extents = map_object_size / bevy::math::const_vec2!([500.0; 2]);
+
+            let rigid_body = RigidBodyBuilder::new(RigidBodyType::Static)
+                .translation(Vector2::new(map_coords.x, map_coords.y).component_div(&Vector2::new(250.0, 250.0))) 
+                .gravity_scale(0.0)
+                .build();
+
+
+            let collider = ColliderBuilder::cuboid(half_extents.x, half_extents.y)
+                .collision_groups(InteractionGroups::new(0b0100, 0b1010))
+                .friction(0.5)
+                .build();
+
+            let rigid_body_handle = rigid_body_set.insert(rigid_body);
+            let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
+
+            Some((rigid_body_handle, collider_handle))
+
+        } else {
+            None
+
+        };
+
         // Spawn a new map sprite
-        commands
+        let mut entity = commands
             .spawn_bundle(SpriteBundle {
                 material: color_handle,
                 sprite: Sprite::new(map_object_size),
@@ -421,10 +488,18 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 
                 },
                 ..Default::default()
-            })
-            .insert(Health(100.0))
+            });
+
+        entity
             .insert(WallMarker)
             .insert(GameRelated);
+
+        if let Some((rigid_body_handle, collider_handle)) = physics_handles {
+            entity
+                .insert(rigid_body_handle)
+                .insert(collider_handle);
+        }
+
     });
 }
 

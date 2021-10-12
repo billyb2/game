@@ -1,9 +1,12 @@
-[env]
-CARGO_TARGET_DIR = {value = "target", condition = {env_not_set = ["CARGO_TARGET_DIR"]}}
-CARGO_WASM_PATH = "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/${CARGO_MAKE_CRATE_NAME}.wasm"
-CARGO_PROFILE = "dev"
-TARGET_DIR = "target"
-CARGO_MANIFEST_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}"
+[config]
+# Skip loading of all core tasks which saves up a bit on toml parsing and task creation
+# skip_core_tasks = true
+# Skips loading Git related environment variables
+skip_git_env_info = true
+# Skips loading rust related environment variables
+# skip_rust_env_info = true
+# Skips loading the current crate related environment variables
+skip_crate_env_info = true
 
 [tasks.install-target-wasm32-unknown-unknown]
 args = ["target", "install", "wasm32-unknown-unknown"]
@@ -18,68 +21,7 @@ env = { RUSTFLAGS = "-Ctarget-cpu=native" }
 install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.78"}
 
 [tasks.compress]
-env = { "CARGO_MAKE_RUST_SCRIPT_PROVIDER" = "rust-script", RUSTFLAGS = "" }
-script_runner = "@rust"
-script = '''
-//! ```cargo
-//! [dependencies]
-//! brotli = "3"
-//!
-//! [profile.dev]
-//! opt-level = 1
-//! ```
-fn main() {
-	use std::fs::{read, read_to_string, write};
-	use std::io::Cursor;
-
-	use brotli::BrotliCompress;
-	use brotli::enc::BrotliEncoderParams;
-
-	let (wasm_path, compressed_wasm_path, js_path, wasm_decompress_js_path) = {
-		let mut wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
-		wasm_path.push_str("/target/wasm-simd_bg.wasm");
-
-		let mut compressed_wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
-		compressed_wasm_path.push_str("/target/wasm-simd_bg.wasm.br");
-
-		let mut js_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
-		js_path.push_str("/target/wasm-simd.js");
-
-		let mut wasm_decompress_js_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
-		wasm_decompress_js_path.push_str("/wasm_decompress.js");
-
-		(wasm_path, compressed_wasm_path, js_path, wasm_decompress_js_path)
-
-	};
-
-	let wasm_decompress_js = read_to_string(wasm_decompress_js_path).unwrap();
-	let mut js = read_to_string(js_path.clone()).unwrap().replace("return await WebAssembly.instantiateStreaming(module, imports);", "const { decompress } = wasm_bindgen;await wasm_bindgen('./wasm_decompress_bg.wasm');let bytes = decompress(new Uint8Array(await module.arrayBuffer())).buffer;return await WebAssembly.instantiate(bytes, imports);");
-
-	js.insert_str(0, &wasm_decompress_js);
-
-	let wasm_bytes = read(wasm_path).unwrap();
-	let len = wasm_bytes.len();
-	let mut wasm_bytes = Cursor::new(wasm_bytes);
-
-
-	let mut compressed_bytes = Vec::with_capacity(3000000);
-
-	println!("Original WASM file length: {:.1}MB", len as f32 / 1000000.0);
-	println!("Compressing WASM file...");
-
-	let mut params = BrotliEncoderParams::default();
-	params.quality = 3;
-
-	BrotliCompress(&mut wasm_bytes, &mut compressed_bytes, &params).unwrap();
-
-	println!("New compressed WASM file length: {:.1}MB\nThe compressed file is {:.1}% the size of the uncompressed one", compressed_bytes.len() as f32 / 1000000.0, (compressed_bytes.len() as f32 / len as f32) * 100.0 );
-
-	println!("Writing new wasm file...");
-	write(compressed_wasm_path, compressed_bytes).unwrap();
-    write(js_path, js.as_bytes()).unwrap();
-
-}
-'''
+command = "/usr/bin/my_compress"
 
 [tasks.compress-release]
 env = { "CARGO_MAKE_RUST_SCRIPT_PROVIDER" = "rust-script", RUSTFLAGS = "" }
@@ -144,19 +86,19 @@ fn main() {
 
 [tasks.cargo-build-web-release-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "release-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "release-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "opt-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "opt-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web", "--no-default-features", "--profile", "fast-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "fast-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
@@ -198,7 +140,7 @@ args = ["run", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "
 command = "cargo"
 
 [tasks.run-release]
-command = "${CARGO_TARGET_DIR}/release/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
+command = "target/release/game"
 dependencies = ["build-native-release"]
 
 [tasks.serve-simd]
@@ -227,7 +169,7 @@ command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.check-web]
-args = ["clippy", "--features", "web", "--no-default-features", "--target", "wasm32-unknown-unknown", "--bin", "game", "-Z", "unstable-options", "--", "-D", "warnings"]
+args = ["clippy", "--features", "web,graphics", "--no-default-features", "--target", "wasm32-unknown-unknown", "--bin", "game", "-Z", "unstable-options", "--", "-D", "warnings"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 

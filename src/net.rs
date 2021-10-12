@@ -29,6 +29,9 @@ use helper_functions::get_available_port;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
+use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
+
 // Location data is unreliable, since its okay if we skip a few frame updates
 pub const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 0,
@@ -244,7 +247,17 @@ pub fn setup_listening(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>) 
     if hosting.0 {
         // The WebRTC listening address just picks a random port
         let webrtc_listen_socket = {
-            let webrtc_listen_ip = bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
+            let webrtc_listen_ip = match bevy_networking_turbulence::find_my_ip_address() {
+                Some(ip) => ip,
+                None => {
+                    println!("Couldn't find IP address, using 127.0.0.1");
+                    println!("Warning: Firefox doesn't allow WebRTC connections to 127.0.0.1, but Chromium does");
+
+                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
+
+                },
+
+            };
             let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str()).expect("No available port");
 
             SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
@@ -343,7 +356,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&Transfo
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Health, &mut Visible, &mut Alpha)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandle, &mut Health, &mut Visible, &mut Alpha)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<(u8, [f32; 2], [f32; 4], f32, f32, Option<u8>)> = Vec::with_capacity(20);
     
@@ -361,31 +374,31 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
 
-                    // Set the location of any local players to the location given
-                    let (mut transform, mut health, mut visible, mut player_alpha) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut transform, rigid_body_handle, mut health, mut visible, mut player_alpha) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
 
                     transform.rotation = Quat::from_xyzw(rot_x, rot_y, rot_z, rot_w);
 
 
-                    if my_id.0 != player_id {
-                        // The player has died                    
-                        if new_health == 0.0 && health.0 != 0.0 && damage_source.is_some() {
-                            death_event.send(DeathEvent(player_id));
-                            *deathmatch_score.0.get_mut(&damage_source.unwrap()).unwrap() += 1;
 
-                        } else if new_health != 0.0 {
+                    if my_id.0 != player_id {
+                        // The player has died
+                        if new_health == 0.0 {
+                            if health.0 != 0.0 && damage_source.is_some() {
+                                death_event.send(DeathEvent(player_id));
+                                *deathmatch_score.0.get_mut(&damage_source.unwrap()).unwrap() += 1;
+                            }
+
+                        } else {
                             visible.is_visible = true;
-                            player_alpha.value = alpha;
+                            player_alpha.value = alpha;   
 
                         }
 
+
                         health.0 = new_health;
-
-                    }
-
-                    if player_id != my_id.0 {
-                        transform.translation.x = x;
-                        transform.translation.y = y;
+                        // Set the location of any local players to the location given
+                        rigid_body.set_translation(Vector2::new(x, y).component_div(&Vector2::new(250.0, 250.0)), false);
 
                     }
 

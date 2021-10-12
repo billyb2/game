@@ -10,7 +10,6 @@
 mod logic;
 
 use bevy::prelude::*;
-use bevy::math::const_vec2;
 use bevy::render::draw::OutsideFrustum;
 
 use bevy_networking_turbulence::*;
@@ -19,6 +18,8 @@ use rand::Rng;
 
 use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
+
+use rapier2d::prelude::{RigidBodySet, ColliderSet};
 
 use helper_functions::collide;
 
@@ -112,6 +113,8 @@ fn main() {
     app
     //Start in the main menu
     .add_state(AppState::MainMenu)
+    .insert_resource(RigidBodySet::new())
+    .insert_resource(ColliderSet::new())
     .insert_resource(MapCRC32(map2.crc32))
     // Embed the map into the binary
     .insert_resource({
@@ -159,6 +162,7 @@ fn main() {
     .add_startup_system(setup_default_controls)
     // Hot asset reloading
     .add_startup_system(setup_asset_loading)
+    .add_startup_system(setup_physics)
     .add_system(check_assets_ready);
 
     #[cfg(feature = "native")]
@@ -172,11 +176,11 @@ fn main() {
 
     // Sprite culling
     // For some reason, sprite culling fails on WASM
-    #[cfg(feature = "native")]
+    /*#[cfg(feature = "native")]
     app.add_system_to_stage(
         CoreStage::PostUpdate,
         sprite_culling,
-    );
+    );*/
 
     app.add_system_set(
         SystemSet::on_enter(AppState::Connecting)
@@ -381,8 +385,8 @@ pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<Gam
         let sprite_size = sprite.size;
 
         let collision = {
-            let collision = collide(camera_pos, camera_size, sprite_pos, sprite_size, 0.0, const_vec2!([0.0; 2]));
-            collision.0 || collision.1
+            let (_normal_x, _normal_y, collision_time) = collide(camera_pos, camera_size, sprite_pos, sprite_size, 0.0, Vec2::ZERO);
+            collision_time != 1.0
 
         };
 
@@ -400,4 +404,3 @@ pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<Gam
     });
 
 }
-

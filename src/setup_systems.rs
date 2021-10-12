@@ -19,11 +19,14 @@ use config::*;
 use map::MapCRC32;
 use single_byte_hashmap::*;
 
+use rapier2d::prelude::*;
+use rapier2d::na::Vector2;
+
 #[cfg(feature = "graphics")]
 use crate::setup_graphical_systems::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -142,6 +145,39 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         player_entities.insert(i.try_into().unwrap(), entity.id());
         available_player_ids.push(PlayerID(i.try_into().unwrap()));
 
+        #[cfg(feature = "graphics")]
+        { 
+        let rigid_body_set = _rigid_body_set.as_mut().unwrap();
+        let collider_set = _collider_set.as_mut().unwrap();
+
+        let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+            .translation(Vector2::new(coords.x, coords.y).component_div(&Vector2::new(250.0, 250.0)))
+            .linvel(Vector2::new(0.0, 0.0))
+            .gravity_scale(0.0)
+            .linear_damping(80.0)
+            .user_data(u128::MAX)
+            //CCD is purposely disabled so stuff like warping works
+            .ccd_enabled(false)
+            .build();
+
+        let collider_size = Vec2::new(150.0, 93.75) / Vec2::new(500.0, 500.0);
+
+        let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+            .collision_groups(InteractionGroups::new(0b1000, 0b1111))
+            .restitution(0.000001)
+            .friction(0.4)
+            // A user_data set to u128::MAX is an indicator that this is a player
+            .user_data(u128::MAX)
+            .build();
+
+        let rigid_body_handle = rigid_body_set.insert(rigid_body);
+        let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, rigid_body_set);
+
+        entity.insert(rigid_body_handle);
+        entity.insert(collider_handle);
+
+        }
+
     });
     #[allow(unused_mut)]
     let mut online_player_ids = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
@@ -162,6 +198,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     commands.insert_resource(available_player_ids);
     commands.insert_resource(player_entities);
+
+    commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
 }
 
 pub fn setup_default_controls(mut commands: Commands) {

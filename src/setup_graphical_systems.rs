@@ -9,13 +9,14 @@ use map::MapCRC32;
 use single_byte_hashmap::*;
 
 use bevy::render::camera::ScalingMode;
+use rapier2d::prelude::*;
 
 pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
     commands.spawn_bundle(UiCameraBundle::default());
 
     let mut orthographic_camera = OrthographicCameraBundle::new_2d();
     orthographic_camera.orthographic_projection.scaling_mode = ScalingMode::WindowSize;
-
+    // orthographic_camera.transform.local_z() = Vec3::new(x, y, 1.0);
     commands
         .spawn_bundle(orthographic_camera)
         .insert(GameCamera);
@@ -23,9 +24,8 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
     #[cfg(feature = "native")]
     {
         let res_scale = (window.width / 1366.0).min(window.height / 768.0) * 0.95;
-
-
         commands.insert_resource(ResScale(res_scale.recip()));
+        
     };
 }
 
@@ -1488,4 +1488,15 @@ pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
     let (helmet_color, inner_suit_color) = (HelmetColor::new([9, 145, 160]), InnerSuitColor::new([9, 145, 160]));
 
     (helmet_color, inner_suit_color)
+}
+
+
+pub fn setup_physics(mut commands: Commands) {
+    commands.insert_resource(PhysicsPipeline::new());
+    commands.insert_resource(IslandManager::new());
+    commands.insert_resource(BroadPhase::new());
+    commands.insert_resource(NarrowPhase::new());
+    commands.insert_resource(JointSet::new());
+    commands.insert_resource(CCDSolver::new());
+
 }
