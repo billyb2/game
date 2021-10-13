@@ -256,7 +256,9 @@ pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool
 
 }
 
-/*#[inline]
-pub fn vec_to_array<T, const N: usize>(v: Vec<T>) -> [T; N] {
-    v.try_into().unwrap_or_else(|v: Vec<T>| panic!("Expected a Vec of length {} but it was {}", N, v.len()))
-}*/
+pub fn mean_angle(angles: &[f32]) -> f32 {
+    let length: f32 = angles.len() as f32;
+    let cos_mean: f32 = angles.iter().fold(0.0, |sum, i| sum + i.cos()) / length;
+    let sin_mean: f32 = angles.iter().fold(0.0, |sum, i| sum + i.sin()) / length;
+    (sin_mean).atan2(cos_mean)
+}

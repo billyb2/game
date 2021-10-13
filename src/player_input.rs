@@ -68,7 +68,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 }
 
 
-pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>) {
     if in_game_settings.is_empty() {
         let mut angle = None;
 
@@ -252,27 +252,29 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
         }
 
         if let Some(my_player_id) = &my_player_id.0 {
-            let (mut speed, mut dashing_info, rigid_body_handle) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            let (mut speed, mut dashing_info, rigid_body_handle, health) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-            if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
-                speed.0 *= 3.1;
+            if health.0 > 0.0 {
+                if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
+                    speed.0 *= 3.1;
 
-                dashing_info.dashing = true;
-                dashing_info.time_till_stop_dash.reset();
+                    dashing_info.dashing = true;
+                    dashing_info.time_till_stop_dash.reset();
 
-            }
+                }
 
-            if keyboard_input.pressed(keybindings.use_ability) {
-                ev_use_ability.send(AbilityEvent(my_player_id.0));
+                if keyboard_input.pressed(keybindings.use_ability) {
+                    ev_use_ability.send(AbilityEvent(my_player_id.0));
 
-            }
+                }
 
-            if let Some(angle) = angle {
-                let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
-                // If the player is dashing then they can't change the angle that they move in
-                let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
-                rigid_body.set_linvel(new_linvel, true);
+                if let Some(angle) = angle {
+                    let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+                    // If the player is dashing then they can't change the angle that they move in
+                    let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
+                    rigid_body.set_linvel(new_linvel, true);
 
+                }
             }
 
         }

@@ -18,6 +18,7 @@ use crate::shaders::*;
 use config::*;
 use map::MapCRC32;
 use single_byte_hashmap::*;
+use bots::*;
 
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
@@ -147,38 +148,43 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
         #[cfg(feature = "graphics")]
         { 
-        let rigid_body_set = _rigid_body_set.as_mut().unwrap();
-        let collider_set = _collider_set.as_mut().unwrap();
+            let rigid_body_set = _rigid_body_set.as_mut().unwrap();
+            let collider_set = _collider_set.as_mut().unwrap();
 
-        let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
-            .translation(Vector2::new(coords.x, coords.y).component_div(&Vector2::new(250.0, 250.0)))
-            .linvel(Vector2::new(0.0, 0.0))
-            .gravity_scale(0.0)
-            .linear_damping(80.0)
-            .user_data(u128::MAX)
-            //CCD is purposely disabled so stuff like warping works
-            .ccd_enabled(false)
-            .build();
+            let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+                .translation(Vector2::new(coords.x, coords.y).component_div(&Vector2::new(250.0, 250.0)))
+                .linvel(Vector2::new(0.0, 0.0))
+                .gravity_scale(0.0)
+                .linear_damping(80.0)
+                .user_data(u128::MAX)
+                //CCD is purposely disabled so stuff like warping works
+                .ccd_enabled(false)
+                .build();
 
-        let collider_size = Vec2::new(150.0, 93.75) / Vec2::new(500.0, 500.0);
+            let collider_size = Vec2::new(150.0, 93.75) / Vec2::new(500.0, 500.0);
 
-        let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
-            .collision_groups(InteractionGroups::new(0b1000, 0b1111))
-            .restitution(0.000001)
-            .friction(0.4)
-            // A user_data set to u128::MAX is an indicator that this is a player
-            .user_data(u128::MAX)
-            .build();
+            let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+                .collision_groups(InteractionGroups::new(0b1000, 0b1111))
+                .restitution(0.000001)
+                .friction(0.4)
+                // A user_data set to u128::MAX is an indicator that this is a player
+                .user_data(u128::MAX)
+                .build();
 
-        let rigid_body_handle = rigid_body_set.insert(rigid_body);
-        let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, rigid_body_set);
+            let rigid_body_handle = rigid_body_set.insert(rigid_body);
+            let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, rigid_body_set);
 
-        entity.insert(rigid_body_handle);
-        entity.insert(collider_handle);
+            entity.insert(rigid_body_handle);
+            entity.insert(collider_handle);
+
+            if i == 1 {
+                entity.insert(BotWrapper(Box::new(AggroBot::new(map, &Vec::new(), PlayerID(1)))));
+            }
 
         }
 
     });
+
     #[allow(unused_mut)]
     let mut online_player_ids = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -187,6 +193,11 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         let id = available_player_ids.remove(0);
         online_player_ids.insert(id.0, None);
         _deathmatch_score.0.insert(id.0, 0);
+
+        let id = available_player_ids.remove(0);
+        online_player_ids.insert(id.0, None);
+        _deathmatch_score.0.insert(id.0, 0);
+
         commands.insert_resource(MyPlayerID(Some(id)));
         
     }

@@ -116,6 +116,7 @@ helper_functions = { path = "crates/helper_functions" }
 game_types = { path = "crates/game_types" }
 map = { path = "crates/map" }
 config = { path = "crates/config" }
+bots = { path = "crates/bots" }
 
 [features]
 default = [
@@ -146,7 +147,8 @@ parallel = [
   "single_byte_hashmap/rayon",
   "helper_functions/parallel",
   "map/parallel",
-  "rapier2d/parallel"
+  "rapier2d/parallel",
+  "bots/parallel",
 ]
 
 web = [

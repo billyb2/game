@@ -36,6 +36,7 @@ use game_types::player_attr::*;
 use logic::move_objects;
 use map::*;
 use config::*;
+use bots::*;
 
 fn main() {
     let mut app = App::new();
@@ -221,8 +222,8 @@ fn main() {
             .with_system(send_stats.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_stat_packets.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_projectile_packets.label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
-            //.with_system(bots.label(InputFromPlayer).before("player_attr"))
             .with_system(my_keyboard_input.label(InputFromPlayer).before("player_attr"))
+            .with_system(handle_bots.label(InputFromPlayer).before("player_attr"))
             .with_system(set_player_sprite_direction.after(InputFromPlayer))
             .with_system(shooting_player_input.label(InputFromPlayer).label("shoot"))
             .with_system(spawn_projectile.label(InputFromPlayer).label("spawn_projectiles").after("shoot"))

@@ -35,6 +35,24 @@ pub struct Player {
     pub damage_source: DamageSource,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ShootEvent {
+    pub start_pos: Vec3,
+    pub player_id: u8,
+    pub pos_direction: Vec2,
+    pub health: f32,
+    pub model: Model,
+    pub max_distance: f32,
+    pub recoil_vec: Vec<f32>,
+    pub speed: f32,
+    pub projectile_type: ProjectileType,
+    pub damage: Damage,
+    pub player_ability: Ability,
+    pub size: Vec2,
+    pub reloading: bool,
+
+}
+
 pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
@@ -591,3 +609,4 @@ fn finish_timer(timer: &mut Timer){
     timer.set_elapsed(timer.duration());
 
 }
+

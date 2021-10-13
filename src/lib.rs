@@ -37,6 +37,8 @@ use bevy::reflect::TypeUuid;
 use bevy::render::renderer::RenderResources;
 use bevy::utils::Duration;
 
+use rapier2d::prelude::*;
+
 //use bevy_kira_audio::AudioPlugin;
 
 #[cfg(all(feature = "parallel", feature = "graphics"))]
@@ -45,7 +47,6 @@ use rayon::prelude::*;
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
 
-//use bots::*;
 use map::*;
 
 use game_types::*;
@@ -194,24 +195,6 @@ pub struct ShaderMousePosition {
 #[uuid = "463e4c8b-d555-4fc2-ba9f-4c880063ba92"]
 pub struct WindowSize {
     value: Vec2,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ShootEvent {
-    pub start_pos: Vec3,
-    pub player_id: u8,
-    pub pos_direction: Vec2,
-    pub health: f32,
-    pub model: Model,
-    pub max_distance: f32,
-    pub recoil_vec: Vec<f32>,
-    pub speed: f32,
-    pub projectile_type: ProjectileType,
-    pub damage: Damage,
-    pub player_ability: Ability,
-    pub size: Vec2,
-    pub reloading: bool,
-
 }
 
 //impl Into<(Vec3, u8, Vec2, f32, Model, f32, Vec<f32>, f32, ProjectileType, Damage)
@@ -478,20 +461,6 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
 
     ready_to_send_packet.0.tick(delta);
 }
-
-/*fn bots(mut player_query: Query<(&Transform, &Sprite, &PlayerID, &mut RequestedMovement, &PlayerSpeed)>, mut map: ResMut<Map>) {
-    for (coords, sprite, id, mut requested_movement, speed) in player_query.iter_mut() {
-        if *id == PlayerID(2) {
-            let res = bounce(coords.translation, sprite.size, requested_movement.angle, &mut map);
-
-            requested_movement.angle = res;
-            requested_movement.speed = speed.0;
-
-        }
-
-    }
-
-}*/
 
 //TODO: Change this to seperate queries using Without
 pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>, mut ammo_text: Query<&mut Text, (With<AmmoText>, Without<AbilityChargeText>)>, mut ability_charge_text: Query<&mut Text, (With<AbilityChargeText>, Without<HealthText>)>, mut health_text: Query<&mut Text, (With<HealthText>, Without<AmmoText>)>,

@@ -48,7 +48,7 @@ pub struct Health(pub f32);
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Damage(pub f32);
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct PlayerID(pub u8);
 
 // Projectile stuff
