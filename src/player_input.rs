@@ -283,7 +283,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
     }
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut death_event: EventWriter<DeathEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
             let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
@@ -302,7 +302,9 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                 };
 
                 if *model == Model::Widowmaker && time_since_last_shot.0.finished() {
-                    health.0 -= damage.0;
+                    if !(health.0 - damage.0 <= 0.0) {
+                        health.0 -= damage.0;
+                    }
                 }
 
                 let rng = fastrand::Rng::new();
@@ -330,7 +332,13 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
                 };
 
-                shoot_event.send(event);
+                if *model == Model::Widowmaker {
+                    if !(health.0 - damage.0 <= 0.0) {
+                        shoot_event.send(event);
+                    }
+                } else {
+                    shoot_event.send(event);
+                }
 
             // Melee is the F key
             } else if keyboard_input.pressed(keybindings.melee) {
