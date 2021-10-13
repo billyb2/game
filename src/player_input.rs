@@ -302,9 +302,8 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                 };
 
                 if *model == Model::Widowmaker && time_since_last_shot.0.finished() {
-                    health.0 -= damage.0;
-                    if health.0 < 0.0 {
-                        health.0 = 0.0;
+                    if !(health.0 - damage.0 <= 0.0) {
+                        health.0 -= damage.0;
                     }
                 }
 
@@ -333,7 +332,13 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
                 };
 
-                shoot_event.send(event);
+                if *model == Model::Widowmaker {
+                    if !(health.0 - damage.0 <= 0.0) {
+                        shoot_event.send(event);
+                    }
+                } else {
+                    shoot_event.send(event);
+                }
 
             // Melee is the F key
             } else if keyboard_input.pressed(keybindings.melee) {
