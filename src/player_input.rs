@@ -115,7 +115,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
         }
 
         if keyboard_input.pressed(keybindings.reload) {
-            ev_reload.send(ReloadEvent);
+            ev_reload.send(ReloadEvent(my_player_id.0.unwrap().0));
 
         }
 
@@ -418,9 +418,9 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             time_since_last_shot.0.reset();
                         }
 
-                    } else if ammo_in_mag.0 == 0 && player_id == my_player_id.0 {
+                    } else if ammo_in_mag.0 == 0 {
                         // Reload automatically if the player tries to shoot with no ammo
-                        ev_reload.send(ReloadEvent);
+                        ev_reload.send(ReloadEvent(ev.player_id));
 
                     }
 
@@ -548,17 +548,15 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
 pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartReload)>, mut ev_reload: EventReader<ReloadEvent>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     // Only start a reload if the reload event is read
-    if let Some(my_player_id)= &my_player_id.0 {
-        for _ in ev_reload.iter() {
-            let (ammo_in_mag, max_ammo, mut reload_timer) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+    ev_reload.iter().for_each(|ev| {
+        let (ammo_in_mag, max_ammo, mut reload_timer) = query.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
 
-            if ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
-                reload_timer.reloading = true;
-                reload_timer.timer.reset();
+        if ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
+            reload_timer.reloading = true;
+            reload_timer.timer.reset();
 
-            }
         }
-    }
+    });
 }
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut

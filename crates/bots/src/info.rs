@@ -56,9 +56,9 @@ pub trait Bot {
 
 }
 
-pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandle, &Health, &Model, &TimeSinceStartReload, &Damage, &MaxDistance, &Speed, &TimeSinceStartReload, &TimeSinceLastShot)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>) {
+pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandle, &Health, &Model, &TimeSinceStartReload, &Damage, &MaxDistance, &Speed, &TimeSinceStartReload, &TimeSinceLastShot, &ProjectileType, &AmmoInMag)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>) {
     // Generate the list of TruncatedPlayer by looping over the bots list initially
-    let players: Vec<TruncatedPlayer> = bots.iter_mut().map(|(transform, id, _bw, _rgb, _h, _model, _r_timer, _d, _md, _pjs, _ttsr, _ttls)| {
+    let players: Vec<TruncatedPlayer> = bots.iter_mut().map(|(transform, id, _bw, _rgb, _h, _model, _r_timer, _d, _md, _pjs, _ttsr, _ttls, _pjt, _aig)| {
         TruncatedPlayer {
             pos: transform.translation.truncate(),
             id: *id,
@@ -66,7 +66,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
         }
     }).collect();
 
-    bots.for_each_mut(|(mut transform, player_id, mut bot, rigid_body_handle, health, model, reload_timer, damage, max_distance, proj_speed, time_since_start_reload, time_since_last_shot)| {
+    bots.for_each_mut(|(mut transform, player_id, mut bot, rigid_body_handle, health, model, reload_timer, damage, max_distance, proj_speed, time_since_start_reload, time_since_last_shot, proj_type, ammo_in_mag)| {
         if let Some(bot) = bot.as_mut() {
             let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
             let map = maps.0.get(&map_crc32.0).unwrap();
@@ -81,7 +81,40 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
 
                 }
 
-                if let Some(angle) = bot.0.update_direction() { transform.rotation = Quat::from_rotation_z(angle.0); }
+                if let Some(angle) = bot.0.update_direction() { 
+                    transform.rotation = Quat::from_rotation_z(angle.0); 
+
+                    if bot.0.should_shoot() && time_since_last_shot.0.finished() {
+                        if ammo_in_mag.0 > 0 {
+                            let pos_direction = (Vec2::new(angle.0.cos(), angle.0.sin()) * 200.0) + transform.translation.truncate();
+
+                            shoot_event.send(
+                                ShootEvent {
+                                    start_pos: transform.translation,
+                                    player_id: player_id.0,
+                                    pos_direction,
+                                    health: health.0,
+                                    model: *model,
+                                    max_distance: max_distance.0,
+                                    recoil_vec: vec![0.0],
+                                    // Bullets need to travel "backwards" when moving to the left
+                                    speed: proj_speed.0.copysign(pos_direction.x - transform.translation.x),
+                                    projectile_type: *proj_type,
+                                    damage: *damage,
+                                    player_ability: Ability::Cloak,
+                                    size: Vec2::new(5.0, 5.0),
+                                    reloading: reload_timer.reloading,
+                                }
+
+                            );
+
+                        } else {
+                            ev_reload.send(ReloadEvent(player_id.0));
+
+                        }
+                    }
+
+                }
             }
         }
     });

@@ -60,7 +60,7 @@ impl Bot for AggroBot {
         let distance = self.my_player.pos.distance(enemy_player);
 
         // Only run towards players if they're relatively close
-        match  distance >= 250.0 && distance <= 375.0 {
+        match distance >= 350.0 && distance <= 450.0 {
             true => {
                 Some((Angle(self.internal_angle), Dashing(false)))
 

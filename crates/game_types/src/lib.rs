@@ -87,7 +87,7 @@ pub struct RecoilRange(pub f32);
 
 pub struct ReloadTime(pub f32);
 
-pub struct ReloadEvent;
+pub struct ReloadEvent(pub u8);
 
 pub struct AbilityEvent(pub u8);
 
