@@ -178,7 +178,12 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             entity.insert(collider_handle);
 
             if i == 1 {
-                entity.insert(BotWrapper(Box::new(AggroBot::new(map, &Vec::new(), PlayerID(1)))));
+                let (bot, ability, model) = AggroBot::new(map, PlayerID(1));
+
+                entity.insert_bundle(Gun::new(model, ability, perk));
+
+                entity.insert(BotWrapper(Box::new(bot)));
+                entity.insert(ability);
             }
 
         }

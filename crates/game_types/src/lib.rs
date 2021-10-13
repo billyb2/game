@@ -43,6 +43,7 @@ impl RequestedMovement {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Health(pub f32);
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]

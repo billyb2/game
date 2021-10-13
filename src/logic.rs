@@ -78,6 +78,8 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             rigid_body.set_body_type(RigidBodyType::Static);
                             collider.set_collision_groups(InteractionGroups::new(0b0010, 0b0100));
 
+                            commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
+
                             let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
 
                             rigid_body.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
@@ -189,6 +191,8 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             **projectile_type.as_mut().unwrap() = ProjectileType::MolotovFire;
                             sprite.size = Vec2::splat(400.0);
                             collider.set_shape(SharedShape::ball(400.0 / 500.0));
+
+                            commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
                             
                         }
 
@@ -240,5 +244,16 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
         &(),
         &()
     );
+
+}
+
+pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionTimer, &RigidBodyHandle)>, mut rigid_body_set: ResMut<RigidBodySet>, mut island_manager: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>) {
+    q.for_each(|(e, d_timer, rigid_body_handle)| {
+        if d_timer.0.finished() {
+            rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
+            commands.entity(e).despawn_recursive();
+        }
+
+    });
 
 }

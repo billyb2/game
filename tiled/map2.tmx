@@ -466,7 +466,7 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
-  <object id="94" x="150" y="165" width="55" height="85">
+  <object id="94" x="155" y="165" width="50" height="85">
    <properties>
     <property name="Z" type="int" value="2"/>
     <property name="filename" type="int" value="0"/>
@@ -578,7 +578,7 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
-  <object id="134" x="120" y="75" width="10" height="45">
+  <object id="134" x="115" y="75" width="10" height="45">
    <properties>
     <property name="Z" type="int" value="2"/>
     <property name="filename" type="int" value="0"/>
@@ -594,7 +594,7 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
-  <object id="162" x="75" y="120" width="55" height="25">
+  <object id="162" x="80" y="120" width="45" height="25">
    <properties>
     <property name="Z" type="int" value="2"/>
     <property name="filename" type="int" value="0"/>

@@ -564,7 +564,7 @@ impl Gun {
                 // Enough damage to kill any player without heavy armor
                 Model::SniperRifle => Damage(100.0),
                 Model::Melee => Damage(45.0),
-                Model::Widowmaker => Damage(12.0),
+                Model::Widowmaker => Damage(35.0),
 
 
             },

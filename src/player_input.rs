@@ -562,22 +562,26 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
 AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandle, &RigidBodyHandle)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
-ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>) {
+ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, mut requested_movement, ability, mut ability_charge, mut
             ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut shader_phasing, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
+            let player_is_local = local_players.0.contains(&ev_id.0);
+
+
             // Events that come from other players dont need to wait for ability charge to finish
-            if (*ability != Ability::Brute && ability_charge.0.finished()) || ev_id.0 != my_player_id.0 || (*ability == Ability::Brute && ability_charge.0.elapsed_secs() >= 0.5) {
+            if (*ability != Ability::Brute && ability_charge.0.finished()) || !player_is_local || (*ability == Ability::Brute && ability_charge.0.elapsed_secs() >= 0.5) {
+
                 match ability {
                     Ability::Wall => {
                         if requested_movement.speed != 0.0 || ev_id.0 != my_player_id.0 {
                             let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
 
-                            let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Wall.into()], message_array);
+                            let message: ([u8; 2], [f32; 3]) = ([ev_id.0, Ability::Wall.into()], message_array);
 
-                            if ev_id.0 == my_player_id.0 {
+                            if player_is_local {
                                 net.broadcast_message(message);
 
                             }
@@ -723,18 +727,17 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                     },
                     Ability::Cloak => {
-                        let my_player_used_ability = ev_id.0 == my_player_id.0;
+                        if !player_is_local || (!using_ability.0 && ability_charge.0.finished()) {
+                            shader_phasing.value = match my_player_id.0 == ev_id.0 {
+                                true => 0.25,
+                                false => 0.0,
+                            };
 
-                        if !my_player_used_ability || (!using_ability.0 && ability_charge.0.finished()) {
-                            if my_player_used_ability {
+                            if player_is_local {
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
                                 let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
 
                                 net.broadcast_message(message);
-                                shader_phasing.value = 0.25;
-
-                            } else {
-                                shader_phasing.value = 0.0;
                             }
 
                             ability_completed.0.reset();
@@ -772,12 +775,10 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                     },
                     Ability::Ghost =>  {
-                        let my_player_used_ability = ev_id.0 == my_player_id.0;
-
-                        if !my_player_used_ability || (!using_ability.0 && ability_charge.0.finished()) {
+                        if !player_is_local || (!using_ability.0 && ability_charge.0.finished()) {
                             shader_phasing.value = 0.5;
 
-                            if my_player_used_ability {
+                            if player_is_local {
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
                                 let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Ghost.into()], message_array);
 
@@ -883,9 +884,11 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &Transform, &Sprite, &mut Hea
     });
 }
 
-pub fn reset_player_phasing(mut query: Query<(&PlayerID, &UsingAbility, &Ability, &mut Alpha)>, my_player_id: Res<MyPlayerID>) {
+pub fn reset_player_phasing(mut query: Query<(&PlayerID, &UsingAbility, &Ability, &mut Alpha)>, my_player_id: Res<MyPlayerID>, local_players: Res<LocalPlayers>) {
     query.for_each_mut(|(player_id, using_ability, ability, mut shader_phasing)| {
-        if !using_ability.0 && *ability != Ability::Stim && player_id.0 == my_player_id.0.as_ref().unwrap().0 {
+        let player_is_local = local_players.0.contains(&player_id.0);
+
+        if !using_ability.0 && *ability != Ability::Stim && player_is_local {
             shader_phasing.value = 1.0;
 
         }

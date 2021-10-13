@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 rapier2d = { version = "0.11", features = ["simd-nightly"] }
+fastrand = { version = "1" }
 
 game_types = { path = "../game_types" }
 map = { path = "../map" }

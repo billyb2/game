@@ -33,7 +33,7 @@ use game_lib::setup_graphical_systems::*;
 use game_types::*;
 use game_lib::shaders::*;
 use game_types::player_attr::*;
-use logic::move_objects;
+use logic::*;
 use map::*;
 use config::*;
 use bots::*;
@@ -233,6 +233,7 @@ fn main() {
             .with_system(handle_ability_packets.label(InputFromPlayer).label("player_attr"))
             .with_system(reset_player_phasing.after(InputFromPlayer))
             .with_system(move_objects.after(InputFromPlayer).label("move_objects"))
+            .with_system(destruction_timer.after("move_objects"))
             .with_system(in_game_settings_menu_system.after(InputFromPlayer))
             .with_system(damage_text_system.after("move_objects"))
             .with_system(score_system.after("move_objects"))
