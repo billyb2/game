@@ -188,15 +188,20 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     #[allow(unused_mut)]
     let mut online_player_ids = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
+    #[allow(unused_mut)]
+    let mut local_players = Vec::with_capacity(5);
+
     #[cfg(all(feature = "native", feature = "graphics"))]
     {
         let id = available_player_ids.remove(0);
         online_player_ids.insert(id.0, None);
         _deathmatch_score.0.insert(id.0, 0);
+        local_players.push(id.0);
 
         let id = available_player_ids.remove(0);
         online_player_ids.insert(id.0, None);
         _deathmatch_score.0.insert(id.0, 0);
+        local_players.push(id.0);
 
         commands.insert_resource(MyPlayerID(Some(id)));
         
@@ -209,6 +214,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     commands.insert_resource(available_player_ids);
     commands.insert_resource(player_entities);
+    commands.insert_resource(LocalPlayers(local_players));
 
     commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
 }

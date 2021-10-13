@@ -239,6 +239,9 @@ pub struct DeathmatchScore(pub HashMap<u8, u8>);
 
 pub struct MyPlayerID(pub Option<PlayerID>);
 
+// Players that are running locally (bots, splitscreen, the player you're controlling rn)
+pub struct LocalPlayers(pub Vec<u8>);
+
 pub struct LogEvent(pub String);
 
 pub struct DeathEvent(pub u8);

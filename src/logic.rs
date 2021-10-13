@@ -10,7 +10,7 @@ use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>, local_players: Res<LocalPlayers>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
 
         if let Some(player_id) = player_id.as_ref() {
@@ -113,8 +113,9 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                 
                                 let projectile_type: ProjectileType = projectile_type.into();          
 
+                                let player_is_local = local_players.0.contains(&player_id);
 
-                                if my_player_id.0.as_ref().unwrap().0 != player_id && projectile_type == ProjectileType::WidowMaker {
+                                if projectile_type == ProjectileType::WidowMaker {
                                     if let Some(health_to_heal) = widow_maker_heals.0.get_mut(&shot_from) {
                                         *health_to_heal += damage * 1.5;
 
@@ -125,7 +126,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
                                 }
                                 // Only directly edit the local health of our player, other players send their health over the net
-                                if health.0 > 0.0 && my_player_id.0.as_ref().unwrap().0 == player_id {
+                                if health.0 > 0.0 && player_is_local {
                                     damage_source.as_mut().unwrap().0 = Some(shot_from);
 
                                     health.0 = match player_died {
