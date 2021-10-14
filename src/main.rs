@@ -225,6 +225,7 @@ fn main() {
             .with_system(my_keyboard_input.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_bots.label(InputFromPlayer).before("player_attr"))
             .with_system(set_player_sprite_direction.after(InputFromPlayer))
+            .with_system(set_player_materials.after(InputFromPlayer))
             .with_system(shooting_player_input.label(InputFromPlayer).label("shoot"))
             .with_system(spawn_projectile.label(InputFromPlayer).label("spawn_projectiles").after("shoot"))
             .with_system(reset_player_resources.label(InputFromPlayer).label("player_attr"))

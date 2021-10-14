@@ -149,8 +149,9 @@ impl Projectile {
 }
 
 pub struct Skin {
-    player: Handle<ColorMaterial>,
-    enemy: Handle<ColorMaterial>,
+    // The skins are a vector with each index being the
+    pub player: [Handle<ColorMaterial>; NUM_OF_GUN_MODELS as usize],
+    pub enemy: Handle<ColorMaterial>,
 
 }
 

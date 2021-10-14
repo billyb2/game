@@ -39,7 +39,7 @@ impl Bot for AggroBot {
             current_health: Health(100.0),
         };
 
-        (bot, Ability::Cloak, Model::SubmachineGun)
+        (bot, Ability::Cloak, Model::AssaultRifle)
 
     }
     // Our bot (currently) doesn't do depending on map info

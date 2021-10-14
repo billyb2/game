@@ -115,7 +115,10 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         #[cfg(feature = "graphics")]
         entity
             .insert_bundle(SpriteBundle {
-                material: _materials.as_ref().unwrap().player.clone(),
+                material: match i == 1 {
+                    true => _materials.as_ref().unwrap().player[0].clone(),
+                    false => _materials.as_ref().unwrap().enemy.clone(),
+                },
                 sprite: Sprite {
                     size: Vec2::new(150.0, 93.75),
                     flip_x: true, 
@@ -177,8 +180,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             entity.insert(rigid_body_handle);
             entity.insert(collider_handle);
 
-            if i == 1 {
-                let (bot, ability, model) = AggroBot::new(map, PlayerID(1));
+            if i == 2 {
+                let (bot, ability, model) = AggroBot::new(map, PlayerID(2));
 
                 entity.insert_bundle(Gun::new(model, ability, perk));
 
@@ -198,17 +201,18 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     #[cfg(all(feature = "native", feature = "graphics"))]
     {
-        let id = available_player_ids.remove(0);
-        online_player_ids.insert(id.0, None);
-        _deathmatch_score.0.insert(id.0, 0);
-        local_players.push(id.0);
+        let p_id = available_player_ids.remove(0);
+        commands.insert_resource(MyPlayerID(Some(p_id)));
 
-        let id = available_player_ids.remove(0);
-        online_player_ids.insert(id.0, None);
-        _deathmatch_score.0.insert(id.0, 0);
-        local_players.push(id.0);
+        online_player_ids.insert(p_id.0, None);
+        _deathmatch_score.0.insert(p_id.0, 0);
+        local_players.push(p_id.0);
 
-        commands.insert_resource(MyPlayerID(Some(id)));
+
+        let bot_id = available_player_ids.remove(0);
+        online_player_ids.insert(bot_id.0, None);
+        _deathmatch_score.0.insert(bot_id.0, 0);
+        local_players.push(bot_id.0);
         
     }
 
@@ -251,4 +255,5 @@ pub fn setup_default_controls(mut commands: Commands) {
     };
 
     commands.insert_resource(key_bindings);
+
 }

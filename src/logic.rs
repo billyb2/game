@@ -226,7 +226,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
         max_linear_correction: 0.2,
         max_angular_correction: 0.2,
         max_velocity_iterations: 4,
-        max_position_iterations: 1,
+        max_position_iterations: 4,
         min_island_size: 128,
         max_ccd_substeps: 20,
     };
@@ -253,6 +253,17 @@ pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionT
             rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
             commands.entity(e).despawn_recursive();
         }
+
+    });
+
+}
+
+pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMaterial>), Changed<Model>>, player_materials: Res<Skin>) {
+    players.for_each_mut(|(model, mut skin)| {
+        let model_u8: u8 = (*model).into();
+        let handle: Handle<ColorMaterial> = player_materials.player[model_u8 as usize].clone();
+
+        *skin = handle;
 
     });
 

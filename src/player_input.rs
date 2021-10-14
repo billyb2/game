@@ -511,7 +511,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .friction(0.0)
                             .collision_groups(match ev.projectile_type {
                                 ProjectileType::PulseWave => InteractionGroups::new(0b0001, 0b1000),
-                                _ => InteractionGroups::new(0b0010, 0b1111),
+                                _ => InteractionGroups::new(0b0010, 0b1100),
 
                             })
                             .build();

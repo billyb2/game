@@ -32,7 +32,18 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
 pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
     //TODO: Use a spritesheet
     // The gorgeous assets are made by Shelby
-    let default_sprite = asset_server.load("player_sprites/default.png");
+    let p_pistol_sprite = asset_server.load("player_sprites/player_pistol.png");
+    let p_ar_sprite = asset_server.load("player_sprites/player_assault_rifle.png");
+    let p_shotgun_sprite = asset_server.load("player_sprites/player_shotgun.png");
+    let p_speedball_sprite = asset_server.load("player_sprites/player_speedball.png");
+    let p_br_sprite = asset_server.load("player_sprites/player_burst_rifle.png");
+    let p_smg_sprite = asset_server.load("player_sprites/player_submachinegun.png");
+    let p_cluster_shotgun_sprite = asset_server.load("player_sprites/player_cluster_shotgun.png");
+    let p_flamethrower_sprite = asset_server.load("player_sprites/player_flamethrower.png");
+    let p_sniper_sprite = asset_server.load("player_sprites/player_sniper.png");
+    let p_sprite = asset_server.load("player_sprites/player.png");
+    let p_widowmaker_sprite = asset_server.load("player_sprites/player_sniper.png");
+
     let enemy_sprite = asset_server.load("player_sprites/enemy.png");
 
     let molotov_fire_sprite = asset_server.load("projectile_sprites/molotov_fire.png");
@@ -75,7 +86,19 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     asset_server.watch_for_changes().unwrap();
 
     commands.insert_resource(Skin {
-        player: materials.add(default_sprite.into()),
+        player: [
+            materials.add(p_pistol_sprite.into()),
+            materials.add(p_shotgun_sprite.into()), 
+            materials.add(p_speedball_sprite.into()), 
+            materials.add(p_br_sprite.into()), 
+            materials.add(p_ar_sprite.into()), 
+            materials.add(p_smg_sprite.into()), 
+            materials.add(p_cluster_shotgun_sprite.into()), 
+            materials.add(p_flamethrower_sprite.into()), 
+            materials.add(p_sniper_sprite.into()),
+            materials.add(p_sprite.into()),
+            materials.add(p_widowmaker_sprite.into())
+        ],
         enemy: materials.add(enemy_sprite.into()),
 
     });
