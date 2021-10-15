@@ -117,6 +117,7 @@ game_types = { path = "crates/game_types" }
 map = { path = "crates/map" }
 config = { path = "crates/config" }
 bots = { path = "crates/bots" }
+setup_systems = { path = "crates/setup_systems" }
 
 [features]
 default = [
@@ -134,12 +135,15 @@ graphics = [
   "bevy/bevy_winit", 
   "bevy/png", 
   "bevy/render",
+  "game_types/graphics",
+  "setup_systems/graphics",
 ]
 
 
 native = [
   "parallel",
   "config/native",
+  "setup_systems/native",
 ]
 
 parallel = [
@@ -157,6 +161,7 @@ web = [
   "wasm-bindgen",
   "lazy_static",
   "config/web",
+  "setup_systems/web",
 ]
 
 [lib]

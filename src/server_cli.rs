@@ -8,8 +8,10 @@
 use game_lib::*;
 use game_types::*;
 use game_lib::net::*;
-use game_lib::setup_systems::setup_players;
+use setup_systems::setup_players;
 use map::*;
+
+use game_types::*;
 
 use bevy::prelude::*;
 use bevy::tasks::TaskPool;

@@ -14,6 +14,8 @@ use rand::distributions::{Distribution, Standard};
 #[cfg(feature = "parallel")]
 use rayon::join;
 
+use single_byte_hashmap::HashMap;
+
 use crate::*;
 
 //Each player has a unique player id
@@ -610,3 +612,22 @@ fn finish_timer(timer: &mut Timer){
 
 }
 
+pub struct Skin {
+    // The skins are a vector with each index being the
+    pub player: [Handle<ColorMaterial>; NUM_OF_GUN_MODELS as usize],
+    pub enemy: Handle<ColorMaterial>,
+
+}
+
+// Players that are running locally (bots, splitscreen, the player you're controlling rn)
+pub struct LocalPlayers(pub Vec<u8>);
+
+pub struct WidowMakerHeals(pub HashMap<u8, f32>);
+
+// The first item of the HashMap is the id of the player, the second is said player's score
+pub struct DeathmatchScore(pub HashMap<u8, u8>);
+
+pub struct MyPlayerID(pub Option<PlayerID>);
+
+// The first item is the player ID, the second item is the network handle and a timeout timer
+pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(u32, Timer)>>);

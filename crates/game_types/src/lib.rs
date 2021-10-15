@@ -1,14 +1,22 @@
 #![feature(destructuring_assignment)]
 #![feature(variant_count)]
+#![feature(const_fn_floating_point_arithmetic)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
 pub mod player_attr;
+#[cfg(feature = "graphics")]
+pub mod graphics;
 
 use bevy::core::Timer;
 use bevy::math::Vec2;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "graphics")]
+pub use graphics::*;
+
+pub use player_attr::*;
 
 #[derive(PartialEq)]
 pub enum MovementType {

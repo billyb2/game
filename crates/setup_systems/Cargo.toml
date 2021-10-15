@@ -1,0 +1,28 @@
+[package]
+name = "setup_systems"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+config = { path = "../config" }
+bots = { path = "../bots" }
+game_types = { path = "..//game_types" }
+map = { path = "../map" }
+
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
+rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
+fastrand = { version = "1" }
+
+[features]
+parallel = [
+  "single_byte_hashmap/rayon",
+  "map/parallel",
+  "rapier2d/parallel",
+  "bots/parallel",
+]
+
+graphics = []
+
+native = []
+web = []

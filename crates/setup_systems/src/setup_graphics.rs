@@ -4,7 +4,10 @@
 use bevy::prelude::Rect;
 use bevy::prelude::*;
 
-use crate::*;
+//use crate::*;
+use game_types::*;
+use map::*;
+
 use map::MapCRC32;
 use single_byte_hashmap::*;
 

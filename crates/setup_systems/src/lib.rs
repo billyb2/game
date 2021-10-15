@@ -1,6 +1,8 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
+mod setup_graphics;
+
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::collections::BTreeSet;
 use std::convert::TryInto;
@@ -13,18 +15,19 @@ use bevy::render::{
     shader::ShaderStages,
 };
 
-use crate::*;
-use crate::shaders::*;
+use game_types::*;
+
 use config::*;
 use map::MapCRC32;
 use single_byte_hashmap::*;
 use bots::*;
+use map::*;
 
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 #[cfg(feature = "graphics")]
-use crate::setup_graphical_systems::*;
+pub use setup_graphics::*;
 
 #[allow(clippy::too_many_arguments)]
 pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>) {

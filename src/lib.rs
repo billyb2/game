@@ -18,9 +18,6 @@ pub mod system_labels;
 pub mod menus;
 #[cfg(feature = "graphics")]
 pub mod player_input;
-pub mod setup_systems;
-#[cfg(feature = "graphics")]
-pub mod setup_graphical_systems;
 pub mod shaders;
 pub mod net;
 
@@ -50,7 +47,6 @@ use wasm_bindgen::prelude::*;
 use map::*;
 
 use game_types::*;
-use game_types::player_attr::*;
 #[cfg(feature = "graphics")]
 use shaders::*;
 use single_byte_hashmap::*;
@@ -71,27 +67,6 @@ extern "C" {
     pub fn screen_width() -> f32;
     pub fn screen_height() -> f32;
 }
-
-
-pub struct GameCamera;
-
-pub struct AmmoText;
-pub struct AbilityChargeText;
-pub struct GameLogText;
-pub struct HealthText;
-
-pub struct IpText;
-
-#[cfg(feature = "graphics")]
-pub struct ScoreUI;
-
-#[cfg(feature = "graphics")]
-pub struct ChampionText;
-
-#[cfg(feature = "graphics")]
-pub struct NetConnStateText;
-
-pub struct WidowMakerHeals(pub HashMap<u8, f32>);
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -148,107 +123,15 @@ impl Projectile {
     }
 }
 
-pub struct Skin {
-    // The skins are a vector with each index being the
-    pub player: [Handle<ColorMaterial>; NUM_OF_GUN_MODELS as usize],
-    pub enemy: Handle<ColorMaterial>,
-
-}
-
-pub struct ProjectileMaterials {
-    pub regular: Handle<ColorMaterial>,
-    pub speedball: Handle<ColorMaterial>,
-    pub engineer: Handle<ColorMaterial>,
-    pub molotov: Handle<ColorMaterial>,
-    pub molotov_fire: Handle<ColorMaterial>,
-    pub molotov_liquid: Handle<ColorMaterial>,
-
-    pub flamethrower1: Handle<ColorMaterial>,
-    pub flamethrower2: Handle<ColorMaterial>,
-    pub flamethrower3: Handle<ColorMaterial>,
-    pub pulsewave: Handle<ColorMaterial>,
-    pub beam: Handle<ColorMaterial>,
-}
-
-pub struct ButtonMaterials {
-    pub normal: Handle<ColorMaterial>,
-    pub hovered: Handle<ColorMaterial>,
-
-}
-
-pub struct GameMenuButtonMaterials {
-    pub normal: Handle<ColorMaterial>,
-    pub hovered: Handle<ColorMaterial>,
-
-}
-
-
-// The mouse's position in world coordinates
-pub struct MousePosition(pub Vec2);
-
-#[derive(RenderResources, Default, TypeUuid)]
-#[uuid = "463e4b8a-d555-4fc2-ba9f-4c880063ba92"]
-pub struct ShaderMousePosition {
-    pub value: Vec2,
-}
-
-#[derive(RenderResources, Default, TypeUuid)]
-#[uuid = "463e4c8b-d555-4fc2-ba9f-4c880063ba92"]
-pub struct WindowSize {
-    value: Vec2,
-}
-
-//impl Into<(Vec3, u8, Vec2, f32, Model, f32, Vec<f32>, f32, ProjectileType, Damage)
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct KeyBindings {
-    pub up: KeyCode,
-    pub down: KeyCode,
-    pub left: KeyCode,
-    pub right: KeyCode,
-    pub use_ability: KeyCode,
-    pub reload: KeyCode,
-    pub show_score: KeyCode,
-    pub dash: KeyCode,
-    pub melee: KeyCode,
-
-}
-
-#[derive(Debug, PartialEq)]
-pub enum KeyBindingButtons {
-    Up,
-    Down,
-    Left,
-    Right,
-    UseAbility,
-    Reload,
-    ShowScore,
-    Melee,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct SelectedKeyButton(Option<KeyBindingButtons>);
-
 #[derive(Debug, PartialEq)]
 pub enum GameMode {
     Deathmatch,
 
 }
 
-// The first item of the HashMap is the id of the player, the second is said player's score
-pub struct DeathmatchScore(pub HashMap<u8, u8>);
-
-pub struct MyPlayerID(pub Option<PlayerID>);
-
-// Players that are running locally (bots, splitscreen, the player you're controlling rn)
-pub struct LocalPlayers(pub Vec<u8>);
-
 pub struct LogEvent(pub String);
 
 pub struct DeathEvent(pub u8);
-
-// The first item is the player ID, the second item is the network handle and a timeout timer
-pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(u32, Timer)>>);
 
 // If a player gets a score of 15 kills, the game ends
 const SCORE_LIMIT: u8 = 15;
@@ -583,7 +466,7 @@ pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, Wit
 
 }
 
-pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut my_player_id: ResMut<MyPlayerID>) {
+pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: ResMut<MyPlayerID>) {
     query.for_each(|q| {
         commands.entity(q.0).despawn_recursive();
 

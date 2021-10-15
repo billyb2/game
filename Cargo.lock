@@ -1621,6 +1621,7 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "serde",
+ "setup_systems",
  "single_byte_hashmap",
  "wasm-bindgen",
 ]
@@ -1632,6 +1633,7 @@ dependencies = [
  "bevy",
  "rand",
  "serde",
+ "single_byte_hashmap",
 ]
 
 [[package]]
@@ -3248,6 +3250,20 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "setup_systems"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bots",
+ "config",
+ "fastrand",
+ "game_types",
+ "map",
+ "rapier2d",
+ "single_byte_hashmap",
 ]
 
 [[package]]

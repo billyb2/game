@@ -7,3 +7,7 @@ edition = "2021"
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 serde = { version = "1", features = ["derive"] }
 rand = { version = "0.8", features = ["nightly"] }
+single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
+
+[features]
+graphics = []

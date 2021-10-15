@@ -10,8 +10,7 @@ use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use crate::*;
-use crate::shaders::Alpha;
-use game_types::{AbilityEvent, RequestedMovement};
+use game_types::*;
 use map::*;
 use single_byte_hashmap::HashMap;
 
