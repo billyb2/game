@@ -124,3 +124,5 @@ pub struct SlowedDown(pub Timer);
 pub struct GameRelated;
 
 pub struct ResScale(pub f32);
+
+pub struct NumOfBots(pub u8);

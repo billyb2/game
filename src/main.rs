@@ -112,6 +112,7 @@ fn main() {
     app
     //Start in the main menu
     .add_state(AppState::MainMenu)
+    // Physics stuff
     .insert_resource(RigidBodySet::new())
     .insert_resource(ColliderSet::new())
     .insert_resource(MapCRC32(map2.crc32))
@@ -133,6 +134,7 @@ fn main() {
     .insert_resource(ability)
     .insert_resource(model)
     .insert_resource(perk)
+    .insert_resource(NumOfBots(0))
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())))
     .add_plugins(DefaultPlugins)
     .add_plugin(NetworkingPlugin::default())

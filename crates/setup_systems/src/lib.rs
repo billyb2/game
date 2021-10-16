@@ -30,7 +30,7 @@ use rapier2d::na::Vector2;
 pub use setup_graphics::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>, num_of_bots: Res<NumOfBots>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -82,10 +82,21 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         );
     }
 
+    let mut remaining_bots_to_add = num_of_bots.0;
+
+    #[allow(unused_mut)]
+    let mut online_player_ids = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
+
+    #[allow(unused_mut)]
+    let mut local_players = Vec::with_capacity(5);
+
+
     let map = maps.0.get(&map_crc32.0).unwrap();
     
     map.spawn_points.iter().enumerate().for_each(|(mut i, coords)| {
         i += 1;
+
+        let i: u8 = i.try_into().unwrap();
 
         let ability = match &my_ability {
             Some(ability) => **ability,
@@ -109,7 +120,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         #[cfg(feature = "graphics")]
         let (helmet_color, inner_suit_color) = set_player_colors(&ability);
 
-        let mut entity = commands.spawn_bundle(Player::new(i.try_into().unwrap(), ability, perk, false));
+        let mut entity = commands.spawn_bundle(Player::new(i, ability, perk, false));
 
         entity
             .insert_bundle(Gun::new(gun_model, ability, perk))
@@ -149,8 +160,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .insert(helmet_color)
             .insert(inner_suit_color);
 
-        player_entities.insert(i.try_into().unwrap(), entity.id());
-        available_player_ids.push(PlayerID(i.try_into().unwrap()));
+        player_entities.insert(i, entity.id());
 
         #[cfg(feature = "graphics")]
         { 
@@ -183,24 +193,30 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             entity.insert(rigid_body_handle);
             entity.insert(collider_handle);
 
-            if i == 2 {
-                let (bot, ability, model) = AggroBot::new(map, PlayerID(2));
+            if remaining_bots_to_add > 0 {
+                let (bot, ability, model) = AggroBot::new(map, PlayerID(i));
 
                 entity.insert_bundle(Gun::new(model, ability, perk));
 
                 entity.insert(BotWrapper(Box::new(bot)));
                 entity.insert(ability);
+
+                remaining_bots_to_add -= 1;
+
+                online_player_ids.insert(i, None);
+                _deathmatch_score.0.insert(i, 0);
+                local_players.push(i);
+
+
+            } else {
+                available_player_ids.push(PlayerID(i));
+
+
             }
 
         }
 
     });
-
-    #[allow(unused_mut)]
-    let mut online_player_ids = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
-
-    #[allow(unused_mut)]
-    let mut local_players = Vec::with_capacity(5);
 
     #[cfg(all(feature = "native", feature = "graphics"))]
     {
@@ -210,12 +226,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         online_player_ids.insert(p_id.0, None);
         _deathmatch_score.0.insert(p_id.0, 0);
         local_players.push(p_id.0);
-
-
-        let bot_id = available_player_ids.remove(0);
-        online_player_ids.insert(bot_id.0, None);
-        _deathmatch_score.0.insert(bot_id.0, 0);
-        local_players.push(bot_id.0);
         
     }
 

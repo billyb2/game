@@ -668,7 +668,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
         });
 }
 
-pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>) {
+pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, num_of_bots: Res<NumOfBots>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -731,6 +731,40 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
                         text: Text {
                             sections: vec![TextSection {
                                 value: format!("Map: {:?}", maps.0.get(&map_crc32.0).unwrap().name),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        margin: Rect {
+                            //bottom: Val::Percent(10.0),
+                            ..Default::default()
+                        },
+                        size: Size::new(Val::Px(350.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: format!("Number of bots: {}", num_of_bots.0),
                                 style: TextStyle {
                                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                     font_size: 55.0,

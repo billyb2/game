@@ -49,14 +49,16 @@ impl Bot for AggroBot {
         self.players = players.iter().filter(|p| p.id.0 != self.my_id.0).cloned().collect();
         self.my_player = players.iter().find(|p| p.id.0 == self.my_id.0).unwrap().clone();
 
-        let enemy_player = self.players[0].pos;
+        if self.players.len() > 0 {
+            let enemy_player = self.players[0].pos;
 
-        // Face the opponent
-        let angle = get_angle(self.my_player.pos.x, self.my_player.pos.y, enemy_player.x, enemy_player.y);
-        self.internal_angle = Angle(match self.my_player.pos.x > enemy_player.x {
-            true => angle - PI,
-            false => angle,
-        });
+            // Face the opponent
+            let angle = get_angle(self.my_player.pos.x, self.my_player.pos.y, enemy_player.x, enemy_player.y);
+            self.internal_angle = Angle(match self.my_player.pos.x > enemy_player.x {
+                true => angle - PI,
+                false => angle,
+            });
+        }
 
     }
     fn update_health(&mut self, new_health: Health) {

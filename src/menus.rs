@@ -585,7 +585,7 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
 
 }
 
-pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>) {
+pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>, mut num_of_bots: ResMut<NumOfBots>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -620,6 +620,16 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
 
                     }
 
+                } else if text.starts_with("Number of bots") {
+                    let mut max_num_of_bots: u8 = maps.0.get(&map_crc32.0).unwrap().spawn_points.len().try_into().unwrap();
+                    max_num_of_bots -= 1;
+
+                    num_of_bots.0 = match num_of_bots.0 + 1 > max_num_of_bots {
+                        true => 0,
+                        false => num_of_bots.0 + 1
+                    };
+
+                    *text = format!("Number of bots: {}", num_of_bots.0);
                 }
 
             }
