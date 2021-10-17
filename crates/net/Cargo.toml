@@ -1,0 +1,21 @@
+[package]
+name = "net"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", default-features = false, features = ["use-webrtc"] }
+single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
+rapier2d = { version = "0.11", features = ["simd-nightly"]}
+
+game_types = { path = "../game_types" }
+map = { path = "../map" }
+
+[features]
+graphics = []
+native = []
+web = []
+parallel = [
+	"single_byte_hashmap/rayon",
+]

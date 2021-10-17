@@ -7,11 +7,9 @@
 
 use game_lib::*;
 use game_types::*;
-use game_lib::net::*;
 use setup_systems::setup_players;
 use map::*;
-
-use game_types::*;
+use net::*;
 
 use bevy::prelude::*;
 use bevy::tasks::TaskPool;

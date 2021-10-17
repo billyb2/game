@@ -19,7 +19,6 @@ pub mod menus;
 #[cfg(feature = "graphics")]
 pub mod player_input;
 pub mod shaders;
-pub mod net;
 
 use std::convert::TryInto;
 
@@ -66,20 +65,6 @@ extern "C" {
 extern "C" {
     pub fn screen_width() -> f32;
     pub fn screen_height() -> f32;
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum AppState {
-    Connecting,
-    MainMenu,
-    GameMenu,
-    ContinuePlaying,
-    CustomizePlayerMenu,
-    InGame,
-    Settings,
-    CustomizeGame,
-    DownloadMapMenu,
-
 }
 
 #[derive(Bundle)]
@@ -129,9 +114,6 @@ pub enum GameMode {
 
 }
 
-pub struct LogEvent(pub String);
-
-pub struct DeathEvent(pub u8);
 
 // If a player gets a score of 15 kills, the game ends
 const SCORE_LIMIT: u8 = 15;
@@ -156,12 +138,13 @@ pub fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventRead
 
 pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     for ev in death_events.iter() {
-        let num = fastrand::u8(0..=2);
+        let num = fastrand::u8(0..=3);
 
         let message = match num {
             0 => format!("Player {} got murked\n", ev.0),
             1 => format!("Player {} got gulaged\n", ev.0),
             2 => format!("Player {} got sent to the shadow realm\n", ev.0),
+            3 => format!("Player {} died\n", ev.0),
             _ => unimplemented!(),
 
         };

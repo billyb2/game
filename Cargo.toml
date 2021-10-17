@@ -57,6 +57,15 @@ opt-level = 1
 [profile.fast-web-simd.package.game]
 opt-level = 1
 
+[profile.dev.package.net]
+opt-level = 1
+
+[profile.server_cli.package.net]
+opt-level = 1
+
+[profile.fast-web-simd.package.net]
+opt-level = 1
+
 [profile.fast-web-simd]
 inherits = "dev"
 panic = "abort"
@@ -83,7 +92,6 @@ bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true 
 #bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
 
 # Networking library
-#bevy_networking_turbulence = { version = "0.3", default-features = false, features = ["use-webrtc"] }
 bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", default-features = false, features = ["use-webrtc"] }
 
 # WASM logging
@@ -118,6 +126,7 @@ map = { path = "crates/map" }
 config = { path = "crates/config" }
 bots = { path = "crates/bots" }
 setup_systems = { path = "crates/setup_systems" }
+net = { path = "crates/net" }
 
 [features]
 default = [
@@ -137,6 +146,7 @@ graphics = [
   "bevy/render",
   "game_types/graphics",
   "setup_systems/graphics",
+  "net/graphics",
 ]
 
 
@@ -144,6 +154,7 @@ native = [
   "parallel",
   "config/native",
   "setup_systems/native",
+  "net/native",
 ]
 
 parallel = [
@@ -153,6 +164,7 @@ parallel = [
   "map/parallel",
   "rapier2d/parallel",
   "bots/parallel",
+  "net/parallel",
 ]
 
 web = [
@@ -162,6 +174,7 @@ web = [
   "lazy_static",
   "config/web",
   "setup_systems/web",
+  "net/web",
 ]
 
 [lib]

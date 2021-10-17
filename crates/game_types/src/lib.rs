@@ -126,3 +126,21 @@ pub struct GameRelated;
 pub struct ResScale(pub f32);
 
 pub struct NumOfBots(pub u8);
+
+pub struct LogEvent(pub String);
+
+pub struct DeathEvent(pub u8);
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum AppState {
+    Connecting,
+    MainMenu,
+    GameMenu,
+    ContinuePlaying,
+    CustomizePlayerMenu,
+    InGame,
+    Settings,
+    CustomizeGame,
+    DownloadMapMenu,
+
+}

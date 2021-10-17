@@ -81,25 +81,6 @@ pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-pub fn get_available_port(ip: &str) -> Option<u16> {
-    #[cfg(feature = "parallel")]
-    return (8000..9000).into_iter().find(|port| port_is_available(ip, *port));
-
-    #[cfg(not(feature = "parallel"))]
-    return (8000..9000).into_par_iter().find(|port| port_is_available(ip, *port));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn port_is_available(ip: &str, port: u16) -> bool {
-    match UdpSocket::bind((ip, port)) {
-        Ok(_) => {
-            true
-        }
-        Err(_) => false,
-    }
-}
-
 const TWO: Vec2 = const_vec2!([2.0; 2]);
 
 // Returns the normal_x, normal_y, and collision_time

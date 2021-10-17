@@ -5,7 +5,6 @@ use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
 
-use crate::*;
 use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};

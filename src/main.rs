@@ -26,7 +26,6 @@ use helper_functions::collide;
 use game_lib::*;
 use game_lib::player_input::*;
 use game_lib::menus::*;
-use game_lib::net::*;
 use game_lib::system_labels::*;
 use setup_systems::*;
 use game_types::*;
@@ -35,6 +34,7 @@ use logic::*;
 use map::*;
 use config::*;
 use bots::*;
+use net::*;
 
 fn main() {
     let mut app = App::new();
