@@ -6,26 +6,15 @@ use bevy::render::renderer::RenderResources;
 use serde::{Deserialize, Serialize};
 
 pub const fn u8_to_color(value: [u8; 3]) -> [f32; 3] {
-    let new_values: [f32; 3] = {
-        let mut new_values: [f32; 3] = [0.0; 3];
+    [
+        value[0] as f32 / 255.0,
+        value[1] as f32 / 255.0,
+        value[2] as f32 / 255.0,
+    ]
 
-        let mut i = 0;
+    // In a perfect world, I could just do this
+    // value.map(|v| v as f32 / 255.0)
 
-        while i < value.len() {
-            let mut v: f32 = value[i] as f32;
-            v /= 255.0;
-
-            new_values[i] = v;
-
-            i += 1;
-
-        }
-
-        new_values
-
-    };
-    
-    new_values
 }
 
 pub struct ButtonMaterials {
@@ -79,7 +68,6 @@ pub struct HelmetColor {
 }
 
 impl HelmetColor {
-    //TODO: this function is a great canidate for SIMD
     pub const fn new(value: [u8; 3]) -> Self {
         Self {
             value: const_vec3!(u8_to_color(value)),
@@ -162,3 +150,5 @@ pub struct WindowSize {
 pub struct Alpha {
     pub value: f32,
 }
+
+pub struct PlayerToSpectate(pub u8);

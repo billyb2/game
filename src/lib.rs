@@ -18,19 +18,16 @@ pub mod system_labels;
 pub mod menus;
 #[cfg(feature = "graphics")]
 pub mod player_input;
+#[cfg(feature = "graphics")]
 pub mod shaders;
 
 use std::convert::TryInto;
-
-use serde::{Serialize, Deserialize};
 
 use bevy_networking_turbulence::*;
 
 use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
-use bevy::reflect::TypeUuid;
-use bevy::render::renderer::RenderResources;
 use bevy::utils::Duration;
 
 use rapier2d::prelude::*;
@@ -46,8 +43,6 @@ use wasm_bindgen::prelude::*;
 use map::*;
 
 use game_types::*;
-#[cfg(feature = "graphics")]
-use shaders::*;
 use single_byte_hashmap::*;
 use net::*;
 
@@ -79,23 +74,70 @@ pub struct Projectile {
 
 }
 
-pub struct GameLogs(Vec<GameLog>);
+#[derive(Clone)]
+pub struct GameLogs([Option<GameLog>; 10]);
 
+#[allow(clippy::new_without_default)]
 impl GameLogs {
-    pub fn new() -> GameLogs {
-        GameLogs(Vec::with_capacity(10))
+    pub const fn new() -> Self {
+        GameLogs(
+            [
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ]
+        )
 
     }
+
+    pub fn insert(&mut self, new_game_log: GameLog) {
+        let old_game_log = match self.0.iter_mut().find(|l| l.is_none()) {
+            Some(old_game_log) => old_game_log,
+            None => self.0.first_mut().unwrap(),
+
+        };
+
+        *old_game_log = Some(new_game_log);
+
+    }
+
 }
 
+#[derive(Clone)]
 pub struct GameLog {
     text: TextSection,
     timer: Timer,
 
 }
 
+impl GameLog {
+    pub fn new(text: String, asset_server: &AssetServer) -> Self {
+        GameLog {
+            text: TextSection {
+                style: TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
+                    font_size: 35.0 * (20.0 / text.len() as f32),
+                    color: Color::WHITE,
+                },
+                value: text,
+            },
+            timer: Timer::from_seconds(8.0, false),
+
+        }
+        
+    }
+}
+
 impl Projectile {
-    pub fn new(projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Projectile {
+    pub const fn new(projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Self {
         Projectile {
             distance_traveled: DistanceTraveled(0.0),
             movement_type: MovementType::StopAfterDistance(max_distance),
@@ -190,7 +232,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 
     let mut display_win_text = 
     #[inline]
-    |(player_id)| {
+    |player_id| {
         let champion_string = format!("Player {} wins!", player_id);
         let (mut text, mut visible) = champion_text.single_mut();
 
@@ -211,7 +253,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 
     #[cfg(feature = "parallel")]
     if let Some((player_id, _score)) = deathmatch_score.into_par_iter().find_any(|(_player_id, score)| **score >= SCORE_LIMIT) {
-        display_win_text((player_id));
+        display_win_text(player_id);
 
     }
 
@@ -294,7 +336,7 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
             if timer_finished {
                 println!("Player {id} at handle {handle} has timed out!");
                 
-                let (entity, _, _, _, _, _, _, _, _, _, _, _, _, _) = player_timers.iter_mut().find(|(entity, _ability, _ability_charge, _ability_completed, _using_ability, _health, _time_since_last_shot, _time_since_start_reload, _respawn_timer, _dashing_info, _player_speed, _slowed_down, _can_melee, player_id)| player_id.0 == *id).unwrap();
+                let (entity, _, _, _, _, _, _, _, _, _, _, _, _, _) = player_timers.iter_mut().find(|(_entity, _ability, _ability_charge, _ability_completed, _using_ability, _health, _time_since_last_shot, _time_since_start_reload, _respawn_timer, _dashing_info, _player_speed, _slowed_down, _can_melee, player_id)| player_id.0 == *id).unwrap();
                 commands.entity(entity).despawn_recursive();
                 deathmatch_score.0.remove(id);
                 // TODO: Switch to VecDequeue
@@ -311,10 +353,7 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
          }
     });
 
-    for game_log in logs.0.iter_mut() {
-        game_log.timer.tick(delta);
-
-    }
+    logs.0.iter_mut().for_each(|l| if let Some(l) = l { l.timer.tick(delta); });
 
 
     projectile_timers.for_each_mut(|mut destruction_timer| {
@@ -402,46 +441,21 @@ pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut
 }
 
 pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
-    for log_text in log_event.iter() {
-        logs.0.truncate(9);
+    log_event.iter().for_each(|log_text| logs.insert(GameLog::new(log_text.0.clone(), &asset_server)));
 
-        logs.0.insert(0,
-            GameLog {
-                text: TextSection {
-                    value: log_text.0.clone(),
-                    style: TextStyle {
-                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                        // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
-                        font_size: 35.0 * (20.0 / log_text.0.len() as f32),
-                        color: Color::WHITE,
-                    }
-                },
-                timer: Timer::from_seconds(8.0, false),
+    logs.0.iter_mut().rev().for_each(|log| {
+        if let Some(l) = log {
+            if !l.timer.finished() {
+                l.text.style.color.set_a(l.timer.percent_left());          
+
+            } else {
+                *log = None;
 
             }
-        );
-
-    }
-
-    let mut text_vec = Vec::with_capacity(10);
-
-    let mut new_len = logs.0.len();
-
-    for log in logs.0.iter().rev() {
-        if !log.timer.finished() {
-            let mut text = log.text.clone();
-            // Sets the transparency of the text
-            text.style.color.set_a(log.timer.percent_left());
-            text_vec.push(text);
-
-        } else {
-            new_len -= 1;
-
         }
+    });
 
-    }
-
-    logs.0.truncate(new_len);
+    let text_vec = logs.0.clone().into_iter().filter_map(|l| l.and_then(|l| Some(l.text))).collect::<Vec<TextSection>>();
 
     let mut game_log = game_log.single_mut();
 
@@ -449,7 +463,7 @@ pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, Wit
 
 }
 
-pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>, mut deathmatch_score: ResMut<DeathmatchScore>, my_player_id: ResMut<MyPlayerID>) {
+pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>) {
     query.for_each(|q| {
         commands.entity(q.0).despawn_recursive();
 
@@ -483,7 +497,7 @@ pub fn reset_game(mut deathmatch_score: ResMut<DeathmatchScore>, mut my_player_i
     let map = maps.0.get(&map_crc32.0).unwrap();
 
     let num_of_spawn_points: u8 = map.spawn_points.len().try_into().unwrap();
-    available_player_ids.extend((0..num_of_spawn_points).into_iter().map(|i| PlayerID(i)));
+    available_player_ids.extend((0..num_of_spawn_points).into_iter().map(PlayerID));
 
 
     #[cfg(feature = "graphics")]

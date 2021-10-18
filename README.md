@@ -36,27 +36,27 @@ The nightly compiler allows us to use unstable Rust optimizations for both faste
 
 ## Instructions for running / building
 
-To run the game in development mode (with very very fast build times), run:
+To run the game in development mode (with fast build times), run:
 `cargo make run`
 
-To run it in release mode:
+To run it in release mode (with slow build times but very fast runtime):
 `cargo make run-release`
 
-To buld for release mode:
+To build for release mode (usually for distributing a binary):
 `cargo make build-release`
 
-Thanks to `bevy_webgl2`, this game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded. Because of this, WASM builds will be release by default.
+Thanks to `bevy_webgl2`, this game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded and because of the fact that WASM does slow programs down compared to running natively.
 
-I'd recommend using Chrome (or Chromium based browsers like Brave) for testing WASM builds. The performance on Firefox is pretty bad (30 fps) without messing with flags, and even then it's still slightly worse than Chrome.
+I'd recommend using Chrome (or Chromium based browsers like Brave) for testing WASM builds. The performance on Firefox isn't great (30 fps) without messing with flags, and even then it's still slightly worse than Chrome.
 
 To build for WASM (Web ASseMbly), run:
-`cargo make serve`
+`cargo make serve-opt-simd`
 
 To make a very optimized build for WASM (slow build times, fast run times), run:
 `cargo make serve-release-simd`
 
-To run a debug WASM build (not recommended since the performance is horrible), run:
-`cargo make serve-fast`
+To run a debug WASM build (not recommended for playtesting since the performance is horrible), run:
+`cargo make serve-fast-simd`
 
 I only recommend debug builds if you want to very quickly check a change, rather than playtesting the game
 
@@ -97,4 +97,5 @@ This is as easy as running `mkdir -p $HOME/.config/tiled/extensions/ && ln -s /p
 
 ## Before pushing your Git commit
 
-Please try running `cargo make serve-fast` and verifying that WASM builds and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later.
+Please try running `cargo make serve-fast-simd` and verifying that WASM builds and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later. Usually, they should be almost identical, but there is some WASM specific and native specific code in the codebase.
+

@@ -29,27 +29,8 @@ pub enum MovementType {
 
 pub struct DistanceTraveled(pub f32);
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct RequestedMovement {
-    // Angle is in radians
-    pub angle: f32,
-    pub speed: f32,
-    // How much damage the bullets do to players or the environment
-
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Speed(pub f32);
-
-impl RequestedMovement {
-    pub fn new(angle: f32, speed: f32) -> RequestedMovement {
-        RequestedMovement {
-            angle,
-            speed,
-
-        }
-    }
-}
 
 #[derive(Copy, Clone)]
 pub struct Health(pub f32);

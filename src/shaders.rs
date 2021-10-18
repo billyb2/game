@@ -1,31 +1,24 @@
 use bevy::prelude::*;
 use bevy::asset::LoadState;
-use bevy::reflect::TypeUuid;
 use bevy::render::pipeline::PipelineDescriptor;
-use bevy::render::renderer::RenderResources;
 use bevy::render::shader::ShaderStages;
 
 use game_types::*;
 
 // All this is to keep hot shaders from crashing (see https://github.com/bevyengine/bevy/issues/1359)
 
-
 pub fn setup_asset_loading(asset_server: Res<AssetServer>, mut commands: Commands,) {
     asset_server.watch_for_changes().unwrap();
 
-    // Web builds use a slightly different shader language
-    #[cfg(feature = "web")]
-    commands.insert_resource(AssetsLoading {
-        loaded: false,
-        vertex_shader: asset_server.load::<Shader, _>("shaders/sprite_wasm.vert"),
-        fragment_shader: asset_server.load::<Shader, _>("shaders/sprite_wasm.frag"),
-    });
+    let (vert_shader, frag_shader) = match cfg!(feature = "web") {
+        true => ("shaders/sprite_wasm.vert", "shaders/sprite_wasm.frag"),
+        false => ("shaders/sprite.vert", "shaders/sprite.frag"),
+    };
 
-    #[cfg(feature = "native")]
     commands.insert_resource(AssetsLoading {
         loaded: false,
-        vertex_shader: asset_server.load::<Shader, _>("shaders/sprite.vert"),
-        fragment_shader: asset_server.load::<Shader, _>("shaders/sprite.frag"),
+        vertex_shader: asset_server.load::<Shader, _>(vert_shader),
+        fragment_shader: asset_server.load::<Shader, _>(frag_shader),
     });
 
 }

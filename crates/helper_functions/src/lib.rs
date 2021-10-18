@@ -12,9 +12,6 @@ use std::f32::consts::PI;
 use std::convert::TryInto;
 use std::intrinsics::*;
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::net::UdpSocket;
-
 //TODO: Maybe genericize the slice_to function?
 #[inline]
 pub fn slice_to_i32(data: &[u8]) -> i32 {
@@ -83,98 +80,6 @@ pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
 
 const TWO: Vec2 = const_vec2!([2.0; 2]);
 
-// Returns the normal_x, normal_y, and collision_time
-pub fn collide(coords: Vec2, size: Vec2, rect2_coords: Vec2, rect2_size: Vec2, distance: f32, angle: Vec2) -> (f32, f32, f32) {
-    let velocity = distance * angle;
-
-    let coords = coords - size / TWO;
-    let rect2_coords = rect2_coords - rect2_size / TWO;
-
-    let (inv_entry, inv_exit) = if velocity.cmpgt(Vec2::ZERO).all() {
-        let inv_entry = rect2_coords - (coords + size);
-        let inv_exit = (rect2_coords + rect2_size) - coords;
-
-        (inv_entry, inv_exit)
-
-    } else {
-        let (x_inv_entry, x_inv_exit) = match velocity[0] > 0.0 {
-            true => ((rect2_coords[0] - (coords[0] + size[0])), (rect2_coords[0] + rect2_size[0]) - coords[0]),
-            false => ((rect2_coords[0] + rect2_size[0]) - coords[0], (rect2_coords[0] - (coords[0] + size[0]))),
-        };
-
-        let (y_inv_entry, y_inv_exit) = match velocity[1] > 0.0 {
-            true => ((rect2_coords[1] - (coords[1] + size[1])), (rect2_coords[1] + rect2_size[1]) - coords[1]),
-            false => ((rect2_coords[1] + rect2_size[1]) - coords[1], (rect2_coords[1] - (coords[1] + size[1]))),
-        };
-
-        (Vec2::new(x_inv_entry, y_inv_entry), Vec2::new(x_inv_exit, y_inv_exit))
-
-    };
-
-    let (entry, exit) = match likely(velocity.cmpne(Vec2::ZERO).all()) {
-        true => (inv_entry / velocity, inv_exit / velocity),
-        false => {
-            let (x_entry, x_exit) = match velocity[0] == 0.0 {
-                true => (f32::NEG_INFINITY, f32::INFINITY),
-                false => (inv_entry[0] / velocity[0], inv_exit[0] / velocity[0]),
-            };
-
-            let (y_entry, y_exit) = match velocity[1] == 0.0 {
-                true => (f32::NEG_INFINITY, f32::INFINITY),
-                false => (inv_entry[1] / velocity[1], inv_exit[1] / velocity[1]),
-            };
-
-            (Vec2::new(x_entry, y_entry), Vec2::new(x_exit, y_exit))
-        }
-    };
-
-    let entry_time = f32::max(entry[0], entry[1]);
-    let exit_time = f32::min(exit[0], exit[1]);
-
-    // No collision
-    if entry_time > exit_time || entry.cmplt(Vec2::ZERO).all() || entry.cmpgt(Vec2::ONE).any() {
-        /*let normalx = 0.0f;
-        let normaly = 0.0f;
-        return 1.0f; */
-
-        (0.0, 0.0, 1.0)
-
-    } else {
-        // Calculate normal of collided surface
-        let (normal_x, normal_y) = match entry[0] > entry[1] {
-            true => match inv_entry[0] < 0.0 {
-                true => (1.0, 0.0),
-                false => (-1.0, 0.0),
-            },
-            false => match inv_entry[1] < 0.0 {
-                true => (0.0, 1.0),
-                false => (0.0, -1.0),
-            }
-        };
-
-        (normal_x, normal_y, entry_time)
-
-    }
-
-}
-
-pub fn get_swept_broadphase_box(coords: Vec2, size: Vec2, vel: Vec2) -> (Vec2, Vec2) {
-    let half_size = size / TWO;
-
-    let (broadphase_box_x, broadphase_box_w) = match vel[0] > 0.0 {
-        true => (coords[0], vel[0] + half_size[0]),
-        false => (coords[0] - size[0] - vel[0], vel[0] + size[0]),
-    };
-
-    let (broadphase_box_y, broadphase_box_h) = match vel[1] > 0.0 {
-        true => (coords[1], vel[1] + half_size[1]),
-        false => (coords[1] - size[1] - vel[1], vel[1] + size[1]),
-    };
-
-    (Vec2::new(broadphase_box_x, broadphase_box_y), Vec2::new(broadphase_box_w, broadphase_box_h))
-
-}
-
 /*
 MIT License
 Copyright (c) 2020 Carter Anderson
@@ -208,31 +113,6 @@ pub fn aabb_check(rect1_coords: Vec2, rect1_size: Vec2, rect2_coords: Vec2, rect
     !(
         a_max.cmple(a_min).any() ||
         b_max.cmple(b_min).any()
-    )
-
-}
-
-pub fn collide_rect_circle(rect_coords: Vec2, rect_size: Vec2, circle_coords: Vec2, radius: f32) -> bool {
-    let half_rect_size = rect_size / TWO;
-
-    let delta = circle_coords - (rect_coords - half_rect_size).max(circle_coords.min(rect_coords + half_rect_size)); 
-
-    // Sums delta squared
-    (unsafe { let delta_squared = (delta * delta).to_array(); delta_squared.get_unchecked(0) + delta_squared.get_unchecked(1) })
-    <= (radius / 2.0).powi(2)
-
-
-}
-
-pub fn out_of_bounds(rect_coords: Vec2, rect_size: Vec2, map_size: Vec2) -> bool {
-    let half_rect_size = rect_size / TWO;
-
-    let min = rect_coords - half_rect_size;
-    let max = rect_coords + half_rect_size;
-
-    unlikely(
-        min.cmple(Vec2::ZERO).any() &&
-        max.cmpge(map_size).any()
     )
 
 }

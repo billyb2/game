@@ -21,7 +21,7 @@ use single_byte_hashmap::*;
 
 use rapier2d::prelude::{RigidBodySet, ColliderSet};
 
-use helper_functions::collide;
+use helper_functions::aabb_check;
 
 use game_lib::*;
 use game_lib::player_input::*;
@@ -387,11 +387,7 @@ pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<Gam
         let sprite_pos = transform.translation.truncate();
         let sprite_size = sprite.size;
 
-        let collision = {
-            let (_normal_x, _normal_y, collision_time) = collide(camera_pos, camera_size, sprite_pos, sprite_size, 0.0, Vec2::ZERO);
-            collision_time != 1.0
-
-        };
+        let collision = aabb_check(camera_pos, camera_size, sprite_pos, sprite_size);
 
         if collision {
             if culled_sprites.get(entity).is_ok() {

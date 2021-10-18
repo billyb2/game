@@ -1,6 +1,7 @@
 #![feature(stmt_expr_attributes)]
 #![feature(slice_as_chunks)]
 #![feature(option_result_unwrap_unchecked)]
+#![feature(control_flow_enum)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
@@ -8,11 +9,11 @@
 use std::cell::RefCell;
 use std::io::{Read, Write};
 use std::rc::Rc;
+use std::ops::ControlFlow;
 
-use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
 
-use game_types::{GameRelated, Health};
+use game_types::GameRelated;
 
 use helper_functions::*;
 
@@ -60,27 +61,6 @@ pub struct MapAssets(pub HashMap<u8, Handle<ColorMaterial>>);
 pub struct Maps(pub FxHashMap<u32, Map>);
 
 impl MapObject {
-    fn collision(
-        &self,
-        other_object_coords: Vec2,
-        other_object_size: Vec2,
-        distance: f32,
-        angle: Vec2,
-    ) -> (f32, f32, f32) {
-        //Just runs a simple rectangle - rectangle collision function, if the given map object can be collided with
-        match self.collidable{
-            true => collide(other_object_coords, other_object_size, self.coords.xy(), self.size, distance, angle),
-            false => (0.0, 0.0, 1.0),
-        }
-    }
-
-    fn aabb_check(&self, other_rect_coords: Vec2, other_rect_size: Vec2) -> bool {
-        match self.collidable {
-            true => aabb_check(other_rect_coords, other_rect_size, self.coords.xy(), self.size),
-            false => false,
-        }
-    }
-
     // Convert the map object to a bin array
     pub fn to_bin(&self) -> [u8; 32] {
         let bool_to_byte = 
@@ -217,23 +197,21 @@ impl Map {
 
         let background_color = Color::rgb_u8(bytes[8], bytes[9], bytes[10]);
 
-        let mut start_of_map = 11;
+        let map_name = bytes[11..].iter().try_fold(String::with_capacity(10), |mut o_map_name, &byte_char| {
+            match byte_char != 0 {
+                true => {
+                    o_map_name.push(byte_char as char);
+                    ControlFlow::Continue(o_map_name)
+                },
+                false => ControlFlow::Break(o_map_name),
 
-        let mut map_name_char_vec = Vec::with_capacity(10);
-
-        for byte in &bytes[11..] {
-            if *byte == 0 {
-                break;
             }
 
-            map_name_char_vec.push(*byte as char);
+        }).break_value().unwrap();
 
-            start_of_map += 1;
-        }
+        let start_of_map = 11 + map_name.len();
 
-        let map_name: String = map_name_char_vec.into_iter().collect();
-
-        let mut objects: Vec<MapObject> = Vec::with_capacity(0);
+        let mut objects: Vec<MapObject> = Vec::new();
 
         // The map metadata length is 11 bytes
         // Splits the map into chunks each the size of a single map object
@@ -249,7 +227,7 @@ impl Map {
         #[inline(always)]
         || {
             // Iterates through the entire map, adding a map object for each chunk
-            objects = chunks.map(|chunk| MapObject::from_bin(chunk)).collect();
+            objects = chunks.map(MapObject::from_bin).collect();
             objects.shrink_to_fit();
             
         };
@@ -306,105 +284,6 @@ impl Map {
         map
     }
 
-    // Returns whether a collision took place, and the health of the wall (if it has health)
-    pub fn collision(&mut self, other_object_coords: Vec2, other_object_size: Vec2, damage: f32, distance: f32, angle: Vec2) -> ((f32, f32, f32), Option<(f32, Vec2)>) {
-        // The collision function just iterates through each map object within the map, and runs the collide function within
-        #[cfg(feature = "parallel")]
-        let object = self.objects.par_iter_mut().enumerate()
-        .find_map_any(|(i, object)| {
-            let c = object.collision(other_object_coords, other_object_size, distance, angle);
-            match c != (0.0, 0.0, 1.0) {
-                true => Some((i, c, object)),
-                false => None,
-            }
-
-        });
-
-        #[cfg(not(feature = "parallel"))]
-        let object = self.objects.iter_mut().enumerate()
-        .find_map(|(i, object)| {
-            let c = object.collision(other_object_coords, other_object_size, distance, angle);
-            match c != (0.0, 0.0, 1.0) {
-                true => Some((i, c, object)),
-                false => None,
-            }
-
-        });
-
-        let result = match &object {
-            Some((_i, result, _object)) => *result,
-            None => (0.0, 0.0, 1.0),
-        };
-        // The map object to remove if a player dies
-        let mut object_to_remove = None;
-
-        let health_and_coords = match object {
-            Some((index, _res, object)) => {
-                if let Some(mut health) = &mut object.health {
-                    let new_health = health - damage;
-                    // Damagable objects take damage
-                    health = match new_health <= 0.0 {
-                        true => 0.0,
-                        false => new_health,
-                    };
- 
-                    if health == 0.0 {
-                        object_to_remove = Some(index);
-
-                    }
-
-                    Some((health, object.coords.xy()))
-                } else {
-                    None
-                }
-            }
-            None => None,
-        };
-
-        if let Some(i) = object_to_remove {
-            self.objects.remove(i);
-
-        }
-
-        (result, health_and_coords)
-    }
-
-    // Identical to collision, except it's a non-mutable reference so it's safe to use in a parallel iterator
-    pub fn collision_no_damage(&self, other_object_coords: Vec2, other_object_size: Vec2, distance: f32, angle: Vec2) -> (f32, f32, f32) {
-        let map_collision = |object: &MapObject| {
-            let res = object.collision(other_object_coords, other_object_size, distance, angle);
-
-            match res != (0.0, 0.0, 1.0) {
-                true => Some(res),
-                false => None,
-            }
-        };
-        
-        // The collision function just iterates through each map object within the map, and runs the collide function within
-        // Since this function is only used in par_for_each loops, we don't need extra parallelism
-        #[cfg(not(feature = "parallel"))]
-        // The collision only returns None if the Iterator is emtpy, which it never will be
-        let collision = self.objects.iter().find_map(map_collision);
-
-        #[cfg(feature = "parallel")]
-        let collision = self.objects.par_iter().find_map_any(map_collision);
-
-        match collision {
-            Some(res) => res,
-            None => (0.0, 0.0, 1.0),
-        }
-    }
-
-    pub fn aabb_check(&self, other_object_coords: Vec2, other_object_size: Vec2) -> bool {
-        let map_collision = |object: &MapObject| {object.aabb_check(other_object_coords, other_object_size)};
-        #[cfg(not(feature = "parallel"))]
-        let collision = self.objects.iter().any(map_collision);
-
-        #[cfg(feature = "parallel")]
-        let collision = self.objects.par_iter().any(map_collision);
-
-        collision
-    }
 }
 
 // This system just iterates through the map and draws each MapObject

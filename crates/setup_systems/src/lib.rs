@@ -4,7 +4,6 @@
 mod setup_graphics;
 
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
-use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use bevy::prelude::*;

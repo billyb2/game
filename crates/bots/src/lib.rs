@@ -7,15 +7,10 @@
 mod info;
 
 use std::f32::consts::PI;
-use bevy::prelude::*;
 
 use map::*;
 use helper_functions::*;
 use game_types::*;
-use game_types::player_attr::*;
-
-use rapier2d::prelude::*;
-use rapier2d::na::Vector2;
 
 pub use info::*;
 
@@ -28,6 +23,7 @@ pub struct AggroBot {
     prev_health: Health,
 }
 
+#[allow(unused_variables)]
 impl Bot for AggroBot {
     fn new(map: &Map, my_player_id: PlayerID) -> (Self, Ability, Model) {
         let bot = AggroBot {

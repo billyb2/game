@@ -7,9 +7,7 @@
 use bevy::prelude::*;
 
 use map::*;
-use helper_functions::*;
 use game_types::*;
-use game_types::player_attr::*;
 
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;

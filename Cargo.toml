@@ -74,7 +74,7 @@ opt-level = 1
 
 [profile.opt-web-simd]
 inherits = "release"
-lto = "thin"
+lto = false
 codegen-units = 16
 
 [profile.release-web-simd]

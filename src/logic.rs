@@ -16,20 +16,23 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
             if let Some(health_to_heal) = widow_maker_heals.0.remove(&player_id.0) {
                 let health = health.as_mut().unwrap();
                 // The health can only go as high as 150.0
-                if health.0 <= 150.0 {
-                    health.0 += health_to_heal;
+                let new_health = health.0 + health_to_heal;
+
+                if new_health <= 150.0 {
+                    health.0 = new_health;
                 }
 
             }
         }
 
 
-        let mut rigid_body_to_remove: Option<(RigidBodyHandle, Entity)> = None;
+        let mut should_remove_rigid_body = false;
 
         if let Some(rigid_body) = rigid_body_set.get_mut(*rigid_body_handle) {
             // Update the rigid body's sprite to the correct translation            
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
             transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
+
 
             let contacts = narrow_phase.contacts_with(*collider_handle);
 
@@ -65,7 +68,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         let projectile_type = projectile_type.as_mut().unwrap();
 
                         if !rigid_body.is_static() && **projectile_type != ProjectileType::Molotov {
-                            rigid_body_to_remove = Some((*rigid_body_handle, entity));
+                            should_remove_rigid_body = true;
 
                         } else if **projectile_type == ProjectileType::Molotov {
                             let collider = collider_set.get_mut(*collider_handle).unwrap();
@@ -172,7 +175,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                          // If it's a pulsewave, it has to have hit a player to dissapear
                          && (projectile_type_ref != ProjectileType::PulseWave || hit_player) {
                                 // Projectiles upon collision with any object destroy themselves, except for collisions with other bullets
-                                rigid_body_to_remove = Some((*rigid_body_handle, entity));
+                                should_remove_rigid_body = true;
 
                         // Molotov liquid only becomes molotov fire when it hits something other than a player or a map object (almost always a projectile)
                         } else if projectile_type_ref == ProjectileType::MolotovLiquid && !(hit_player || hit_map_object) {
@@ -203,8 +206,8 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
         }
 
-        if let Some((rigid_body_handle, entity)) = rigid_body_to_remove {
-            rigid_body_set.remove(rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
+        if should_remove_rigid_body {
+            rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
             commands.entity(entity).despawn_recursive();
         }
     });

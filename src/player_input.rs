@@ -22,7 +22,6 @@ use rapier2d::na::Vector2;
 use crate::*;
 use map::MapCRC32;
 use game_types::*;
-use game_types::player_attr::*;
 use map::WallMarker;
 
 use helper_functions::{get_angle, f32_u8_to_u128};
@@ -35,8 +34,8 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
         let map = maps.0.get(&map_crc32.0).unwrap();
 
-        let mut x = player.translation.x - sprite.size.x / 2.0;
-        let mut y = player.translation.y + sprite.size.y / 2.0;
+        let mut x = (-sprite.size.x).mul_add(0.5, player.translation.x);
+        let mut y = sprite.size.y.mul_add(0.5, player.translation.y);
 
         let camera = &mut camera.single_mut();
 
@@ -272,6 +271,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
                     let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
                     // If the player is dashing then they can't change the angle that they move in
                     let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
+
                     rigid_body.set_linvel(new_linvel, true);
 
                 }
@@ -285,7 +285,7 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
     }
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut death_event: EventWriter<DeathEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
             let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
@@ -304,8 +304,15 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                 };
 
                 if *model == Model::Widowmaker && time_since_last_shot.0.finished() {
-                    if !(health.0 - damage.0 <= 0.0) {
+                    if health.0 - damage.0 > 0.0 {
                         health.0 -= damage.0;
+
+                    } else if health.0 * 0.5 > 1.0 {
+                        health.0 *= 0.5;
+
+                    } else {
+                        health.0 = 1.0;
+
                     }
                 }
 
@@ -334,13 +341,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
                 };
 
-                if *model == Model::Widowmaker {
-                    if !(health.0 - damage.0 <= 0.0) {
-                        shoot_event.send(event);
-                    }
-                } else {
-                    shoot_event.send(event);
-                }
+                shoot_event.send(event);
 
             // Melee is the F key
             } else if keyboard_input.pressed(keybindings.melee) {
@@ -371,8 +372,8 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee, &Perk)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>) {
-    if let Some(my_player_id)= &my_player_id.0 {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>) {
+    if my_player_id.0.is_some() {
         for ev in shoot_event.iter() {
             let player_is_local = local_players.0.contains(&ev.player_id);
 
@@ -386,9 +387,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 let player_id = ev.player_id;
 
                 if ev.projectile_type != ProjectileType::Molotov && ev.projectile_type != ProjectileType::PulseWave {
-                    let (mut bursting, mut time_since_last_shot, mut ammo_in_mag, mut can_melee, perk) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut bursting, mut time_since_last_shot, mut ammo_in_mag, mut can_melee) = query.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                    let melee = Gun::new(Model::Melee, ev.player_ability, *perk);
                     // Checks that said player can shoot, and isn't reloading
                     if (time_since_last_shot.0.finished() && ammo_in_mag.0 > 0 && !ev.reloading && ev.projectile_type != ProjectileType::Melee) || ev.projectile_type == ProjectileType::TractorBeam  || (ev.projectile_type == ProjectileType::Melee && can_melee.0.finished()) {
                         shooting = true;
@@ -562,105 +562,96 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 }
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
-query: Query<(&Transform, &mut RequestedMovement, &Ability, &mut AbilityCharge, &mut
+query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut
 AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandle, &RigidBodyHandle)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
 ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
-                let (transform, mut requested_movement, ability, mut ability_charge, mut
+                let (transform, ability, mut ability_charge, mut
             ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut shader_phasing, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
             let player_is_local = local_players.0.contains(&ev_id.0);
-
 
             // Events that come from other players dont need to wait for ability charge to finish
             if (*ability != Ability::Brute && ability_charge.0.finished()) || !player_is_local || (*ability == Ability::Brute && ability_charge.0.elapsed_secs() >= 0.5) {
 
                 match ability {
+                    //TODO: Fix wall
                     Ability::Wall => {
-                        if requested_movement.speed != 0.0 || ev_id.0 != my_player_id.0 {
-                            let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+                        let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
+                        let message: ([u8; 2], [f32; 3]) = ([ev_id.0, Ability::Wall.into()], message_array);
 
-                            let message: ([u8; 2], [f32; 3]) = ([ev_id.0, Ability::Wall.into()], message_array);
+                        if player_is_local {
+                            net.broadcast_message(message);
 
-                            if player_is_local {
-                                net.broadcast_message(message);
+                        }
+
+                        let color_vec = UVec4::new(255, 255, 0, 255);
+                        let color = Color::rgb_u8(255, 255, 0);
+
+                        let color_handle: Handle<ColorMaterial> = {
+                            let mut color_to_return = None;
+
+                            for (id, material_to_return) in materials.iter() {
+                                if color == material_to_return.color {
+                                    color_to_return = Some(materials.get_handle(id));
+                                    break;
+
+                                }
 
                             }
 
-                            let color_vec = UVec4::new(255, 255, 0, 255);
-                            let color = Color::rgb_u8(color_vec.x as u8, color_vec.y as u8, color_vec.z as u8);
+                            match color_to_return {
+                                Some(color) => color,
+                                None => materials.add(color.into())
 
-                            let color_handle: Handle<ColorMaterial> = {
-                                let mut color_to_return = None;
+                            }
 
-                                for (id, material_to_return) in materials.iter() {
-                                    if color == material_to_return.color {
-                                        color_to_return = Some(materials.get_handle(id));
-                                        break;
+                        };
 
-                                    }
-
-                                }
-
-                                match color_to_return {
-                                    Some(color) => color,
-                                    None => materials.add(color.into())
-
-                                }
-
-                            };
-
-                            let coords = transform.translation + Vec3::new(100.0 * requested_movement.angle.cos(), 100.0 * requested_movement.angle.sin(), 5.0);
-
-                            let rotation = 0.0;
+                        let coords = transform.translation;
+                        let rotation = 0.0;
 
 
-                            let size = match requested_movement.angle.abs() == PI / 2.0 {
-                                true => Vec2::new(100.0, 25.0),
-                                false => Vec2::new(25.0, 100.0)
+                        let size = Vec2::new(100.0, 25.0);
 
-                            };
+                        let health_of_wall: f32 = 75.0;
 
-                            let health_of_wall: f32 = 75.0;
+                        commands
+                            .spawn_bundle(SpriteBundle {
+                                material: color_handle.clone(),
+                                sprite: Sprite::new(size),
+                                transform: Transform {
+                                    translation: coords,
+                                    rotation: Quat::from_rotation_z(rotation),
 
-                            commands
-                                .spawn_bundle(SpriteBundle {
-                                    material: color_handle.clone(),
-                                    sprite: Sprite::new(size),
-                                    transform: Transform {
-                                        translation: coords,
-                                        rotation: Quat::from_rotation_z(rotation),
-
-                                        ..Default::default()
-                                    },
                                     ..Default::default()
-                                })
-                                .insert(Health(health_of_wall))
-                                .insert(WallMarker);
+                                },
+                                ..Default::default()
+                            })
+                            .insert(Health(health_of_wall))
+                            .insert(WallMarker);
 
-                            maps.0.get_mut(&map_crc32.0).unwrap().objects.push(
-                                MapObject {
-                                    coords: coords.extend(rotation),
-                                    size,
-                                    sprite: color_vec,
-                                    collidable: true,
-                                    player_spawn: false,
-                                    health: Some(health_of_wall),
-                                    using_image: false,
+                        maps.0.get_mut(&map_crc32.0).unwrap().objects.push(
+                            MapObject {
+                                coords: coords.extend(rotation),
+                                size,
+                                sprite: color_vec,
+                                collidable: true,
+                                player_spawn: false,
+                                health: Some(health_of_wall),
+                                using_image: false,
 
-                                }
-                            );
+                            }
+                        );
 
-                            ability_charge.0.reset();
+                        ability_charge.0.reset();
 
-                        }
                     },
                     Ability::Warp => {
                         let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
 
                         rigid_body.set_linvel(rigid_body.linvel() * 25.0, true);
-                        requested_movement.speed = 550.0;
                         ability_charge.0.reset();
 
                     },
@@ -736,7 +727,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             };
 
                             if player_is_local {
-                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
+                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
                                 let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
 
                                 net.broadcast_message(message);
@@ -780,9 +771,10 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                         if !player_is_local || (!using_ability.0 && ability_charge.0.finished()) {
                             shader_phasing.value = 0.5;
 
-                            if player_is_local {
-                                let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, requested_movement.angle];
-                                let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Ghost.into()], message_array);
+                                if player_is_local {
+                                    let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
+                                    let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
+
 
                                 net.broadcast_message(message);
 
@@ -841,9 +833,9 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
 TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
-AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &Transform, &Sprite, &mut Health, &ColliderHandle)>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut death_event: EventWriter<DeathEvent>, my_player_id: Res<MyPlayerID>, mut collider_set: ResMut<ColliderSet>) {
+AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandle)>, mut collider_set: ResMut<ColliderSet>) {
     query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
-        mut using_ability, mut ability_charge, mut speed, mut dashing_info, transform, sprite, mut health, collider_handle)| {
+        mut using_ability, mut ability_charge, mut speed, mut dashing_info, collider_handle)| {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -857,9 +849,6 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &Transform, &Sprite, &mut Hea
                 speed.0 = DEFAULT_PLAYER_SPEED + 1.0;
 
             } else if *ability == Ability::Ghost {
-                let map = maps.0.get(&map_crc32.0).unwrap();
-                let collision = map.collision_no_damage(transform.translation.truncate(), sprite.size, 0.0, Vec2::splat(0.0));
-
                 let collider = collider_set.get_mut(*collider_handle).unwrap();
                 collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1111));
 
@@ -886,7 +875,7 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &Transform, &Sprite, &mut Hea
     });
 }
 
-pub fn reset_player_phasing(mut query: Query<(&PlayerID, &UsingAbility, &Ability, &mut Alpha)>, my_player_id: Res<MyPlayerID>, local_players: Res<LocalPlayers>) {
+pub fn reset_player_phasing(mut query: Query<(&PlayerID, &UsingAbility, &Ability, &mut Alpha)>, local_players: Res<LocalPlayers>) {
     query.for_each_mut(|(player_id, using_ability, ability, mut shader_phasing)| {
         let player_is_local = local_players.0.contains(&player_id.0);
 

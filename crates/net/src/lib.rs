@@ -327,7 +327,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
 }
 
-pub fn send_stats(mut net: ResMut<NetworkResource>, mut players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, player_entity: Res<HashMap<u8, Entity>>, my_player_id: Res<MyPlayerID>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>) {
     // Only start sending packets when your ID is set
     if my_player_id.0.is_some() {
         // Rate limiting so that the game sends 66 updates every second
@@ -436,7 +436,7 @@ pub fn send_score(mut net: ResMut<NetworkResource>, score: Res<DeathmatchScore>,
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Transform, &mut RequestedMovement, &mut Ability)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Ability, &RigidBodyHandle)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<AbilityMessage> = Vec::new();
 
@@ -458,15 +458,13 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                     if player_id != my_id.0 || ability == Ability::Hacker {
                         make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
-                        let (mut ammo_in_mag, mut transform, mut requested_movement, mut old_ability) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                        let (mut ammo_in_mag, mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                         *old_ability = ability;
 
                         if ability != Ability::Hacker {
-                            transform.translation.x = player_x;
-                            transform.translation.y = player_y;
-
-                            requested_movement.angle = angle;
+                            let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+                            rigid_body.set_translation(Vector2::new(player_x, player_y), true);
 
                             if ability == Ability::Wall || ability == Ability::Cloak || ability == Ability::Ghost {
                                 ev_use_ability.send(AbilityEvent(player_id));
@@ -598,7 +596,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                     println!("Player {} has joined!", player_id);
                     log_event.send(LogEvent(format!("Player {} has joined!", player_id)));
 
-                    let (id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).unwrap();
+                    let (_id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).unwrap();
                     *ability = player_ability;
                     // Send the abilities of all players
                     messages_to_send.push((*handle, [1, (*ability).into(), player_id]));

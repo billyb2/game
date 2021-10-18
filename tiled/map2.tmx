@@ -676,7 +676,7 @@
     <property name="player_spawn" type="bool" value="false"/>
    </properties>
   </object>
-  <object id="242" x="150" y="425" width="215" height="25">
+  <object id="242" x="150" y="425" width="258" height="25">
    <properties>
     <property name="Z" type="int" value="2"/>
     <property name="filename" type="int" value="0"/>

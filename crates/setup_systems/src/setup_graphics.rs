@@ -15,6 +15,9 @@ use single_byte_hashmap::*;
 use bevy::render::camera::ScalingMode;
 use rapier2d::prelude::*;
 
+//TODO: Reduce boilerplate by writing functions to generate stuff graphical stuff, instead of doing
+//a ton of copy pastes.
+
 pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
     commands.spawn_bundle(UiCameraBundle::default());
 
