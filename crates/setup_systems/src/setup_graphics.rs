@@ -3,6 +3,7 @@
 
 use bevy::prelude::Rect;
 use bevy::prelude::*;
+use bevy::math::const_vec2;
 
 //use crate::*;
 use game_types::*;
@@ -61,8 +62,12 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let flame3 = rng.u8(100..=250);
 
     #[cfg(feature = "native")]
+    let assets = asset_server.load_folder("map_assets/").unwrap();
+
+
+    #[cfg(feature = "native")]
     let mut map_assets: HashMap<u8, Handle<ColorMaterial>> =
-        HashMap::with_capacity_and_hasher(256, BuildHasher::default());
+        HashMap::with_capacity_and_hasher(assets.len(), BuildHasher::default());
 
     #[cfg(feature = "web")]
     let map_assets: HashMap<u8, Handle<ColorMaterial>> =
@@ -71,8 +76,6 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     // Web builds can't preload assets
     #[cfg(feature = "native")]
     {
-        let assets = asset_server.load_folder("map_assets/").unwrap();
-
         assets.iter().for_each(|asset| {
             let asset = asset.clone().typed();
             let asset_path = asset_server.get_handle_path(asset.clone()).unwrap();
@@ -90,19 +93,20 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
     commands.insert_resource(Skin {
         player: [
-            materials.add(p_pistol_sprite.into()),
-            materials.add(p_shotgun_sprite.into()), 
-            materials.add(p_speedball_sprite.into()), 
-            materials.add(p_br_sprite.into()), 
-            materials.add(p_ar_sprite.into()), 
-            materials.add(p_smg_sprite.into()), 
-            materials.add(p_cluster_shotgun_sprite.into()), 
-            materials.add(p_flamethrower_sprite.into()), 
-            materials.add(p_sniper_sprite.into()),
-            materials.add(p_sprite.into()),
-            materials.add(p_widowmaker_sprite.into())
+            // All the sprite sizes are manually calculated, since I can't figure out a way using Bevy to calculate them automatically
+            (materials.add(p_pistol_sprite.into()), const_vec2!([82.808, 61.0755])),
+            (materials.add(p_shotgun_sprite.into()), const_vec2!([89.5625, 63.099])), 
+            (materials.add(p_speedball_sprite.into()), const_vec2!([119.97, 85.3565])), 
+            (materials.add(p_br_sprite.into()), const_vec2!([142.8885, 63.099])), 
+            (materials.add(p_ar_sprite.into()), const_vec2!([143.6135, 61.099])), 
+            (materials.add(p_smg_sprite.into()), const_vec2!([105.3375, 71.4285])), 
+            (materials.add(p_cluster_shotgun_sprite.into()), const_vec2!([94.6025, 69.964])), 
+            (materials.add(p_flamethrower_sprite.into()), const_vec2!([117.351, 79.0005])), 
+            (materials.add(p_sniper_sprite.into()), const_vec2!([143.6135, 63.099])),
+            (materials.add(p_sprite.into()), const_vec2!([82.808, 61.0755])),
+            (materials.add(p_widowmaker_sprite.into()), const_vec2!([143.6135, 63.099])),
         ],
-        enemy: materials.add(enemy_sprite.into()),
+        enemy: (materials.add(enemy_sprite.into()), const_vec2!([82.808, 61.0755])),
 
     });
 
@@ -1507,9 +1511,8 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
 }
 
 
-pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
-    // Since shaders aren't (currently) using player colors, removing all the const fn calls should improve compile times
-/*    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
+pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
+    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
     const INFERNO_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([232, 35, 0]);
 
     const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
@@ -1533,6 +1536,9 @@ pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
     const PULSEWAVE_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
     const PULSEWAVE_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([230, 238, 35]);
 
+    const BRUTE_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const BRUTE_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([230, 238, 35]);
+
     let (helmet_color, inner_suit_color) = match ability {
         Ability::Inferno => (INFERNO_HELMET_COLOR, INFERNO_SUIT_COLOR),
         Ability::Engineer => (ENGINEER_HELMET_COLOR, ENGINEER_SUIT_COLOR),
@@ -1543,9 +1549,9 @@ pub fn set_player_colors(_ability: &Ability) -> (HelmetColor, InnerSuitColor) {
         Ability::Cloak => (CLOAK_HELMET_COLOR, CLOAK_SUIT_COLOR),
         Ability::PulseWave => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
         Ability::Ghost => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
+        Ability::Brute => (BRUTE_HELMET_COLOR, BRUTE_SUIT_COLOR),
 
-    };*/
-    let (helmet_color, inner_suit_color) = (HelmetColor::new([9, 145, 160]), InnerSuitColor::new([9, 145, 160]));
+    };
 
     (helmet_color, inner_suit_color)
 }

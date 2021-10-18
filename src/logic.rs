@@ -257,12 +257,15 @@ pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionT
 
 }
 
-pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMaterial>), Changed<Model>>, player_materials: Res<Skin>) {
-    players.for_each_mut(|(model, mut skin)| {
+
+//TODO: have different player shaders and set them on ability change in this fn
+pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMaterial>, &mut Sprite), Changed<Model>>, player_materials: Res<Skin>) {
+    players.for_each_mut(|(model, mut skin, mut sprite)| {
         let model_u8: u8 = (*model).into();
-        let handle: Handle<ColorMaterial> = player_materials.player[model_u8 as usize].clone();
+        let (handle, size) = player_materials.player[model_u8 as usize].clone();
 
         *skin = handle;
+        sprite.size = size;
 
     });
 

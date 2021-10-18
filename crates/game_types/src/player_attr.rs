@@ -614,8 +614,8 @@ fn finish_timer(timer: &mut Timer){
 
 pub struct Skin {
     // The skins are a vector with each index being the
-    pub player: [Handle<ColorMaterial>; NUM_OF_GUN_MODELS as usize],
-    pub enemy: Handle<ColorMaterial>,
+    pub player: [(Handle<ColorMaterial>, Vec2); NUM_OF_GUN_MODELS as usize],
+    pub enemy: (Handle<ColorMaterial>, Vec2),
 
 }
 

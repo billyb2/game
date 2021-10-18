@@ -68,28 +68,23 @@ vec4 color_encode(vec4 linearRGB_in) {
 }
 
 
+const float f32_epsilon = 0.00000011920929;
+
 void set_color_of_player(inout vec4 color) {
     // Set color of player parts
     // By default, different body parts of players will be different colors, and the shader just looks for body parts by finding their color.
-    // Body
-    if (color.x >= 70.0 / 255.0) {
-        color = vec4(inner_suit_color, 1.0);
 
     // Helmet
-    } else if (color.x >= 15.0 / 255.0) {
-        color = vec4(helmet_color, 1.0);
+    if ( abs(color.r - 0.392) <= 0.384 ) {
+        color = vec4(helmet_color, color.a);
 
-    // Reflection on helmet
-    } else if (color.y >= 13.0 / 255.0) {
-        color = vec4(helmet_color * 0.8, 1.0);
-
-    // Pants
-    } else if (color.x >= 13.0 / 255.0) {
-        color = vec4(67.0 / 255.0, 42.0 / 255.0, 42.0 / 255.0, 1.0);
+    // Suit
+    } else if ( abs(color.r - 0.078) <= 0.08 && abs(color.g - 0.392) <= 0.36 && abs(color.b - 0.392) <= 0.36 ) {
+        color = vec4(inner_suit_color, color.a);
 
     }
-}
 
+}
 void main() {
     vec4 color = Color;
 
@@ -98,7 +93,7 @@ void main() {
     # ifdef COLORMATERIAL_TEXTURE
         color *= texture(ColorMaterial_texture, v_Uv);
     # endif
-    //set_color_of_player(color);
+    set_color_of_player(color);
     //add_lighting(color);
 
     o_Target = color_encode(color);

@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use std::convert::TryInto;
 
 use bevy::prelude::*;
+use bevy::math::const_vec2;
 
 use bevy::render::{
     pipeline::{PipelineDescriptor, RenderPipeline},
@@ -126,17 +127,20 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .insert_bundle(Gun::new(gun_model, ability, perk))
             .insert(Transform::from_translation(coords.extend(101.0)));
 
+        let (material, size) = 
+            match i == 1 {
+                true => _materials.as_ref().unwrap().player[0].clone(),
+                false => _materials.as_ref().unwrap().enemy.clone(),
+            };
+
         #[cfg(feature = "graphics")]
         entity
             .insert_bundle(SpriteBundle {
-                material: match i == 1 {
-                    true => _materials.as_ref().unwrap().player[0].clone(),
-                    false => _materials.as_ref().unwrap().enemy.clone(),
-                },
+                material,
                 sprite: Sprite {
-                    size: Vec2::new(150.0, 93.75),
+                    size,
                     flip_x: true, 
-                    resize_mode: SpriteResizeMode::Automatic,
+                    resize_mode: SpriteResizeMode::Manual,
 
                     ..Default::default()
                 },
@@ -177,7 +181,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                 .ccd_enabled(false)
                 .build();
 
-            let collider_size = Vec2::new(150.0, 93.75) / Vec2::new(500.0, 500.0);
+            let collider_size = size / const_vec2!([500.0; 2]);
 
             let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
                 .collision_groups(InteractionGroups::new(0b1000, 0b1111))
