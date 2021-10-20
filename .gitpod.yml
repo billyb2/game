@@ -1,2 +1,9 @@
-image:
-  file: Dockerfile
+tasks:
+  - init: sudo apt update && sudo apt upgrade -y && sudo apt install clang lld cmake libssl-dev build-essential pkg-config libx11-dev libasound2-dev libudev-dev mesa-vulkan-drivers firefox -y && rustup default nightly && cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server && cargo install -f lz4_flex-util && rustup target install wasm32-unknown-unknown && rustup update
+    command: rustup update && cargo make build-web-fast-simd ; cargo make build-web-release-simd ; cargo make build-server_cli ; cargo make build-server_cli-release
+  - name: HTTP Server
+    command: basic-http-server -a 4080
+
+ports:
+  - port: 4000
+    onOpen: open-preview
