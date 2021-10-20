@@ -164,7 +164,8 @@ fn main() {
     // Hot asset reloading
     .add_startup_system(setup_asset_loading)
     .add_startup_system(setup_physics)
-    .add_system(check_assets_ready);
+    .add_system(check_assets_ready)
+    .add_system(handle_debug_text);
 
     #[cfg(feature = "native")]
     app.insert_resource(Hosting(true));

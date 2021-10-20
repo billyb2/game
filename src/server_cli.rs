@@ -129,13 +129,3 @@ fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: 
 
     }
 }
-
-fn handle_debug_text(mut net: ResMut<NetworkResource>) {
-    for (_handle, connection) in net.connections.iter_mut() {
-        if let Some(channels) = connection.channels() {
-            while let Some(event) = channels.recv::<String>() {   
-                println!("{}", event);
-            }
-        }
-    }
-}

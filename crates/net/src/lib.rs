@@ -792,6 +792,18 @@ pub fn handle_map_metadata(mut net: ResMut<NetworkResource>, mut maps: ResMut<Ma
 
 }
 
+
+pub fn handle_debug_text(mut net: ResMut<NetworkResource>) {
+    for (handle, connection) in net.connections.iter_mut() {
+        if let Some(channels) = connection.channels() {
+            while let Some(text) = channels.recv::<String>() {
+                println!("{}", text);
+
+            }
+        }
+    }
+}
+
 // This function makes players that aren't online, online, if they aren't already
 // Basically, the function just checks if the player is in online_player_ids, and if not, it inserts them into that and deathmatch score
 // This function should be run on pretty much any net function that receives an ID
