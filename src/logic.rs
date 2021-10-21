@@ -8,6 +8,10 @@ use bevy_networking_turbulence::NetworkResource;
  
 use crate::*;
 
+
+use single_byte_hashmap::HashMap;
+
+use game_lib::{GameLog, GameLogs};
 use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
@@ -34,10 +38,6 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
             // Update the rigid body's sprite to the correct translation            
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
             transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
-
-            println!("My Mass: {}", rigid_body.mass());
-            #[cfg(feature = "web")]
-            net.broadcast_message(format!("Other Mass: {}", rigid_body.mass()));
 
             let contacts = narrow_phase.contacts_with(*collider_handle);
 
@@ -311,21 +311,6 @@ pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, Wit
 
 }
 
-
-pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut Text, &DamageTextTimer)>) {
-    texts.for_each_mut(|(entity, mut text, timer)| {
-        if timer.0.finished() {
-            commands.entity(entity).despawn_recursive();
-
-        } else {
-            let text = &mut text.sections[0];
-            text.style.color.set_a(timer.0.percent_left());
-
-        }
-
-    });
-}
-
 //TODO: Change this to seperate queries using Without
 pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>, mut ammo_text: Query<&mut Text, (With<AmmoText>, Without<AbilityChargeText>)>, mut ability_charge_text: Query<&mut Text, (With<AbilityChargeText>, Without<HealthText>)>, mut health_text: Query<&mut Text, (With<HealthText>, Without<AmmoText>)>,
     my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
@@ -376,4 +361,18 @@ pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeS
         health_text.sections[0].value = format!("Health: {:.0}%", health);
 
     }
+}
+
+pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut Text, &DamageTextTimer)>) {
+    texts.for_each_mut(|(entity, mut text, timer)| {
+        if timer.0.finished() {
+            commands.entity(entity).despawn_recursive();
+
+        } else {
+            let text = &mut text.sections[0];
+            text.style.color.set_a(timer.0.percent_left());
+
+        }
+
+    });
 }
