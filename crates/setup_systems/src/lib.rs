@@ -182,7 +182,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                 .additional_mass(0.36)
                 .build();
 
-            let collider_size = Vec2::new(150.0, 93.75) / const_vec2!([500.0; 2]);
+            let collider_size = size / const_vec2!([500.0; 2]);
 
             let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
                 .collision_groups(InteractionGroups::new(0b1000, 0b1111))

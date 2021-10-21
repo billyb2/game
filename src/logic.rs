@@ -39,10 +39,6 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
             transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
 
-            println!("My Mass: {}", rigid_body.mass());
-            #[cfg(feature = "web")]
-            net.broadcast_message(format!("Other Mass: {}", rigid_body.mass()));
-
             let contacts = narrow_phase.contacts_with(*collider_handle);
 
             // Increase the size of speedballs
