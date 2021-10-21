@@ -30,7 +30,6 @@ use rapier2d::na::Vector2;
 #[cfg(feature = "graphics")]
 pub use setup_graphics::*;
 
-
 #[allow(clippy::too_many_arguments)]
 pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>, num_of_bots: Res<NumOfBots>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
