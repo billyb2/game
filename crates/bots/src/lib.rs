@@ -50,10 +50,7 @@ impl Bot for AggroBot {
 
             // Face the opponent
             let angle = get_angle(self.my_player.pos.x, self.my_player.pos.y, enemy_player.x, enemy_player.y);
-            self.internal_angle = Angle(match self.my_player.pos.x > enemy_player.x {
-                true => angle - PI,
-                false => angle,
-            });
+            self.internal_angle = Angle(angle);
         }
 
     }

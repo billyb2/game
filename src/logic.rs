@@ -4,18 +4,16 @@ use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
-
-use single_byte_hashmap::HashMap;
-
 use bevy_networking_turbulence::NetworkResource;
-use game_lib::{GameLog, GameLogs};
+ 
+use crate::*;
+
 use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
 pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>, local_players: Res<LocalPlayers>, mut net: ResMut<NetworkResource>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
-
         if let Some(player_id) = player_id.as_ref() {
             if let Some(health_to_heal) = widow_maker_heals.0.remove(&player_id.0) {
                 let health = health.as_mut().unwrap();
@@ -37,7 +35,9 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
             transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
 
-            net.broadcast_message(format!("M: {}", rigid_body.mass()));
+            println!("My Mass: {}", rigid_body.mass());
+            #[cfg(feature = "web")]
+            net.broadcast_message(format!("Other Mass: {}", rigid_body.mass()));
 
             let contacts = narrow_phase.contacts_with(*collider_handle);
 
@@ -233,7 +233,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
         max_linear_correction: 0.2,
         max_angular_correction: 0.2,
         max_velocity_iterations: 4,
-        max_position_iterations: 4,
+        max_position_iterations: 1,
         min_island_size: 128,
         max_ccd_substeps: 20,
     };
@@ -280,26 +280,50 @@ pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMateria
 }
 
 pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
-    log_event.iter().for_each(|log_text| logs.insert(GameLog::new(log_text.0.clone(), &asset_server)));
+    log_event.iter().for_each(|log_text| {
+        let game_log = GameLog::new(log_text.0.clone(), &asset_server);
 
-    logs.0.iter_mut().rev().for_each(|log| {
-        if let Some(l) = log {
-            if !l.timer.finished() {
-                l.text.style.color.set_a(l.timer.percent_left());          
+        match logs.0.is_full() {
+            true => *logs.0.first_mut().unwrap() = game_log,
+            false => unsafe { logs.0.push_unchecked(game_log) },
 
-            } else {
-                *log = None;
+        };
 
-            }
-        }
     });
 
-    let text_vec = logs.0.clone().into_iter().filter_map(|l| l.and_then(|l| Some(l.text))).collect::<Vec<TextSection>>();
+
+    logs.0.retain(|l| {
+        let should_keep = !l.timer.finished();
+
+        if should_keep {
+            l.text.style.color.set_a(l.timer.percent_left());
+
+        }
+
+        should_keep
+
+    });
 
     let mut game_log = game_log.single_mut();
 
-    game_log.sections = text_vec;
+    game_log.sections.clear();
+    game_log.sections.extend(logs.0.iter().rev().map(|l| l.text.clone()));
 
+}
+
+
+pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut Text, &DamageTextTimer)>) {
+    texts.for_each_mut(|(entity, mut text, timer)| {
+        if timer.0.finished() {
+            commands.entity(entity).despawn_recursive();
+
+        } else {
+            let text = &mut text.sections[0];
+            text.style.color.set_a(timer.0.percent_left());
+
+        }
+
+    });
 }
 
 //TODO: Change this to seperate queries using Without
@@ -352,18 +376,4 @@ pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeS
         health_text.sections[0].value = format!("Health: {:.0}%", health);
 
     }
-}
-
-pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut Text, &DamageTextTimer)>) {
-    texts.for_each_mut(|(entity, mut text, timer)| {
-        if timer.0.finished() {
-            commands.entity(entity).despawn_recursive();
-
-        } else {
-            let text = &mut text.sections[0];
-            text.style.color.set_a(timer.0.percent_left());
-
-        }
-
-    });
 }

@@ -13,9 +13,6 @@ use bevy::utils::Duration;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-#[cfg(feature = "web")]
-use lazy_static::lazy_static;
-
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
@@ -34,7 +31,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
         let map = maps.0.get(&map_crc32.0).unwrap();
 
-        let mut x = (-sprite.size.x).mul_add(0.5, player.translation.x);
+        let mut x = sprite.size.x.mul_add(-0.5, player.translation.x);
         let mut y = sprite.size.y.mul_add(0.5, player.translation.y);
 
         let camera = &mut camera.single_mut();
@@ -332,7 +329,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     max_distance: max_distance.0,
                     recoil_vec,
                     // Bullets need to travel "backwards" when moving to the left
-                    speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                    speed: speed.0,
                     projectile_type: *projectile_type,
                     damage: *damage,
                     player_ability: *player_ability,
@@ -356,7 +353,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     max_distance: melee.max_distance.0,
                     recoil_vec: vec![0.0],
                     // Bullets need to travel "backwards" when moving to the left
-                    speed: speed.0.copysign(mouse_pos.0.x - transform.translation.x),
+                    speed: speed.0,
                     projectile_type: ProjectileType::Melee,
                     damage: melee.damage,
                     player_ability: *player_ability,
@@ -382,7 +379,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let mut shooting = false;
 
-                let speed = ev.speed;
+                let speed = ev.speed.abs();
 
                 let player_id = ev.player_id;
 
@@ -477,11 +474,6 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             };
                             audio.play(sound);*/
 
-                        let angle = match speed.is_sign_negative() {
-                            true => angle - PI,
-                            false => angle,
-
-                        };
 
                         // Move the projectile in front of the player according to the projectile's size
                         let size_vec3a = Vec3A::from((ev.size, 0.0));
@@ -522,7 +514,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                     let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
                         
                         commands
-                            .spawn_bundle(Projectile::new(ev.projectile_type, ev.max_distance, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
+                            .spawn_bundle(Projectile::new(ev.projectile_type, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
                                 material,
                                 sprite: Sprite::new(ev.size),
@@ -705,7 +697,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             max_distance: mouse_pos.0.distance(transform.translation.truncate()),
                             recoil_vec: vec![0.0],
                             // Bullets need to travel "backwards" when moving to the left
-                            speed: PROJECTILE_SPEED.copysign(mouse_pos.0.x - transform.translation.x),
+                            speed: PROJECTILE_SPEED,
                             projectile_type: ProjectileType::Molotov,
                             damage: Damage(5.0),
                             player_ability: *ability,
@@ -773,7 +765,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                                 if player_is_local {
                                     let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
-                                    let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
+                                    let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Ghost.into()], message_array);
 
 
                                 net.broadcast_message(message);
@@ -923,13 +915,8 @@ pub fn set_player_sprite_direction(my_player_id: Res<MyPlayerID>, mouse_pos: Res
             let mut transform = player_query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
             let angle = get_angle(mouse_pos.0.x, mouse_pos.0.y, transform.translation.x, transform.translation.y);
-
-            transform.rotation = match mouse_pos.0.x <= transform.translation.x {
-                true => Quat::from_rotation_z(angle - PI),
-                false => Quat::from_rotation_z(angle),
-
-            };
-
+            transform.rotation = Quat::from_rotation_z(angle);
+            
         }
     }
 

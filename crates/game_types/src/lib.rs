@@ -18,15 +18,6 @@ pub use graphics::*;
 
 pub use player_attr::*;
 
-#[derive(PartialEq)]
-pub enum MovementType {
-    // Stop moving after this frame passes
-    // Used for things like player movement
-    SingleFrame,
-    StopAfterDistance(f32),
-
-}
-
 pub struct DistanceTraveled(pub f32);
 
 #[derive(Clone, Debug, PartialEq)]

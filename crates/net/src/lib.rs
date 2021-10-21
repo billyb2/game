@@ -465,7 +465,7 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                         if ability != Ability::Hacker {
                             let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
-                            rigid_body.set_translation(Vector2::new(player_x, player_y), true);
+                            rigid_body.set_translation(Vector2::new(player_x, player_y).component_div(&Vector2::new(250.0, 250.0)), true);
 
                             if ability == Ability::Wall || ability == Ability::Cloak || ability == Ability::Ghost {
                                 ev_use_ability.send(AbilityEvent(player_id));
@@ -795,7 +795,7 @@ pub fn handle_map_metadata(mut net: ResMut<NetworkResource>, mut maps: ResMut<Ma
 
 
 pub fn handle_debug_text(mut net: ResMut<NetworkResource>) {
-    for (handle, connection) in net.connections.iter_mut() {
+    for (_handle, connection) in net.connections.iter_mut() {
         if let Some(channels) = connection.channels() {
             while let Some(text) = channels.recv::<String>() {
                 println!("{}", text);

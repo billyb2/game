@@ -10,6 +10,7 @@
 mod logic;
 
 use bevy::prelude::*;
+#[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
 use bevy_networking_turbulence::*;
@@ -21,6 +22,7 @@ use single_byte_hashmap::*;
 
 use rapier2d::prelude::{RigidBodySet, ColliderSet};
 
+#[cfg(feature = "native")]
 use helper_functions::aabb_check;
 
 use game_lib::*;

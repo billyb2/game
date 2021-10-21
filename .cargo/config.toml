@@ -2,7 +2,6 @@
 #jobs = 1
 
 [target.x86_64-unknown-linux-gnu]
-linker = "/usr/bin/clang"
 # The enabled target features are included in most modern CPU's
 # 	They basically just enable CPU instructions that should make the game run much faster
 #	In production, we should have an installer that detects which CPU features are available, and download different binaries depending on the features

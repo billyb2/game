@@ -62,7 +62,7 @@ pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
     let dy = ey - cy;
     let dx = ex - cx;
 
-    match dx != 0.0 {
+    let mut angle = match dx != 0.0 {
         // Returns the angle in radians
         //true => unsafe { fdiv_fast(dy, dx) }.atan(),
         true => (dy / dx).atan(),
@@ -74,7 +74,15 @@ pub fn get_angle(cx: f32, cy: f32, ex: f32, ey: f32) -> f32 {
             },
             false => PI,
         },
-    }
+    };
+
+    angle = match cx < ex {
+        true => angle - PI,
+        false => angle,
+
+    };
+
+    angle
     
 }
 

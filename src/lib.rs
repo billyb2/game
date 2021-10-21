@@ -30,6 +30,7 @@ use rapier2d::na::Vector2;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 
+
 use rapier2d::prelude::*;
 
 //use bevy_kira_audio::AudioPlugin;
@@ -40,8 +41,9 @@ use rayon::prelude::*;
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
 
-use map::*;
+use arrayvec::ArrayVec;
 
+use map::*;
 use game_types::*;
 use single_byte_hashmap::*;
 use net::*;
@@ -65,7 +67,6 @@ extern "C" {
 #[derive(Bundle)]
 pub struct Projectile {
     pub distance_traveled: DistanceTraveled,
-    pub movement_type: MovementType,
     pub projectile_type: ProjectileType,
     // A general purpose identifier for projectiles, to distinguish between guns and projectiles
     pub projectile: ProjectileIdent,
@@ -75,36 +76,12 @@ pub struct Projectile {
 }
 
 #[derive(Clone)]
-pub struct GameLogs(pub [Option<GameLog>; 10]);
+pub struct GameLogs(pub ArrayVec<GameLog, 10>);
 
 #[allow(clippy::new_without_default)]
 impl GameLogs {
     pub const fn new() -> Self {
-        GameLogs(
-            [
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            ]
-        )
-
-    }
-
-    pub fn insert(&mut self, new_game_log: GameLog) {
-        let old_game_log = match self.0.iter_mut().find(|l| l.is_none()) {
-            Some(old_game_log) => old_game_log,
-            None => self.0.first_mut().unwrap(),
-
-        };
-
-        *old_game_log = Some(new_game_log);
+        GameLogs(ArrayVec::new_const())
 
     }
 
@@ -137,10 +114,9 @@ impl GameLog {
 }
 
 impl Projectile {
-    pub const fn new(projectile_type: ProjectileType, max_distance: f32, size: Size, player_id: u8, damage: Damage) -> Self {
+    pub const fn new(projectile_type: ProjectileType, size: Size, player_id: u8, damage: Damage) -> Self {
         Projectile {
             distance_traveled: DistanceTraveled(0.0),
-            movement_type: MovementType::StopAfterDistance(max_distance),
             projectile_type,
             projectile: ProjectileIdent(player_id),
             projectile_size: size,
@@ -259,7 +235,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 
     #[cfg(not(feature = "parallel"))]
     if let Some((player_id, _score)) = deathmatch_score.into_iter().find(|(_player_id, score)| **score >= SCORE_LIMIT) {
-        display_win_text((player_id));
+        display_win_text(player_id);
 
     }
 
@@ -353,7 +329,7 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
          }
     });
 
-    logs.0.iter_mut().for_each(|l| if let Some(l) = l { l.timer.tick(delta); });
+    logs.0.iter_mut().for_each(|l| {l.timer.tick(delta);});
 
 
     projectile_timers.for_each_mut(|mut destruction_timer| {

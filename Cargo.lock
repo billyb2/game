@@ -1606,6 +1606,7 @@ dependencies = [
 name = "game"
 version = "0.1.0"
 dependencies = [
+ "arrayvec 0.7.1",
  "bevy",
  "bevy_networking_turbulence",
  "bevy_webgl2",

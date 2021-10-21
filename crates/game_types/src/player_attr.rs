@@ -24,7 +24,6 @@ pub struct Player {
     pub id: PlayerID,
     pub health: Health,
     pub speed: PlayerSpeed,
-    pub movement_type: MovementType,
     pub ability: Ability,
     pub ability_charge: AbilityCharge,
     pub ability_completed: AbilityCompleted,
@@ -117,7 +116,6 @@ impl Player {
                 Ability::Brute => PlayerSpeed(DEFAULT_PLAYER_SPEED * 1.4),
                 _ => PlayerSpeed(DEFAULT_PLAYER_SPEED),
             },
-            movement_type: MovementType::SingleFrame,
             ability,
             ability_charge: AbilityCharge(Timer::from_seconds(0.0, false)),
             // The AbilityCompleted timer is just the duration of how long the ability lasts (if it has an affect over time)
