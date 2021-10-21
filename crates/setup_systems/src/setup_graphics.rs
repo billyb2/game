@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::math::const_vec2;
 
 //use crate::*;
+use config::*;
 use game_types::*;
 use map::*;
 
@@ -1567,5 +1568,35 @@ pub fn setup_physics(mut commands: Commands) {
     commands.insert_resource(NarrowPhase::new());
     commands.insert_resource(JointSet::new());
     commands.insert_resource(CCDSolver::new());
+
+}
+
+pub fn setup_default_controls(mut commands: Commands) {
+    let key_bindings: KeyBindings = match get_data(String::from("key_bindings")) {
+        Some(key_bindings) => key_bindings,
+        None => {
+            let key_bindings = KeyBindings {
+                up: KeyCode::W,
+                down: KeyCode::S,
+                left: KeyCode::A,
+                right: KeyCode::D,
+    
+                use_ability: KeyCode::LShift,
+                reload: KeyCode::R,
+    
+                show_score: KeyCode::Tab,
+                dash: KeyCode::E,
+                melee: KeyCode::F,
+            };
+
+            write_data(String::from("key_bindings"), key_bindings);
+
+            key_bindings
+
+        },
+        
+    };
+
+    commands.insert_resource(key_bindings);
 
 }

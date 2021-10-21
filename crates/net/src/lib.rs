@@ -327,6 +327,7 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
 }
 
+#[cfg(feature = "graphics")]
 pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>) {
     // Only start sending packets when your ID is set
     if my_player_id.0.is_some() {

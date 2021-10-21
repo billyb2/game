@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
+#[cfg(feature = "graphics")]
 mod setup_graphics;
 
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
@@ -28,6 +29,14 @@ use rapier2d::na::Vector2;
 
 #[cfg(feature = "graphics")]
 pub use setup_graphics::*;
+
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    fn alert(s: &str);
+}
+
 
 #[allow(clippy::too_many_arguments)]
 pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>, num_of_bots: Res<NumOfBots>) {
@@ -178,9 +187,10 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                 .user_data(u128::MAX)
                 //CCD is purposely disabled so stuff like warping works
                 .ccd_enabled(false)
+                .additional_mass(0.36)
                 .build();
 
-            let collider_size = size / const_vec2!([500.0; 2]);
+            let collider_size = Vec2::new(150.0, 93.75) / const_vec2!([500.0; 2]);
 
             let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
                 .collision_groups(InteractionGroups::new(0b1000, 0b1111))
@@ -188,6 +198,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                 .friction(0.4)
                 // A user_data set to u128::MAX is an indicator that this is a player
                 .user_data(u128::MAX)
+                .density(0.0)
                 .build();
 
             let rigid_body_handle = rigid_body_set.insert(rigid_body);
@@ -244,32 +255,5 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
 }
 
-pub fn setup_default_controls(mut commands: Commands) {
-    let key_bindings: KeyBindings = match get_data(String::from("key_bindings")) {
-        Some(key_bindings) => key_bindings,
-        None => {
-            let key_bindings = KeyBindings {
-                up: KeyCode::W,
-                down: KeyCode::S,
-                left: KeyCode::A,
-                right: KeyCode::D,
-    
-                use_ability: KeyCode::LShift,
-                reload: KeyCode::R,
-    
-                show_score: KeyCode::Tab,
-                dash: KeyCode::E,
-                melee: KeyCode::F,
-            };
-
-            write_data(String::from("key_bindings"), key_bindings);
-
-            key_bindings
-
-        },
-        
-    };
-
-    commands.insert_resource(key_bindings);
-
-}
+#[cfg(not(feature = "graphics"))]
+pub struct AssetsLoading;

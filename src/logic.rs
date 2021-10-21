@@ -5,11 +5,15 @@ use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
 
+use single_byte_hashmap::HashMap;
+
+use bevy_networking_turbulence::NetworkResource;
+use game_lib::{GameLog, GameLogs};
 use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>, local_players: Res<LocalPlayers>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>, local_players: Res<LocalPlayers>, mut net: ResMut<NetworkResource>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
 
         if let Some(player_id) = player_id.as_ref() {
@@ -33,6 +37,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
             transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
 
+            net.broadcast_message(format!("M: {}", rigid_body.mass()));
 
             let contacts = narrow_phase.contacts_with(*collider_handle);
 
@@ -272,4 +277,93 @@ pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMateria
 
     });
 
+}
+
+pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
+    log_event.iter().for_each(|log_text| logs.insert(GameLog::new(log_text.0.clone(), &asset_server)));
+
+    logs.0.iter_mut().rev().for_each(|log| {
+        if let Some(l) = log {
+            if !l.timer.finished() {
+                l.text.style.color.set_a(l.timer.percent_left());          
+
+            } else {
+                *log = None;
+
+            }
+        }
+    });
+
+    let text_vec = logs.0.clone().into_iter().filter_map(|l| l.and_then(|l| Some(l.text))).collect::<Vec<TextSection>>();
+
+    let mut game_log = game_log.single_mut();
+
+    game_log.sections = text_vec;
+
+}
+
+//TODO: Change this to seperate queries using Without
+pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>, mut ammo_text: Query<&mut Text, (With<AmmoText>, Without<AbilityChargeText>)>, mut ability_charge_text: Query<&mut Text, (With<AbilityChargeText>, Without<HealthText>)>, mut health_text: Query<&mut Text, (With<HealthText>, Without<AmmoText>)>,
+    my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
+    if let Some(my_id) = &my_player_id.0 {
+        let (ability_charge, player_ammo_count, player_max_ammo, reload_timer, player_health) = query.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
+
+        let ammo_in_mag = (*player_ammo_count).0;
+        let max_ammo = (*player_max_ammo).0;
+
+        let ability_charge_percent = ability_charge.0.percent() * 100.0;
+
+        let reloading = reload_timer.reloading;
+        let health = player_health.0;
+
+        let mut ammo_text = ammo_text.single_mut();
+        let mut ammo_pos = ammo_style.single_mut();
+
+        if !reloading {
+            ammo_text.sections[0].value = ammo_in_mag.to_string();
+            ammo_text.sections[1].value = " / ".to_string();
+            ammo_text.sections[2].value = max_ammo.to_string();
+
+            ammo_pos.position.left = Val::Percent(90.0);
+
+        } else {
+            ammo_text.sections[0].value = "Reloading...".to_string();
+            ammo_text.sections[1].value = "".to_string();
+            ammo_text.sections[2].value = "".to_string();
+
+            // Since the Reloading text is pretty big, I need to shift it left slightly
+            ammo_pos.position.left = Val::Percent(83.0);
+
+        }
+
+        let mut ability_charge_text = ability_charge_text.single_mut();
+        ability_charge_text.sections[0].value = format!("{:.0}%", ability_charge_percent);
+
+        let ability_charge_percent = ability_charge_percent as u8;
+
+
+        ability_charge_text.sections[0].style.color = match ability_charge_percent {
+            0..=49 => Color::RED,
+            50..=99 => Color::YELLOW,
+            100.. => Color::GREEN,
+        };
+
+        let mut health_text = health_text.single_mut();
+        health_text.sections[0].value = format!("Health: {:.0}%", health);
+
+    }
+}
+
+pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut Text, &DamageTextTimer)>) {
+    texts.for_each_mut(|(entity, mut text, timer)| {
+        if timer.0.finished() {
+            commands.entity(entity).despawn_recursive();
+
+        } else {
+            let text = &mut text.sections[0];
+            text.style.color.set_a(timer.0.percent_left());
+
+        }
+
+    });
 }

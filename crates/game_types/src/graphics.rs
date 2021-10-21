@@ -96,9 +96,10 @@ impl InnerSuitColor {
 pub struct GameCamera;
 
 pub struct AmmoText;
+pub struct HealthText;
+
 pub struct AbilityChargeText;
 pub struct GameLogText;
-pub struct HealthText;
 
 pub struct IpText;
 

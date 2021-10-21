@@ -125,3 +125,9 @@ pub enum AppState {
     DownloadMapMenu,
 
 }
+
+#[cfg(not(feature = "graphics"))]
+pub struct Alpha {
+    pub value: f32,
+}
+

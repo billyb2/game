@@ -52,6 +52,7 @@ fn main() {
     .insert_resource(Hosting(true))
     .insert_resource(TaskPool::new())
     .insert_resource(GameLogs::new())
+    .insert_resource(NumOfBots(0))
     .add_startup_system(setup_networking)
     .add_startup_system(setup_listening)
     .add_startup_system(setup_players)
