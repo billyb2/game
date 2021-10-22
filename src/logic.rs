@@ -4,14 +4,15 @@ use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
+use bevy::ecs::component::Component;
+
 use bevy_networking_turbulence::NetworkResource;
  
 use crate::*;
 
-
 use single_byte_hashmap::HashMap;
 
-use game_lib::{GameLog, GameLogs};
+use game_lib::{GameLog, GameLogs, Logs};
 use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
@@ -279,9 +280,46 @@ pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMateria
 
 }
 
-pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, With<GameLogText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
+pub fn generic_log_system<L: Component + Logs, T: Component, const TEXT_SIZE: Option<f32>, E: Component + LogEv>(mut logs: ResMut<L>, mut game_log: Query<&mut Text, With<T>>, asset_server: Res<AssetServer>, mut log_event: EventReader<E>) {
     log_event.iter().for_each(|log_text| {
-        let game_log = GameLog::new(log_text.0.clone(), &asset_server);
+        println!("{}", log_text.inner());
+
+        let game_log = GameLog::new(log_text.inner().clone(), TEXT_SIZE, &asset_server);
+
+        match logs.is_full() {
+            true => *logs.first_mut().unwrap() = game_log,
+            false => unsafe { logs.push_unchecked(game_log) },
+
+        };
+
+    });
+
+
+    logs.retain(|l| {
+        let should_keep = !l.timer.finished();
+
+        if should_keep {
+            l.text.style.color.set_a(l.timer.percent_left());
+
+        }
+
+        should_keep
+
+    });
+
+    let mut game_log = game_log.single_mut();
+
+    game_log.sections.clear();
+    game_log.sections.extend(logs.iter().rev().map(|l| l.text.clone()));
+
+}
+
+
+pub fn chat_log_system(mut logs: ResMut<ChatLogs>, mut game_log: Query<&mut Text, With<ChatText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
+    log_event.iter().for_each(|log_text| {
+        println!("{}", &log_text.0);
+
+        let game_log = GameLog::new(log_text.0.clone(), None, &asset_server);
 
         match logs.0.is_full() {
             true => *logs.0.first_mut().unwrap() = game_log,
@@ -310,6 +348,7 @@ pub fn log_system(mut logs: ResMut<GameLogs>, mut game_log: Query<&mut Text, Wit
     game_log.sections.extend(logs.0.iter().rev().map(|l| l.text.clone()));
 
 }
+
 
 //TODO: Change this to seperate queries using Without
 pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>, mut ammo_text: Query<&mut Text, (With<AmmoText>, Without<AbilityChargeText>)>, mut ability_charge_text: Query<&mut Text, (With<AbilityChargeText>, Without<HealthText>)>, mut health_text: Query<&mut Text, (With<HealthText>, Without<AmmoText>)>,

@@ -22,7 +22,7 @@ pub struct Dashing(pub bool);
 
 pub struct BotWrapper(pub Box<dyn Bot + Send + Sync>);
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 /// Like the player struct with certain attributes not being shown so that bots have to play with the same information that normal players do
 pub struct TruncatedPlayer {
     pub pos: Vec2,
@@ -59,9 +59,9 @@ pub trait Bot {
 
 }
 
-pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandle, &mut Health, &Model, &Ability, &MaxDistance, &Speed, &TimeSinceLastShot, &AmmoInMag, &RecoilRange, &TimeSinceStartReload, &UsingAbility)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_ability: EventWriter<AbilityEvent>) {
+pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandle, &mut Health, &Model, &Ability, &MaxDistance, &Speed, &TimeSinceLastShot, &AmmoInMag, &RecoilRange, &TimeSinceStartReload, &UsingAbility, &AbilityCharge)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_ability: EventWriter<AbilityEvent>) {
     // Generate the list of TruncatedPlayer by looping over the bots list initially
-    let players: Vec<(TruncatedPlayer, bool)> = bots.iter_mut().map(|(transform, id, _bw, _rgb, _h, _model, ability, _md, _pjs, _ttls, _aig, _rr, _rt, using_ability)| {
+    let players: Vec<(TruncatedPlayer, bool)> = bots.iter_mut().map(|(transform, id, _bw, _rgb, _h, _model, ability, _md, _pjs, _ttls, _aig, _rr, _rt, using_ability, _ab_ch)| {
         // Cloaking players aren't shown to bots
         (TruncatedPlayer {
             pos: transform.translation.truncate(),
@@ -70,7 +70,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
 
     }).collect();
 
-    bots.for_each_mut(|(mut transform, player_id, mut bot, rigid_body_handle, mut health, model, ability, max_distance, proj_speed, time_since_last_shot, ammo_in_mag, recoil_range, reload_timer, _using_ability)| {
+    bots.for_each_mut(|(mut transform, player_id, mut bot, rigid_body_handle, mut health, model, ability, max_distance, proj_speed, time_since_last_shot, ammo_in_mag, recoil_range, reload_timer, _using_ability, ability_charge)| {
         if let Some(bot) = bot.as_mut() {
             let players: Vec<TruncatedPlayer> = players.iter().filter_map(|(t_player, inv)| {
                 match *inv && t_player.id.0 != player_id.0 {
@@ -152,7 +152,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
 
                 }
 
-                if bot.0.use_ability() {
+                if bot.0.use_ability() && ability_charge.0.finished() {
                     ev_ability.send(AbilityEvent(player_id.0));
 
                 }

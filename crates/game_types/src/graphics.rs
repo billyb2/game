@@ -12,7 +12,7 @@ pub const fn u8_to_color(value: [u8; 3]) -> [f32; 3] {
         value[2] as f32 / 255.0,
     ]
 
-    // In a perfect world, I could just do this
+    // In a perfect world, I could just do this, but map isn't const
     // value.map(|v| v as f32 / 255.0)
 
 }
@@ -100,6 +100,9 @@ pub struct HealthText;
 
 pub struct AbilityChargeText;
 pub struct GameLogText;
+pub struct ChatText;
+pub struct ChatLogText;
+
 
 pub struct IpText;
 
@@ -153,3 +156,5 @@ pub struct Alpha {
 }
 
 pub struct PlayerToSpectate(pub u8);
+
+pub struct Typing(pub bool);

@@ -285,7 +285,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn_bundle(TextBundle {
             style: Style {
-                align_self: AlignSelf::FlexStart,
+                align_self: AlignSelf::FlexEnd,
                 position_type: PositionType::Absolute,
                 position: Rect {
                     left: Val::Percent(2.5),
