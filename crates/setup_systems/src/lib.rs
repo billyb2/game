@@ -127,7 +127,15 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             .insert_bundle(Gun::new(gun_model, ability, perk))
             .insert(Transform::from_translation(coords.extend(101.0)));
 
+        #[cfg(feature = "graphics")]
         let (material, size) = 
+            match i == 1 {
+                true => _materials.as_ref().unwrap().player[0].clone(),
+                false => _materials.as_ref().unwrap().enemy.clone(),
+            };
+
+        #[cfg(not(feature = "graphics"))]
+        let size = 
             match i == 1 {
                 true => _materials.as_ref().unwrap().player[0].clone(),
                 false => _materials.as_ref().unwrap().enemy.clone(),
@@ -249,3 +257,4 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
 #[cfg(not(feature = "graphics"))]
 pub struct AssetsLoading;
+

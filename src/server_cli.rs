@@ -7,15 +7,19 @@
 
 use game_lib::*;
 use game_types::*;
-use setup_systems::setup_players;
+use setup_systems::*;
 use map::*;
 use net::*;
 
+
 use bevy::prelude::*;
+use bevy::math::const_vec2;
 use bevy::tasks::TaskPool;
 use bevy::core::FixedTimestep;
 
 use bevy_networking_turbulence::*;
+
+use rapier2d::prelude::{RigidBodySet, ColliderSet};
 
 use rustc_hash::FxHashMap;
 
@@ -53,6 +57,26 @@ fn main() {
     .insert_resource(TaskPool::new())
     .insert_resource(GameLogs::new())
     .insert_resource(NumOfBots(0))
+    .insert_resource(Skin {
+        player: [
+            // All the sprite sizes are manually calculated, since I can't figure out a way using Bevy to calculate them automatically
+            const_vec2!([82.808, 61.0755]),
+            const_vec2!([89.5625, 63.099]), 
+            const_vec2!([119.97, 85.3565]), 
+            const_vec2!([142.8885, 63.099]), 
+            const_vec2!([143.6135, 61.099]), 
+            const_vec2!([105.3375, 71.4285]), 
+            const_vec2!([94.6025, 69.964]), 
+            const_vec2!([117.351, 79.0005]), 
+            const_vec2!([143.6135, 63.099]),
+            const_vec2!([82.808, 61.0755]),
+            const_vec2!([143.6135, 63.099]),
+        ],
+        enemy: const_vec2!([82.808, 61.0755]),
+
+    })
+    .insert_resource(RigidBodySet::new())
+    .insert_resource(ColliderSet::new())
     .add_startup_system(setup_networking)
     .add_startup_system(setup_listening)
     .add_startup_system(setup_players)

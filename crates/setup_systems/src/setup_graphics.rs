@@ -281,6 +281,87 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(GameLogText)
         .insert(GameRelated);
 
+    // Text saying the current game chat
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexStart,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Percent(2.5),
+                    top: Val::Percent(5.0),
+
+                    ..Default::default()
+                },
+
+                ..Default::default()
+            },
+            text: Text {
+                sections: {
+                    let mut text_vec = Vec::with_capacity(25);
+
+                    text_vec.push(TextSection {
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
+                            font_size: 25.0,
+                            color: Color::WHITE,
+                        },
+                        value: String::from("Chat2: "),
+
+                    });
+
+                    text_vec
+
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(ChatLogText)
+        .insert(GameRelated);
+
+    // Text saying the player's chat input
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    left: Val::Percent(2.5),
+                    bottom: Val::Percent(6.0),
+
+                    ..Default::default()
+                },
+
+                ..Default::default()
+            },
+            text: Text {
+                sections: {
+                    let mut text_vec = Vec::with_capacity(25);
+
+                    text_vec.push(TextSection {
+                        style: TextStyle {
+                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                            // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
+                            font_size: 25.0,
+                            color: Color::WHITE,
+                        },
+                        value: String::from("Chat: "),
+
+                    });
+
+                    text_vec
+
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(ChatText)
+        .insert(GameRelated);
+
+
     // Text saying the current score of all players in game
     commands
         .spawn_bundle(NodeBundle {
