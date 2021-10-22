@@ -19,6 +19,7 @@ use rapier2d::na::Vector2;
 use crate::*;
 use map::MapCRC32;
 use game_types::*;
+use net::*;
 use map::WallMarker;
 
 use helper_functions::{get_angle, f32_u8_to_u128};
@@ -64,9 +65,15 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 }
 
 
-pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut net: ResMut<NetworkResource>) {
     if in_game_settings.is_empty() {
         let mut angle = None;
+
+        if keyboard_input.just_pressed(KeyCode::T) {
+            let message: TextMessage = (my_player_id.0.as_ref().unwrap().0, String::from("penis"), 0);
+            net.broadcast_message(message);
+
+        }
 
         if keyboard_input.pressed(keybindings.left) && angle.is_none() {
             match keyboard_input.pressed(keybindings.up) {

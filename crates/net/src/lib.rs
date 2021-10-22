@@ -215,6 +215,27 @@ pub const DEBUG_TEXT: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 8192,
 };
 
+pub const TEXT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+    channel: 10,
+    channel_mode: MessageChannelMode::Reliable {
+        reliability_settings: ReliableChannelSettings {
+            bandwidth: 2048,
+            recv_window_size: 2048,
+            send_window_size: 2048,
+            burst_bandwidth: 2048,
+            init_send: 1024,
+            wakeup_time: Duration::from_millis(15),
+            initial_rtt: Duration::from_millis(160),
+            max_rtt: Duration::from_secs(4),
+            rtt_update_factor: 0.1,
+            rtt_resend_factor: 1.5,
+        },
+        max_message_len: 512,
+    },
+    message_buffer_size: 2048,
+    packet_buffer_size: 512,
+};
+
 // Type aliases for net messages
 // (Player ID, [X, y], [Rotation; 4], health, damage_source, gun_model
 type ClientStateMessage = (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>, u8); 
@@ -224,6 +245,8 @@ type InfoMessage = [u8; 3];
 
 // ([player_id, ability], [player_x, player_y, angle])
 type AbilityMessage = ([u8; 2], [f32; 3]);
+
+pub type TextMessage = (u8, String, u64);
 
 
 // A timer of around 15 miliseconds, thatshould be sent (instead of flooding)
@@ -309,6 +332,10 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
 
         builder
             .register::<String>(DEBUG_TEXT)
+            .unwrap();
+
+        builder
+            .register::<TextMessage>(TEXT_MESSAGE_SETTINGS)
             .unwrap();
 
     });
@@ -800,6 +827,17 @@ pub fn handle_debug_text(mut net: ResMut<NetworkResource>) {
             while let Some(text) = channels.recv::<String>() {
                 println!("{}", text);
 
+            }
+        }
+    }
+}
+
+pub fn handle_text_messages(mut net: ResMut<NetworkResource>, mut log_event: EventWriter<LogEvent>) {
+    for (_handle, connection) in net.connections.iter_mut() {
+        if let Some(channels) = connection.channels() {
+            while let Some((player_id, message, time)) = channels.recv::<TextMessage>() {
+                println!("{}", &message);
+                log_event.send(LogEvent(message));
             }
         }
     }

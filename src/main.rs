@@ -221,6 +221,7 @@ fn main() {
         SystemSet::on_update(AppState::InGame)
             // Timers should be ticked first
             .with_system(tick_timers.before("player_attr").before(InputFromPlayer))
+            .with_system(handle_text_messages)
             .with_system(set_mouse_coords.label(InputFromPlayer).before("player_attr").before("shoot"))
             .with_system(send_stats.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_stat_packets.label(InputFromPlayer).before("player_attr"))
