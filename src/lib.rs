@@ -75,16 +75,81 @@ pub struct Projectile {
 
 }
 
-#[derive(Clone)]
+pub trait Logs {
+    fn new() -> Self;
+    fn is_full(&self) -> bool;
+    fn first_mut(&mut self) -> Option<&mut GameLog>;
+    fn push_unchecked(&mut self, element: GameLog);
+    fn retain<F>(&mut self, f: F)
+        where F: FnMut(&mut GameLog) -> bool;
+    fn iter(&self) -> std::slice::Iter<'_, GameLog>;
+
+}
+
 pub struct GameLogs(pub ArrayVec<GameLog, 10>);
 
-#[allow(clippy::new_without_default)]
-impl GameLogs {
-    pub const fn new() -> Self {
+pub struct ChatLogs(pub ArrayVec<GameLog, 20>);
+
+impl Logs for GameLogs {
+    fn new() -> Self {
         GameLogs(ArrayVec::new_const())
 
     }
 
+    fn is_full(&self) -> bool {
+        self.0.is_full()
+
+    }
+
+    fn first_mut(&mut self) -> Option<&mut GameLog> {
+        self.0.first_mut()
+    }
+
+    fn push_unchecked(&mut self, element: GameLog) {
+        unsafe { self.0.push_unchecked(element) }
+
+    }
+
+    fn retain<F>(&mut self, f: F)
+        where F: FnMut(&mut GameLog) -> bool {
+        self.0.retain(f)
+
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, GameLog> {
+        self.0.iter()
+    }
+}
+
+impl Logs for ChatLogs {
+    fn new() -> Self {
+        ChatLogs(ArrayVec::new_const())
+
+    }
+
+    fn is_full(&self) -> bool {
+        self.0.is_full()
+
+    }
+
+    fn first_mut(&mut self) -> Option<&mut GameLog> {
+        self.0.first_mut()
+    }
+
+    fn push_unchecked(&mut self, element: GameLog) {
+        unsafe { self.0.push_unchecked(element) }
+
+    }
+
+    fn retain<F>(&mut self, f: F)
+        where F: FnMut(&mut GameLog) -> bool {
+        self.0.retain(f)
+
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, GameLog> {
+        self.0.iter()
+    }
 }
 
 #[derive(Clone)]
@@ -95,13 +160,13 @@ pub struct GameLog {
 }
 
 impl GameLog {
-    pub fn new(text: String, asset_server: &AssetServer) -> Self {
+    pub fn new(text: String, size: Option<f32>, asset_server: &AssetServer) -> Self {
         GameLog {
             text: TextSection {
                 style: TextStyle {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                     // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
-                    font_size: 35.0 * (20.0 / text.len() as f32),
+                    font_size: size.unwrap_or(35.0 * (20.0 / text.len() as f32)),
                     color: Color::WHITE,
                 },
                 value: text,
@@ -348,6 +413,7 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
     });
 
     ready_to_send_packet.0.tick(delta);
+
 }
 
 pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>) {

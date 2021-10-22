@@ -2,12 +2,15 @@
 #![feature(drain_filter)]
 #![feature(option_result_unwrap_unchecked)]
 #![feature(stmt_expr_attributes)]
+#![feature(adt_const_params)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
 mod logic;
+
+use std::time::Instant;
 
 use bevy::prelude::*;
 #[cfg(feature = "native")]
@@ -133,6 +136,8 @@ fn main() {
     .insert_resource(MyPlayerID(None))
     .insert_resource(GameMode::Deathmatch)
     .insert_resource(GameLogs::new())
+    .insert_resource(ChatLogs::new())
+    .insert_resource(Typing(false))
     .insert_resource(ability)
     .insert_resource(model)
     .insert_resource(perk)
@@ -148,7 +153,8 @@ fn main() {
     .add_event::<AbilityEvent>()
     .add_event::<DespawnWhenDead>()
     .add_event::<DeathEvent>()
-    .add_event::<LogEvent>();
+    .add_event::<LogEvent>()
+    .add_event::<ChatEvent>();
 
     #[cfg(feature = "web")]
     app.insert_resource(ResScale(res_scale.recip()));
@@ -227,6 +233,8 @@ fn main() {
             .with_system(handle_stat_packets.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_projectile_packets.label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
             .with_system(my_keyboard_input.label(InputFromPlayer).before("player_attr"))
+            .with_system(score_input.label(InputFromPlayer).before("player_attr"))
+            .with_system(chat_input.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_bots.label(InputFromPlayer).before("player_attr"))
             .with_system(set_player_sprite_direction.after(InputFromPlayer))
             .with_system(set_player_materials.after(InputFromPlayer))
@@ -245,7 +253,8 @@ fn main() {
             .with_system(despawn_destroyed_walls.after("move_objects"))
             .with_system(death_event_system.after("move_objects").after(InputFromPlayer).before("dead_players"))
             .with_system(dead_players.after("move_objects").label("dead_players"))
-            .with_system(log_system.after("dead_players"))
+            .with_system(generic_log_system::<GameLogs, GameLogText, { None }, LogEvent>.after("dead_players"))
+            .with_system(generic_log_system::<ChatLogs, ChatLogText, { Some(20.0) }, ChatEvent>.after(InputFromPlayer))
             .with_system(move_camera.after(InputFromPlayer).after("move_objects"))
             .with_system(update_game_ui.after(InputFromPlayer).after("move_objects"))
     );
