@@ -215,6 +215,27 @@ pub const DEBUG_TEXT: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 8192,
 };
 
+pub const TEXT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
+    channel: 10,
+    channel_mode: MessageChannelMode::Reliable {
+        reliability_settings: ReliableChannelSettings {
+            bandwidth: 2048,
+            recv_window_size: 2048,
+            send_window_size: 2048,
+            burst_bandwidth: 2048,
+            init_send: 1024,
+            wakeup_time: Duration::from_millis(15),
+            initial_rtt: Duration::from_millis(160),
+            max_rtt: Duration::from_secs(4),
+            rtt_update_factor: 0.1,
+            rtt_resend_factor: 1.5,
+        },
+        max_message_len: 512,
+    },
+    message_buffer_size: 2048,
+    packet_buffer_size: 512,
+};
+
 // Type aliases for net messages
 // (Player ID, [X, y], [Rotation; 4], health, damage_source, gun_model
 type ClientStateMessage = (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>, u8); 
@@ -224,6 +245,8 @@ type InfoMessage = [u8; 3];
 
 // ([player_id, ability], [player_x, player_y, angle])
 type AbilityMessage = ([u8; 2], [f32; 3]);
+
+pub type TextMessage = (u8, String, u64);
 
 
 // A timer of around 15 miliseconds, thatshould be sent (instead of flooding)
@@ -311,6 +334,10 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .register::<String>(DEBUG_TEXT)
             .unwrap();
 
+        builder
+            .register::<TextMessage>(TEXT_MESSAGE_SETTINGS)
+            .unwrap();
+
     });
 
     commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), true)));
@@ -359,7 +386,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &
 
 pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandle, &mut Health, &mut Visible, &mut Alpha, &mut Model)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<ClientStateMessage> = Vec::with_capacity(20);
+    let mut messages_to_send: Vec<ClientStateMessage> = Vec::new();
     
 
     if let Some(my_id) = &my_player_id.0 {
@@ -494,7 +521,7 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
 pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
-    let mut messages_to_send: Vec<ShootEvent> = Vec::with_capacity(20);
+    let mut messages_to_send: Vec<ShootEvent> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
         for (handle, connection) in net.connections.iter_mut() {
@@ -567,7 +594,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
     if hosting.0 {
         // First item is the handle, the second is the ID
-        let mut messages_to_send: Vec<(u32, InfoMessage)> = Vec::with_capacity(255);
+        let mut messages_to_send: Vec<(u32, InfoMessage)> = Vec::new();
 
         for (handle, connection) in net.connections.iter_mut() {
             
@@ -688,7 +715,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 }
 
 pub fn handle_map_object_request(mut net: ResMut<NetworkResource>, maps: Res<Maps>) {
-    let mut messages_to_send = Vec::with_capacity(50);
+    let mut messages_to_send = Vec::new();
 
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
@@ -746,7 +773,7 @@ pub fn handle_map_object_data(mut net: ResMut<NetworkResource>, mut maps: ResMut
 pub fn handle_map_metadata(mut net: ResMut<NetworkResource>, mut maps: ResMut<Maps>) {
     const MAP_OBJECT_DEFAULT: MapObject = MapObject::default();
 
-    let mut messages_to_send = Vec::with_capacity(50);
+    let mut messages_to_send = Vec::new();
 
     for (handle, connection) in net.connections.iter_mut() {
         if let Some(channels) = connection.channels() {
@@ -803,6 +830,29 @@ pub fn handle_debug_text(mut net: ResMut<NetworkResource>) {
             }
         }
     }
+}
+
+pub fn handle_text_messages(mut net: ResMut<NetworkResource>, mut log_event: EventWriter<ChatEvent>) {
+    #[cfg(feature = "native")]
+    let mut messages_to_send: Vec<TextMessage> = Vec::new();
+
+    for (_handle, connection) in net.connections.iter_mut() {
+        if let Some(channels) = connection.channels() {
+            while let Some((player_id, message, time)) = channels.recv::<TextMessage>() {
+                #[cfg(feature = "native")]
+                messages_to_send.push((player_id, message.clone(), time));
+
+                log_event.send(ChatEvent(message));
+
+            }
+        }
+    }
+
+    #[cfg(feature = "native")]
+    messages_to_send.into_iter().for_each(|m| {
+        net.broadcast_message(m);
+
+    });
 }
 
 // This function makes players that aren't online, online, if they aren't already

@@ -9,6 +9,8 @@ pub mod player_attr;
 #[cfg(feature = "graphics")]
 pub mod graphics;
 
+use std::io::IntoInnerError;
+
 use bevy::core::Timer;
 use bevy::math::Vec2;
 use serde::{Deserialize, Serialize};
@@ -100,6 +102,26 @@ pub struct ResScale(pub f32);
 pub struct NumOfBots(pub u8);
 
 pub struct LogEvent(pub String);
+
+pub struct ChatEvent(pub String);
+
+pub trait LogEv {
+    fn inner(&self) -> &String;
+}
+
+impl LogEv for LogEvent {
+    fn inner(&self) -> &String {
+        &self.0
+
+    }
+}
+
+impl LogEv for ChatEvent {
+    fn inner(&self) -> &String {
+        &self.0
+
+    }
+}
 
 pub struct DeathEvent(pub u8);
 

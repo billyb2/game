@@ -4,10 +4,13 @@
 
 use std::f32::consts::PI;
 use std::iter::repeat_with;
+use std::time::Instant;
 
-use bevy::math::{Vec3A, const_vec3};
 use bevy::prelude::*;
+use bevy::math::{Vec3A, const_vec3};
 use bevy::utils::Duration;
+use bevy::input::ElementState;
+use bevy::input::keyboard::KeyboardInput;
 
 //use bevy_kira_audio::Audio;
 #[cfg(feature = "parallel")]
@@ -19,6 +22,7 @@ use rapier2d::na::Vector2;
 use crate::*;
 use map::MapCRC32;
 use game_types::*;
+use net::*;
 use map::WallMarker;
 
 use helper_functions::{get_angle, f32_u8_to_u128};
@@ -64,17 +68,26 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 }
 
 
-pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCode>>, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>) {
-    if in_game_settings.is_empty() {
-        let mut angle = None;
+pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut typing: ResMut<Typing>, keyboard_input: Res<Input<KeyCode>>) {
+    if !typing.0 {
+        if in_game_settings.is_empty() {
+            let mut angle = None;
 
-        if keyboard_input.pressed(keybindings.left) && angle.is_none() {
-            match keyboard_input.pressed(keybindings.up) {
-                true => { angle = Some(PI  * 0.75); }
-                false => {
-                    match keyboard_input.pressed(keybindings.down) {
-                        true => { angle = Some(PI * 1.25); }
-                        false => { angle = Some(PI); }
+            if keyboard_input.just_released(KeyCode::T) {
+                typing.0 = true;
+
+            }
+
+            // All movement code
+            if keyboard_input.pressed(keybindings.left) && angle.is_none() {
+                match keyboard_input.pressed(keybindings.up) {
+                    true => { angle = Some(PI  * 0.75); }
+                    false => {
+                        match keyboard_input.pressed(keybindings.down) {
+                            true => { angle = Some(PI * 1.25); }
+                            false => { angle = Some(PI); }
+
+                        }
 
                     }
 
@@ -82,15 +95,15 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
             }
 
-        }
+            if keyboard_input.pressed(keybindings.right) && angle.is_none() {
+                match keyboard_input.pressed(keybindings.up) {
+                    true => { angle = Some(PI  * 0.25); }
+                    false => {
+                        match keyboard_input.pressed(keybindings.down) {
+                            true => { angle = Some(PI * 1.75); }
+                            false => { angle = Some(0.0); }
 
-        if keyboard_input.pressed(keybindings.right) && angle.is_none() {
-            match keyboard_input.pressed(keybindings.up) {
-                true => { angle = Some(PI  * 0.25); }
-                false => {
-                    match keyboard_input.pressed(keybindings.down) {
-                        true => { angle = Some(PI * 1.75); }
-                        false => { angle = Some(0.0); }
+                        }
 
                     }
 
@@ -98,188 +111,238 @@ pub fn my_keyboard_input(mut commands: Commands, keyboard_input: Res<Input<KeyCo
 
             }
 
-        }
+            if keyboard_input.pressed(keybindings.down) && angle.is_none() {
+                angle = Some(-PI / 2.0);
 
-        if keyboard_input.pressed(keybindings.down) && angle.is_none() {
-            angle = Some(-PI / 2.0);
+            }
 
-        }
+            if keyboard_input.pressed(keybindings.up) && angle.is_none() {
+               angle = Some(PI / 2.0);
 
-        if keyboard_input.pressed(keybindings.up) && angle.is_none() {
-           angle = Some(PI / 2.0);
+            }
+            if keyboard_input.pressed(keybindings.reload) {
+                ev_reload.send(ReloadEvent(my_player_id.0.unwrap().0));
 
-        }
+            }
 
-        if keyboard_input.pressed(keybindings.reload) {
-            ev_reload.send(ReloadEvent(my_player_id.0.unwrap().0));
+            if keyboard_input.just_pressed(KeyCode::Escape) {
+                commands
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::ColumnReverse,
+                        align_self: AlignSelf::Center,
+                        position_type: PositionType::Absolute,
+                        justify_content: JustifyContent::Center,
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        size: Size {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                        },
 
-        }
-
-        if keyboard_input.just_pressed(KeyCode::Escape) {
-            commands
-            .spawn_bundle(NodeBundle {
-                style: Style {
-                    flex_direction: FlexDirection::ColumnReverse,
-                    align_self: AlignSelf::Center,
-                    position_type: PositionType::Absolute,
-                    justify_content: JustifyContent::Center,
-                    align_content: AlignContent::Center,
-                    align_items: AlignItems::Center,
-                    size: Size {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
+                        ..Default::default()
                     },
-
-                    ..Default::default()
-                },
-                material: materials.add(Color::rgba_u8(255, 255, 255, 10).into()),
-                visible: Visible {
-                    is_visible: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-
-            })
-            .with_children(|node_parent| {
-                node_parent.spawn_bundle(TextBundle {
-                    text: Text {
-                        sections: vec![
-                            TextSection {
-                                value: "Settings".to_string(),
-                                style: TextStyle {
-                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                    font_size: 80.0,
-                                    color: Color::GOLD,
-                                },
-                            },
-                        ],
+                    material: materials.add(Color::rgba_u8(255, 255, 255, 10).into()),
+                    visible: Visible {
+                        is_visible: true,
                         ..Default::default()
                     },
                     ..Default::default()
 
-                });
-
-                node_parent.spawn_bundle(ButtonBundle {
-                style: Style {
-                    align_content: AlignContent::Center,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-
-                    ..Default::default()
-                },
-                material: button_materials.normal.clone(),
-                ..Default::default()
                 })
-                .with_children(|button_parent| {
-                    button_parent
-                        .spawn_bundle(TextBundle {
-                            text: Text {
-                                sections: vec![
-                                    TextSection {
-                                        value: String::from("Customize"),
-                                        style: TextStyle {
-                                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                            font_size: 55.0,
-                                            color: Color::WHITE,
-                                        },
+                .with_children(|node_parent| {
+                    node_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![
+                                TextSection {
+                                    value: "Settings".to_string(),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 80.0,
+                                        color: Color::GOLD,
                                     },
-                                ],
-                                ..Default::default()
-                            },
+                                },
+                            ],
                             ..Default::default()
+                        },
+                        ..Default::default()
 
                     });
-                });
 
-            })
-            .insert(InGameSettings::Settings);
-        }
+                    node_parent.spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
 
-        if keyboard_input.just_pressed(keybindings.show_score) {
-            let (mut text, mut visible) = score_ui.single_mut();
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                    })
+                    .with_children(|button_parent| {
+                        button_parent
+                            .spawn_bundle(TextBundle {
+                                text: Text {
+                                    sections: vec![
+                                        TextSection {
+                                            value: String::from("Customize"),
+                                            style: TextStyle {
+                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                                font_size: 55.0,
+                                                color: Color::WHITE,
+                                            },
+                                        },
+                                    ],
+                                    ..Default::default()
+                                },
+                                ..Default::default()
 
-            visible.is_visible = true;
+                        });
+                    });
 
-            // Sorts the HashMap by number of kills first, before displaying
-            let mut v: Vec<(&u8, &u8)> = (&score.0).into_iter().collect();
-            
-            let compare = |x: &(&u8, &u8), y: &(&u8, &u8)| {
-                y.1.cmp(x.1)
+                })
+                .insert(InGameSettings::Settings);
+            }
 
-            };
+            if let Some(my_player_id) = &my_player_id.0 {
+                let (mut speed, mut dashing_info, rigid_body_handle, health) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
-            #[cfg(feature = "parallel")]
-            v.par_sort_unstable_by(compare);
+                if health.0 > 0.0 {
+                    if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
+                        speed.0 *= 3.1;
 
-            #[cfg(not(feature = "parallel"))]
-            v.sort_unstable_by(compare);
+                        dashing_info.dashing = true;
+                        dashing_info.time_till_stop_dash.reset();
 
-            for (player_id, kills) in v.iter() {
-                let singular_or_plural_kills =
-                    match **kills {
-                        1 => "kill",
-                        _ => "kills"
-                    };
-
-                text.sections.push(
-                    TextSection {
-                        value: format!("Player {}: {} {}\n", *player_id, kills, singular_or_plural_kills),
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 45.0,
-                            color: Color::WHITE,
-                        },
                     }
-                );
+
+                    if keyboard_input.pressed(keybindings.use_ability) {
+                        ev_use_ability.send(AbilityEvent(my_player_id.0));
+
+                    }
+
+                    if let Some(angle) = angle {
+                        let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+                        // If the player is dashing then they can't change the angle that they move in
+                        let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
+
+                        rigid_body.set_linvel(new_linvel, true);
+
+                    }
+                }
 
             }
 
-
-
-        } else if keyboard_input.just_released(keybindings.show_score) {
-            let (mut text, mut visible) = score_ui.single_mut();
-
-            visible.is_visible = false;
-
-            text.sections.truncate(1);
-
-
+        } else if keyboard_input.just_pressed(KeyCode::Escape) {
+            let entity = in_game_settings.single().0;
+            commands.entity(entity).despawn_recursive();
         }
 
-        if let Some(my_player_id) = &my_player_id.0 {
-            let (mut speed, mut dashing_info, rigid_body_handle, health) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
-
-            if health.0 > 0.0 {
-                if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
-                    speed.0 *= 3.1;
-
-                    dashing_info.dashing = true;
-                    dashing_info.time_till_stop_dash.reset();
-
-                }
-
-                if keyboard_input.pressed(keybindings.use_ability) {
-                    ev_use_ability.send(AbilityEvent(my_player_id.0));
-
-                }
-
-                if let Some(angle) = angle {
-                    let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
-                    // If the player is dashing then they can't change the angle that they move in
-                    let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
-
-                    rigid_body.set_linvel(new_linvel, true);
-
-                }
-            }
-
-        }
-
-    } else if keyboard_input.just_pressed(KeyCode::Escape) {
-        let entity = in_game_settings.single().0;
-        commands.entity(entity).despawn_recursive();
     }
+}
+
+pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, keyboard_input: Res<Input<KeyCode>>, asset_server: Res<AssetServer>, keybindings: Res<KeyBindings>) {
+    if keyboard_input.just_pressed(keybindings.show_score) {
+        let (mut text, mut visible) = score_ui.single_mut();
+
+        visible.is_visible = true;
+
+        // Sorts the HashMap by number of kills first, before displaying
+        let mut v: Vec<(&u8, &u8)> = (&score.0).into_iter().collect();
+        
+        let compare = |x: &(&u8, &u8), y: &(&u8, &u8)| {
+            y.1.cmp(x.1)
+
+        };
+
+        #[cfg(feature = "parallel")]
+        v.par_sort_unstable_by(compare);
+
+        #[cfg(not(feature = "parallel"))]
+        v.sort_unstable_by(compare);
+
+        for (player_id, kills) in v.iter() {
+            let singular_or_plural_kills =
+                match **kills {
+                    1 => "kill",
+                    _ => "kills"
+                };
+
+            text.sections.push(
+                TextSection {
+                    value: format!("Player {}: {} {}\n", *player_id, kills, singular_or_plural_kills),
+                    style: TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 45.0,
+                        color: Color::WHITE,
+                    },
+                }
+            );
+
+        }
+
+
+
+    } else if keyboard_input.just_released(keybindings.show_score) {
+        let (mut text, mut visible) = score_ui.single_mut();
+
+        visible.is_visible = false;
+
+        text.sections.truncate(1);
+
+
+    }
+}
+
+pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, asset_server: Res<AssetServer>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>) {
+    if typing.0 {
+        let text = &mut chat_text.single_mut().sections[0].value;
+
+        keyboard_input_events.iter().for_each(|ev| {
+            if let Some(key_code) = ev.key_code {
+                if ev.state == ElementState::Pressed {
+                    // Whether or not the player has typed anything
+                    let text_in_chat = text.len() > 6;
+
+                    match key_code {
+                        KeyCode::Return => {
+                            if text_in_chat {
+                                let message: TextMessage = (my_player_id.0.as_ref().unwrap().0, text[6..].to_owned(), 0);
+                                net.broadcast_message(message);
+                                text.truncate(6);
+                                typing.0 = false;
+
+                            }
+
+                        },
+                        KeyCode::Space => {
+                            text.push(' ');
+
+                        },
+                        KeyCode::Back => {
+                            if text_in_chat {
+                                text.pop();
+
+                            }
+
+                        },
+                        _ => {
+                            text.push_str(&format!("{:?}", ev.key_code.unwrap()));
+
+                        },
+                    };
+                }
+
+            }
+
+        });
+        /*let message: TextMessage = (my_player_id.0.as_ref().unwrap().0, String::from("test"), 0);
+        net.broadcast_message(message);*/
+
+    }
+
 }
 
 pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
