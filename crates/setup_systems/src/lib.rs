@@ -18,7 +18,6 @@ use bevy::render::{
 
 use game_types::*;
 
-use config::*;
 use map::MapCRC32;
 use single_byte_hashmap::*;
 use bots::*;
@@ -204,8 +203,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             let rigid_body_handle = rigid_body_set.insert(rigid_body);
             let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, rigid_body_set);
 
-            entity.insert(rigid_body_handle);
-            entity.insert(collider_handle);
+            entity.insert(RigidBodyHandleWrapper(rigid_body_handle));
+            entity.insert(ColliderHandleWrapper(collider_handle));
 
             if remaining_bots_to_add > 0 {
                 let (bot, ability, model) = AggroBot::new(map, PlayerID(i));

@@ -8,6 +8,7 @@ edition = "2021"
 # Nightly is enabled to do some optimizations
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["render"] }
 
+
 crc32fast = { version = "1", features = ["nightly"] }
 #LZ4 is a very fast compression algorithm
 lz4_flex = { version = "0.9", default-features = false, features = ["checked-decode", "frame"] }

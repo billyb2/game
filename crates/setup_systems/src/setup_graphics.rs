@@ -3,9 +3,8 @@
 
 use bevy::prelude::Rect;
 use bevy::prelude::*;
-use bevy::math::const_vec2;
+use bevy::math::{Size, const_vec2};
 
-//use crate::*;
 use config::*;
 use game_types::*;
 use map::*;

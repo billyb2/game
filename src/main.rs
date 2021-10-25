@@ -7,10 +7,9 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
+#![allow(incomplete_features)]
 
 mod logic;
-
-use std::time::Instant;
 
 use bevy::prelude::*;
 #[cfg(feature = "native")]

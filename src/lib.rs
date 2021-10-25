@@ -45,6 +45,7 @@ use arrayvec::ArrayVec;
 
 use map::*;
 use game_types::*;
+use game_types::Size;
 use single_byte_hashmap::*;
 use net::*;
 
@@ -86,8 +87,11 @@ pub trait Logs {
 
 }
 
+#[derive(Component)]
 pub struct GameLogs(pub ArrayVec<GameLog, 10>);
 
+
+#[derive(Component)]
 pub struct ChatLogs(pub ArrayVec<GameLog, 10>);
 
 impl Logs for GameLogs {
@@ -242,13 +246,13 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
 }
 
 // This system just deals respawning players
-pub fn dead_players(mut players: Query<(&mut Health, &RigidBodyHandle, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn dead_players(mut players: Query<(&mut Health, &RigidBodyHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>) {
     players.for_each_mut(|(mut health, rigid_body_handle, mut visibility, mut respawn_timer, perk, player_id)| {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains_key(&player_id.0) {
             let spawn_points = &maps.0.get(&map_crc32.0).unwrap().spawn_points;
 
             let new_pos = spawn_points.get(fastrand::usize(..spawn_points.len())).unwrap();
-            rigid_body_set.get_mut(*rigid_body_handle).unwrap().set_translation(Vector2::new(new_pos.x, new_pos.y).component_div(&Vector2::new(250.0, 250.0)), true);
+            rigid_body_set.get_mut(rigid_body_handle.0).unwrap().set_translation(Vector2::new(new_pos.x, new_pos.y).component_div(&Vector2::new(250.0, 250.0)), true);
 
             health.0 = match perk {
                 Perk::HeavyArmor => 125.0,

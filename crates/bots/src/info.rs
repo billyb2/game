@@ -18,8 +18,10 @@ use std::iter::repeat_with;
 #[derive(Copy, Clone)]
 pub struct Angle(pub f32);
 /// Whether or not a player is dashing
+#[derive(Component)]
 pub struct Dashing(pub bool);
 
+#[derive(Component)]
 pub struct BotWrapper(pub Box<dyn Bot + Send + Sync>);
 
 #[derive(Copy, Clone)]
@@ -59,7 +61,7 @@ pub trait Bot {
 
 }
 
-pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandle, &mut Health, &Model, &Ability, &MaxDistance, &Speed, &TimeSinceLastShot, &AmmoInMag, &RecoilRange, &TimeSinceStartReload, &UsingAbility, &AbilityCharge)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_ability: EventWriter<AbilityEvent>) {
+pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandleWrapper, &mut Health, &Model, &Ability, &MaxDistance, &Speed, &TimeSinceLastShot, &AmmoInMag, &RecoilRange, &TimeSinceStartReload, &UsingAbility, &AbilityCharge)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_ability: EventWriter<AbilityEvent>) {
     // Generate the list of TruncatedPlayer by looping over the bots list initially
     let players: Vec<(TruncatedPlayer, bool)> = bots.iter_mut().map(|(transform, id, _bw, _rgb, _h, _model, ability, _md, _pjs, _ttls, _aig, _rr, _rt, using_ability, _ab_ch)| {
         // Cloaking players aren't shown to bots
@@ -71,6 +73,8 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
     }).collect();
 
     bots.for_each_mut(|(mut transform, player_id, mut bot, rigid_body_handle, mut health, model, ability, max_distance, proj_speed, time_since_last_shot, ammo_in_mag, recoil_range, reload_timer, _using_ability, ability_charge)| {
+        let rigid_body_handle = &rigid_body_handle.0;
+
         if let Some(bot) = bot.as_mut() {
             let players: Vec<TruncatedPlayer> = players.iter().filter_map(|(t_player, inv)| {
                 match *inv && t_player.id.0 != player_id.0 {

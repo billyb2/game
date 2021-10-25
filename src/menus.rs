@@ -6,6 +6,7 @@ use std::convert::TryInto;
 use std::net::{SocketAddr, IpAddr};
 
 use bevy::prelude::*;
+use bevy::math::Size;
 
 use crate::*;
 use config::write_data;

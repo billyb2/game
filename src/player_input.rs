@@ -4,10 +4,9 @@
 
 use std::f32::consts::PI;
 use std::iter::repeat_with;
-use std::time::Instant;
 
 use bevy::prelude::*;
-use bevy::math::{Vec3A, const_vec3};
+use bevy::math::{Size as UI_Size, Vec3A, const_vec3};
 use bevy::utils::Duration;
 use bevy::input::ElementState;
 use bevy::input::keyboard::KeyboardInput;
@@ -20,8 +19,9 @@ use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use crate::*;
-use map::MapCRC32;
+use map::{MapCRC32, MapHealth};
 use game_types::*;
+use game_types::Size;
 use net::*;
 use map::WallMarker;
 
@@ -68,7 +68,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 }
 
 
-pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandle, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut typing: ResMut<Typing>, keyboard_input: Res<Input<KeyCode>>) {
+pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandleWrapper, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut typing: ResMut<Typing>, keyboard_input: Res<Input<KeyCode>>) {
     if !typing.0 {
         if in_game_settings.is_empty() {
             let mut angle = None;
@@ -135,7 +135,7 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
                         justify_content: JustifyContent::Center,
                         align_content: AlignContent::Center,
                         align_items: AlignItems::Center,
-                        size: Size {
+                        size: UI_Size {
                             width: Val::Percent(100.0),
                             height: Val::Percent(100.0),
                         },
@@ -174,7 +174,7 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
                         align_content: AlignContent::Center,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
-                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+                        size: UI_Size::new(Val::Px(225.0), Val::Px(85.0)),
 
                         ..Default::default()
                     },
@@ -224,7 +224,7 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
                     }
 
                     if let Some(angle) = angle {
-                        let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+                        let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
                         // If the player is dashing then they can't change the angle that they move in
                         let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
 
@@ -296,7 +296,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>
     }
 }
 
-pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, asset_server: Res<AssetServer>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>) {
+pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>) {
     if typing.0 {
         let text = &mut chat_text.single_mut().sections[0].value;
 
@@ -387,7 +387,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                 }).take(num_of_recoil).collect();
 
                 let event = ShootEvent {
-                    start_pos: transform.translation + Vec3::new(size.width, size.height, 0.0) / 2.0,
+                    start_pos: transform.translation + size.0.extend(0.0) / 2.0,
                     player_id: my_player_id.0,
                     pos_direction: mouse_pos.0,
                     health: health.0,
@@ -399,7 +399,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     projectile_type: *projectile_type,
                     damage: *damage,
                     player_ability: *player_ability,
-                    size: Vec2::new(size.width, size.height),
+                    size: size.0,
                     reloading: reload_timer.reloading,
 
                 };
@@ -408,10 +408,11 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
             // Melee is the F key
             } else if keyboard_input.pressed(keybindings.melee) {
+                // TODO: Const or smth?
                 let melee = Gun::new(Model::Melee, *player_ability, *perk);
 
                 let event = ShootEvent {
-                    start_pos: transform.translation + Vec3::new(melee.projectile_size.width, melee.projectile_size.height, 0.0) / 2.0,
+                    start_pos: transform.translation + melee.projectile_size.0.extend(0.0) / 2.0,
                     player_id: my_player_id.0,
                     pos_direction: mouse_pos.0,
                     health: health.0,
@@ -423,7 +424,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     projectile_type: ProjectileType::Melee,
                     damage: melee.damage,
                     player_ability: *player_ability,
-                    size: Vec2::new(melee.projectile_size.width, melee.projectile_size.height),
+                    size: melee.projectile_size.0,
                     reloading: reload_timer.reloading,
 
                 };
@@ -592,8 +593,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 },
                                 ..Default::default()
                             })
-                            .insert(rigid_body_handle)
-                            .insert(collider_handle)
+                            .insert(RigidBodyHandleWrapper(rigid_body_handle))
+                            .insert(ColliderHandleWrapper(collider_handle))
                             .insert(MaxDistance(ev.max_distance))
                             .insert(DistanceTraveled(0.0))
                             .insert(Speed(ev.speed.abs()));
@@ -621,7 +622,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandle, &RigidBodyHandle)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
 ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
@@ -644,7 +645,14 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                         }
 
-                        let color_vec = UVec4::new(255, 255, 0, 255);
+                        let color_vec = MapColor {
+                            r: 255, 
+                            g: 255, 
+                            b: 0, 
+                            a: 255
+                            
+                        };
+
                         let color = Color::rgb_u8(255, 255, 0);
 
                         let color_handle: Handle<ColorMaterial> = {
@@ -692,13 +700,13 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                         maps.0.get_mut(&map_crc32.0).unwrap().objects.push(
                             MapObject {
-                                coords: coords.extend(rotation),
-                                size,
+                                coords: MapObjectCoords(coords.extend(rotation)),
+                                size: Size(size),
                                 sprite: color_vec,
-                                collidable: true,
-                                player_spawn: false,
-                                health: Some(health_of_wall),
-                                using_image: false,
+                                collidable: Bool(true),
+                                player_spawn: Bool(false),
+                                health: MapHealth(Some(health_of_wall)),
+                                using_image: Bool(false),
 
                             }
                         );
@@ -707,7 +715,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                     },
                     Ability::Warp => {
-                        let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
+                        let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
 
                         rigid_body.set_linvel(rigid_body.linvel() * 25.0, true);
                         ability_charge.0.reset();
@@ -838,7 +846,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                             }
 
-                            let collider = collider_set.get_mut(*collider_handle).unwrap();
+                            let collider = collider_set.get_mut(collider_handle.0).unwrap();
                             collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1011));
 
                             using_ability.0 = true;
@@ -891,7 +899,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
 TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
-AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandle)>, mut collider_set: ResMut<ColliderSet>) {
+AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandleWrapper)>, mut collider_set: ResMut<ColliderSet>) {
     query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
         mut using_ability, mut ability_charge, mut speed, mut dashing_info, collider_handle)| {
         if reload_timer.reloading && reload_timer.timer.finished() {
@@ -907,7 +915,7 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandle)>, mut collid
                 speed.0 = DEFAULT_PLAYER_SPEED + 1.0;
 
             } else if *ability == Ability::Ghost {
-                let collider = collider_set.get_mut(*collider_handle).unwrap();
+                let collider = collider_set.get_mut(collider_handle.0).unwrap();
                 collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1111));
 
             }

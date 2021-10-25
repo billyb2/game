@@ -5,19 +5,15 @@ use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
 use bevy::ecs::component::Component;
-
-use bevy_networking_turbulence::NetworkResource;
  
-use crate::*;
-
 use single_byte_hashmap::HashMap;
 
-use game_lib::{GameLog, GameLogs, Logs};
+use game_lib::{GameLog, Logs};
 use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
 
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandle, &ColliderHandle, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>, local_players: Res<LocalPlayers>, mut net: ResMut<NetworkResource>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, &mut Transform, Option<&mut Health>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, mut widow_maker_heals: ResMut<WidowMakerHeals>, local_players: Res<LocalPlayers>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut transform, mut health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
         if let Some(player_id) = player_id.as_ref() {
             if let Some(health_to_heal) = widow_maker_heals.0.remove(&player_id.0) {
@@ -34,6 +30,9 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
 
         let mut should_remove_rigid_body = false;
+
+        let rigid_body_handle = &rigid_body_handle.0;
+        let collider_handle = &collider_handle.0;
 
         if let Some(rigid_body) = rigid_body_set.get_mut(*rigid_body_handle) {
             // Update the rigid body's sprite to the correct translation            
@@ -255,10 +254,10 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
 }
 
-pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionTimer, &RigidBodyHandle)>, mut rigid_body_set: ResMut<RigidBodySet>, mut island_manager: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>) {
+pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionTimer, &RigidBodyHandleWrapper)>, mut rigid_body_set: ResMut<RigidBodySet>, mut island_manager: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>) {
     q.for_each(|(e, d_timer, rigid_body_handle)| {
         if d_timer.0.finished() {
-            rigid_body_set.remove(*rigid_body_handle, &mut island_manager, &mut collider_set, &mut joint_set);
+            rigid_body_set.remove(rigid_body_handle.0, &mut island_manager, &mut collider_set, &mut joint_set);
             commands.entity(e).despawn_recursive();
         }
 

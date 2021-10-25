@@ -29,7 +29,7 @@ pub struct GameMenuButtonMaterials {
 
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Component, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct KeyBindings {
     pub up: KeyCode,
     pub down: KeyCode,
@@ -43,11 +43,11 @@ pub struct KeyBindings {
 
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Component, Debug, PartialEq)]
 pub struct SelectedKeyButton(pub Option<KeyBindingButtons>);
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Component, Debug, PartialEq)]
 pub enum KeyBindingButtons {
     Up,
     Down,
@@ -60,7 +60,7 @@ pub enum KeyBindingButtons {
 }
 
 // The UUID is just random
-#[derive(RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, Default, TypeUuid)]
 #[uuid = "463e4c8b-d555-4fc2-ba9f-5c880063ba92"]
 pub struct HelmetColor {
     pub value: Vec3,
@@ -77,7 +77,7 @@ impl HelmetColor {
     }
 }
 
-#[derive(RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, Default, TypeUuid)]
 #[uuid = "463e4c8b-d555-4fc2-ba9f-4c881163ba92"]
 pub struct InnerSuitColor {
     pub value: Vec3,
@@ -93,23 +93,34 @@ impl InnerSuitColor {
     }
 }
 
+#[derive(Component)]
 pub struct GameCamera;
 
+#[derive(Component)]
 pub struct AmmoText;
+#[derive(Component)]
 pub struct HealthText;
 
+#[derive(Component)]
 pub struct AbilityChargeText;
+#[derive(Component)]
 pub struct GameLogText;
+#[derive(Component)]
 pub struct ChatText;
+#[derive(Component)]
 pub struct ChatLogText;
 
 
+#[derive(Component)]
 pub struct IpText;
 
+#[derive(Component)]
 pub struct ScoreUI;
 
+#[derive(Component)]
 pub struct ChampionText;
 
+#[derive(Component)]
 pub struct NetConnStateText;
 
 pub struct ProjectileMaterials {
@@ -127,7 +138,7 @@ pub struct ProjectileMaterials {
     pub beam: Handle<ColorMaterial>,
 }
 
-#[derive(Default)]
+#[derive(Component, Default)]
 pub struct AssetsLoading {
     pub vertex_shader: Handle<Shader>,
     pub fragment_shader: Handle<Shader>,
@@ -137,19 +148,19 @@ pub struct AssetsLoading {
 // The mouse's position in world coordinates
 pub struct MousePosition(pub Vec2);
 
-#[derive(RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, Default, TypeUuid)]
 #[uuid = "463e4b8a-d555-4fc2-ba9f-4c880063ba92"]
 pub struct ShaderMousePosition {
     pub value: Vec2,
 }
 
-#[derive(RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, Default, TypeUuid)]
 #[uuid = "463e4c8b-d555-4fc2-ba9f-4c880063ba92"]
 pub struct WindowSize {
     pub value: Vec2,
 }
 
-#[derive(RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, Default, TypeUuid)]
 #[uuid = "463e4c8b-d554-4fc2-bc9f-4c881163ba92"]
 pub struct Alpha {
     pub value: f32,

@@ -17,6 +17,7 @@ use rayon::join;
 use single_byte_hashmap::HashMap;
 
 use crate::*;
+use crate::Size;
 
 //Each player has a unique player id
 #[derive(Bundle)]
@@ -35,7 +36,7 @@ pub struct Player {
     pub damage_source: DamageSource,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Component, Clone, Debug, Deserialize, Serialize)]
 pub struct ShootEvent {
     pub start_pos: Vec3,
     pub player_id: u8,
@@ -154,7 +155,7 @@ impl Player {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Ability {
     Stim,
     Warp,
@@ -169,7 +170,7 @@ pub enum Ability {
 }
 
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Perk {
     ExtendedMag,
     HeavyArmor,
@@ -271,20 +272,26 @@ impl Distribution<Perk> for Standard {
 }
 
 
+#[derive(Component)]
 pub struct PlayerSpeed(pub f32);
 
+#[derive(Component)]
 pub struct DamageSource(pub Option<u8>);
 
+#[derive(Component)]
 pub struct AbilityCharge(pub Timer);
 
+#[derive(Component)]
 pub struct AbilityCompleted(pub Timer);
 
+#[derive(Component)]
 pub struct RespawnTimer(pub Timer);
 
+#[derive(Component)]
 pub struct UsingAbility(pub bool);
 
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum ProjectileType {
     Regular,
     Speedball,
@@ -342,7 +349,7 @@ impl From<ProjectileType> for u8 {
 
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Model {
     Pistol,
     Shotgun,
@@ -587,7 +594,7 @@ impl Gun {
 
             // Increase the size of speedball slightly
             if gun.model == Model::Speedball {
-                gun.projectile_size *= 1.2;
+                gun.projectile_size.0 *= 1.2;
 
             }
 

@@ -10,7 +10,6 @@ use bevy::math::{Vec2, const_vec2};
 
 use std::f32::consts::PI;
 use std::convert::TryInto;
-use std::intrinsics::*;
 
 //TODO: Maybe genericize the slice_to function?
 #[inline]
