@@ -257,7 +257,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(HealthText)
         .insert(GameRelated);
 
-    // Text saying the game log charge
+    // Text saying the game log
     commands
         .spawn_bundle(TextBundle {
             style: Style {
@@ -297,23 +297,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             },
             text: Text {
-                sections: {
-                    let mut text_vec = Vec::with_capacity(25);
-
-                    text_vec.push(TextSection {
-                        style: TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
-                            font_size: 25.0,
-                            color: Color::WHITE,
-                        },
-                        value: String::from("Chat2: "),
-
-                    });
-
-                    text_vec
-
-                },
+                sections: Vec::with_capacity(10),
                 ..Default::default()
             },
             ..Default::default()

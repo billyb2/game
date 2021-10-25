@@ -841,8 +841,7 @@ pub fn handle_text_messages(mut net: ResMut<NetworkResource>, mut log_event: Eve
             while let Some((player_id, message, time)) = channels.recv::<TextMessage>() {
                 #[cfg(feature = "native")]
                 messages_to_send.push((player_id, message.clone(), time));
-
-                log_event.send(ChatEvent(message));
+                log_event.send(ChatEvent(format!("Player {}: {}", player_id, message)));
 
             }
         }

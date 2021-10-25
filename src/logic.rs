@@ -280,15 +280,16 @@ pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMateria
 
 }
 
-pub fn generic_log_system<L: Component + Logs, T: Component, const TEXT_SIZE: Option<f32>, E: Component + LogEv>(mut logs: ResMut<L>, mut game_log: Query<&mut Text, With<T>>, asset_server: Res<AssetServer>, mut log_event: EventReader<E>) {
+pub fn generic_log_system<L: Component + Logs, T: Component, const TEXT_SIZE: Option<f32>, const TEXT_TIME: f32, E: Component + LogEv>(mut logs: ResMut<L>, mut game_log: Query<&mut Text, With<T>>, asset_server: Res<AssetServer>, mut log_event: EventReader<E>) {
     log_event.iter().for_each(|log_text| {
-        println!("{}", log_text.inner());
+        let mut log_string = log_text.inner().clone();
+        log_string.push('\n');
 
-        let game_log = GameLog::new(log_text.inner().clone(), TEXT_SIZE, &asset_server);
+        let game_log = GameLog::new(log_string, TEXT_SIZE, TEXT_TIME, &asset_server);
 
         match logs.is_full() {
             true => *logs.first_mut().unwrap() = game_log,
-            false => unsafe { logs.push_unchecked(game_log) },
+            false => logs.push_unchecked(game_log),
 
         };
 
@@ -311,41 +312,6 @@ pub fn generic_log_system<L: Component + Logs, T: Component, const TEXT_SIZE: Op
 
     game_log.sections.clear();
     game_log.sections.extend(logs.iter().rev().map(|l| l.text.clone()));
-
-}
-
-
-pub fn chat_log_system(mut logs: ResMut<ChatLogs>, mut game_log: Query<&mut Text, With<ChatText>>, asset_server: Res<AssetServer>, mut log_event: EventReader<LogEvent>) {
-    log_event.iter().for_each(|log_text| {
-        println!("{}", &log_text.0);
-
-        let game_log = GameLog::new(log_text.0.clone(), None, &asset_server);
-
-        match logs.0.is_full() {
-            true => *logs.0.first_mut().unwrap() = game_log,
-            false => unsafe { logs.0.push_unchecked(game_log) },
-
-        };
-
-    });
-
-
-    logs.0.retain(|l| {
-        let should_keep = !l.timer.finished();
-
-        if should_keep {
-            l.text.style.color.set_a(l.timer.percent_left());
-
-        }
-
-        should_keep
-
-    });
-
-    let mut game_log = game_log.single_mut();
-
-    game_log.sections.clear();
-    game_log.sections.extend(logs.0.iter().rev().map(|l| l.text.clone()));
 
 }
 

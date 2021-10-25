@@ -253,8 +253,8 @@ fn main() {
             .with_system(despawn_destroyed_walls.after("move_objects"))
             .with_system(death_event_system.after("move_objects").after(InputFromPlayer).before("dead_players"))
             .with_system(dead_players.after("move_objects").label("dead_players"))
-            .with_system(generic_log_system::<GameLogs, GameLogText, { None }, LogEvent>.after("dead_players"))
-            .with_system(generic_log_system::<ChatLogs, ChatLogText, { Some(20.0) }, ChatEvent>.after(InputFromPlayer))
+            .with_system(generic_log_system::<GameLogs, GameLogText, { None }, 8.0, LogEvent>.after("dead_players"))
+            .with_system(generic_log_system::<ChatLogs, ChatLogText, { Some(20.0) }, 20.0, ChatEvent>.after(InputFromPlayer))
             .with_system(move_camera.after(InputFromPlayer).after("move_objects"))
             .with_system(update_game_ui.after(InputFromPlayer).after("move_objects"))
     );

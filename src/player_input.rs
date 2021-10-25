@@ -296,7 +296,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>
     }
 }
 
-pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, asset_server: Res<AssetServer>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>) {
+pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, asset_server: Res<AssetServer>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>) {
     if typing.0 {
         let text = &mut chat_text.single_mut().sections[0].value;
 
@@ -309,8 +309,11 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
                     match key_code {
                         KeyCode::Return => {
                             if text_in_chat {
-                                let message: TextMessage = (my_player_id.0.as_ref().unwrap().0, text[6..].to_owned(), 0);
+                                let my_player_id = my_player_id.0.as_ref().unwrap().0;
+                                let message: TextMessage = (my_player_id, text[6..].to_owned(), 0);
                                 net.broadcast_message(message);
+                                log_event.send(ChatEvent(format!("Player {}: {}", my_player_id, text[6..].to_owned())));
+
                                 text.truncate(6);
                                 typing.0 = false;
 

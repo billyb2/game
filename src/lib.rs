@@ -88,7 +88,7 @@ pub trait Logs {
 
 pub struct GameLogs(pub ArrayVec<GameLog, 10>);
 
-pub struct ChatLogs(pub ArrayVec<GameLog, 20>);
+pub struct ChatLogs(pub ArrayVec<GameLog, 10>);
 
 impl Logs for GameLogs {
     fn new() -> Self {
@@ -160,7 +160,7 @@ pub struct GameLog {
 }
 
 impl GameLog {
-    pub fn new(text: String, size: Option<f32>, asset_server: &AssetServer) -> Self {
+    pub fn new(text: String, size: Option<f32>, text_screen_time: f32, asset_server: &AssetServer) -> Self {
         GameLog {
             text: TextSection {
                 style: TextStyle {
@@ -171,7 +171,7 @@ impl GameLog {
                 },
                 value: text,
             },
-            timer: Timer::from_seconds(8.0, false),
+            timer: Timer::from_seconds(text_screen_time, false),
 
         }
         
@@ -224,10 +224,10 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
         let num = fastrand::u8(0..=3);
 
         let message = match num {
-            0 => format!("Player {} got murked\n", ev.0),
-            1 => format!("Player {} got gulaged\n", ev.0),
-            2 => format!("Player {} got sent to the shadow realm\n", ev.0),
-            3 => format!("Player {} died\n", ev.0),
+            0 => format!("Player {} got murked", ev.0),
+            1 => format!("Player {} got gulaged", ev.0),
+            2 => format!("Player {} got sent to the shadow realm", ev.0),
+            3 => format!("Player {} died", ev.0),
             _ => unimplemented!(),
 
         };
@@ -309,7 +309,7 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>) {
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, mut chat: ResMut<ChatLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>) {
     let delta = time.delta();
 
     player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee, _player_id)| {
@@ -395,6 +395,8 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
     });
 
     logs.0.iter_mut().for_each(|l| {l.timer.tick(delta);});
+    chat.0.iter_mut().for_each(|l| {l.timer.tick(delta);});
+
 
 
     projectile_timers.for_each_mut(|mut destruction_timer| {
