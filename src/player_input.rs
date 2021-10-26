@@ -529,6 +529,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::PulseWave => materials.pulsewave.clone(),
                                     ProjectileType::TractorBeam => materials.beam.clone(),
                                     ProjectileType::Melee => materials.regular.clone(),
+                                    ProjectileType::Arrow => materials.arrow.clone(),
 
                                 }
 

@@ -58,6 +58,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let molotov_liquid_sprite = asset_server.load("projectile_sprites/molotov_liquid.png");
 
     let pulsewave_sprite = asset_server.load("projectile_sprites/pulsewave.png");
+    let arrow_sprite = asset_server.load("projectile_sprites/arrow.png");
 
     let rng = fastrand::Rng::new();
 
@@ -109,7 +110,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
             (materials.add(p_sniper_sprite.into()), const_vec2!([143.6135, 63.099])),
             (materials.add(p_sprite.into()), const_vec2!([82.808, 61.0755])),
             (materials.add(p_widowmaker_sprite.into()), const_vec2!([143.6135, 63.099])),
-            (materials.add(p_bow.into()), const_vec2!([143.2423, 62.264])),
+            (materials.add(p_bow.into()), const_vec2!([124.107, 96.8625])),
         ],
         enemy: (materials.add(enemy_sprite.into()), const_vec2!([82.808, 61.0755])),
 
@@ -127,6 +128,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         molotov_liquid: materials.add(molotov_liquid_sprite.into()),
         pulsewave: materials.add(pulsewave_sprite.into()),
         beam: materials.add(Color::rgba_u8(173, 216, 230, 50).into()),
+        arrow: materials.add(arrow_sprite.into()),
     });
 
     commands.insert_resource(ButtonMaterials {

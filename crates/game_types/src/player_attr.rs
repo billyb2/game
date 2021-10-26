@@ -303,6 +303,7 @@ pub enum ProjectileType {
     MolotovLiquid,
     Melee,
     WidowMaker,
+    Arrow,
 
 }
 
@@ -321,6 +322,7 @@ impl From<u8> for ProjectileType {
             7 => ProjectileType::MolotovLiquid,
             8 => ProjectileType::Melee,
             9 => ProjectileType::WidowMaker,
+            10 => ProjectileType::Arrow,
             _ => panic!("Projectile conversion out of bounds: {} was requested, max is {}", projectile_type, NUM_OF_PROJECTILE_TYPES),
 
         }
@@ -342,6 +344,7 @@ impl From<ProjectileType> for u8 {
             ProjectileType::MolotovLiquid => 7,
             ProjectileType::Melee => 8,
             ProjectileType::WidowMaker => 9,
+            ProjectileType::Arrow => 10,
 
         }
 
@@ -381,6 +384,7 @@ impl From<u8> for Model {
             8 => Model::SniperRifle,
             9 => Model::Melee,
             10 => Model::Widowmaker,
+            11 => Model::Bow,
             _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
@@ -538,6 +542,7 @@ impl Gun {
                 Model::Flamethrower => ProjectileType::Flame,
                 Model::Melee => ProjectileType::Melee,
                 Model::Widowmaker => ProjectileType::WidowMaker,
+                Model::Bow => ProjectileType::Arrow,
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
@@ -558,6 +563,7 @@ impl Gun {
             projectile_size: match model {
                 Model::SubmachineGun => Size::new(5.5, 5.5),
                 Model::Melee => Size::new(25.0, 25.0),
+                Model::Bow => Size::new(62.0, 10.0),
                 _ => Size::new(7.0, 7.0),
 
             },
