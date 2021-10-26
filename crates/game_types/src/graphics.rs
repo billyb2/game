@@ -136,6 +136,7 @@ pub struct ProjectileMaterials {
     pub flamethrower3: Handle<ColorMaterial>,
     pub pulsewave: Handle<ColorMaterial>,
     pub beam: Handle<ColorMaterial>,
+    pub arrow: Handle<ColorMaterial>,
 }
 
 #[derive(Component, Default)]
