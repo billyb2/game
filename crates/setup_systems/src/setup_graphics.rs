@@ -50,6 +50,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let p_sniper_sprite = asset_server.load("player_sprites/player_sniper.png");
     let p_sprite = asset_server.load("player_sprites/player.png");
     let p_widowmaker_sprite = asset_server.load("player_sprites/player_sniper.png");
+    let p_bow = asset_server.load("player_sprites/player_bow.png");
 
     let enemy_sprite = asset_server.load("player_sprites/enemy.png");
 
@@ -108,6 +109,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
             (materials.add(p_sniper_sprite.into()), const_vec2!([143.6135, 63.099])),
             (materials.add(p_sprite.into()), const_vec2!([82.808, 61.0755])),
             (materials.add(p_widowmaker_sprite.into()), const_vec2!([143.6135, 63.099])),
+            (materials.add(p_bow.into()), const_vec2!([143.2423, 62.264])),
         ],
         enemy: (materials.add(enemy_sprite.into()), const_vec2!([82.808, 61.0755])),
 
