@@ -362,7 +362,7 @@ pub enum Model {
     SniperRifle,
     Melee,
     Widowmaker,
-
+    Bow, 
 }
 
 pub const NUM_OF_GUN_MODELS: u8 = variant_count::<Model>() as u8;
@@ -403,7 +403,7 @@ impl From<Model> for u8 {
             Model::SniperRifle => 8,
             Model::Melee => 9,
             Model::Widowmaker => 10,
-
+            Model::Bow => 11,
         }
 
     }
@@ -455,7 +455,7 @@ impl Gun {
                 Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(4.0, false)),
                 Model::Melee => TimeSinceLastShot(Timer::from_seconds(0.3, false)),
                 Model::Widowmaker => TimeSinceLastShot(Timer::from_seconds(1.0, false)),
-
+                Model::Bow => TimeSinceLastShot(Timer::from_seconds(0.7, false)),
             },
             time_since_start_reload: TimeSinceStartReload {
                 timer: match model {
@@ -470,7 +470,7 @@ impl Gun {
                     Model::SniperRifle => Timer::from_seconds(7.0, false),
                     Model::Melee => Timer::from_seconds(0.01, false),
                     Model::Widowmaker => Timer::from_seconds(4.0, false),
-
+                    Model::Bow => Timer::from_seconds(2.0, false),
                 },
                 reloading: false,
 
@@ -488,7 +488,7 @@ impl Gun {
                 Model::SniperRifle => AmmoInMag(1),
                 Model::Melee => AmmoInMag(1),
                 Model::Widowmaker => AmmoInMag(6),
-
+                Model::Bow => AmmoInMag(8),
             },
             max_ammo: match model {
                 Model::Pistol=> MaxAmmo(16),
@@ -502,7 +502,7 @@ impl Gun {
                 Model::SniperRifle => MaxAmmo(1),
                 Model::Melee => MaxAmmo(1),
                 Model::Widowmaker => MaxAmmo(6),
-
+                Model::Bow => MaxAmmo(8),
             },
             max_distance: match model {
                 Model::Pistol => MaxDistance(1750.0),
@@ -516,7 +516,7 @@ impl Gun {
                 Model::SniperRifle => MaxDistance(5000.0),
                 Model::Melee => MaxDistance(100.0),
                 Model::Widowmaker => MaxDistance(1000.0),
-
+                Model::Bow => MaxDistance(3500.0),
 
             },
             // The recoil range is in radians
@@ -552,6 +552,7 @@ impl Gun {
                 Model::SniperRifle => Speed(100.0),
                 Model::Widowmaker => Speed(60.0),
                 Model::Melee => Speed(40.0),
+                Model::Bow => Speed(25.0),
 
             },
             projectile_size: match model {
@@ -574,7 +575,7 @@ impl Gun {
                 Model::SniperRifle => Damage(100.0),
                 Model::Melee => Damage(45.0),
                 Model::Widowmaker => Damage(35.0),
-
+                Model::Bow => Damage(45.0),
 
             },
             // The bursting component only matters for burst rifles

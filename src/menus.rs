@@ -557,7 +557,8 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                         Model::Flamethrower => String::from("Melts opponents with extremely high damage, but low range"),
                         Model::SniperRifle => String::from("Long range, extremely high-damage sniper with severely slow reload times"),
                         Model::Melee => String::from("Enhanced arms let you punch stronger"),
-                        Model::Widowmaker => String::from("Utilizes your health as ammo. Health is returned for the amount of damage you do, and it does not reload")
+                        Model::Widowmaker => String::from("Utilizes your health as ammo. Health is returned for the amount of damage you do, and it does not reload"),
+                        Model::Bow => String::from("Long range, short range, slow reload rate"),
                     }
 
                 } else if button_text.starts_with("Perk") {
