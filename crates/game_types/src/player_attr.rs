@@ -62,7 +62,6 @@ pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 
 pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
     *ability_charge = match ability {
-        Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
         Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
         Ability::Wall => AbilityCharge(Timer::from_seconds(4.0, false)),
@@ -161,7 +160,6 @@ pub enum Ability {
     Warp,
     Wall,
     Engineer, //Should be default
-    Hacker,
     Inferno,
     Cloak,
     PulseWave,
@@ -188,12 +186,11 @@ impl From<u8> for Ability {
             1 => Ability::Warp,
             2 => Ability::Wall,
             3 => Ability::Engineer,
-            4 => Ability::Hacker,
-            5 => Ability::Inferno,
-            6 => Ability::Cloak,
-            7 => Ability::PulseWave,
-            8 => Ability::Ghost,
-            9 => Ability::Brute,
+            4 => Ability::Inferno,
+            5 => Ability::Cloak,
+            6 => Ability::PulseWave,
+            7 => Ability::Ghost,
+            8 => Ability::Brute,
             _ => panic!("Ability conversion out of bounds: {} was requested, max is {}", ability, NUM_OF_ABILITIES),
 
         }
@@ -209,12 +206,11 @@ impl From<Ability> for u8 {
             Ability::Warp => 1,
             Ability::Wall => 2,
             Ability::Engineer => 3,
-            Ability::Hacker => 4,
-            Ability::Inferno => 5,
-            Ability::Cloak => 6,
-            Ability::PulseWave => 7,
-            Ability::Ghost => 8,
-            Ability::Brute => 9,
+            Ability::Inferno => 4,
+            Ability::Cloak => 5,
+            Ability::PulseWave => 6,
+            Ability::Ghost => 7,
+            Ability::Brute => 8,
 
         }
 

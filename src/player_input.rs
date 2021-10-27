@@ -73,7 +73,7 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
         if in_game_settings.is_empty() {
             let mut angle = None;
 
-            if keyboard_input.just_released(KeyCode::T) {
+            if keyboard_input.just_released(keybindings.talk) {
                 typing.0 = true;
 
             }
@@ -329,6 +329,11 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
                                 text.pop();
 
                             }
+
+                        },
+                        KeyCode::Escape => {
+                            text.truncate(6);
+                            typing.0 = false;
 
                         },
                         _ => {
@@ -619,9 +624,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
     });
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
-query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, ability, mut ability_charge, mut
@@ -722,32 +725,6 @@ AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSin
                             using_ability.0 = true;
 
                         }
-                    },
-                    Ability::Hacker => {
-                        let mut potential_players_to_be_hacked: Vec<u8> = Vec::with_capacity(10);
-
-                        for (id, _handle_and_timer) in online_player_ids.0.iter() {
-                            if *id != my_player_id.0 {
-                                potential_players_to_be_hacked.push(*id);
-
-                            }
-                        }
-
-                        if !potential_players_to_be_hacked.is_empty() {
-                            // Get a random player that isn't the current player
-                            let rand_index = fastrand::usize(..potential_players_to_be_hacked.len());
-
-                            let player_to_be_hacked: u8 = unsafe { *potential_players_to_be_hacked.get_unchecked(rand_index) };
-
-                            let message: AbilityMessage = ([player_to_be_hacked, Ability::Hacker.into()], [transform.translation.x, transform.translation.y, 0.0]);
-                            
-                            net.broadcast_message(message);
-
-
-                            ability_charge.0.reset();
-
-                        }
-
                     },
                     // The engineer ability is passive, so when the use ability button is pressed nothing happens
                     Ability::Engineer => {},

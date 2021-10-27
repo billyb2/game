@@ -53,7 +53,7 @@ pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSe
     packet_buffer_size: 4096,
 };
 
-// Some abilities, such as the wall and hacker, need to send a message over the network, so this does that here
+// Some abilities, such as the wall, need to send a message over the network, so this does that here
 pub const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 2,
     channel_mode: MessageChannelMode::Reliable {
@@ -464,7 +464,7 @@ pub fn send_score(mut net: ResMut<NetworkResource>, score: Res<DeathmatchScore>,
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AmmoInMag, &mut Ability, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Ability, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<AbilityMessage> = Vec::new();
 
@@ -484,25 +484,17 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                     let ability: Ability = ability.into();
 
-                    if player_id != my_id.0 || ability == Ability::Hacker {
+                    if player_id != my_id.0 {
                         make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
-                        let (mut ammo_in_mag, mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                        let (mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                         *old_ability = ability;
 
-                        if ability != Ability::Hacker {
-                            let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
-                            rigid_body.set_translation(Vector2::new(player_x, player_y).component_div(&Vector2::new(250.0, 250.0)), true);
+                        let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
+                        rigid_body.set_translation(Vector2::new(player_x, player_y).component_div(&Vector2::new(250.0, 250.0)), true);
 
-                            if ability == Ability::Wall || ability == Ability::Cloak || ability == Ability::Ghost {
-                                ev_use_ability.send(AbilityEvent(player_id));
-
-                            }
-
-                        } else {
-                            // The hacker forces a player to use their ability and halves their ammo count
-                            ev_use_ability.send(AbilityEvent(my_id.0));
-                            ammo_in_mag.0 = (ammo_in_mag.0 as f32 / 2.0).ceil() as u8;
+                        if ability == Ability::Wall || ability == Ability::Cloak || ability == Ability::Ghost {
+                            ev_use_ability.send(AbilityEvent(player_id));
 
                         }
                     }

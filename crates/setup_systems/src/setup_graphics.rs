@@ -1537,9 +1537,6 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
     const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
     const ENGINEER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([238, 166, 34]);
 
-    const HACKER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
-    const HACKER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([107, 1, 1]);
-
     const WARP_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
     const WARP_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([229, 2, 146]);
 
@@ -1561,7 +1558,6 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
     let (helmet_color, inner_suit_color) = match ability {
         Ability::Inferno => (INFERNO_HELMET_COLOR, INFERNO_SUIT_COLOR),
         Ability::Engineer => (ENGINEER_HELMET_COLOR, ENGINEER_SUIT_COLOR),
-        Ability::Hacker => (HACKER_HELMET_COLOR, HACKER_SUIT_COLOR),
         Ability::Warp => (WARP_HELMET_COLOR, WARP_SUIT_COLOR),
         Ability::Wall => (WALL_HELMET_COLOR, WALL_SUIT_COLOR),
         Ability::Stim => (STIM_HELMET_COLOR, STIM_SUIT_COLOR),
@@ -1602,6 +1598,7 @@ pub fn setup_default_controls(mut commands: Commands) {
                 show_score: KeyCode::Tab,
                 dash: KeyCode::E,
                 melee: KeyCode::F,
+                talk: KeyCode::T,
             };
 
             write_data(String::from("key_bindings"), key_bindings);

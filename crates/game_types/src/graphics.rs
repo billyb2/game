@@ -40,6 +40,7 @@ pub struct KeyBindings {
     pub show_score: KeyCode,
     pub dash: KeyCode,
     pub melee: KeyCode,
+    pub talk: KeyCode,
 
 }
 
@@ -57,6 +58,7 @@ pub enum KeyBindingButtons {
     Reload,
     ShowScore,
     Melee,
+    Talk,
 }
 
 // The UUID is just random

@@ -60,13 +60,18 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
             }
 
-            if text.starts_with("Reload") && selected_key != &KeyBindingButtons::Reload {
+            if text.starts_with("Melee") && selected_key != &KeyBindingButtons::Melee {
                 *text = format!("Melee: {:?}", keybindings.melee);
 
             }
 
             if text.starts_with("Score") && selected_key != &KeyBindingButtons::ShowScore {
                 *text = format!("Score: {:?}", keybindings.show_score);
+
+            }
+
+            if text.starts_with("Talk") && selected_key != &KeyBindingButtons::Talk {
+                *text = format!("Talk: {:?}", keybindings.talk);
 
             }
 
@@ -110,6 +115,11 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                 *text = format!("Score: {:?}", keybindings.show_score);
 
             }
+
+            if text.starts_with("Talk") {
+                *text = format!("Talk: {:?}", keybindings.talk);
+
+            }
         }
 
         match *interaction {
@@ -149,6 +159,10 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                 } else if text.starts_with("Score") {
                     *text = "Score:".to_string();
                     selected_key_button.0 = Some(KeyBindingButtons::ShowScore);
+
+                } else if text.starts_with("Talk") {
+                    *text = "Talk:".to_string();
+                    selected_key_button.0 = Some(KeyBindingButtons::Talk);
 
                 }
 
@@ -253,6 +267,16 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
                         }
 
                     },
+                    KeyBindingButtons::Talk => {
+                        keybindings.talk = *key;
+                        selected_key_button.0 = None;
+
+                        if text.starts_with("Talk") {
+                            *text = format!("Talk: {:?}", *key);
+
+                        }
+
+                    }
 
                 }
             }
@@ -266,7 +290,7 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
 
         match *interaction {
             Interaction::Clicked => {
-                app_state.set(match &**text {
+                app_state.set(match text.as_str() {
                     "Play" => AppState::GameMenu,
                     "Settings" => AppState::Settings,
                     _ => unimplemented!(),
@@ -418,7 +442,7 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
 
                 } else {
                     app_state.set(
-                        match &**text {
+                        match text.as_str() {
                             "Customize Player" => AppState::CustomizePlayerMenu,
                             "Customize Game" => AppState::CustomizeGame,
                             "Back" => AppState::MainMenu,
@@ -481,7 +505,6 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                         Ability::Warp => String::from("Your suit is equipped with a space-time warping device that allows you\n to teleport short distances"),
                         Ability::Stim => String::from("Your robot body allows you to run faster than normal, and can supercharge\n itself with a large battery, allowing you to temporarily increase your running speed"),
                         Ability::Engineer => String::from("Using your years of experience designing weapons, you've modified\n your guns to reload much faster and your bullets to move more quickly, at the cost of having higher recoil (PASSIVE)"),
-                        Ability::Hacker => String::from("Your knowledge of electronics allows you to short-circuit suits and guns,\n causing guns to lose half their ammo and the player holding said gun to use their ability"),
                         Ability::Wall => String::from("You can generate walls of pure energy, that you can shoot through but\n your opponents cannot"),
                         Ability::Inferno => String::from("Your flame tipped bullets can light the molotovs you throw"),
                         Ability::Cloak => String::from("Your suit is modified to be able to temporarily be invisible to the eye"),
