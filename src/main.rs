@@ -150,7 +150,6 @@ fn main() {
     .add_event::<ReloadEvent>()
     .add_event::<ShootEvent>()
     .add_event::<AbilityEvent>()
-    .add_event::<DespawnWhenDead>()
     .add_event::<DeathEvent>()
     .add_event::<LogEvent>()
     .add_event::<ChatEvent>();
@@ -244,7 +243,9 @@ fn main() {
             .with_system(use_ability.label(InputFromPlayer).label("player_attr"))
             .with_system(handle_ability_packets.label(InputFromPlayer).label("player_attr"))
             .with_system(reset_player_phasing.after(InputFromPlayer))
+            .with_system(update_body_pos.before("move_objects"))
             .with_system(move_objects.after(InputFromPlayer).label("move_objects"))
+            .with_system(heal_widowmaker_shots.after("move_objects"))
             .with_system(destruction_timer.after("move_objects"))
             .with_system(in_game_settings_menu_system.after(InputFromPlayer))
             .with_system(damage_text_system.after("move_objects"))

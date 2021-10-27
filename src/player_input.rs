@@ -6,7 +6,7 @@ use std::f32::consts::PI;
 use std::iter::repeat_with;
 
 use bevy::prelude::*;
-use bevy::math::{Size as UI_Size, Vec3A, const_vec3};
+use bevy::math::{Size as UI_Size, Vec3A, const_vec3, const_vec2};
 use bevy::utils::Duration;
 use bevy::input::ElementState;
 use bevy::input::keyboard::KeyboardInput;
@@ -341,8 +341,6 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
             }
 
         });
-        /*let message: TextMessage = (my_player_id.0.as_ref().unwrap().0, String::from("test"), 0);
-        net.broadcast_message(message);*/
 
     }
 
@@ -383,7 +381,8 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
                 let recoil_vec: Vec<f32> = repeat_with(|| {
                     let sign = rng.i8(..).signum() as f32;
-                    rng.f32() * recoil_range.0 * 2.0 * sign
+
+                    (rng.f32() * recoil_range.0 * 2.0).copysign(sign)
                 }).take(num_of_recoil).collect();
 
                 let event = ShootEvent {
@@ -394,7 +393,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     model: *model,
                     max_distance: max_distance.0,
                     recoil_vec,
-                    // Bullets need to travel "backwards" when moving to the left
                     speed: speed.0,
                     projectile_type: *projectile_type,
                     damage: *damage,
@@ -419,7 +417,6 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     model: Model::Melee,
                     max_distance: melee.max_distance.0,
                     recoil_vec: vec![0.0],
-                    // Bullets need to travel "backwards" when moving to the left
                     speed: speed.0,
                     projectile_type: ProjectileType::Melee,
                     damage: melee.damage,
@@ -438,7 +435,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>) {
     if my_player_id.0.is_some() {
-        for ev in shoot_event.iter() {
+        shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
 
             if ev.health != 0.0 {
@@ -499,6 +496,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                     // Only broadcast shots that the player shoots
                     if player_is_local {
                         net.broadcast_message((*ev).clone());
+
                     }
 
                     for recoil in ev.recoil_vec.iter() {
@@ -603,7 +601,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 }
 
             }
-        }
+        });
 
     }
 }
@@ -623,8 +621,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
 pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut
 query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut
-AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut maps:
-ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>) {
+AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, online_player_ids: Res<OnlinePlayerIDs>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, ability, mut ability_charge, mut
@@ -636,58 +633,64 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
             if (*ability != Ability::Brute && ability_charge.0.finished()) || !player_is_local || (*ability == Ability::Brute && ability_charge.0.elapsed_secs() >= 0.5) {
 
                 match ability {
-                    //TODO: Fix wall
                     Ability::Wall => {
-                        let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
-                        let message: ([u8; 2], [f32; 3]) = ([ev_id.0, Ability::Wall.into()], message_array);
+                        let rotation = get_angle(mouse_pos.0.x, mouse_pos.0.y, transform.translation.x, transform.translation.y);
+                        let coords = transform.translation + const_vec3!([100.0, 100.0, 0.0]) * Vec3::new(rotation.cos(), rotation.sin(), 0.0);
+
+                        let rotation = rotation + PI / 2.0;
+
+
+                        let message_array: [f32; 3] = [coords.x, coords.y, rotation];
+                        let message: AbilityMessage = ([ev_id.0, Ability::Wall.into()], message_array);
 
                         if player_is_local {
                             net.broadcast_message(message);
 
                         }
 
-                        let color_vec = MapColor {
-                            r: 255, 
-                            g: 255, 
-                            b: 0, 
-                            a: 255
-                            
-                        };
+                        const COLOR: Color = Color::rgb(1.0, 1.0, 0.0);
 
-                        let color = Color::rgb_u8(255, 255, 0);
-
+                        // TODO: There has to be a better way to do this, like for sure
                         let color_handle: Handle<ColorMaterial> = {
-                            let mut color_to_return = None;
-
-                            for (id, material_to_return) in materials.iter() {
-                                if color == material_to_return.color {
-                                    color_to_return = Some(materials.get_handle(id));
-                                    break;
-
-                                }
-
-                            }
+                            let color_to_return = materials.iter().find(|(_h, mat)| COLOR == mat.color);
 
                             match color_to_return {
-                                Some(color) => color,
-                                None => materials.add(color.into())
+                                Some((handle, _color)) => materials.get_handle(handle),
+                                None => materials.add(COLOR.into())
 
                             }
 
                         };
 
-                        let coords = transform.translation;
-                        let rotation = 0.0;
+                        const SIZE: Vec2 = const_vec2!([175.0, 50.0]);
+
+                        const HEALTH_OF_WALL: f32 = 75.0;
+
+                        // Storing the half extents as a tuple since I don't need to do any fancy SIMD stuff
+                        // Equal to SIZE / [500.0; 2]
+                        const HALF_EXTENTS: (f32, f32) = (0.35, 0.1);
+
+                        let rigid_body = RigidBodyBuilder::new(RigidBodyType::Static)
+                            .translation(Vector2::new(coords.x, coords.y).component_div(&Vector2::new(250.0, 250.0))) 
+                            .rotation(rotation)
+                            .user_data(0)
+                            .gravity_scale(0.0)
+                            .build();
 
 
-                        let size = Vec2::new(100.0, 25.0);
+                        let collider = ColliderBuilder::cuboid(HALF_EXTENTS.0, HALF_EXTENTS.1)
+                            .collision_groups(InteractionGroups::new(0b0100, 0b1010))
+                            .user_data(0)
+                            .friction(0.1)
+                            .build();
 
-                        let health_of_wall: f32 = 75.0;
+                        let rigid_body_handle = rigid_body_set.insert(rigid_body);
+                        let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
 
                         commands
                             .spawn_bundle(SpriteBundle {
                                 material: color_handle.clone(),
-                                sprite: Sprite::new(size),
+                                sprite: Sprite::new(SIZE),
                                 transform: Transform {
                                     translation: coords,
                                     rotation: Quat::from_rotation_z(rotation),
@@ -696,21 +699,11 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                                 },
                                 ..Default::default()
                             })
-                            .insert(Health(health_of_wall))
-                            .insert(WallMarker);
-
-                        maps.0.get_mut(&map_crc32.0).unwrap().objects.push(
-                            MapObject {
-                                coords: MapObjectCoords(coords.extend(rotation)),
-                                size: Size(size),
-                                sprite: color_vec,
-                                collidable: Bool(true),
-                                player_spawn: Bool(false),
-                                health: MapHealth(Some(health_of_wall)),
-                                using_image: Bool(false),
-
-                            }
-                        );
+                            .insert(MapHealth(Some(HEALTH_OF_WALL)))
+                            .insert(WallMarker)
+                            .insert(GameRelated)
+                            .insert(RigidBodyHandleWrapper(rigid_body_handle))
+                            .insert(ColliderHandleWrapper(collider_handle));
 
                         ability_charge.0.reset();
 
@@ -731,7 +724,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                         }
                     },
                     Ability::Hacker => {
-                        let mut potential_players_to_be_hacked: Vec<u8> = Vec::with_capacity(255);
+                        let mut potential_players_to_be_hacked: Vec<u8> = Vec::with_capacity(10);
 
                         for (id, _handle_and_timer) in online_player_ids.0.iter() {
                             if *id != my_player_id.0 {
@@ -746,7 +739,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                             let player_to_be_hacked: u8 = unsafe { *potential_players_to_be_hacked.get_unchecked(rand_index) };
 
-                            let message: ([u8; 2], [f32; 3]) = ([player_to_be_hacked, Ability::Hacker.into()], [transform.translation.x, transform.translation.y, 0.0]);
+                            let message: AbilityMessage = ([player_to_be_hacked, Ability::Hacker.into()], [transform.translation.x, transform.translation.y, 0.0]);
                             
                             net.broadcast_message(message);
 
@@ -771,7 +764,6 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             // The distance that the bullet will travel is just the distance between the mouse and the player
                             max_distance: mouse_pos.0.distance(transform.translation.truncate()),
                             recoil_vec: vec![0.0],
-                            // Bullets need to travel "backwards" when moving to the left
                             speed: PROJECTILE_SPEED,
                             projectile_type: ProjectileType::Molotov,
                             damage: Damage(5.0),
@@ -806,7 +798,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
 
                     },
                     Ability::PulseWave => {
-                        let projectile_speed: f32 = 20.5;
+                        const PROJECTILE_SPEED: f32 = 28.5;
 
                         let event = ShootEvent {
                             start_pos: transform.translation,
@@ -816,15 +808,11 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             model: *model,
                             max_distance: 2000.0,
                             recoil_vec: vec![0.0],
-                            // Bullets need to travel "backwards" when moving to the left
-                            speed: match mouse_pos.0.x <= transform.translation.x {
-                                true => -projectile_speed,
-                                false => projectile_speed,
-                            },
+                            speed: PROJECTILE_SPEED,
                             projectile_type: ProjectileType::PulseWave,
                             damage: Damage(15.0),
                             player_ability: Ability::PulseWave,
-                            size: Vec2::new(100.0, 100.0),
+                            size: const_vec2!([100.0; 2]),
                             reloading: reload_timer.reloading,
 
                         };
@@ -855,7 +843,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                         }
                     },
                     Ability::Brute => {
-                        let projectile_speed = 1.0;
+                        const PROJECTILE_SPEED: f32 = 1.0;
 
                         let event = ShootEvent {
                             start_pos: transform.translation,
@@ -865,11 +853,7 @@ ResMut<Maps>, map_crc32: Res<MapCRC32>, mut net: ResMut<NetworkResource>, my_pla
                             model: *model,
                             max_distance: 1.0,
                             recoil_vec: vec![0.0],
-                            // Bullets need to travel "backwards" when moving to the left
-                            speed: match mouse_pos.0.x <= transform.translation.x {
-                                true => -projectile_speed,
-                                false => projectile_speed,
-                            },
+                            speed: PROJECTILE_SPEED,
                             projectile_type: ProjectileType::TractorBeam,
                             damage: Damage(0.0),
                             player_ability: Ability::Brute,

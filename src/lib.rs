@@ -8,10 +8,12 @@
 #![feature(stmt_expr_attributes)]
 #![feature(slice_as_chunks)]
 #![feature(format_args_capture)]
+#![feature(adt_const_params)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
+#![allow(incomplete_features)]
 
 pub mod system_labels;
 #[cfg(feature = "graphics")]
@@ -205,23 +207,6 @@ pub enum GameMode {
 // If a player gets a score of 15 kills, the game ends
 const SCORE_LIMIT: u8 = 15;
 
-// Despawns walls that have been destroyed
-pub fn despawn_destroyed_walls(mut commands: Commands, mut wall_event: EventReader<DespawnWhenDead>, mut walls: Query<(Entity, &mut Health, &Transform), With<WallMarker>>) {
-    for ev in wall_event.iter() {
-        walls.for_each_mut(|(entity, mut health, transform)| {
-            if ev.coords == transform.translation.truncate() {
-                if ev.health != 0.0 {
-                    health.0 = ev.health;
-
-                } else {
-                    commands.entity(entity).despawn_recursive();
-
-                }
-
-            }
-        });
-    }
-}
 
 pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>) {
     for ev in death_events.iter() {

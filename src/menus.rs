@@ -446,76 +446,20 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                 let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
                 if text.starts_with("Ability") {
-                    let current_ability_int: u8 = (*my_ability).into();
-
-                    match current_ability_int == NUM_OF_ABILITIES - 1 {
-                        true => {
-                            let new_ability: Ability = 0.into();
-                            *my_ability = new_ability;
-                        },
-                        false => {
-                            let new_ability: Ability = (current_ability_int + 1).into();
-                            *my_ability = new_ability;
-
-                            if new_ability == Ability::Brute {
-                                *my_gun_model = Model::Melee;
-                                *text = format!("Gun: {:?}", *my_gun_model);
-
-                            }
-                        },
-
-
-                    };
-                    
-
-                    *text = format!("Ability: {:?}", *my_ability);
+                    set_player_attr::<NUM_OF_ABILITIES, r#"Ability"#, Ability>(&mut my_ability, text);
 
                 } else if text.starts_with("Gun") {
-                    let current_gun_int: u8 = (*my_gun_model).into();
-
-
-                    // The Brute can only use melee
-                    match *my_ability == Ability::Brute {
-                        true => {
-                            *my_gun_model = Model::Melee;
-                            *text = format!("Gun: {:?}", *my_gun_model);
-
-                        }, false => match current_gun_int == NUM_OF_GUN_MODELS - 1 {
-                            true => {
-                                let new_gun_model: Model = 0.into();
-                                *my_gun_model = new_gun_model;
-
-                            },
-                            false => {
-                                let new_gun_model: Model = (current_gun_int + 1).into();
-                                *my_gun_model = new_gun_model;
-
-                            },
-                        }
-
-                    };
-
-                    *text = format!("Gun: {:?}", *my_gun_model);
+                    set_player_attr::<NUM_OF_GUN_MODELS, r#"Gun"#, Model>(&mut my_gun_model, text);
 
                 } else if text.starts_with("Perk") {
-                    let current_perk_int: u8 = (*my_perk).into();
-
-                    match current_perk_int == NUM_OF_PERKS - 1 {
-                        true => {
-                            let new_perk: Perk = 0.into();
-                            *my_perk = new_perk;
-                        },
-                        false => {
-                            let new_perk: Perk = (current_perk_int + 1).into();
-                            *my_perk = new_perk;
-                        },
-
-
-                    };
-
-                    *text = format!("Perk: {:?}", *my_perk);
+                    set_player_attr::<NUM_OF_PERKS, r#"Perk"#, Perk>(&mut my_perk, text);
 
                 } else if text == "Back" {
+                    if *my_ability == Ability::Brute {
+                        *my_gun_model = Model::Melee;
+
+                    }
+
                     write_data(String::from("model"), *my_gun_model);
                     write_data(String::from("ability"), *my_ability);
                     write_data(String::from("perk"), *my_perk);
@@ -647,7 +591,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>, my_perk: Res<Perk>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut Model, &mut Perk, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -773,6 +717,40 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                     node_parent.spawn_bundle(ButtonBundle {
                                     style: Style {
+                                        size: Size::new(Val::Px(450.0), Val::Px(85.0)),
+                                        align_content: AlignContent::Center,
+                                        align_items: AlignItems::Center,
+                                        justify_content: JustifyContent::Center,
+
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                    })
+                                    .with_children(|button_parent| {
+                                        button_parent
+                                            .spawn_bundle(TextBundle {
+                                                text: Text {
+                                                    sections: vec![
+                                                        TextSection {
+                                                            value: format!("Perk: {:?}", *my_perk),
+                                                            style: TextStyle {
+                                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                                                font_size: 55.0,
+                                                                color: Color::WHITE,
+                                                            },
+                                                        },
+                                                    ],
+                                                    ..Default::default()
+                                                },
+                                                ..Default::default()
+
+                                        })
+                                        .insert(KeyBindingButtons::Down);
+                                    });
+
+                                    node_parent.spawn_bundle(ButtonBundle {
+                                    style: Style {
                                         size: Size::new(Val::Px(225.0), Val::Px(85.0)),
                                         align_content: AlignContent::Center,
                                         align_items: AlignItems::Center,
@@ -811,55 +789,14 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                     } else if menu == InGameSettings::Customize {
                         if text.starts_with("Ability") {
-                            let current_ability_int: u8 = (*my_ability).into();
-
-                            match current_ability_int == NUM_OF_ABILITIES - 1 {
-                                true => {
-                                    let new_ability: Ability = 0.into();
-                                    *my_ability = new_ability;
-                                },
-                                false => {
-                                    let new_ability: Ability = (current_ability_int + 1).into();
-                                    *my_ability = new_ability;
-
-                                    if new_ability == Ability::Brute {
-                                        *my_gun_model = Model::Melee;
-                                        *text = format!("Gun: {:?}", *my_gun_model);
-
-                                    }
-                                },
-
-
-                            };
-                            
-
-                            *text = format!("Ability: {:?}", *my_ability);
+                            set_player_attr::<NUM_OF_ABILITIES, r#"Ability"#, Ability>(&mut my_ability, text);
 
                         } else if text.starts_with("Gun") {
-                            let current_gun_int: u8 = (*my_gun_model).into();
+                            set_player_attr::<NUM_OF_GUN_MODELS, r#"Gun"#, Model>(&mut my_gun_model, text);
 
-                            // The Brute can only use melee
-                            match *my_ability == Ability::Brute {
-                                true => {
-                                    *my_gun_model = Model::Melee;
-                                    *text = format!("Gun: {:?}", *my_gun_model);
+                        } else if text.starts_with("Perk") {
+                            set_player_attr::<NUM_OF_PERKS, r#"Perk"#, Perk>(&mut my_perk, text);
 
-                                }, false => match current_gun_int == NUM_OF_GUN_MODELS - 1 {
-                                    true => {
-                                        let new_gun_model: Model = 0.into();
-                                        *my_gun_model = new_gun_model;
-
-                                    },
-                                    false => {
-                                        let new_gun_model: Model = (current_gun_int + 1).into();
-                                        *my_gun_model = new_gun_model;
-                                        
-                                    },
-                                }
-
-                            };
-
-                            *text = format!("Gun: {:?}", *my_gun_model);
 
                         } else if text == "Back" {
                             commands.entity(entity).despawn_recursive();
@@ -868,12 +805,23 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
                             net.broadcast_message(set_ability_message);
 
-                            let my_ability = *my_ability;
                             let my_player_id = my_player_id.0.as_ref();
 
-                            let (entity, mut ability, mut ability_charge, mut ability_completed, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
+                            let (entity, mut ability, mut model, mut perk, mut ability_charge, mut ability_completed, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
 
-                            *ability = my_ability;
+                            if *my_ability == Ability::Brute {
+                                *my_gun_model = Model::Melee;
+
+                            }
+
+
+                            write_data(String::from("model"), *my_gun_model);
+                            write_data(String::from("ability"), *my_ability);
+                            write_data(String::from("perk"), *my_perk);
+
+                            *ability = *my_ability;
+                            *model = *my_gun_model;
+                            *perk = *my_perk;
 
                             let (new_helmet_color, new_inner_suit_color) = set_player_colors(&my_ability);
 
@@ -882,7 +830,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                             set_ability_player_attr(&mut ability_charge, &mut ability_completed, *ability);
 
-                            commands.entity(entity).insert_bundle(Gun::new(*my_gun_model, *ability, *my_perk));
+                            commands.entity(entity).insert_bundle(Gun::new(*my_gun_model, *my_ability, *my_perk));
 
                             commands
                             .spawn_bundle(NodeBundle {
@@ -1002,4 +950,17 @@ pub fn remove_selected(mut commands: Commands, query: Query<(Entity, &SelectedKe
 
     });
 
+}
+
+fn set_player_attr<const NUM_OF_T: u8, const TYPE_NAME: &'static str, T>(my_player_attr: &mut T, text: &mut String) where T: From<u8> + std::fmt::Debug + Copy, u8: From<T> {
+    let current_t_int: u8 = (*my_player_attr).into();
+
+    let new_player_attr: T = match current_t_int == NUM_OF_T - 1 {
+        true => 0.into(),
+        false => (current_t_int + 1).into(),
+
+    };
+
+    *my_player_attr = new_player_attr;
+    *text = format!("{}: {:?}", TYPE_NAME, new_player_attr);
 }

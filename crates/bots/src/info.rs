@@ -137,7 +137,6 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
                                     model: *model,
                                     max_distance: max_distance.0,
                                     recoil_vec,
-                                    // Bullets need to travel "backwards" when moving to the left
                                     speed: proj_speed.0,
                                     projectile_type: gun.projectile_type,
                                     damage: gun.damage,

@@ -90,13 +90,6 @@ pub struct ReloadEvent(pub u8);
 #[derive(Component)]
 pub struct AbilityEvent(pub u8);
 
-#[derive(Component)]
-pub struct DespawnWhenDead {
-    pub health: f32,
-    pub coords: Vec2,
-
-}
-
 // A timer for when a player wins a match, so the game knows when to return to the main menu
 #[derive(Component)]
 pub struct PlayerContinueTimer(pub Timer);

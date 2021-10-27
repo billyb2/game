@@ -244,7 +244,7 @@ type ClientStateMessage = (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>, u8);
 type InfoMessage = [u8; 3];
 
 // ([player_id, ability], [player_x, player_y, angle])
-type AbilityMessage = ([u8; 2], [f32; 3]);
+pub type AbilityMessage = ([u8; 2], [f32; 3]);
 
 pub type TextMessage = (u8, String, u64);
 

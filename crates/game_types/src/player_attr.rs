@@ -65,12 +65,12 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
         Ability::Hacker => AbilityCharge(Timer::from_seconds(15.0, false)),
         Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
         Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
-        Ability::Wall => AbilityCharge(Timer::from_seconds(5.0, false)),
+        Ability::Wall => AbilityCharge(Timer::from_seconds(4.0, false)),
         Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
         Ability::Inferno => AbilityCharge(Timer::from_seconds(10.0, false)),
         Ability::Cloak => AbilityCharge(Timer::from_seconds(7.0, false)),
-        Ability::PulseWave => AbilityCharge(Timer::from_seconds(8.0, false)),
-        Ability::Ghost => AbilityCharge(Timer::from_seconds(15.0, false)),
+        Ability::PulseWave => AbilityCharge(Timer::from_seconds(6.5, false)),
+        Ability::Ghost => AbilityCharge(Timer::from_seconds(12.0, false)),
         Ability::Brute => AbilityCharge(Timer::from_seconds(8.0, false)),
 
     };
@@ -97,7 +97,7 @@ pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: 
 }
 
 #[inline]
-pub fn set_perk_gun_attr(mut max_ammo: &mut MaxAmmo, mut ammo_in_mag: &mut AmmoInMag, perk: Perk) {
+pub fn set_perk_gun_attr(max_ammo: &mut MaxAmmo, ammo_in_mag: &mut AmmoInMag, perk: Perk) {
     if perk == Perk::ExtendedMag {
         max_ammo.0 = (max_ammo.0 as f32 * 1.5).ceil() as u8;
         ammo_in_mag.0 = max_ammo.0;
