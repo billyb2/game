@@ -3306,6 +3306,7 @@ dependencies = [
  "config",
  "fastrand",
  "game_types",
+ "helper_functions",
  "map",
  "rapier2d",
  "single_byte_hashmap",

@@ -15,6 +15,8 @@ use single_byte_hashmap::*;
 use bevy::render::camera::ScalingMode;
 use rapier2d::prelude::*;
 
+use helper_functions::graphics::spawn_button;
+
 //TODO: Reduce boilerplate by writing functions to generate stuff graphical stuff, instead of doing
 //a ton of copy pastes.
 
@@ -490,73 +492,18 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                 ..Default::default()
             });
 
-            // Only PC's can host games
-            node_parent
-                .spawn_bundle(ButtonBundle {
-                    style: Style {
-                        align_content: AlignContent::Center,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        margin: Rect {
-                            bottom: Val::Percent(10.0),
+            const MARGIN: Rect<Val> = Rect {
+                bottom: Val::Percent(10.0),
+                top: Val::Percent(0.0),
+                left: Val::Percent(0.0),
+                right: Val::Percent(0.0),
 
-                            ..Default::default()
-                        },
-                        size: Size::new(Val::Px(185.0), Val::Px(85.0)),
+            };
 
-                        ..Default::default()
-                    },
-                    material: button_materials.normal.clone(),
-                    ..Default::default()
-                })
-                .with_children(|button_parent| {
-                    button_parent.spawn_bundle(TextBundle {
-                        text: Text {
-                            sections: vec![TextSection {
-                                value: String::from("Play"),
-                                style: TextStyle {
-                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                    font_size: 55.0,
-                                    color: Color::WHITE,
-                                },
-                            }],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    });
-                });
+            spawn_button::<{ Some(185.0) } , 85.0>(node_parent, button_materials.normal.clone(), String::from("Play"), asset_server.load("fonts/FiraSans-Bold.ttf"), MARGIN);
 
-            node_parent
-                .spawn_bundle(ButtonBundle {
-                    style: Style {
-                        align_content: AlignContent::Center,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
+            spawn_button::<{ Some(225.0) } , 85.0>(node_parent, button_materials.normal.clone(), String::from("Settings"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                        ..Default::default()
-                    },
-                    material: button_materials.normal.clone(),
-                    ..Default::default()
-                })
-                .with_children(|button_parent| {
-                    button_parent
-                        .spawn_bundle(TextBundle {
-                            text: Text {
-                                sections: vec![TextSection {
-                                    value: String::from("Settings"),
-                                    style: TextStyle {
-                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                        font_size: 55.0,
-                                        color: Color::WHITE,
-                                    },
-                                }],
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        })
-                        .insert(KeyBindingButtons::Down);
-                });
         });
 }
 

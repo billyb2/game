@@ -148,6 +148,7 @@ graphics = [
   "game_types/graphics",
   "setup_systems/graphics",
   "net/graphics",
+  "helper_functions/graphics",
 ]
 
 

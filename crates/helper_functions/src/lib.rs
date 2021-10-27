@@ -1,15 +1,23 @@
 #![feature(core_intrinsics)]
 #![feature(option_result_unwrap_unchecked)]
 #![feature(stmt_expr_attributes)]
+#![feature(adt_const_params)]
 
 // A variety of (mostly math) functions that don't really fit anywhere, but are pretty useful
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
+#![allow(incomplete_features)]
 
 use bevy::math::{Vec2, const_vec2};
 
 use std::f32::consts::PI;
 use std::convert::TryInto;
+
+#[cfg(feature = "graphics")]
+pub mod graphics;
+
+#[cfg(feature = "graphics")]
+pub use graphics::*;
 
 //TODO: Maybe genericize the slice_to function?
 #[inline]

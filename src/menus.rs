@@ -13,6 +13,8 @@ use config::write_data;
 use setup_systems::*;
 use game_types::player_attr::*;
 
+use helper_functions::graphics::spawn_button;
+
 #[cfg(feature = "web")]
 use crate::log;
 
@@ -648,139 +650,14 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                     });
 
-                                    node_parent.spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(350.0), Val::Px(85.0)),
-                                        align_content: AlignContent::Center,
-                                        align_items: AlignItems::Center,
-                                        justify_content: JustifyContent::Center,
+                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Ability: {:?}", *my_ability), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                        ..Default::default()
-                                    },
-                                    material: button_materials.normal.clone(),
-                                    ..Default::default()
-                                    })
-                                    .with_children(|button_parent| {
-                                        button_parent
-                                            .spawn_bundle(TextBundle {
-                                                text: Text {
-                                                    sections: vec![
-                                                        TextSection {
-                                                            value: format!("Ability: {:?}", *my_ability),
-                                                            style: TextStyle {
-                                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                                                font_size: 55.0,
-                                                                color: Color::WHITE,
-                                                            },
-                                                        },
-                                                    ],
-                                                    ..Default::default()
-                                                },
-                                                ..Default::default()
+                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Gun: {:?}", *my_gun_model), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                        });
-                                    });
+                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Perk: {:?}", *my_perk), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                    node_parent.spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(450.0), Val::Px(85.0)),
-                                        align_content: AlignContent::Center,
-                                        align_items: AlignItems::Center,
-                                        justify_content: JustifyContent::Center,
+                                    spawn_button::<{ Some(225.0) }, 85.0>(node_parent, button_materials.normal.clone(), String::from("Back"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                        ..Default::default()
-                                    },
-                                    material: button_materials.normal.clone(),
-                                    ..Default::default()
-                                    })
-                                    .with_children(|button_parent| {
-                                        button_parent
-                                            .spawn_bundle(TextBundle {
-                                                text: Text {
-                                                    sections: vec![
-                                                        TextSection {
-                                                            value: format!("Gun: {:?}", *my_gun_model),
-                                                            style: TextStyle {
-                                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                                                font_size: 55.0,
-                                                                color: Color::WHITE,
-                                                            },
-                                                        },
-                                                    ],
-                                                    ..Default::default()
-                                                },
-                                                ..Default::default()
-
-                                        })
-                                        .insert(KeyBindingButtons::Down);
-                                    });
-
-                                    node_parent.spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(450.0), Val::Px(85.0)),
-                                        align_content: AlignContent::Center,
-                                        align_items: AlignItems::Center,
-                                        justify_content: JustifyContent::Center,
-
-                                        ..Default::default()
-                                    },
-                                    material: button_materials.normal.clone(),
-                                    ..Default::default()
-                                    })
-                                    .with_children(|button_parent| {
-                                        button_parent
-                                            .spawn_bundle(TextBundle {
-                                                text: Text {
-                                                    sections: vec![
-                                                        TextSection {
-                                                            value: format!("Perk: {:?}", *my_perk),
-                                                            style: TextStyle {
-                                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                                                font_size: 55.0,
-                                                                color: Color::WHITE,
-                                                            },
-                                                        },
-                                                    ],
-                                                    ..Default::default()
-                                                },
-                                                ..Default::default()
-
-                                        })
-                                        .insert(KeyBindingButtons::Down);
-                                    });
-
-                                    node_parent.spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-                                        align_content: AlignContent::Center,
-                                        align_items: AlignItems::Center,
-                                        justify_content: JustifyContent::Center,
-
-                                        ..Default::default()
-                                    },
-                                    material: button_materials.normal.clone(),
-                                    ..Default::default()
-                                    })
-                                    .with_children(|button_parent| {
-                                        button_parent
-                                            .spawn_bundle(TextBundle {
-                                                text: Text {
-                                                    sections: vec![
-                                                        TextSection {
-                                                            value: String::from("Back"),
-                                                            style: TextStyle {
-                                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                                                font_size: 55.0,
-                                                                color: Color::WHITE,
-                                                            },
-                                                        },
-                                                    ],
-                                                    ..Default::default()
-                                                },
-                                                ..Default::default()
-
-                                        });
-                                    });
 
                                 })
                                 .insert(InGameSettings::Customize);
@@ -875,38 +752,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                 });
 
-                                node_parent.spawn_bundle(ButtonBundle {
-                                style: Style {
-                                    align_content: AlignContent::Center,
-                                    align_items: AlignItems::Center,
-                                    justify_content: JustifyContent::Center,
-                                    size: Size::new(Val::Px(225.0), Val::Px(85.0)),
-
-                                    ..Default::default()
-                                },
-                                material: button_materials.normal.clone(),
-                                ..Default::default()
-                                })
-                                .with_children(|button_parent| {
-                                    button_parent
-                                        .spawn_bundle(TextBundle {
-                                            text: Text {
-                                                sections: vec![
-                                                    TextSection {
-                                                        value: String::from("Customize"),
-                                                        style: TextStyle {
-                                                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                                            font_size: 55.0,
-                                                            color: Color::WHITE,
-                                                        },
-                                                    },
-                                                ],
-                                                ..Default::default()
-                                            },
-                                            ..Default::default()
-
-                                    });
-                                });
+                                spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), String::from("Customize"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
                             })
                             .insert(InGameSettings::Settings);

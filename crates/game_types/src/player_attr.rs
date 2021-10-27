@@ -534,6 +534,7 @@ impl Gun {
                 Model::SniperRifle => RecoilRange(0.012),
                 Model::Melee => RecoilRange(0.0),
                 Model::Widowmaker => RecoilRange(0.05),
+                Model::Bow => RecoilRange(0.008),
                 _ => RecoilRange(0.075),
 
             },

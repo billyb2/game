@@ -6,7 +6,8 @@ edition = "2021"
 [dependencies]
 config = { path = "../config" }
 bots = { path = "../bots" }
-game_types = { path = "..//game_types" }
+game_types = { path = "../game_types" }
+helper_functions = { path = "../helper_functions" }
 map = { path = "../map" }
 
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
@@ -22,7 +23,10 @@ parallel = [
   "bots/parallel",
 ]
 
-graphics = []
+graphics = [
+  "helper_functions/graphics"
+
+]
 
 native = []
 web = []
