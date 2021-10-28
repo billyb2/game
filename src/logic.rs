@@ -416,78 +416,81 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
     });
 
     non_grenade_objects.for_each_mut(|(rigid_body_handle, mut health, mut map_health, player_id)| {
-        let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
-        let rigid_body_pos = *rigid_body.translation();
+        if let Some(rigid_body) = rigid_body_set.get_mut(rigid_body_handle.0) {
+            let rigid_body_pos = *rigid_body.translation();
 
-        let mut health = if health.is_some() {
-                Some(&mut health.as_mut().unwrap().0)
+            let mut health = if health.is_some() {
+                    Some(&mut health.as_mut().unwrap().0)
 
-            } else if map_health.is_some() {
-                Some(map_health.as_mut().unwrap().0.as_mut().unwrap()) 
+                } else if map_health.is_some() {
+                    Some(map_health.as_mut().unwrap().0.as_mut().unwrap()) 
 
-            } else {
-                None
+                } else {
+                    None
 
-            };
+                };
 
-        explosion_positions.iter().for_each(|(explosion_pos, shot_from)| {
-            const MAX_FORCE: f32 = 3000.0;
-            // Divided by 250 to adjust for physics coord stuff
-            const EXPLOSION_RADIUS: f32 = 750.0 / 250.0;
-            const MAX_DAMAGE: f32 = 120.0;
-
-
-            let explosion_angle = get_angle(rigid_body_pos.x, rigid_body_pos.y, explosion_pos.x, explosion_pos.y);
-
-            let distance = rigid_body_pos.metric_distance(explosion_pos);
-
-            let percent_of_explosion_radius = {
-                let distance_clamped = 
-                    match distance > EXPLOSION_RADIUS {
-                        true => EXPLOSION_RADIUS.copysign(distance),
-                        false => distance,
-                    };
-
-                Vector2::new(1.0, 1.0) - (Vector2::new(distance_clamped, distance_clamped).component_div(&Vector2::new(EXPLOSION_RADIUS, EXPLOSION_RADIUS)))
-
-            };
-
-            let force = {
-                let adj_force = Vector2::new(MAX_FORCE, MAX_FORCE).component_mul(&percent_of_explosion_radius);
-                adj_force.component_mul(&Vector2::new(explosion_angle.cos(), explosion_angle.sin()))
-
-            };
-
-            rigid_body.apply_force(force, true);
-
-            let damage = percent_of_explosion_radius.amax().powi(2) * MAX_DAMAGE;
-
-            // Health stuff
-            if let Some(health) = health.as_mut() {
-                let new_health = **health - damage;
-
-                if **health > 0.0 {
-                    **health = match new_health <= 0.0 {
-                        true => {
-                            if let Some(player_id) = player_id {
-                                death_event.send(DeathEvent(player_id.0));
-                                *deathmatch_score.0.get_mut(&shot_from).unwrap() += 1
+            explosion_positions.iter().for_each(|(explosion_pos, shot_from)| {
+                const MAX_FORCE: f32 = 3000.0;
+                // Divided by 250 to adjust for physics coord stuff
+                const EXPLOSION_RADIUS: f32 = 750.0 / 250.0;
+                const MAX_DAMAGE: f32 = 120.0;
 
 
-                            }
+                let explosion_angle = get_angle(rigid_body_pos.x, rigid_body_pos.y, explosion_pos.x, explosion_pos.y);
 
-                            0.0
-                        },
-                        false => new_health,
+                let distance = rigid_body_pos.metric_distance(explosion_pos);
 
-                    };
+                let percent_of_explosion_radius = {
+                    let distance_clamped = 
+                        match distance > EXPLOSION_RADIUS {
+                            true => EXPLOSION_RADIUS.copysign(distance),
+                            false => distance,
+                        };
+
+                    Vector2::new(1.0, 1.0) - (Vector2::new(distance_clamped, distance_clamped).component_div(&Vector2::new(EXPLOSION_RADIUS, EXPLOSION_RADIUS)))
+
+                };
+
+                let force = {
+                    let adj_force = Vector2::new(MAX_FORCE, MAX_FORCE).component_mul(&percent_of_explosion_radius);
+                    adj_force.component_mul(&Vector2::new(explosion_angle.cos(), explosion_angle.sin()))
+
+                };
+
+                rigid_body.apply_force(force, true);
+
+                let damage = percent_of_explosion_radius.amax().powi(2) * MAX_DAMAGE;
+
+                // Health stuff
+                if let Some(health) = health.as_mut() {
+                    let new_health = **health - damage;
+
+                    if **health > 0.0 {
+                        **health = match new_health <= 0.0 {
+                            true => {
+                                if let Some(player_id) = player_id {
+                                    death_event.send(DeathEvent(player_id.0));
+                                    *deathmatch_score.0.get_mut(&shot_from).unwrap() += 1
+
+
+                                }
+
+                                0.0
+                            },
+                            false => new_health,
+
+                        };
+
+                    }
+
 
                 }
 
+            });
+            
 
-            }
-
-        });
+        }
 
     });
 
