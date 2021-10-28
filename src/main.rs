@@ -224,7 +224,8 @@ fn main() {
     .add_system_set(
         SystemSet::on_update(AppState::InGame)
             // Timers should be ticked first
-            .with_system(tick_timers.before("player_attr").before(InputFromPlayer))
+            .with_system(tick_timers.before("player_attr").before(InputFromPlayer).label("tick_timers"))
+            .with_system(explode_grenades.after("tick_timers"))
             .with_system(handle_text_messages)
             .with_system(set_mouse_coords.label(InputFromPlayer).before("player_attr").before("shoot"))
             .with_system(send_stats.label(InputFromPlayer).before("player_attr"))
@@ -243,8 +244,11 @@ fn main() {
             .with_system(use_ability.label(InputFromPlayer).label("player_attr"))
             .with_system(handle_ability_packets.label(InputFromPlayer).label("player_attr"))
             .with_system(reset_player_phasing.after(InputFromPlayer))
-            .with_system(update_body_pos.before("move_objects"))
+            .with_system(sync_physics_pos.before("move_objects").label("sync_physics_pos"))
+            .with_system(move_camera.after("sync_physics_pos"))
             .with_system(move_objects.after(InputFromPlayer).label("move_objects"))
+            .with_system(proj_distance.after("move_objects"))
+            .with_system(increase_speed_and_size.after("move_objects"))
             .with_system(heal_widowmaker_shots.after("move_objects"))
             .with_system(destruction_timer.after("move_objects"))
             .with_system(in_game_settings_menu_system.after(InputFromPlayer))
@@ -255,7 +259,6 @@ fn main() {
             .with_system(dead_players.after("move_objects").label("dead_players"))
             .with_system(generic_log_system::<GameLogs, GameLogText, { None }, 8.0, LogEvent>.after("dead_players"))
             .with_system(generic_log_system::<ChatLogs, ChatLogText, { Some(20.0) }, 20.0, ChatEvent>.after(InputFromPlayer))
-            .with_system(move_camera.after(InputFromPlayer).after("move_objects"))
             .with_system(update_game_ui.after(InputFromPlayer).after("move_objects"))
     );
     app.add_system_set(

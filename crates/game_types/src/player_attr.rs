@@ -300,6 +300,7 @@ pub enum ProjectileType {
     Melee,
     WidowMaker,
     Arrow,
+    StickyGrenade,
 
 }
 
@@ -319,6 +320,7 @@ impl From<u8> for ProjectileType {
             8 => ProjectileType::Melee,
             9 => ProjectileType::WidowMaker,
             10 => ProjectileType::Arrow,
+            11 => ProjectileType::StickyGrenade,
             _ => panic!("Projectile conversion out of bounds: {} was requested, max is {}", projectile_type, NUM_OF_PROJECTILE_TYPES),
 
         }
@@ -341,6 +343,7 @@ impl From<ProjectileType> for u8 {
             ProjectileType::Melee => 8,
             ProjectileType::WidowMaker => 9,
             ProjectileType::Arrow => 10,
+            ProjectileType::StickyGrenade => 11,
 
         }
 
@@ -361,7 +364,8 @@ pub enum Model {
     SniperRifle,
     Melee,
     Widowmaker,
-    Bow, 
+    Bow,
+    StickyGrenade,
 }
 
 pub const NUM_OF_GUN_MODELS: u8 = variant_count::<Model>() as u8;
@@ -381,6 +385,7 @@ impl From<u8> for Model {
             9 => Model::Melee,
             10 => Model::Widowmaker,
             11 => Model::Bow,
+            12 => Model::StickyGrenade,
             _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
@@ -404,6 +409,7 @@ impl From<Model> for u8 {
             Model::Melee => 9,
             Model::Widowmaker => 10,
             Model::Bow => 11,
+            Model::StickyGrenade => 12,
         }
 
     }
@@ -455,7 +461,8 @@ impl Gun {
                 Model::SniperRifle => TimeSinceLastShot(Timer::from_seconds(4.0, false)),
                 Model::Melee => TimeSinceLastShot(Timer::from_seconds(0.3, false)),
                 Model::Widowmaker => TimeSinceLastShot(Timer::from_seconds(1.0, false)),
-                Model::Bow => TimeSinceLastShot(Timer::from_seconds(0.7, false)),
+                Model::Bow => TimeSinceLastShot(Timer::from_seconds(0.6, false)),
+                Model::StickyGrenade => TimeSinceLastShot(Timer::from_seconds(0.7, false)),
             },
             time_since_start_reload: TimeSinceStartReload {
                 timer: match model {
@@ -471,6 +478,7 @@ impl Gun {
                     Model::Melee => Timer::from_seconds(0.01, false),
                     Model::Widowmaker => Timer::from_seconds(4.0, false),
                     Model::Bow => Timer::from_seconds(2.0, false),
+                    Model::StickyGrenade => Timer::from_seconds(6.0, false),
                 },
                 reloading: false,
 
@@ -478,7 +486,7 @@ impl Gun {
             // Ammo in mag and max_ammo should match
             ammo_in_mag: match model {
                 Model::Pistol=> AmmoInMag(16),
-                Model::Shotgun => AmmoInMag(8),
+                Model::Shotgun => AmmoInMag(6),
                 Model::Speedball => AmmoInMag(6),
                 Model::BurstRifle => AmmoInMag(21),
                 Model::AssaultRifle => AmmoInMag(25),
@@ -489,6 +497,7 @@ impl Gun {
                 Model::Melee => AmmoInMag(1),
                 Model::Widowmaker => AmmoInMag(6),
                 Model::Bow => AmmoInMag(8),
+                Model::StickyGrenade => AmmoInMag(6),
             },
             max_ammo: match model {
                 Model::Pistol=> MaxAmmo(16),
@@ -503,10 +512,11 @@ impl Gun {
                 Model::Melee => MaxAmmo(1),
                 Model::Widowmaker => MaxAmmo(6),
                 Model::Bow => MaxAmmo(8),
+                Model::StickyGrenade => MaxAmmo(6)
             },
             max_distance: match model {
                 Model::Pistol => MaxDistance(1750.0),
-                Model::Shotgun => MaxDistance(1000.0),
+                Model::Shotgun => MaxDistance(800.0),
                 Model::Speedball => MaxDistance(3300.0),
                 Model::BurstRifle => MaxDistance(1500.0),
                 Model::AssaultRifle => MaxDistance(1300.0),
@@ -517,6 +527,7 @@ impl Gun {
                 Model::Melee => MaxDistance(100.0),
                 Model::Widowmaker => MaxDistance(1000.0),
                 Model::Bow => MaxDistance(3500.0),
+                Model::StickyGrenade => MaxDistance(99999.0),
 
             },
             // The recoil range is in radians
@@ -531,6 +542,7 @@ impl Gun {
                 Model::Melee => RecoilRange(0.0),
                 Model::Widowmaker => RecoilRange(0.05),
                 Model::Bow => RecoilRange(0.008),
+                Model::StickyGrenade => RecoilRange(0.09),
                 _ => RecoilRange(0.075),
 
             },
@@ -540,27 +552,30 @@ impl Gun {
                 Model::Melee => ProjectileType::Melee,
                 Model::Widowmaker => ProjectileType::WidowMaker,
                 Model::Bow => ProjectileType::Arrow,
+                Model::StickyGrenade => ProjectileType::StickyGrenade,
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
-                Model::Pistol => Speed(33.0),
-                Model::Shotgun => Speed(29.0),
-                Model::Speedball => Speed(0.7),
-                Model::BurstRifle => Speed(40.0),
-                Model::AssaultRifle => Speed(31.0),
-                Model::SubmachineGun => Speed(29.5),
-                Model::ClusterShotgun => Speed(24.0),
-                Model::Flamethrower => Speed(27.0),
+                Model::Pistol => Speed(40.0),
+                Model::Shotgun => Speed(47.0),
+                Model::Speedball => Speed(1.7),
+                Model::BurstRifle => Speed(62.0),
+                Model::AssaultRifle => Speed(54.0),
+                Model::SubmachineGun => Speed(50.5),
+                Model::ClusterShotgun => Speed(47.0),
+                Model::Flamethrower => Speed(37.0),
                 Model::SniperRifle => Speed(100.0),
-                Model::Widowmaker => Speed(60.0),
-                Model::Melee => Speed(40.0),
-                Model::Bow => Speed(25.0),
+                Model::Widowmaker => Speed(77.0),
+                Model::Melee => Speed(47.0),
+                Model::Bow => Speed(87.0),
+                Model::StickyGrenade => Speed(47.0),
 
             },
             projectile_size: match model {
                 Model::SubmachineGun => Size::new(5.5, 5.5),
                 Model::Melee => Size::new(25.0, 25.0),
                 Model::Bow => Size::new(62.0, 10.0),
+                Model::StickyGrenade => Size::new(50.0, 50.0),
                 _ => Size::new(7.0, 7.0),
 
             },
@@ -579,6 +594,7 @@ impl Gun {
                 Model::Melee => Damage(45.0),
                 Model::Widowmaker => Damage(35.0),
                 Model::Bow => Damage(45.0),
+                Model::StickyGrenade => Damage(7.0),
 
             },
             // The bursting component only matters for burst rifles
@@ -602,10 +618,6 @@ impl Gun {
 
             }
 
-
-        } else if ability == Ability::Inferno {
-            // Inferno's bullets do less damage to make up for the fact that his fire does so much
-            gun.damage.0 *= 0.8;
 
         }
 
@@ -650,3 +662,6 @@ pub struct MyPlayerID(pub Option<PlayerID>);
 
 // The first item is the player ID, the second item is the network handle and a timeout timer
 pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(u32, Timer)>>);
+
+#[derive(Component)]
+pub struct ExplodeTimer(pub Timer);

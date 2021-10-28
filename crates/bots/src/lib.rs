@@ -92,6 +92,24 @@ impl Bot for AggroBot {
     }
 }
 
+
+// A bot that does literally nothing, useful for testing weapons and abilities
+pub struct StandStillBot;
+
+#[allow(unused_variables)]
+impl Bot for StandStillBot {
+    fn new(map: &Map, my_player_id: PlayerID) -> (Self, Ability, Model) { (StandStillBot, Ability::Cloak, Model::AssaultRifle) }
+    fn update_map_info(&mut self, map: &Map) {}
+    fn update_player_info(&mut self, players: &Vec<TruncatedPlayer>) {}
+    fn update_health(&mut self, new_health: Health) {}
+    fn misc_update(&mut self) {}
+    fn movement(&self) -> Option<(Angle, Dashing)> {None}
+    fn update_direction(&self) -> Option<Angle> {None}
+    fn use_ability(&self) -> bool {false}
+    fn should_shoot(&self) -> bool {false}
+}
+
+
 pub struct Xx69N00bSlay3rxX {
     enemy_players: Vec<TruncatedPlayer>,
     targeted_player: Option<TruncatedPlayer>,
@@ -130,12 +148,10 @@ impl Bot for Xx69N00bSlay3rxX {
 
         if let Some(target) = self.targeted_player {
             let angle = get_angle(self.my_player.unwrap().pos.x, self.my_player.unwrap().pos.y, target.pos.x, target.pos.y);
-            self.angle = Angle(match self.my_player.unwrap().pos.x > target.pos.x {
-                true => angle - PI,
-                false => angle,
-            });
-        }
+            self.angle = Angle(angle);
 
+        }
+        
 
     }
 

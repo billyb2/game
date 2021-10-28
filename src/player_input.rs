@@ -390,13 +390,19 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                     (rng.f32() * recoil_range.0 * 2.0).copysign(sign)
                 }).take(num_of_recoil).collect();
 
+                let start_pos = transform.translation;
+
                 let event = ShootEvent {
-                    start_pos: transform.translation + size.0.extend(0.0) / 2.0,
+                    start_pos,
                     player_id: my_player_id.0,
                     pos_direction: mouse_pos.0,
                     health: health.0,
                     model: *model,
-                    max_distance: max_distance.0,
+                    max_distance: match *model == Model::StickyGrenade {
+                        false => max_distance.0,
+                        true => mouse_pos.0.distance(start_pos.truncate()),
+
+                    },
                     recoil_vec,
                     speed: speed.0,
                     projectile_type: *projectile_type,
@@ -533,6 +539,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::TractorBeam => materials.beam.clone(),
                                     ProjectileType::Melee => materials.regular.clone(),
                                     ProjectileType::Arrow => materials.arrow.clone(),
+                                    ProjectileType::StickyGrenade => materials.arrow.clone(),
 
                                 }
 
@@ -560,9 +567,10 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .translation((Vector2::new(translation.x, translation.y)).component_div(&Vector2::new(250.0, 250.0)))
                             .linvel(movement.component_div(&Vector2::new(5.0, 5.0)))
                             // The Speedball's projectiles move faster over time, thus, a negative linear dampening
-                            .linear_damping(match ev.projectile_type == ProjectileType::Speedball {
-                                true => -4.5,
-                                false => 0.0,
+                            .linear_damping(match ev.projectile_type {
+                                ProjectileType::Speedball => -5.0,
+                                ProjectileType::StickyGrenade => 3.0,
+                                _ => 0.0,
                             })
                             .gravity_scale(0.0)
                             .ccd_enabled(true)
@@ -575,6 +583,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .restitution(0.0)
                             .friction(0.0)
                             .collision_groups(match ev.projectile_type {
+                                // Pulsewaves move through walls, and therefore have different interaction groups
                                 ProjectileType::PulseWave => InteractionGroups::new(0b0001, 0b1000),
                                 _ => InteractionGroups::new(0b0010, 0b1100),
 

@@ -207,7 +207,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             entity.insert(ColliderHandleWrapper(collider_handle));
 
             if remaining_bots_to_add > 0 {
-                let (bot, ability, model) = AggroBot::new(map, PlayerID(i));
+                let (bot, ability, model) = StandStillBot::new(map, PlayerID(i));
 
                 entity.insert_bundle(Gun::new(model, ability, perk));
 

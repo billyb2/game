@@ -51,8 +51,11 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let p_flamethrower_sprite = asset_server.load("player_sprites/player_flamethrower.png");
     let p_sniper_sprite = asset_server.load("player_sprites/player_sniper.png");
     let p_sprite = asset_server.load("player_sprites/player.png");
+    //TODO: Widowmaker sprite
     let p_widowmaker_sprite = asset_server.load("player_sprites/player_sniper.png");
     let p_bow = asset_server.load("player_sprites/player_bow.png");
+    //TODO: StickyGrenade sprite
+    let p_sticky_grenade = asset_server.load("player_sprites/player_bow.png");
 
     let enemy_sprite = asset_server.load("player_sprites/enemy.png");
 
@@ -113,6 +116,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
             (materials.add(p_sprite.into()), const_vec2!([82.808, 61.0755])),
             (materials.add(p_widowmaker_sprite.into()), const_vec2!([143.6135, 63.099])),
             (materials.add(p_bow.into()), const_vec2!([124.107, 96.8625])),
+            (materials.add(p_sticky_grenade.into()), const_vec2!([124.107, 96.8625])),
         ],
         enemy: (materials.add(enemy_sprite.into()), const_vec2!([82.808, 61.0755])),
 
@@ -138,7 +142,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
     });
 
-    const GAME_BUTTON_COLOR: Color = Color::rgb(4.0 / 256.0, 221.0 / 256.0, 185.0 / 256.0);
+    const GAME_BUTTON_COLOR: Color = Color::rgb(4.0 / 255.0, 221.0 / 255.0, 185.0 / 255.0);
 
     commands.insert_resource(GameMenuButtonMaterials {
         normal: materials.add(GAME_BUTTON_COLOR.into()),
@@ -1534,7 +1538,7 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
     const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
     const INFERNO_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([232, 35, 0]);
 
-    const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
+    const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([34, 218, 238]);
     const ENGINEER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([238, 166, 34]);
 
     const WARP_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);

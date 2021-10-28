@@ -11,13 +11,13 @@ use single_byte_hashmap::HashMap;
 use game_lib::{GameLog, Logs};
 use game_types::*;
 use game_types::player_attr::DEFAULT_PLAYER_SPEED;
-use helper_functions::{u128_to_f32_u8, f32_u8_to_u128};
+use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 
 use map::MapHealth;
 
 //TODO: Damage numbers
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, Option<&Speed>, Option<&mut DistanceTraveled>, Option<&MaxDistance>, &mut Handle<ColorMaterial>)>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>) {
-    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, speed, mut distance_traveled, max_distance, mut material)| {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, &mut Handle<ColorMaterial>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>) {
+    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, mut material)| {
         let mut should_remove_rigid_body = false;
 
         let rigid_body_handle = &rigid_body_handle.0;
@@ -25,63 +25,6 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
         if let Some(rigid_body) = rigid_body_set.get_mut(*rigid_body_handle) {
             let contacts = narrow_phase.contacts_with(*collider_handle);
-
-            // Increase the size of speedballs
-            // Only speedballs have a negative linear damping, meaning they increase in speed over time
-            // TODO: Replace this with projectile_type == Speedball
-            if rigid_body.linear_damping() < 0.0 {
-                let mut linvel = rigid_body.linvel().abs().amax() * 25.0;
-                // The maximum speed of Speedball projectiles is 50, so that they aren't horribly difficult to doge
-                linvel = match linvel > 50.0 {
-                    true => 50.0,
-                    false => linvel,
-                };
-
-                sprite.size = Vec2::splat(linvel);
-
-                let collider = collider_set.get_mut(*collider_handle).unwrap();
-                collider.set_shape(SharedShape::cuboid(linvel / 500.0, linvel / 500.0));
-
-                let (_damage, proj_info) = u128_to_f32_u8(collider.user_data);                
-                // Speedballs do more damage as their velocity increases
-                let new_damage = linvel * 1.5;
-                collider.user_data = f32_u8_to_u128(new_damage, proj_info);
-
-            }
-
-            if let Some(max_distance) = max_distance {
-                if let Some(distance_traveled) = distance_traveled.as_mut() {
-                    let speed = speed.as_ref().unwrap().0;
-                    distance_traveled.0 += speed;
-
-                    if distance_traveled.0 >= max_distance.0 {
-                        let projectile_type = projectile_type.as_mut().unwrap();
-
-                        if !rigid_body.is_static() && **projectile_type != ProjectileType::Molotov {
-                            should_remove_rigid_body = true;
-
-                        } else if **projectile_type == ProjectileType::Molotov {
-                            let collider = collider_set.get_mut(*collider_handle).unwrap();
-                            *material = proj_materials.molotov_liquid.clone();
-                            **projectile_type = ProjectileType::MolotovLiquid;
-                            sprite.size = Vec2::splat(200.0);
-                            collider.set_shape(SharedShape::ball(200.0 / 500.0));
-                            rigid_body.set_linvel(Vector2::new(0.0, 0.0), false);
-                            rigid_body.set_body_type(RigidBodyType::Static);
-                            collider.set_collision_groups(InteractionGroups::new(0b0010, 0b0100));
-
-                            commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
-
-                            let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
-
-                            rigid_body.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
-                            collider.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
-
-                        }
-                    }
-
-                }
-            }
 
             contacts.for_each(|contact_pair| {
                 // Finds the collider handle that isn't equal to the current collider handle, and then grabs a reference to the actual collider object
@@ -202,6 +145,8 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         if 
                         // None of the molov type should be destroyed when hit
                         (projectile_type_ref != ProjectileType::MolotovLiquid && projectile_type_ref != ProjectileType::Molotov && projectile_type_ref != ProjectileType::MolotovFire)
+                        // The sticky grenade type shouldn't either
+                        && projectile_type_ref != ProjectileType::StickyGrenade
                         // the projecitle hit a wall or a player
                          && (hit_map_object || hit_player) 
                          // If it's a pulsewave, it has to have hit a player to dissapear
@@ -228,6 +173,9 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
                             commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
                             
+                        } else if projectile_type_ref == ProjectileType::StickyGrenade && hit_map_object {
+                            commands.entity(entity).insert(ExplodeTimer(Timer::from_seconds(3.0, false)));
+
                         }
 
                     }
@@ -281,7 +229,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
 }
 
-pub fn update_body_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper)>, rigid_body_set: Res<RigidBodySet>) {
+pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper)>, rigid_body_set: Res<RigidBodySet>) {
     obj.for_each_mut(|(mut transform, rigid_body_handle)| {
         if let Some(rigid_body) = rigid_body_set.get(rigid_body_handle.0) {
             // Update the rigid body's sprite to the correct translation
@@ -448,6 +396,187 @@ pub fn despawn_destroyed_walls(mut commands: Commands, mut walls: Query<(Entity,
             }
         }
 
+
+    });
+}
+
+pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &ExplodeTimer, &RigidBodyHandleWrapper, &ProjectileIdent)>, mut non_grenade_objects: Query<(&RigidBodyHandleWrapper, Option<&mut Health>, Option<&mut MapHealth>, Option<&PlayerID>), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut death_event: EventWriter<DeathEvent>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+    let mut explosion_positions = Vec::new();
+
+    grenades.for_each(|(entity, explode_timer, rigid_body_handle, shot_from)| {
+        if explode_timer.0.finished() {
+            let rigid_body = rigid_body_set.get(rigid_body_handle.0).unwrap();
+
+            explosion_positions.push((*rigid_body.translation(), shot_from.0));
+
+            commands.entity(entity).despawn_recursive();
+
+        }
+
+    });
+
+    non_grenade_objects.for_each_mut(|(rigid_body_handle, mut health, mut map_health, player_id)| {
+        let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
+        let rigid_body_pos = *rigid_body.translation();
+
+        let mut health = if health.is_some() {
+                Some(&mut health.as_mut().unwrap().0)
+
+            } else if map_health.is_some() {
+                Some(map_health.as_mut().unwrap().0.as_mut().unwrap()) 
+
+            } else {
+                None
+
+            };
+
+        explosion_positions.iter().for_each(|(explosion_pos, shot_from)| {
+            const MAX_FORCE: f32 = 3000.0;
+            // Divided by 250 to adjust for physics coord stuff
+            const EXPLOSION_RADIUS: f32 = 750.0 / 250.0;
+            const MAX_DAMAGE: f32 = 120.0;
+
+
+            let explosion_angle = get_angle(rigid_body_pos.x, rigid_body_pos.y, explosion_pos.x, explosion_pos.y);
+
+            let distance = rigid_body_pos.metric_distance(explosion_pos);
+
+            let percent_of_explosion_radius = {
+                let distance_clamped = 
+                    match distance > EXPLOSION_RADIUS {
+                        true => EXPLOSION_RADIUS.copysign(distance),
+                        false => distance,
+                    };
+
+                Vector2::new(1.0, 1.0) - (Vector2::new(distance_clamped, distance_clamped).component_div(&Vector2::new(EXPLOSION_RADIUS, EXPLOSION_RADIUS)))
+
+            };
+
+            let force = {
+                let adj_force = Vector2::new(MAX_FORCE, MAX_FORCE).component_mul(&percent_of_explosion_radius);
+                adj_force.component_mul(&Vector2::new(explosion_angle.cos(), explosion_angle.sin()))
+
+            };
+
+            rigid_body.apply_force(force, true);
+
+            let damage = percent_of_explosion_radius.amax().powi(2) * MAX_DAMAGE;
+
+            // Health stuff
+            if let Some(health) = health.as_mut() {
+                let new_health = **health - damage;
+
+                if **health > 0.0 {
+                    **health = match new_health <= 0.0 {
+                        true => {
+                            if let Some(player_id) = player_id {
+                                death_event.send(DeathEvent(player_id.0));
+                                *deathmatch_score.0.get_mut(&shot_from).unwrap() += 1
+
+
+                            }
+
+                            0.0
+                        },
+                        false => new_health,
+
+                    };
+
+                }
+
+
+            }
+
+        });
+
+    });
+
+}
+
+pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite)>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>) {
+    projectiles.for_each_mut(|(proj_type, rigid_body_handle, collider_handle, mut sprite)| {
+        // Increase the size of speedballs and flames
+        // Only speedballs have a negative linear damping, meaning they increase in speed over time
+        if *proj_type == ProjectileType::Speedball {
+            let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
+            let collider = collider_set.get_mut(collider_handle.0).unwrap();
+
+            let mut linvel = rigid_body.linvel().abs().amax() * 25.0;
+            // The maximum speed of Speedball projectiles is 65, so that they aren't horribly difficult to doge
+            linvel = match linvel > 65.0 {
+                true => 65.0,
+                false => linvel,
+            };
+
+            sprite.size = Vec2::splat(linvel);
+
+            collider.set_shape(SharedShape::cuboid(linvel / 500.0, linvel / 500.0));
+
+            let (_damage, proj_info) = u128_to_f32_u8(collider.user_data);                
+            // Speedballs do more damage as their velocity increases
+            let new_damage = linvel * 1.5;
+            collider.user_data = f32_u8_to_u128(new_damage, proj_info);
+
+        } else if *proj_type == ProjectileType::Flame {
+            if sprite.size.x <= 60.0 {
+                sprite.size *= 1.4;
+
+            }
+
+        }
+
+
+    });
+
+}
+
+
+pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut ProjectileType, &MaxDistance, &mut DistanceTraveled, &mut Sprite, &mut Handle<ColorMaterial>, &Speed, &RigidBodyHandleWrapper, &ColliderHandleWrapper), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut island_manager: ResMut<IslandManager>, mut joint_set: ResMut<JointSet>, proj_materials: Res<ProjectileMaterials>) {
+    query.for_each_mut(|(entity, mut projectile_type, max_distance, mut distance_traveled, mut sprite, mut material, speed, rigid_body_handle, collider_handle)| {
+        if let Some(rigid_body) = rigid_body_set.get_mut(rigid_body_handle.0) {
+            let speed = speed.0;
+
+            distance_traveled.0 += speed;
+
+            if distance_traveled.0 >= max_distance.0 {
+                if !rigid_body.is_static() && *projectile_type != ProjectileType::Molotov && *projectile_type != ProjectileType::StickyGrenade {
+
+                    rigid_body_set.remove(rigid_body_handle.0, &mut island_manager, &mut collider_set, &mut joint_set);
+                    commands.entity(entity).despawn_recursive();
+
+                } else if *projectile_type == ProjectileType::Molotov || *projectile_type == ProjectileType::StickyGrenade {
+                    rigid_body.set_linvel(Vector2::new(0.0, 0.0), false);
+
+                    if *projectile_type == ProjectileType::Molotov {
+                        let collider = collider_set.get_mut(collider_handle.0).unwrap();
+
+                        *material = proj_materials.molotov_liquid.clone();
+                        *projectile_type = ProjectileType::MolotovLiquid;
+                        sprite.size = Vec2::splat(200.0);
+                        collider.set_shape(SharedShape::ball(200.0 / 500.0));
+                        
+                        rigid_body.set_body_type(RigidBodyType::Static);
+                        collider.set_collision_groups(InteractionGroups::new(0b0010, 0b0100));
+
+                        commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
+
+                        let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
+
+                        rigid_body.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
+                        collider.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
+
+
+                    } else {
+                        commands.entity(entity).insert(ExplodeTimer(Timer::from_seconds(3.0, false)));
+                        rigid_body.apply_force(vector![0.0, 1.0], true);
+
+                    }
+
+                }
+            }
+
+
+        }
 
     });
 }

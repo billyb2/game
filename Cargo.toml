@@ -9,7 +9,6 @@ edition = "2021"
 debug = 0
 opt-level = 0
 overflow-checks = false
-split-debuginfo = "unpacked"
 
 [profile.dev-windows]
 inherits = "dev"

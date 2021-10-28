@@ -237,8 +237,8 @@ pub const TEXT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings
 };
 
 // Type aliases for net messages
-// (Player ID, [X, y], [Rotation; 4], health, damage_source, gun_model
-type ClientStateMessage = (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>, u8); 
+// (Player ID, [X, y], [Rotation; 4], health, damage_source, (gun_model, ability)
+type ClientStateMessage = (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>, (u8, u8)); 
 
 // Various ways of sending some game settings between client and server
 type InfoMessage = [u8; 3];
@@ -371,8 +371,9 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &
                     };
 
                     let gun_model: u8 = (*gun_model).into();
+                    let ability: u8 = (*ability).into();
 
-                    let message: ClientStateMessage = (id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, alpha, damage_source.0, gun_model);
+                    let message: ClientStateMessage = (id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, alpha, damage_source.0, (gun_model, ability));
 
                     net.broadcast_message(message);
 
@@ -384,7 +385,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visible, &mut Alpha, &mut Model)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visible, &mut Alpha, &mut Model, &mut Ability)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ClientStateMessage> = Vec::new();
     
@@ -392,20 +393,21 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
     if let Some(my_id) = &my_player_id.0 {
         for (handle, connection) in net.connections.iter_mut() {
             if let Some(channels) = connection.channels() {
-                while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, gun_model)) = channels.recv::<ClientStateMessage>() {
+                while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability))) = channels.recv::<ClientStateMessage>() {
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
                     if _hosting.0 {
-                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, gun_model))
+                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability)))
 
                     }
 
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
 
-                    let (mut transform, rigid_body_handle, mut health, mut visible, mut player_alpha, mut model) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut transform, rigid_body_handle, mut health, mut visible, mut player_alpha, mut model, mut ability) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
                     let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
 
                     *model = gun_model.into();
+                    *ability = new_ability.into();
 
                     transform.rotation = Quat::from_xyzw(rot_x, rot_y, rot_z, rot_w);
 
