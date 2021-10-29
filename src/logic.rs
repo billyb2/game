@@ -16,7 +16,7 @@ use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 use map::MapHealth;
 
 //TODO: Damage numbers
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, &mut Handle<ColorMaterial>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, &mut Handle<ColorMaterial>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, mut material)| {
         let mut should_remove_rigid_body = false;
 
@@ -70,6 +70,43 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             if should_do_damage {
                                 let new_health = *health - damage;
                                 let died = new_health <= 0.0;
+
+                                if damage >= 0.0 {
+                                    let text_pos = {
+                                        let mut pos = *other_collider.translation();
+                                        pos = pos.component_mul(&Vector2::new(250.0, 250.0));
+
+                                        Vec3::new(pos.x, pos.y, 1000.0)
+                                    };
+
+                                    // Spawn damage text
+                                    commands.spawn_bundle(Text2dBundle {
+                                        text: Text {
+                                            sections: vec![
+                                                TextSection {
+                                                    value: format!("{:.0}", damage),
+                                                    style: TextStyle {
+                                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                                        font_size: 11.0,
+                                                        color: match died {
+                                                            false => Color::WHITE,
+                                                            true => Color::RED,
+                
+                                                        },
+                                                    },
+                                                },
+                                            ],
+                                            ..Default::default()
+                                        },
+                                        transform: Transform::from_translation(text_pos),
+                                        ..Default::default()
+                
+                                    })
+                                    .insert(DamageTextTimer(Timer::from_seconds(2.0, false)));
+
+
+                                }
+
                                 
                                 let projectile_type: ProjectileType = projectile_type.into();          
 
@@ -400,7 +437,7 @@ pub fn despawn_destroyed_walls(mut commands: Commands, mut walls: Query<(Entity,
     });
 }
 
-pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &ExplodeTimer, &RigidBodyHandleWrapper, &ProjectileIdent)>, mut non_grenade_objects: Query<(&RigidBodyHandleWrapper, Option<&mut Health>, Option<&mut MapHealth>, Option<&PlayerID>), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut death_event: EventWriter<DeathEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, mut islands: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>) {
+pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &ExplodeTimer, &RigidBodyHandleWrapper, &ProjectileIdent)>, mut non_grenade_objects: Query<(&RigidBodyHandleWrapper, Option<&mut Health>, Option<&mut MapHealth>, Option<&PlayerID>), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut death_event: EventWriter<DeathEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, mut islands: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>, asset_server: Res<AssetServer>) {
     let mut explosion_positions = Vec::new();
 
     grenades.for_each(|(entity, explode_timer, rigid_body_handle, shot_from)| {
@@ -466,9 +503,10 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
                 // Health stuff
                 if let Some(health) = health.as_mut() {
                     let new_health = **health - damage;
+                    let died = new_health <= 0.0;
 
                     if **health > 0.0 {
-                        **health = match new_health <= 0.0 {
+                        **health = match died {
                             true => {
                                 if let Some(player_id) = player_id {
                                     death_event.send(DeathEvent(player_id.0));
@@ -482,6 +520,42 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
                             false => new_health,
 
                         };
+
+                        if damage > 0.0 {
+                            let text_pos = {
+                                let mut pos = *rigid_body.translation();
+                                pos = pos.component_mul(&Vector2::new(250.0, 250.0));
+
+                                Vec3::new(pos.x, pos.y, 1000.0)
+                            };
+
+                            // Spawn damage text
+                            commands.spawn_bundle(Text2dBundle {
+                                text: Text {
+                                    sections: vec![
+                                        TextSection {
+                                            value: format!("{:.0}", damage),
+                                            style: TextStyle {
+                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                                font_size: 11.0,
+                                                color: match died {
+                                                    false => Color::WHITE,
+                                                    true => Color::RED,
+
+                                                },
+                                            },
+                                        },
+                                    ],
+                                    ..Default::default()
+                                },
+                                transform: Transform::from_translation(text_pos),
+                                ..Default::default()
+
+                            })
+                            .insert(DamageTextTimer(Timer::from_seconds(2.0, false)));
+
+     
+                        }
 
                     }
 
