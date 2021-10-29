@@ -607,7 +607,9 @@ pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBo
 
             sprite.size = Vec2::splat(linvel);
 
-            collider.set_shape(SharedShape::cuboid(linvel / 500.0, linvel / 500.0));
+            let adj_linvel = linvel / 500.0;
+
+            collider.set_shape(SharedShape::cuboid(adj_linvel, adj_linvel));
 
             let (_damage, proj_info) = u128_to_f32_u8(collider.user_data);                
             // Speedballs do more damage as their velocity increases
