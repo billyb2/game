@@ -858,7 +858,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         }
                     },
                     Ability::Brute => {
-                        const PROJECTILE_SPEED: f32 = 1.0;
+                        const PROJECTILE_SPEED: f32 = 75.0;
 
                         let event = ShootEvent {
                             start_pos: transform.translation,
@@ -866,13 +866,13 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                             pos_direction: mouse_pos.0,
                             health: health.0,
                             model: *model,
-                            max_distance: 1.0,
+                            max_distance: 1000.0,
                             recoil_vec: vec![0.0],
                             speed: PROJECTILE_SPEED,
                             projectile_type: ProjectileType::TractorBeam,
                             damage: Damage(0.0),
                             player_ability: Ability::Brute,
-                            size: Vec2::new(400.0, 45.0),
+                            size: Vec2::splat(50.0),
                             reloading: reload_timer.reloading,
 
                         };

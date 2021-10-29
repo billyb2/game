@@ -10,7 +10,6 @@ use single_byte_hashmap::HashMap;
 
 use game_lib::{GameLog, Logs};
 use game_types::*;
-use game_types::player_attr::DEFAULT_PLAYER_SPEED;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 
 use map::MapHealth;
@@ -54,6 +53,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                     if let Some((health, hit_wall)) = health  {
                         if other_collider.user_data != 0  && other_collider.user_data != u128::MAX{
                             let (damage, (shot_from, projectile_type)) = u128_to_f32_u8(other_collider.user_data);
+                            let projectile_type: ProjectileType = projectile_type.into(); 
 
                             let should_do_damage = match hit_wall {
                                 // Walls should always take damage
@@ -105,10 +105,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                     .insert(DamageTextTimer(Timer::from_seconds(2.0, false)));
 
 
-                                }
-
-                                
-                                let projectile_type: ProjectileType = projectile_type.into();          
+                                }         
 
 
                                 let player_is_local = if !hit_wall {
@@ -136,6 +133,20 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                     if !hit_wall {
                                         damage_source.as_mut().unwrap().0 = Some(shot_from);
 
+                                        if projectile_type == ProjectileType::TractorBeam {
+                                            const FORCE: Vector2<f32> = Vector2::new(250.0, 250.0);
+
+                                            let other_translation = other_collider.translation();
+                                            let rigid_body_pos = rigid_body.translation();
+
+                                            let angle_to_move = get_angle(other_translation.x, other_translation.y, rigid_body_pos.x, rigid_body_pos.y);
+
+                                            let force = FORCE.component_mul(&Vector2::new(angle_to_move.cos(), angle_to_move.sin()));
+
+                                            rigid_body.apply_force(force, true);
+
+                                        }
+
                                     }
 
                                     *health = match died {
@@ -158,7 +169,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.5, false)));
 
 
-                                                } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED {
+                                                } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED * 0.5{
                                                     speed.0 = unsafe { fmul_fast(speed.0, 0.65) };
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
 
