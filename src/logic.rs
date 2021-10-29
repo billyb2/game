@@ -47,7 +47,10 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         Some((&mut health.as_mut().unwrap().0, false))
 
                     } else if map_health.is_some() {
-                        map_health.as_mut().unwrap().0.as_mut().map(|health| (health, true))
+                        match map_health.as_mut().unwrap().0.as_mut() {
+                            Some(health) => Some((health, true)),
+                            None => None,
+                        }
 
                     } else {
                         None
@@ -439,7 +442,7 @@ pub fn damage_text_system(mut commands: Commands, mut texts: Query<(Entity, &mut
     });
 }
 
-pub fn despawn_destroyed_walls(mut commands: Commands, mut walls: Query<(Entity, &MapHealth, &RigidBodyHandleWrapper)>, mut rigid_body_set: ResMut<RigidBodySet>, mut island_manager: ResMut<IslandManager>, mut joint_set: ResMut<JointSet>, mut collider_set: ResMut<ColliderSet>,) {
+pub fn despawn_destroyed_walls(mut commands: Commands, mut walls: Query<(Entity, &MapHealth, &RigidBodyHandleWrapper), Changed<MapHealth>>, mut rigid_body_set: ResMut<RigidBodySet>, mut island_manager: ResMut<IslandManager>, mut joint_set: ResMut<JointSet>, mut collider_set: ResMut<ColliderSet>,) {
     walls.for_each_mut(|(entity, health, rigid_body_handle)| {
         if let Some(health) = health.0.as_ref() {
             if *health <= 0.0 {
