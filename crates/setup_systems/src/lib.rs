@@ -191,7 +191,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             let collider_size = size / const_vec2!([500.0; 2]);
 
             let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
-                .collision_groups(InteractionGroups::new(0b1000, 0b1111))
+                .collision_groups(InteractionGroups::none())
                 .restitution(0.000001)
                 .friction(0.4)
                 // A user_data set to u128::MAX is an indicator that this is a player

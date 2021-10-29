@@ -34,6 +34,11 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                 };
 
                 if let Some(other_collider) = collider_set.get(other_collider_handle) {
+                    if other_collider.collision_groups() == InteractionGroups::none() {
+                        return;
+                        
+                    }
+
                     let hit_player = other_collider.user_data == u128::MAX;
                     let hit_map_object = other_collider.user_data == 0;
 

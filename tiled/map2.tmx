@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" compressionlevel="9" width="80" height="81" tilewidth="5" tileheight="5" infinite="0" backgroundcolor="#000000" nextlayerid="8" nextobjectid="306">
+<map version="1.5" tiledversion="1.7.2" orientation="orthogonal" renderorder="right-down" compressionlevel="9" width="80" height="81" tilewidth="5" tileheight="5" infinite="0" backgroundcolor="#000000" nextlayerid="8" nextobjectid="315">
  <editorsettings>
   <export target="map2.custom" format="custom"/>
  </editorsettings>
@@ -709,8 +709,63 @@
    </properties>
   </object>
  </objectgroup>
- <objectgroup id="4" name="Spawn points" visible="0">
-  <object id="196" x="252.167" y="279.167" width="3" height="3">
+ <objectgroup id="4" name="Spawn points">
+  <object id="196" x="73.8172" y="289.006" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="312" x="220.674" y="272.603" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="310" x="120.735" y="172.283" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="314" x="47.0105" y="60.2217" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="313" x="257.251" y="89.153" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="311" x="220.674" y="272.603" width="3" height="3">
    <properties>
     <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="0"/>
@@ -733,6 +788,50 @@
    </properties>
   </object>
   <object id="198" x="230" y="200" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="306" x="296.625" y="197.572" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="307" x="191.782" y="396.323" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="308" x="374.743" y="403.829" width="3" height="3">
+   <properties>
+    <property name="Z" type="int" value="1"/>
+    <property name="alpha" type="int" value="0"/>
+    <property name="blue" type="int" value="0"/>
+    <property name="green" type="int" value="0"/>
+    <property name="player_collidable" type="bool" value="false"/>
+    <property name="player_spawn" type="bool" value="true"/>
+    <property name="red" type="int" value="0"/>
+   </properties>
+  </object>
+  <object id="309" x="384.126" y="124.227" width="3" height="3">
    <properties>
     <property name="Z" type="int" value="1"/>
     <property name="alpha" type="int" value="0"/>

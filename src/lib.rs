@@ -208,8 +208,8 @@ pub enum GameMode {
 const SCORE_LIMIT: u8 = 15;
 
 
-pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>) {
-    for ev in death_events.iter() {
+pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer, &ColliderHandleWrapper)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>) {
+    death_events.iter().for_each(|ev| {
         let num = fastrand::u8(0..=3);
 
         let message = match num {
@@ -221,23 +221,34 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
 
         };
 
-        let (mut visible, mut respawn_timer) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
+        let (mut visible, mut respawn_timer, collider_handle) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
         visible.is_visible = false;
+
+        let collider = collider_set.get_mut(collider_handle.0).unwrap();
+        collider.set_collision_groups(InteractionGroups::none());
+
 
         log_event.send(LogEvent(message));
         respawn_timer.0.reset();
 
-    }
+    });
 }
 
 // This system just deals respawning players
-pub fn dead_players(mut players: Query<(&mut Health, &RigidBodyHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>) {
-    players.for_each_mut(|(mut health, rigid_body_handle, mut visibility, mut respawn_timer, perk, player_id)| {
+pub fn dead_players(mut players: Query<(&mut Health, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>) {
+    players.for_each_mut(|(mut health, rigid_body_handle, collider_handle, mut visibility, mut respawn_timer, perk, player_id)| {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains_key(&player_id.0) {
             let spawn_points = &maps.0.get(&map_crc32.0).unwrap().spawn_points;
 
+            let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
+            let collider = collider_set.get_mut(collider_handle.0).unwrap();
+
+
             let new_pos = spawn_points.get(fastrand::usize(..spawn_points.len())).unwrap();
-            rigid_body_set.get_mut(rigid_body_handle.0).unwrap().set_translation(Vector2::new(new_pos.x, new_pos.y).component_div(&Vector2::new(250.0, 250.0)), true);
+
+            rigid_body.set_translation(Vector2::new(new_pos.x, new_pos.y).component_div(&Vector2::new(250.0, 250.0)), true);
+
+            collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1111));
 
             health.0 = match perk {
                 Perk::HeavyArmor => 125.0,
