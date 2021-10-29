@@ -337,7 +337,15 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
 
                         },
                         _ => {
-                            text.push_str(&format!("{:?}", ev.key_code.unwrap()));
+                            let key_text = format!("{:?}", ev.key_code.unwrap());
+
+                            if key_text.len() == 1 {
+                                text.push_str(&key_text);
+
+                            } else if key_text.starts_with("Key") {
+                                text.push(key_text.chars().nth(3).unwrap());
+
+                            }
 
                         },
                     };
@@ -722,15 +730,35 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                     },
                     Ability::Warp => {
+                        //TODO: Get some out of bounds checks for warping
+
                         let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
 
-                        rigid_body.set_linvel(rigid_body.linvel() * 25.0, true);
+                        const MAX_WARP_DISTANCE: f32 = 3.3;
+
+                        let mut warp_distance = rigid_body.linvel().component_div(&Vector2::new(4.0, 4.0));
+
+                        warp_distance.x = match warp_distance.x.abs() > MAX_WARP_DISTANCE {
+                            true => MAX_WARP_DISTANCE.copysign(warp_distance.x),
+                            false => warp_distance.x,
+
+                        };
+
+                        warp_distance.y = match warp_distance.y.abs() > MAX_WARP_DISTANCE {
+                            true => MAX_WARP_DISTANCE.copysign(warp_distance.y),
+                            false => warp_distance.y,
+
+                        };
+
+                        let new_pos = rigid_body.translation() + warp_distance;
+
+                        rigid_body.set_translation(new_pos, true);
                         ability_charge.0.reset();
 
                     },
                     Ability::Stim => {
                         if !using_ability.0 && ability_charge.0.finished() {
-                            speed.0 *= 1.5;
+                            speed.0 *= 2.0;
                             ability_completed.0.reset();
                             using_ability.0 = true;
 

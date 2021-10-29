@@ -400,7 +400,7 @@ pub fn despawn_destroyed_walls(mut commands: Commands, mut walls: Query<(Entity,
     });
 }
 
-pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &ExplodeTimer, &RigidBodyHandleWrapper, &ProjectileIdent)>, mut non_grenade_objects: Query<(&RigidBodyHandleWrapper, Option<&mut Health>, Option<&mut MapHealth>, Option<&PlayerID>), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut death_event: EventWriter<DeathEvent>, mut deathmatch_score: ResMut<DeathmatchScore>) {
+pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &ExplodeTimer, &RigidBodyHandleWrapper, &ProjectileIdent)>, mut non_grenade_objects: Query<(&RigidBodyHandleWrapper, Option<&mut Health>, Option<&mut MapHealth>, Option<&PlayerID>), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut death_event: EventWriter<DeathEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, mut islands: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>) {
     let mut explosion_positions = Vec::new();
 
     grenades.for_each(|(entity, explode_timer, rigid_body_handle, shot_from)| {
@@ -410,6 +410,7 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
             explosion_positions.push((*rigid_body.translation(), shot_from.0));
 
             commands.entity(entity).despawn_recursive();
+            rigid_body_set.remove(rigid_body_handle.0, &mut islands, &mut collider_set, &mut joint_set);
 
         }
 
@@ -431,9 +432,9 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
                 };
 
             explosion_positions.iter().for_each(|(explosion_pos, shot_from)| {
-                const MAX_FORCE: f32 = 3000.0;
+                const MAX_FORCE: f32 = 3200.0;
                 // Divided by 250 to adjust for physics coord stuff
-                const EXPLOSION_RADIUS: f32 = 750.0 / 250.0;
+                const EXPLOSION_RADIUS: f32 = 600.0 / 250.0;
                 const MAX_DAMAGE: f32 = 120.0;
 
 
@@ -460,7 +461,7 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
 
                 rigid_body.apply_force(force, true);
 
-                let damage = percent_of_explosion_radius.amax().powi(2) * MAX_DAMAGE;
+                let damage = percent_of_explosion_radius.amax().powi(3) * MAX_DAMAGE;
 
                 // Health stuff
                 if let Some(health) = health.as_mut() {
@@ -471,7 +472,7 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
                             true => {
                                 if let Some(player_id) = player_id {
                                     death_event.send(DeathEvent(player_id.0));
-                                    *deathmatch_score.0.get_mut(&shot_from).unwrap() += 1
+                                    *deathmatch_score.0.get_mut(&shot_from).unwrap() += 1;
 
 
                                 }
@@ -488,7 +489,7 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
                 }
 
             });
-            
+
 
         }
 

@@ -594,7 +594,7 @@ impl Gun {
                 Model::Melee => Damage(45.0),
                 Model::Widowmaker => Damage(35.0),
                 Model::Bow => Damage(45.0),
-                Model::StickyGrenade => Damage(7.0),
+                Model::StickyGrenade => Damage(0.0),
 
             },
             // The bursting component only matters for burst rifles

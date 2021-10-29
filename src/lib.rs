@@ -257,10 +257,10 @@ pub fn dead_players(mut players: Query<(&mut Health, &RigidBodyHandleWrapper, &m
 }
 
 #[cfg(feature = "graphics")]
-pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut commands: Commands, mut app_state: ResMut<State<AppState>>) {
+pub fn score_system(mut commands: Commands, deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut app_state: ResMut<State<AppState>>) {
     let deathmatch_score = &deathmatch_score.0;
 
-    let mut display_win_text = 
+    let display_win_text = 
     #[inline]
     |player_id| {
         let champion_string = format!("Player {} wins!", player_id);
@@ -276,6 +276,11 @@ pub fn score_system(deathmatch_score: Res<DeathmatchScore>, mut champion_text: Q
                 .insert(GameRelated);
 
         } else if player_continue_timer.single().0.finished() {
+            commands.insert_resource(RigidBodySet::new());
+            commands.insert_resource(ColliderSet::new());
+
+            setup_systems::setup_physics(commands);
+
             app_state.set(AppState::GameMenu).unwrap();
 
         }

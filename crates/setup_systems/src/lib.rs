@@ -184,8 +184,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                 .gravity_scale(0.0)
                 .linear_damping(80.0)
                 .user_data(u128::MAX)
-                //CCD is purposely disabled so stuff like warping works
-                .ccd_enabled(false)
+                .ccd_enabled(true)
                 .additional_mass(0.36)
                 .build();
 
@@ -233,7 +232,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     #[cfg(all(feature = "native", feature = "graphics"))]
     {
-        let p_id = available_player_ids.swap_remove(0);
+        let p_id = available_player_ids.remove(0);
         commands.insert_resource(MyPlayerID(Some(p_id)));
 
         online_player_ids.insert(p_id.0, None);
