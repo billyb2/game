@@ -585,6 +585,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .collision_groups(match ev.projectile_type {
                                 // Pulsewaves move through walls, and therefore have different interaction groups
                                 ProjectileType::PulseWave => InteractionGroups::new(0b0001, 0b1000),
+                                ProjectileType::Molotov => InteractionGroups::new(0b0010, 0b0100),
                                 _ => InteractionGroups::new(0b0010, 0b1100),
 
                             })
