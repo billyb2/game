@@ -46,6 +46,7 @@ fn main() {
     })
     .insert_resource(MyPlayerID(None))
     .insert_resource(GameMode::Deathmatch)
+    .insert_resource(ChatLogs::new())
     .add_plugins(MinimalPlugins)
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())))
     .add_plugin(NetworkingPlugin::default())
@@ -71,13 +72,13 @@ fn main() {
             const_vec2!([143.6135, 63.099]),
             const_vec2!([82.808, 61.0755]),
             const_vec2!([143.6135, 63.099]),
-            const_vec2!([143.2423, 62.264])
+            const_vec2!([143.2423, 62.264]),
+            const_vec2!([143.2423, 62.264]),
         ],
         enemy: const_vec2!([82.808, 61.0755]),
 
     })
-    .insert_resource(RigidBodySet::new())
-    .insert_resource(ColliderSet::new())
+    .add_startup_system(setup_physics)
     .add_startup_system(setup_networking)
     .add_startup_system(setup_listening)
     .add_startup_system(setup_players)

@@ -36,10 +36,12 @@ fn main() {
 	use brotli::enc::BrotliEncoderParams;
 
 	let (wasm_path, compressed_wasm_path, js_path, wasm_decompress_js_path) = {
-		let mut wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
+		let working_dir =  std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap_or("./")
+
+		let mut wasm_path = working_dir;
 		wasm_path.push_str("/target/wasm-simd_bg.wasm");
 
-		let mut compressed_wasm_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();
+		let mut compressed_wasm_path = working_dir;
 		compressed_wasm_path.push_str("/target/wasm-simd_bg.wasm.br");
 
 		let mut js_path = std::env::var("CARGO_MAKE_WORKING_DIRECTORY").unwrap();

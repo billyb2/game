@@ -35,7 +35,7 @@ use rapier2d::prelude::*;
 
 //use bevy_kira_audio::AudioPlugin;
 
-#[cfg(all(feature = "parallel", feature = "graphics"))]
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 #[cfg(feature = "web")]
@@ -470,6 +470,7 @@ pub fn reset_game(commands: Commands, mut deathmatch_score: ResMut<DeathmatchSco
 
     typing.0 = false;
 
+    #[cfg(feature = "graphics")]
     setup_systems::setup_physics(commands);
 
     #[cfg(feature = "graphics")]

@@ -170,5 +170,3 @@ pub struct Alpha {
 }
 
 pub struct PlayerToSpectate(pub u8);
-
-pub struct Typing(pub bool);

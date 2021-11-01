@@ -160,9 +160,12 @@ pub enum AppState {
 }
 
 #[cfg(not(feature = "graphics"))]
+#[derive(Component)]
 pub struct Alpha {
     pub value: f32,
 }
+
+pub struct Typing(pub bool);
 
 #[derive(Component)]
 pub struct RigidBodyHandleWrapper(pub RigidBodyHandle);

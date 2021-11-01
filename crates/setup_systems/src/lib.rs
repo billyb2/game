@@ -256,3 +256,14 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 #[cfg(not(feature = "graphics"))]
 pub struct AssetsLoading;
 
+pub fn setup_physics(mut commands: Commands) {
+    commands.insert_resource(RigidBodySet::new());
+    commands.insert_resource(ColliderSet::new());
+    commands.insert_resource(PhysicsPipeline::new());
+    commands.insert_resource(IslandManager::new());
+    commands.insert_resource(BroadPhase::new());
+    commands.insert_resource(NarrowPhase::new());
+    commands.insert_resource(JointSet::new());
+    commands.insert_resource(CCDSolver::new());
+
+}
