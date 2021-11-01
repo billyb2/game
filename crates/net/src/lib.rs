@@ -238,7 +238,7 @@ pub const TEXT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings
 
 // Type aliases for net messages
 // (Player ID, [X, y], [Rotation; 4], health, damage_source, (gun_model, ability)
-type ClientStateMessage = (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>, (u8, u8)); 
+pub type ClientStateMessage = (u8, [f32; 2], [f32; 4], f32, f32, Option<u8>, (u8, u8)); 
 
 // Various ways of sending some game settings between client and server
 type InfoMessage = [u8; 3];
@@ -397,7 +397,7 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
                     if _hosting.0 {
-                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability)))
+                        messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability)));
 
                     }
 

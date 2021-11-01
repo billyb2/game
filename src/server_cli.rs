@@ -98,14 +98,15 @@ fn main() {
 }
 
 fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Health)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
-    let mut messages_to_send: Vec<(u8, [f32; 2], [f32; 4], f32, f32, Option<u8>)> = Vec::with_capacity(255);
+    let mut messages_to_send: Vec<ClientStateMessage> = Vec::with_capacity(255);
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
-        while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source)) = channels.recv::<(u8, [f32; 2], [f32; 4], f32, f32, Option<u8>)>() {
-            // The host broadcasts the locations of all other players
-            messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source));
+        while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability))) = channels.recv::<ClientStateMessage>() {
+            
+            messages_to_send.push((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability)));
 
+            // The host broadcasts the locations of all other players
             make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
 
             // Set the location of any local players to the location given

@@ -228,6 +228,9 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
         }
 
+        #[cfg(not(feature = "graphics"))]
+        available_player_ids.push(PlayerID(i));
+
     });
 
     #[cfg(all(feature = "native", feature = "graphics"))]
