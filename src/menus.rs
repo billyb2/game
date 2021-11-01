@@ -674,11 +674,11 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                     });
 
-                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Ability: {:?}", *my_ability), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Ability: {}", *my_ability), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Gun: {:?}", *my_gun_model), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Gun: {}", *my_gun_model), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Perk: {:?}", *my_perk), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Perk: {}", *my_perk), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
                                     spawn_button::<{ Some(225.0) }, 85.0>(node_parent, button_materials.normal.clone(), String::from("Back"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
@@ -822,7 +822,7 @@ pub fn remove_selected(mut commands: Commands, query: Query<(Entity, &SelectedKe
 
 }
 
-fn set_player_attr<const NUM_OF_T: u8, const TYPE_NAME: &'static str, T>(my_player_attr: &mut T, text: &mut String) where T: From<u8> + std::fmt::Debug + Copy, u8: From<T> {
+fn set_player_attr<const NUM_OF_T: u8, const ATTR_NAME: &'static str, T>(my_player_attr: &mut T, text: &mut String) where T: From<u8> + std::fmt::Display + Copy, u8: From<T> {
     let current_t_int: u8 = (*my_player_attr).into();
 
     let new_player_attr: T = match current_t_int == NUM_OF_T - 1 {
@@ -832,5 +832,5 @@ fn set_player_attr<const NUM_OF_T: u8, const TYPE_NAME: &'static str, T>(my_play
     };
 
     *my_player_attr = new_player_attr;
-    *text = format!("{}: {:?}", TYPE_NAME, new_player_attr);
+    *text = format!("{}: {}", ATTR_NAME, new_player_attr);
 }

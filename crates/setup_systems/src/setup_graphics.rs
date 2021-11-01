@@ -573,7 +573,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
                     button_parent.spawn_bundle(TextBundle {
                         text: Text {
                             sections: vec![TextSection {
-                                value: format!("Ability: {:?}", *my_ability),
+                                value: format!("Ability: {}", *my_ability),
                                 style: TextStyle {
                                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                     font_size: 55.0,
@@ -603,7 +603,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
                     button_parent.spawn_bundle(TextBundle {
                         text: Text {
                             sections: vec![TextSection {
-                                value: format!("Gun: {:?}", *my_gun_model),
+                                value: format!("Gun: {}", *my_gun_model),
                                 style: TextStyle {
                                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                     font_size: 55.0,
@@ -633,7 +633,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
                     button_parent.spawn_bundle(TextBundle {
                         text: Text {
                             sections: vec![TextSection {
-                                value: format!("Perk: {:?}", *my_perk),
+                                value: format!("Perk: {}", *my_perk),
                                 style: TextStyle {
                                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                     font_size: 55.0,

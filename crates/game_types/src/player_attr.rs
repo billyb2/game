@@ -2,6 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use std::convert::From;
+use std::fmt;
 use std::mem::variant_count;
 
 use bevy::prelude::*;
@@ -167,6 +168,24 @@ pub enum Ability {
     Brute,
 }
 
+impl fmt::Display for Ability {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = match *self {
+            Ability::Stim => "Stim",
+            Ability::Warp => "Warp",
+            Ability::Wall => "Wall",
+            Ability::Engineer => "Engineer",
+            Ability::Inferno => "Inferno",
+            Ability::Cloak => "Cloak",
+            Ability::PulseWave => "PulseWave",
+            Ability::Ghost => "Ghost",
+            Ability::Brute => "Brute",
+        };
+
+        write!(f, "{}", text)
+    }
+}
+
 
 #[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Perk {
@@ -175,6 +194,19 @@ pub enum Perk {
     LightArmor,
     ExtendedVision,
 
+}
+
+impl fmt::Display for Perk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = match *self {
+            Perk::ExtendedMag => "Extended Mag",
+            Perk::HeavyArmor => "Heavy Armor",
+            Perk::LightArmor => "Light Armor",
+            Perk::ExtendedVision => "Extended Vision",
+        };
+
+        write!(f, "{}", text)
+    }
 }
 
 pub const NUM_OF_ABILITIES: u8 = variant_count::<Ability>() as u8;
@@ -367,6 +399,29 @@ pub enum Model {
     Bow,
     StickyGrenade,
 }
+
+impl fmt::Display for Model {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = match *self {
+            Model::Pistol => "Pistol",
+            Model::Shotgun => "Shotgun",
+            Model::Speedball => "Speedball",
+            Model::BurstRifle => "Burst Rifle",
+            Model::AssaultRifle => "Assault Rifle",
+            Model::SubmachineGun => "SMG",
+            Model::ClusterShotgun => "Cluster Shotgun",
+            Model::Flamethrower => "Flamethrower",
+            Model::SniperRifle => "Sniper",
+            Model::Melee => "Melee",
+            Model::Widowmaker => "Widowmaker",
+            Model::Bow => "Bow",
+            Model::StickyGrenade => "Sticky Grenadier",    
+        };
+
+        write!(f, "{}", text)
+    }
+}
+
 
 pub const NUM_OF_GUN_MODELS: u8 = variant_count::<Model>() as u8;
 

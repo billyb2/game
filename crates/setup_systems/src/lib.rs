@@ -250,7 +250,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     commands.insert_resource(player_entities);
     commands.insert_resource(LocalPlayers(local_players));
 
-    commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(256, BuildHasher::default())));
+    commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(10, BuildHasher::default())));
 }
 
 #[cfg(not(feature = "graphics"))]
