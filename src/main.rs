@@ -22,8 +22,6 @@ use rand::Rng;
 use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
 
-use rapier2d::prelude::{RigidBodySet, ColliderSet};
-
 #[cfg(feature = "native")]
 use helper_functions::aabb_check;
 
@@ -116,9 +114,6 @@ fn main() {
     app
     //Start in the main menu
     .add_state(AppState::MainMenu)
-    // Physics stuff
-    .insert_resource(RigidBodySet::new())
-    .insert_resource(ColliderSet::new())
     .insert_resource(MapCRC32(map2.crc32))
     // Embed the map into the binary
     .insert_resource({
@@ -141,7 +136,7 @@ fn main() {
     .insert_resource(model)
     .insert_resource(perk)
     .insert_resource(NumOfBots(0))
-    .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(256, BuildHasher::default())))
+    .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
     .add_plugins(DefaultPlugins)
     .add_plugin(NetworkingPlugin::default())
     //.add_plugin(AudioPlugin)
@@ -263,7 +258,7 @@ fn main() {
     );
     app.add_system_set(
         SystemSet::on_exit(AppState::InGame)
-            .with_system(exit_in_game)
+            .with_system(despawn_game_entities.label("destroy_entities"))
             .with_system(reset_game)
             .with_system(disconnect)
 

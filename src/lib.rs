@@ -23,8 +23,6 @@ pub mod player_input;
 #[cfg(feature = "graphics")]
 pub mod shaders;
 
-use std::convert::TryInto;
-
 use bevy_networking_turbulence::*;
 
 use rapier2d::na::Vector2;
@@ -314,7 +312,7 @@ pub fn score_system(mut commands: Commands, deathmatch_score: Res<DeathmatchScor
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, mut chat: ResMut<ChatLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut explode_timers: Query<&mut ExplodeTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>) {
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, mut chat: ResMut<ChatLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut explode_timers: Query<&mut ExplodeTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>, mut local_players: ResMut<LocalPlayers>) {
     let delta = time.delta();
 
     player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee, _player_id)| {
@@ -387,6 +385,18 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
                 deathmatch_score.0.remove(id);
                 // TODO: Switch to VecDequeue
                 available_player_ids.push(PlayerID(*id));
+
+                // TODO: Use CountingSort?
+
+                #[cfg(not(feature = "parallel"))]
+                available_player_ids.sort_unstable();
+
+                #[cfg(feature = "parallel")]
+                available_player_ids.par_sort_unstable();
+
+                if let Some((index, _l_id)) = local_players.0.iter().enumerate().find(|(_index, l_id)| **l_id == *id) {
+                    local_players.0.remove(index);
+                }
                 
             }
 
@@ -424,16 +434,15 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
 
 }
 
-pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>, player_query: Query<(Entity, &PlayerID)>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>) {
+pub fn despawn_game_entities(mut commands: Commands, query: Query<(Entity, &GameRelated), Without<PlayerID>>, player_query: Query<Entity, With<PlayerID>>, projectile_query: Query<(Entity, &ProjectileIdent)>, ui_query: Query<(Entity, &Node)>, sprites: Query<Entity, With<Sprite>>) {
     query.for_each(|q| {
         commands.entity(q.0).despawn_recursive();
 
     });
 
-    player_query.for_each(|q| {
-        commands.entity(q.0).despawn_recursive();
+    player_query.for_each(|q| commands.entity(q).despawn_recursive());
 
-    });
+    sprites.for_each(|q| commands.entity(q).despawn_recursive());
 
     projectile_query.for_each(|q| {
         commands.entity(q.0).despawn_recursive();
@@ -446,7 +455,7 @@ pub fn exit_in_game(mut commands: Commands, query: Query<(Entity, &GameRelated)>
     });
 }
 
-pub fn reset_game(mut deathmatch_score: ResMut<DeathmatchScore>, mut my_player_id: ResMut<MyPlayerID>, mut available_player_ids: ResMut<Vec<PlayerID>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut online_player_ids: ResMut<OnlinePlayerIDs>) {
+pub fn reset_game(commands: Commands, mut deathmatch_score: ResMut<DeathmatchScore>, mut my_player_id: ResMut<MyPlayerID>, mut available_player_ids: ResMut<Vec<PlayerID>>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut local_players: ResMut<LocalPlayers>, mut game_logs: ResMut<GameLogs>, mut chat_logs: ResMut<ChatLogs>, mut typing: ResMut<Typing>) {
     if cfg!(feature = "graphics") || deathmatch_score.0.iter().any(|(_id, score)| *score >= SCORE_LIMIT) {
         deathmatch_score.0.clear();
 
@@ -454,12 +463,14 @@ pub fn reset_game(mut deathmatch_score: ResMut<DeathmatchScore>, mut my_player_i
 
     available_player_ids.clear();
     online_player_ids.0.clear();
+    local_players.0.clear();
 
-    let map = maps.0.get(&map_crc32.0).unwrap();
+    game_logs.0.clear();
+    chat_logs.0.clear();
 
-    let num_of_spawn_points: u8 = map.spawn_points.len().try_into().unwrap();
-    available_player_ids.extend((0..num_of_spawn_points).into_iter().map(PlayerID));
+    typing.0 = false;
 
+    setup_systems::setup_physics(commands);
 
     #[cfg(feature = "graphics")]
     {my_player_id.0 = None;}

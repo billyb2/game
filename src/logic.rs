@@ -177,7 +177,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.5, false)));
 
 
-                                                } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED * 0.5{
+                                                } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED * 0.65{
                                                     speed.0 = unsafe { fmul_fast(speed.0, 0.65) };
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
 

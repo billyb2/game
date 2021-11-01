@@ -25,7 +25,7 @@ pub use player_attr::*;
 #[derive(Component)]
 pub struct DistanceTraveled(pub f32);
 
-#[derive(Component, Clone, Debug, PartialEq)]
+#[derive(Component, Clone, PartialEq)]
 pub struct Speed(pub f32);
 
 #[derive(Component, Copy, Clone)]
@@ -34,7 +34,7 @@ pub struct Health(pub f32);
 #[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Damage(pub f32);
 
-#[derive(Component, Copy, Clone, PartialEq)]
+#[derive(Component, Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlayerID(pub u8);
 
 // Projectile stuff

@@ -1577,6 +1577,8 @@ pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
 
 
 pub fn setup_physics(mut commands: Commands) {
+    commands.insert_resource(RigidBodySet::new());
+    commands.insert_resource(ColliderSet::new());
     commands.insert_resource(PhysicsPipeline::new());
     commands.insert_resource(IslandManager::new());
     commands.insert_resource(BroadPhase::new());
