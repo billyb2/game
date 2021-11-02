@@ -99,7 +99,7 @@ fn main() {
 
 fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &mut Health)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     let mut messages_to_send: Vec<ClientStateMessage> = Vec::with_capacity(255);
-    for (handle, connection) in net.connections.iter_mut() {
+    net.connections.iter_mut().for_each_mut(|(handle, connection)| {
         let channels = connection.channels().unwrap();
 
         while let Some((player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability))) = channels.recv::<ClientStateMessage>() {
@@ -117,9 +117,12 @@ fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mu
             transform.translation.x = x;
             transform.translation.y = y;
 
-            // The player has died                    
-            if new_health == 0.0 && health.0 != 0.0 && damage_source.is_some() {
-                unsafe { *deathmatch_score.0.get_mut(&damage_source.unwrap_unchecked()).unwrap_unchecked() += 1 };
+            // The player has died
+            if let Some(damage_source) = damage_source.as_mut() {
+                if new_health == 0.0 && health.0 != 0.0 {
+                    *deathmatch_score.0.get_mut(&damage_source).unwrap() += 1;
+
+                }
 
             }
 
@@ -127,7 +130,7 @@ fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mu
 
         }
 
-    }
+    });
 
     messages_to_send.into_iter().for_each(|m| {net.broadcast_message(m)});
 }
