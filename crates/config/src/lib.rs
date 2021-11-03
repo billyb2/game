@@ -39,7 +39,7 @@ pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
 
     #[cfg(feature = "native")]
     let value = {
-        use std::fs::{File, read_to_string};
+        use std::fs::{File, create_dir_all, read_to_string};
         use std::io::ErrorKind;
 
         let key_path = get_path_from_key(key);
@@ -139,8 +139,12 @@ pub fn check_key(key: String) -> bool {
 
 #[cfg(feature = "native")]
 fn get_path_from_key(key: String) -> std::path::PathBuf {
+    use std::fs::create_dir_all;
+
     let proj_dirs = ProjectDirs::from("com", "William Batista",  "game").unwrap();
     let config_dir = proj_dirs.config_dir();
+
+    create_dir_all(config_dir.clone());
 
     let key_path = config_dir.join(key);
 

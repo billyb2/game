@@ -74,9 +74,9 @@ impl MapObject {
             }
         };
 
-        const MAP_OBJECT_LEN: f32 = 32;
+        const MAP_OBJECT_LEN: usize = 32;
 
-        let mut bytes: [u8; 32] = [0; MAP_OBJECT_LEN];
+        let mut bytes: [u8; MAP_OBJECT_LEN] = [0; MAP_OBJECT_LEN];
 
         // The line below makes sure that the unsafe code below is sound
         debug_assert!(MAP_OBJECT_LEN % 4 == 0);
