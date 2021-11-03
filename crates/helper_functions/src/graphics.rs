@@ -1,3 +1,5 @@
+#![deny(clippy::all)]
+
 use bevy::prelude::*;
 
 pub fn spawn_button<const BUTTON_WIDTH: Option<f32>, const BUTTON_HEIGHT: f32>(node_parent: &mut ChildBuilder, material: Handle<ColorMaterial>, text: String, font: Handle<Font>, margin: Rect<Val>) { 

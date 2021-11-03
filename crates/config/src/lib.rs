@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 #![feature(path_try_exists)]
 
 use serde::{Serialize, Deserialize};
@@ -80,10 +81,7 @@ pub fn write_data<T>(key: String, value: T) where T: Serialize {
     {
         use std::fs::write;
 
-        let proj_dirs = ProjectDirs::from("com", "William Batista",  "game").unwrap();
-        let config_dir = proj_dirs.config_dir();
-
-        let key_path = config_dir.join(key);
+        let key_path = get_path_from_key(key);
 
         let ron_config = PrettyConfig::new();
         let value = to_string_pretty(&value, ron_config).unwrap();

@@ -1,4 +1,4 @@
-use std::intrinsics::*;
+#![deny(clippy::all)]
 
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
@@ -47,10 +47,9 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         Some((&mut health.as_mut().unwrap().0, false))
 
                     } else if map_health.is_some() {
-                        match map_health.as_mut().unwrap().0.as_mut() {
-                            Some(health) => Some((health, true)),
-                            None => None,
-                        }
+                        //IDK man clippy said this works
+                        // Gets a mutable reference to the map
+                        map_health.as_mut().unwrap().0.as_mut().map(|health| (health, true))
 
                     } else {
                         None
@@ -173,12 +172,12 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                                 let speed = p_speed.as_mut().unwrap();
                                                 // Slow down players for X amount of seconds
                                                 if projectile_type == ProjectileType::PulseWave {
-                                                    speed.0 =  unsafe { fmul_fast(speed.0, 0.25) };
+                                                    speed.0 *=  0.25;
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.5, false)));
 
 
                                                 } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED * 0.65{
-                                                    speed.0 = unsafe { fmul_fast(speed.0, 0.65) };
+                                                    speed.0 *= 0.65;
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
 
                                                 }
@@ -529,7 +528,7 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
                             true => {
                                 if let Some(player_id) = player_id {
                                     death_event.send(DeathEvent(player_id.0));
-                                    *deathmatch_score.0.get_mut(&shot_from).unwrap() += 1;
+                                    *deathmatch_score.0.get_mut(shot_from).unwrap() += 1;
 
 
                                 }
@@ -616,11 +615,8 @@ pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBo
             let new_damage = linvel * 1.5;
             collider.user_data = f32_u8_to_u128(new_damage, proj_info);
 
-        } else if *proj_type == ProjectileType::Flame {
-            if sprite.size.x <= 60.0 {
-                sprite.size *= 1.4;
-
-            }
+        } else if *proj_type == ProjectileType::Flame && sprite.size.x <= 60.0 {
+            sprite.size *= 1.4;
 
         }
 

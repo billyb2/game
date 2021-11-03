@@ -6,6 +6,7 @@
 
 mod info;
 
+use bevy::prelude::Vec2;
 use std::f32::consts::PI;
 
 use map::*;
@@ -46,7 +47,16 @@ impl Bot for AggroBot {
         self.my_player = players.iter().find(|p| p.id.0 == self.my_id.0).unwrap().clone();
 
         if self.players.len() > 0 {
-            let enemy_player = self.players[0].pos;
+            let enemy_player = self.players.iter().fold(Vec2::ZERO, |target, potential_target| {
+                let potential_target_distance = potential_target.pos.distance(self.my_player.pos);
+                let target_distance = target.distance(self.my_player.pos);
+
+                match potential_target_distance < target_distance {
+                    true => potential_target.pos,
+                    false => target,
+                }
+
+            });
 
             // Face the opponent
             let angle = get_angle(self.my_player.pos.x, self.my_player.pos.y, enemy_player.x, enemy_player.y);
@@ -61,15 +71,21 @@ impl Bot for AggroBot {
 
     // Since our bot is relatively simple, we don't need to do any misc. updates
     fn misc_update(&mut self) {}
-    fn movement(&self) -> Option<(Angle, Dashing)> { 
-        let enemy_player = self.players[0].pos;
+    fn movement(&self) -> Option<(Angle, Dashing)> {
+        if self.players.len() > 0 {
+            let enemy_player = self.players[0].pos;
 
-        let distance = self.my_player.pos.distance(enemy_player);
+            let distance = self.my_player.pos.distance(enemy_player);
 
-        // Only run towards players if they're relatively close
-        match distance >= 350.0 && distance <= 450.0 {
-            true => Some((Angle(self.internal_angle.0), Dashing(false))), 
-            false => None,
+            // Only run towards players if they're relatively close
+            match distance >= 350.0 && distance <= 450.0 {
+                true => Some((Angle(self.internal_angle.0), Dashing(false))), 
+                false => None,
+
+            }
+
+        } else {
+            None
 
         }
 

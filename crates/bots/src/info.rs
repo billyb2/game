@@ -63,12 +63,12 @@ pub trait Bot {
 
 pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandleWrapper, &mut Health, &Model, &Ability, &MaxDistance, &Speed, &TimeSinceLastShot, &AmmoInMag, &RecoilRange, &TimeSinceStartReload, &UsingAbility, &AbilityCharge)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_ability: EventWriter<AbilityEvent>) {
     // Generate the list of TruncatedPlayer by looping over the bots list initially
-    let players: Vec<(TruncatedPlayer, bool)> = bots.iter_mut().map(|(transform, id, _bw, _rgb, _h, _model, ability, _md, _pjs, _ttls, _aig, _rr, _rt, using_ability, _ab_ch)| {
+    let players: Vec<(TruncatedPlayer, bool)> = bots.iter_mut().map(|(transform, id, _bw, _rgb, health, _model, ability, _md, _pjs, _ttls, _aig, _rr, _rt, using_ability, _ab_ch)| {
         // Cloaking players aren't shown to bots
         (TruncatedPlayer {
             pos: transform.translation.truncate(),
             id: *id,
-        }, *ability == Ability::Cloak && using_ability.0)
+        }, (*ability == Ability::Cloak && using_ability.0) || health.0 <= 0.0 )
 
     }).collect();
 

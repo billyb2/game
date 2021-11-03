@@ -1,3 +1,5 @@
+#![deny(clippy::all)]
+
 use bevy::prelude::*;
 use bevy::asset::LoadState;
 use bevy::render::pipeline::PipelineDescriptor;

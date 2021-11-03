@@ -202,9 +202,7 @@ pub enum GameMode {
 }
 
 
-// If a player gets a score of 15 kills, the game ends
-const SCORE_LIMIT: u8 = 15;
-
+const SCORE_LIMIT: u8 = 10;
 
 pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer, &ColliderHandleWrapper)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>) {
     death_events.iter().for_each(|ev| {

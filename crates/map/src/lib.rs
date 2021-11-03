@@ -74,7 +74,12 @@ impl MapObject {
             }
         };
 
-        let mut bytes: [u8; 32] = [0; 32];
+        const MAP_OBJECT_LEN: f32 = 32;
+
+        let mut bytes: [u8; 32] = [0; MAP_OBJECT_LEN];
+
+        // The line below makes sure that the unsafe code below is sound
+        debug_assert!(MAP_OBJECT_LEN % 4 == 0);
         let byte_chunks = unsafe { bytes.as_chunks_unchecked_mut::<4>() };
 
         byte_chunks[0] = ((self.coords.0.x - (self.size.0.x / 2.0))).to_le_bytes();
