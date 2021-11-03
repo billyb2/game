@@ -191,7 +191,7 @@ args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin",
 command = "cargo"
 
 [tasks.build-windows]
-args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic,openssl/vendored", "--bin", "game", "--target", "x86_64-pc-windows-gnu", "--profile", "dev-windows"]
+args = ["build", "--features", "native,use_wgpu,graphics,openssl/vendored", "--bin", "game", "--target", "x86_64-pc-windows-gnu", "--profile", "dev-windows"]
 command = "cargo"
 
 [tasks.build-native-release]
