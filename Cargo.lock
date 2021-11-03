@@ -1620,6 +1620,7 @@ dependencies = [
  "lazy_static",
  "map",
  "net",
+ "openssl",
  "rand 0.8.4",
  "rapier2d",
  "rayon",

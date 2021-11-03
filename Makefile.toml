@@ -190,6 +190,9 @@ dependencies = ["bindgen-release-simd", "compress-release"]
 args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin", "game", "--features", "-Z", "unstable-options"]
 command = "cargo"
 
+[tasks.build-windows]
+args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic,openssl/vendored", "--bin", "game", "--target", "x86_64-pc-windows-gnu", "--profile", "dev-windows"]
+command = "cargo"
 
 [tasks.build-native-release]
 args = ["run", "--features", "native,use_wgpu,graphics", "--release", "--bin", "game", "--features", "-Z", "unstable-options"]
