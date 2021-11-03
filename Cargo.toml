@@ -120,6 +120,9 @@ rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
 # A fixed size stack allocated Vector
 arrayvec = { version = "0.7" }
 
+# Compiles OpenSSL from scratch
+openssl = { version = "0.10", optional = true }
+
 helper_functions = { path = "crates/helper_functions" }
 game_types = { path = "crates/game_types" }
 map = { path = "crates/map" }

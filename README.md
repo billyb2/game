@@ -8,20 +8,22 @@ Please follow the instructions below in order, while it seems complicated, it ma
 ### Windows
 - Please install [VS2019 Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16)
 - [Install CMake](https://cmake.org/download/)
-- [Install OpenSSL](https://slproweb.com/download/Win64OpenSSL-1_1_1k.msi)
+- [Install OPENSSL](https://slproweb.com/products/Win32OpenSSL.html)
 - Add the *OPENSSL_DIR* system environment variable, with the value being the *exact* path you installed OpenSSL to (default is C:\Program Files\OpenSSL-Win64 , but please double check to make sure)
 - `cargo install -f cargo-binutils && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
-- `rustup component add llvm-tools-preview`
+- `rustup component add llvm-tools-preview rust-src`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
 - ### Ubuntu/Debian Linux
 - `sudo apt-get install cmake clang lld libx11 pkgconf alsa-lib openssl`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
+- `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.78`
+- `rustup component add rust-src`
 ### Arch/Manjaro Linux
 - `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl --needed`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
+- `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.78`
+- `rustup component add rust-src`
 ### MacOS
 MacOS, of course, does not have a working LLD linker (thanks Apple), though the ZLD linker is still faster than the default
 - [Install CMake](https://cmake.org/download/)
@@ -44,6 +46,21 @@ To run it in release mode (with slow build times but very fast runtime):
 
 To build for release mode (usually for distributing a binary):
 `cargo make build-release`
+
+To cross compile to Windows:
+- `rustup target add x86_64-pc-windows-gnu`
+Ubuntu: `sudo apt-get install gcc-mingw-w64-x86-64`
+Arch: `sudo pacman -Syu mingw-w64-binutils mingw-w64-gcc --needed`
+- Add the linker to ~/.cargo/config (don't just copy the config below, check with how to use mingw rust for your OS)
+For me, for example, I use:
+```
+[target.x86_64-pc-windows-gnu]
+linker = "/usr/bin/x86_64-w64-mingw32-gcc"
+ar = "/usr/x86_64-w64-mingw32/bin/ar"
+```
+- Finally, to start building the binary, run `cargo make build-windows`
+
+To actually run the binary, you'll need a machine running Windows or a compatibility layer like Wine or Proton
 
 Thanks to `bevy_webgl2`, this game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded and because of the fact that WASM does slow programs down compared to running natively.
 
@@ -81,21 +98,21 @@ Then, the map has a built in checksum (a way of knowing if a map file has been c
 
 Finally, the entire map is compressed using the LZ4 compression algorithm, since it has relatoively slow compression times, but very very fast decompression times. The custom map extension is used since it's not anything like JSON or XML, it's an entirely new binary format I made just for this game (though eventually we should probably use a real file format name so people can recognize it).
 
-To view how all of this works, please see the custom.js file. I apologize for how much code there is in the first line, that's a WASM version of the original C-lang LZ4 compression algorithm, since the JavaScript ones I used before were too slow for my liking.
+To view how all of this works, please see the `tiled/custom.js` file or the `crates/map/src/lib.rs` file. I apologize for how much code there is in the first line for the javascript file, that's a WASM version of the original C-lang LZ4 compression algorithm, since the JavaScript ones I used before were too slow for my liking.
 
-### Setting up and using Tiled
-Alright now, time to actually set up Tiled (map editor):
+### Setting up and using the Tiled map editor
+Alright now, time to actually set up Tiled:
 
 1. First, install tiled:
 - Arch/Manjaro: `sudo pacman -Syu tiled`
 Many many many distributions do not have Tiled in their software repositories, so unless you want to compile Tiled yourself, I'd recommend using Flatpak
-- Other OS: First, [install Flatpak](https://www.flatpak.org/setup/) (included by default on Zorin), second, `flatpak install flathub org.mapeditor.Tiled`
+- Other OS: First, [install Flatpak](https://www.flatpak.org/setup/), second, `flatpak install flathub org.mapeditor.Tiled`
 2. Secondly, create a symlink between the `custom.js` file and `$HOME/.config/tiled/extensions/`
-This is as easy as running `mkdir -p $HOME/.config/tiled/extensions/ && ln -s /path/to/game/repository/tiled/custom.js $HOME/.config/tiled/extensions/`, replacing /path/to/game/repository with the actual path of the repository of course.
-3. When you've finally created your glorious map (using the map1.tmx as an example of course), go to File->Export As, and change `File type` to `Custom map format (*.custom)`. Then, the `custom.js` file will do all the magic of properly encoding the file into something the game can parse!
+This is as easy as running `mkdir -p $HOME/.config/tiled/extensions/ && ln -s /path/to/game/repository/tiled/custom.js $HOME/.config/tiled/extensions/`, replacing `/path/to/game/repository` with the actual path of the repository of course.
+3. When you've finally created your glorious map (using the map2.tmx as an example of course), go to File->Export As, and change `File type` to `Custom map format (*.custom)`. Then, the `custom.js` file will do all the magic of properly encoding the file into something the game can parse!
 
 
 ## Before pushing your Git commit
 
-Please try running `cargo make serve-fast-simd` and verifying that WASM builds and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later. Usually, they should be almost identical, but there is some WASM specific and native specific code in the codebase.
+Please try running `cargo make serve-fast-simd` and verifying that WASM both compiles and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later on. Usually, they should be almost identical, but there is some WASM specific and native specific code in the codebase (see `crates/src/config` as a prominent example).
 
