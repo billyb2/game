@@ -567,7 +567,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
                         let mut translation: Vec3A = ev.start_pos.into();
                         
-                        translation += (size_vec3a * angle_trig) + (angle_trig * Vec3A::new(100.0, 100.0, 0.0)) + (angle_trig * Vec3A::new(movement.x, movement.y, 0.0));
+                        translation += (angle_trig * Vec3A::new(75.0, 75.0, 0.0)) + (size_vec3a * angle_trig);
 
                         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
                             // The user_data is the damage, (shot_from, projectile_type) (f32, (u8, u8)) of the bullet

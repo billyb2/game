@@ -59,6 +59,7 @@ linker = "/usr/bin/x86_64-w64-mingw32-gcc"
 ar = "/usr/x86_64-w64-mingw32/bin/ar"
 ```
 - Finally, to start building the binary, run `cargo make build-windows`
+- To actually run the binary, you're gonna need the following DLL's in the same directory as the exe: libgcc_s_seh-1.dll, libstdc++-6.dll, and libwinpthread-1.dll. Most of these can be found in /usr/x86_64-w64-mingw32/ on Linux
 
 To actually run the binary, you'll need a machine running Windows or a compatibility layer like Wine or Proton
 
