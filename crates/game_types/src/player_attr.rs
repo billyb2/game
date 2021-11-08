@@ -5,6 +5,8 @@ use std::convert::From;
 use std::fmt;
 use std::mem::variant_count;
 
+use arrayvec::ArrayString;
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +37,7 @@ pub struct Player {
     pub dashing_info: DashingInfo,
     pub perk: Perk,
     pub damage_source: DamageSource,
+    pub name: PlayerName,
 }
 
 #[derive(Component, Clone, Debug, Deserialize, Serialize)]
@@ -108,7 +111,7 @@ pub fn set_perk_gun_attr(max_ammo: &mut MaxAmmo, ammo_in_mag: &mut AmmoInMag, pe
 
 
 impl Player {
-    pub fn new(id: u8, ability: Ability, perk: Perk, living: bool) -> Player {
+    pub fn new(id: u8, ability: Ability, perk: Perk, living: bool, name: Option<PlayerName>) -> Player {
         let mut player = Player {
             id: PlayerID(id),
             health: match living {
@@ -142,6 +145,7 @@ impl Player {
             can_melee: CanMelee(Timer::from_seconds(0.6, false)),
             perk,
             damage_source: DamageSource(None),
+            name: name.unwrap_or(PlayerName::get_random_name()),
         };
 
         set_perk_player_attr(&mut player.health, &mut player.speed, player.perk);
@@ -674,6 +678,10 @@ impl Gun {
             }
 
 
+        } else if ability == Ability::Brute {
+            gun.projectile_speed.0 *= 1.5;
+            gun.time_since_last_shot.0.set_duration(gun.time_since_last_shot.0.duration() / 2);
+
         }
 
         set_perk_gun_attr(&mut gun.max_ammo, &mut gun.ammo_in_mag, perk);
@@ -720,3 +728,66 @@ pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(u32, Timer)>>);
 
 #[derive(Component)]
 pub struct ExplodeTimer(pub Timer);
+
+const MAX_LEN_OF_PLAYER_NAME: usize = 24;
+
+//TODO: ArrayString
+#[derive(Component, Serialize, Deserialize, Copy, Clone, Debug)]
+pub struct PlayerName(pub ArrayString<MAX_LEN_OF_PLAYER_NAME>);
+
+impl fmt::Display for PlayerName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl PlayerName {
+    pub fn get_random_name() -> Self {
+        // Reading the files at compile time takes a while, so we only do it on WASM
+        #[cfg(target_arch = "wasm32")]
+        let mut adjectives = {
+            const ADJECTIVES: &str = include_str!("../../../assets/english-adjectives.txt");
+            ADJECTIVES.lines()
+
+        };
+
+        #[cfg(target_arch = "wasm32")]
+        let mut nouns = {
+            const NOUNS: &str = include_str!("../../../assets/english-nouns.txt");
+            NOUNS.lines()
+
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        use std::fs::read_to_string;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let nouns = read_to_string("assets/english-nouns.txt").unwrap();
+        #[cfg(not(target_arch = "wasm32"))]
+        let adjectives = read_to_string("assets/english-adjectives.txt").unwrap();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let (mut nouns, mut adjectives) = {
+            (nouns.lines(), adjectives.lines())
+
+        };
+
+        let num_of_adjectives = adjectives.clone().count();
+        let num_of_nouns = nouns.clone().count();
+
+        let rng = fastrand::Rng::new();
+
+        let adj_index = rng.usize(0..num_of_adjectives);
+        let noun_index = rng.usize(0..num_of_nouns);
+
+        let mut player_name_as_string = format!("{}-{}", adjectives.nth(adj_index).unwrap(), nouns.nth(noun_index).unwrap());
+
+        player_name_as_string.truncate(MAX_LEN_OF_PLAYER_NAME);
+
+        let mut array_string: ArrayString<MAX_LEN_OF_PLAYER_NAME> = ArrayString::new_const();
+        array_string.push_str(&player_name_as_string);
+
+        PlayerName(array_string)
+
+    }
+}

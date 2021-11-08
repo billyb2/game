@@ -243,7 +243,7 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
     }
 }
 
-pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, keyboard_input: Res<Input<KeyCode>>, asset_server: Res<AssetServer>, keybindings: Res<KeyBindings>) {
+pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, keyboard_input: Res<Input<KeyCode>>, asset_server: Res<AssetServer>, keybindings: Res<KeyBindings>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>) {
     if keyboard_input.just_pressed(keybindings.show_score) {
         let (mut text, mut visible) = score_ui.single_mut();
 
@@ -264,6 +264,8 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>
         v.sort_unstable_by(compare);
 
         for (player_id, kills) in v.iter() {
+            let player_name = names.get(*player_entity.get(player_id).unwrap()).unwrap();
+
             let singular_or_plural_kills =
                 match **kills {
                     1 => "kill",
@@ -272,7 +274,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>
 
             text.sections.push(
                 TextSection {
-                    value: format!("Player {}: {} {}\n", *player_id, kills, singular_or_plural_kills),
+                    value: format!("{}: {} {}\n", player_name, kills, singular_or_plural_kills),
                     style: TextStyle {
                         font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                         font_size: 45.0,
@@ -296,7 +298,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>
     }
 }
 
-pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>) {
+pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>, my_name: Res<PlayerName>) {
     if typing.0 {
         let text = &mut chat_text.single_mut().sections[0].value;
 
@@ -312,7 +314,7 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
                                 let my_player_id = my_player_id.0.as_ref().unwrap().0;
                                 let message: TextMessage = (my_player_id, text[6..].to_owned(), 0);
                                 net.broadcast_message(message);
-                                log_event.send(ChatEvent(format!("Player {}: {}", my_player_id, text[6..].to_owned())));
+                                log_event.send(ChatEvent(format!("{}: {}", my_name.as_ref(), text[6..].to_owned())));
 
                                 text.truncate(6);
                                 typing.0 = false;

@@ -204,25 +204,24 @@ pub enum GameMode {
 
 const SCORE_LIMIT: u8 = 10;
 
-pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer, &ColliderHandleWrapper)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>) {
+pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>) {
     death_events.iter().for_each(|ev| {
+        let (mut visible, mut respawn_timer, collider_handle, player_name) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
         let num = fastrand::u8(0..=3);
 
         let message = match num {
-            0 => format!("Player {} got murked", ev.0),
-            1 => format!("Player {} got gulaged", ev.0),
-            2 => format!("Player {} got sent to the shadow realm", ev.0),
-            3 => format!("Player {} died", ev.0),
+            0 => format!("{} got murked", player_name),
+            1 => format!("{} got gulaged", player_name),
+            2 => format!("{} got sent to the shadow realm", player_name),
+            3 => format!("{} died", player_name),
             _ => unimplemented!(),
 
         };
 
-        let (mut visible, mut respawn_timer, collider_handle) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
         visible.is_visible = false;
 
         let collider = collider_set.get_mut(collider_handle.0).unwrap();
         collider.set_collision_groups(InteractionGroups::none());
-
 
         log_event.send(LogEvent(message));
         respawn_timer.0.reset();

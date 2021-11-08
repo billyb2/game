@@ -111,6 +111,8 @@ pub struct GameLogText;
 pub struct ChatText;
 #[derive(Component)]
 pub struct ChatLogText;
+#[derive(Component)]
+pub struct NameText;
 
 
 #[derive(Component)]

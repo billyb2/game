@@ -111,6 +111,18 @@ fn main() {
         }
     };
 
+    let name: PlayerName = match get_data(String::from("name")) {
+        Some(object) => object,
+        None => {
+            let name = PlayerName::get_random_name();
+
+            write_data(String::from("name"), name);
+
+            name
+
+        }
+    };
+
     app
     //Start in the main menu
     .add_state(AppState::MainMenu)
@@ -135,6 +147,7 @@ fn main() {
     .insert_resource(ability)
     .insert_resource(model)
     .insert_resource(perk)
+    .insert_resource(name)
     .insert_resource(NumOfBots(0))
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
     .add_plugins(DefaultPlugins)
@@ -212,6 +225,7 @@ fn main() {
             // Set the mouse coordinates initially
             .with_system(set_mouse_coords)
             .with_system(draw_map)
+            .with_system(add_player_name_text)
 
     )
 

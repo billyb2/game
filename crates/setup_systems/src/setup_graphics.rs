@@ -13,7 +13,6 @@ use map::MapCRC32;
 use single_byte_hashmap::*;
 
 use bevy::render::camera::ScalingMode;
-use rapier2d::prelude::*;
 
 use helper_functions::graphics::spawn_button;
 
@@ -511,7 +510,7 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
         });
 }
 
-pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>) {
+pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, my_player_name: Res<PlayerName>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -652,6 +651,37 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
                         align_content: AlignContent::Center,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(450.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent.spawn_bundle(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from("Click to set name"),
+                                style: TextStyle {
+                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 55.0,
+                                    color: Color::WHITE,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    });
+                });
+
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
                         size: Size::new(Val::Px(225.0), Val::Px(85.0)),
 
                         ..Default::default()
@@ -680,7 +710,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
                 .spawn_bundle(TextBundle {
                     text: Text {
                         sections: vec![TextSection {
-                            value: String::from(" "),
+                            value: String::new(),
                             style: TextStyle {
                                 font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                 font_size: 25.0,
@@ -692,7 +722,58 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
                     ..Default::default()
                 })
                 .insert(CustomizeHelpText);
+
+
+            node_parent
+                .spawn_bundle(TextBundle {
+                    text: Text {
+                        sections: vec![TextSection {
+                            value: format!("{}", *my_player_name),
+                            style: TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 25.0,
+                                color: Color::WHITE,
+                            },
+                        }],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(NameText);
         });
+}
+
+pub fn add_player_name_text(mut commands: Commands, names: Query<(Entity, &PlayerName, &Transform,  &Visible)>, asset_server: Res<AssetServer>) {
+    names.for_each(|(parent_entity, player_name, transform, visible)| {
+        let transform = Transform {
+            translation: transform.translation.normalize(),
+            rotation: transform.rotation.inverse(),
+            scale: Vec3::ONE,
+        };
+
+
+        let child_entity = commands.spawn_bundle(Text2dBundle {
+            text: Text {
+                sections: vec![TextSection {
+                    value: format!("{}", player_name),
+                    style: TextStyle {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 25.0,
+                        color: Color::WHITE,
+                    },
+                }],
+                ..Default::default()
+            },
+            transform,
+            visible: Visible {
+                is_visible: visible.is_visible,
+                is_transparent: true,
+            },
+            ..Default::default()
+        }).id();
+
+        commands.entity(parent_entity).push_children(&[child_entity]);
+    });
 }
 
 pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, num_of_bots: Res<NumOfBots>) {
@@ -838,7 +919,7 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
                 .spawn_bundle(TextBundle {
                     text: Text {
                         sections: vec![TextSection {
-                            value: String::from(" "),
+                            value: String::new(),
                             style: TextStyle {
                                 font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                 font_size: 25.0,
@@ -1420,7 +1501,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
                             },
                             ..Default::default()
                         })
-                        .insert(KeyBindingButtons::Reload);
+                        .insert(KeyBindingButtons::Melee);
                 });
 
             node_parent

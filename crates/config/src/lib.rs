@@ -39,15 +39,15 @@ pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
 
     #[cfg(feature = "native")]
     let value = {
-        use std::fs::{File, create_dir_all, read_to_string};
+        use std::fs::{File, read_to_string};
         use std::io::ErrorKind;
 
-        let key_path = get_path_from_key(key);
+        let key_path = get_path_from_key(&key);
 
         match read_to_string(&key_path) {
             Ok(string) => {
                 let string = Box::leak(string.into_boxed_str());
-                let val: T = from_str(string).expect("Failed to deserialize");
+                let val: T = from_str(string).expect(&format!("Failed to deserialize \"{}\" ", key));
                 
                 Some(val)
             },
@@ -81,7 +81,7 @@ pub fn write_data<T>(key: String, value: T) where T: Serialize {
     {
         use std::fs::write;
 
-        let key_path = get_path_from_key(key);
+        let key_path = get_path_from_key(&key);
 
         let ron_config = PrettyConfig::new();
         let value = to_string_pretty(&value, ron_config).unwrap();
@@ -98,7 +98,7 @@ pub fn delete_data(key: String) -> Result<(), Option<std::io::Error>> {
         {
             use std::fs::remove_file;
 
-            let key_path = get_path_from_key(key);
+            let key_path = get_path_from_key(&key);
 
             match remove_file(key_path) {
                 Ok(_) => Ok(()),
@@ -130,7 +130,7 @@ pub fn check_key(key: String) -> bool {
     let value = {
         use std::fs::try_exists;
 
-        let key_path = get_path_from_key(key);
+        let key_path = get_path_from_key(&key);
         try_exists(key_path).unwrap()
     };
 
@@ -138,13 +138,15 @@ pub fn check_key(key: String) -> bool {
 }
 
 #[cfg(feature = "native")]
-fn get_path_from_key(key: String) -> std::path::PathBuf {
+fn get_path_from_key(key: &str) -> std::path::PathBuf {
     use std::fs::create_dir_all;
 
     let proj_dirs = ProjectDirs::from("com", "William Batista",  "game").unwrap();
     let config_dir = proj_dirs.config_dir();
 
-    create_dir_all(config_dir.clone());
+    // Just try to create the directory every time, it doesn't really matter if the directory already exists
+    // TODO: Make it so that it panics if the error isn't that the directory already exists
+    create_dir_all(&config_dir);
 
     let key_path = config_dir.join(key);
 

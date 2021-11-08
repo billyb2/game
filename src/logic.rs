@@ -78,12 +78,12 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                 let new_health = *health - damage;
                                 let died = new_health <= 0.0;
 
-                                if damage >= 0.0 {
+                                if damage >= 0.0 && *health > 0.0{
                                     let text_pos = {
                                         let mut pos = *other_collider.translation();
                                         pos = pos.component_mul(&Vector2::new(250.0, 250.0));
 
-                                        Vec3::new(pos.x, pos.y, 1000.0)
+                                        Vec3::new(pos.x, pos.y, 101.0)
                                     };
 
                                     // Spawn damage text
@@ -284,13 +284,33 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
 }
 
-pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper)>, rigid_body_set: Res<RigidBodySet>) {
-    obj.for_each_mut(|(mut transform, rigid_body_handle)| {
+pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper, Option<&Health>, Option<&Children>, Option<&PlayerName>, Option<Changed<PlayerName>>)>, mut names: Query<(&mut Text, &mut Transform,  &mut Visible), Without<RigidBodyHandleWrapper>>, rigid_body_set: Res<RigidBodySet>) {
+    obj.for_each_mut(|(mut transform, rigid_body_handle, health, children, player_name, name_changed)| {
         if let Some(rigid_body) = rigid_body_set.get(rigid_body_handle.0) {
+            if let Some(children) = children.as_ref() {
+                children.iter().for_each(|child| {
+                    let (mut text, mut text_transform, mut visible) = names.get_mut(*child).unwrap();
+                    if health.as_ref().unwrap().0 > 0.0 {
+                        text_transform.rotation = transform.rotation.inverse();
+                        text_transform.translation = text_transform.translation.normalize();
+
+                        visible.is_visible = true;
+
+                        if name_changed.unwrap() {
+                            text.sections[0].value = format!("{}", player_name.as_ref().unwrap());
+
+                        }
+
+                    }
+
+                });
+
+            }
+
             // Update the rigid body's sprite to the correct translation
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
             transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
-
+            
         }
 
     });
@@ -455,7 +475,7 @@ pub fn despawn_destroyed_walls(mut commands: Commands, mut walls: Query<(Entity,
     });
 }
 
-pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &ExplodeTimer, &RigidBodyHandleWrapper, &ProjectileIdent)>, mut non_grenade_objects: Query<(&RigidBodyHandleWrapper, Option<&mut Health>, Option<&mut MapHealth>, Option<&PlayerID>), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut death_event: EventWriter<DeathEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, mut islands: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>, asset_server: Res<AssetServer>) {
+pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &ExplodeTimer, &RigidBodyHandleWrapper, &ProjectileIdent)>, mut non_grenade_objects: Query<(&RigidBodyHandleWrapper, Option<&mut Health>, Option<&mut MapHealth>, Option<&PlayerID>, &Transform), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut death_event: EventWriter<DeathEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, mut islands: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>, asset_server: Res<AssetServer>) {
     let mut explosion_positions = Vec::new();
 
     grenades.for_each(|(entity, explode_timer, rigid_body_handle, shot_from)| {
@@ -471,7 +491,7 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
 
     });
 
-    non_grenade_objects.for_each_mut(|(rigid_body_handle, mut health, mut map_health, player_id)| {
+    non_grenade_objects.for_each_mut(|(rigid_body_handle, mut health, mut map_health, player_id, transform)| {
         if let Some(rigid_body) = rigid_body_set.get_mut(rigid_body_handle.0) {
             let rigid_body_pos = *rigid_body.translation();
 
@@ -540,12 +560,7 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
                         };
 
                         if damage > 0.0 {
-                            let text_pos = {
-                                let mut pos = *rigid_body.translation();
-                                pos = pos.component_mul(&Vector2::new(250.0, 250.0));
-
-                                Vec3::new(pos.x, pos.y, 1000.0)
-                            };
+                            let text_pos = transform.translation;
 
                             // Spawn damage text
                             commands.spawn_bundle(Text2dBundle {

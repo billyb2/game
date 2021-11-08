@@ -82,7 +82,6 @@ inherits = "release"
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["serialize"] }
 
 # Allows for building bevy to the web
-# TODO: Switch to main smokku branch
 bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", rev = "1b2e3ddb58e2608b9f72dd9a74e7e1979bb72e4b", optional = true }
 
 # A more complex audio library than the one that Bevy uses
@@ -118,9 +117,9 @@ lazy_static = { version = "1", optional = true }
 rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
 
 # A fixed size stack allocated Vector
-arrayvec = { version = "0.7" }
+arrayvec = { version = "0.7", features = ["serde"] }
 
-# Compiles OpenSSL from scratch
+# Compiles OpenSSL from scratch when the vendored feature is enabled
 openssl = { version = "0.10", optional = true }
 
 helper_functions = { path = "crates/helper_functions" }

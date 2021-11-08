@@ -1635,7 +1635,9 @@ dependencies = [
 name = "game_types"
 version = "0.1.0"
 dependencies = [
+ "arrayvec 0.7.1",
  "bevy",
+ "fastrand",
  "rand 0.8.4",
  "rapier2d",
  "serde",

@@ -2,14 +2,17 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
-use std::convert::TryInto;
+use std::ops::Deref;
 use std::net::{SocketAddr, IpAddr};
 
 use bevy::prelude::*;
 use bevy::math::Size;
 
+use bevy::input::ElementState;
+use bevy::input::keyboard::KeyboardInput;
+
 use crate::*;
-use config::write_data;
+use config::{get_data, write_data};
 use setup_systems::*;
 use game_types::player_attr::*;
 
@@ -465,92 +468,176 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
     });
 }
 
-pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, Without<CustomizeHelpText>>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut help_text: Query<&mut Text, With<CustomizeHelpText>>) {
-    interaction_query.for_each_mut(|(interaction, mut material, children)| {
-        match *interaction {
-            Interaction::Clicked => {
-                let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
+pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, (Without<CustomizeHelpText>, Without<NameText>)>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut my_name: ResMut<PlayerName>, mut help_text: Query<&mut Text, (With<CustomizeHelpText>, Without<NameText>)>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut name_text: Query<&mut Text, (With<NameText>, Without<CustomizeHelpText>)>) {
 
-                if text.starts_with("Ability") {
-                    set_player_attr::<NUM_OF_ABILITIES, r#"Ability"#, Ability>(&mut my_ability, text);
+    if typing.0 {
+        let text = &mut name_text.single_mut().sections[0].value;
 
-                } else if text.starts_with("Gun") {
-                    set_player_attr::<NUM_OF_GUN_MODELS, r#"Gun"#, Model>(&mut my_gun_model, text);
+        keyboard_input_events.iter().for_each(|ev| {
+            if let Some(key_code) = ev.key_code {
+                if ev.state == ElementState::Pressed {
+                    // Whether or not the player has typed anything
+                    let text_in_chat = text.len() > 0;
 
-                } else if text.starts_with("Perk") {
-                    set_player_attr::<NUM_OF_PERKS, r#"Perk"#, Perk>(&mut my_perk, text);
+                    match key_code {
+                        KeyCode::Return => {
+                            if text_in_chat {
+                                typing.0 = false;
+                                my_name.0.clear();
 
-                } else if text == "Back" {
-                    if *my_ability == Ability::Brute {
-                        *my_gun_model = Model::Melee;
+                                let mut name_as_string = text.deref().clone();
+                                name_as_string.truncate(24);
 
-                    }
+                                my_name.0.push_str(&name_as_string);
 
-                    write_data(String::from("model"), *my_gun_model);
-                    write_data(String::from("ability"), *my_ability);
-                    write_data(String::from("perk"), *my_perk);
-                    
-                    app_state.set(AppState::GameMenu).unwrap();
+                            }
 
+                        },
+                        KeyCode::Back => {
+                            if text_in_chat {
+                                text.pop();
+
+                            }
+
+                        },
+                        KeyCode::Escape => {
+                            typing.0 = false;
+                            *text = my_name.0.to_string();
+
+                        },
+                        _ => {
+                            let key_text = format!("{:?}", ev.key_code.unwrap());
+
+                            if key_text.len() == 1 {
+                                text.push_str(&key_text);
+
+                            } else if key_text.starts_with("Key") {
+                                text.push(key_text.chars().nth(3).unwrap());
+
+                            }
+
+                        },
+                    };
                 }
 
             }
+
+        });
+    }
+
+    interaction_query.for_each_mut(|(interaction, mut material, children)| {
+        if let Ok(text) = text_query.get_mut(children[0]).as_mut() {
+            let text = &mut text.sections[0].value;
+
+            if text.starts_with("Type") && !typing.0 {
+                *text = String::from("Click to set name");
+
+            }
+
+        }
+
+        match *interaction {
+            Interaction::Clicked => {
+                if let Ok(text) = text_query.get_mut(children[0]).as_mut() {
+                    let text = &mut text.sections[0].value;
+
+                    if text.starts_with("Ability") {
+                        set_player_attr::<NUM_OF_ABILITIES, r#"Ability"#, Ability>(&mut my_ability, text);
+
+                    } else if text.starts_with("Gun") {
+                        set_player_attr::<NUM_OF_GUN_MODELS, r#"Gun"#, Model>(&mut my_gun_model, text);
+
+                    } else if text.starts_with("Perk") {
+                        set_player_attr::<NUM_OF_PERKS, r#"Perk"#, Perk>(&mut my_perk, text);
+
+                    } else if text.starts_with("Click") {
+                        typing.0 = !typing.0;
+
+                        *text = String::from("Type name and press ENTER when completed...");
+
+                    } else if text == "Back" {
+                        if *my_ability == Ability::Brute {
+                            *my_gun_model = Model::Melee;
+
+                        }
+
+                        typing.0 = false;
+
+                        write_data(String::from("model"), *my_gun_model);
+                        write_data(String::from("ability"), *my_ability);
+                        write_data(String::from("perk"), *my_perk);
+
+                        if my_name.0.len() > 0 {
+                            write_data(String::from("name"), *my_name);
+
+                        } else {
+                            my_name.0 = get_data(String::from("name")).unwrap();
+
+                        }
+
+                        app_state.set(AppState::GameMenu).unwrap();
+
+                    }
+
+                }
+
+            },
             Interaction::Hovered => {
-                let button_text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
+                if let Ok(button_text) = text_query.get_mut(children[0]).as_mut() {
+                    let button_text = &mut button_text.sections[0].value;
 
-                let help_text = &mut help_text.single_mut().sections[0].value;
+                    let help_text = &mut help_text.single_mut().sections[0].value;
 
-                *help_text = if button_text.starts_with("Ability") {
-                    match *my_ability {
-                        Ability::Warp => String::from("Your suit is equipped with a space-time warping device that allows you\n to teleport short distances"),
-                        Ability::Stim => String::from("Your robot body allows you to run faster than normal, and can supercharge\n itself with a large battery, allowing you to temporarily increase your running speed"),
-                        Ability::Engineer => String::from("Using your years of experience designing weapons, you've modified\n your guns to reload much faster and your bullets to move more quickly, at the cost of having higher recoil (PASSIVE)"),
-                        Ability::Wall => String::from("You can generate walls of pure energy, that you can shoot through but\n your opponents cannot"),
-                        Ability::Inferno => String::from("Your flame tipped bullets can light the molotovs you throw"),
-                        Ability::Cloak => String::from("Your suit is modified to be able to temporarily be invisible to the eye"),
-                        Ability::PulseWave => String::from("You can generate pulses of electricity, significantly slowing down your opponents temporarily"),
-                        Ability::Ghost => String::from("Your nano tech armor and body allow you to, with effort, temporarily move through walls"),
-                        Ability::Brute => String::from("You use your grappling hook and mechanical arms to\n beat your opponents into submission"),
+                    *help_text = if button_text.starts_with("Ability") {
+                        match *my_ability {
+                            Ability::Warp => String::from("Your suit is equipped with a space-time warping device that allows you\n to teleport short distances"),
+                            Ability::Stim => String::from("Your robot body allows you to run faster than normal, and can supercharge\n itself with a large battery, allowing you to temporarily increase your running speed"),
+                            Ability::Engineer => String::from("Using your years of experience designing weapons, you've modified\n your guns to reload much faster and your bullets to move more quickly, at the cost of having higher recoil (PASSIVE)"),
+                            Ability::Wall => String::from("You can generate walls of pure energy, that you can shoot through but\n your opponents cannot"),
+                            Ability::Inferno => String::from("Your flame tipped bullets can light the molotovs you throw"),
+                            Ability::Cloak => String::from("Your suit is modified to be able to temporarily be invisible to the eye"),
+                            Ability::PulseWave => String::from("You can generate pulses of electricity, significantly slowing down your opponents temporarily"),
+                            Ability::Ghost => String::from("Your nano tech armor and body allow you to, with effort, temporarily move through walls"),
+                            Ability::Brute => String::from("You use your tractor beam and mechanical arms to\n beat your opponents into submission"),
 
-                    }
+                        }
 
-                } else if button_text.starts_with("Gun") {
-                    match *my_gun_model {
-                        Model::Shotgun => String::from("A close-mid range high spread shotgun"),
-                        Model::ClusterShotgun => String::from("A high risk, high reward very close range shotgun"),
-                        Model::BurstRifle => String::from("A relatively accurate burst damage assault rifle"),
-                        Model::Speedball => String::from("Shoots projetiles with low damage and speed at first, but pick up speed and increases damage over time"),
-                        Model::AssaultRifle => String::from("A high recoil high damage automatic rifle"),
-                        Model::Pistol => String::from("A high damage, slow firing pistol"),
-                        Model::SubmachineGun => String::from("Sprays down an area with a very high fire rate"),
-                        Model::Flamethrower => String::from("Melts opponents with extremely high damage, but low range"),
-                        Model::SniperRifle => String::from("Long range, extremely high-damage sniper with severely slow reload times"),
-                        Model::Melee => String::from("Enhanced arms let you punch stronger"),
-                        Model::Widowmaker => String::from("Utilizes your health as ammo. Health is returned for the amount of damage you do, and it does not reload"),
-                        Model::Bow => String::from("Long range, short range, slow reload rate"),
-                        Model::StickyGrenade => String::from("Fires grenades that stick to walls and opponents"),
-                    }
+                    } else if button_text.starts_with("Gun") {
+                        match *my_gun_model {
+                            Model::Shotgun => String::from("A close-mid range high spread shotgun"),
+                            Model::ClusterShotgun => String::from("A high risk, high reward very close range shotgun"),
+                            Model::BurstRifle => String::from("A relatively accurate burst damage assault rifle"),
+                            Model::Speedball => String::from("Shoots projetiles with low damage and speed at first, but pick up speed and increases damage over time"),
+                            Model::AssaultRifle => String::from("A high recoil high damage automatic rifle"),
+                            Model::Pistol => String::from("A high damage, slow firing pistol"),
+                            Model::SubmachineGun => String::from("Sprays down an area with a very high fire rate"),
+                            Model::Flamethrower => String::from("Melts opponents with extremely high damage, but low range"),
+                            Model::SniperRifle => String::from("Long range, extremely high-damage sniper with severely slow reload times"),
+                            Model::Melee => String::from("Enhanced arms let you punch stronger"),
+                            Model::Widowmaker => String::from("Utilizes your health as ammo. Health is returned for the amount of damage you do, and it does not reload"),
+                            Model::Bow => String::from("Long range, short range, slow reload rate"),
+                            Model::StickyGrenade => String::from("Fires grenades that stick to walls and opponents"),
+                        }
 
-                } else if button_text.starts_with("Perk") {
-                    match *my_perk {
-                        Perk::ExtendedMag => String::from("Your guns can hold more rounds at a time"),
-                        Perk::HeavyArmor => String::from("Your armor is stronger, in exchange for moving a little slower"),
-                        Perk::LightArmor => String::from("Your armor is weaker, and in exchange you move a bit faster"),
-                        Perk::ExtendedVision => String::from("Your view of the map is slightly larger, allowing you to see players that are farther away"),
-                    }
+                    } else if button_text.starts_with("Perk") {
+                        match *my_perk {
+                            Perk::ExtendedMag => String::from("Your guns can hold more rounds at a time"),
+                            Perk::HeavyArmor => String::from("Your armor is stronger, in exchange for moving a little slower"),
+                            Perk::LightArmor => String::from("Your armor is weaker, and in exchange you move a bit faster"),
+                            Perk::ExtendedVision => String::from("Your view of the map is slightly larger, allowing you to see players that are farther away"),
+                        }
 
-                } else {
-                    String::from(" ")
+                    } else {
+                        String::new()
 
-                };
+                    };
+
+                }
 
                 *material = button_materials.hovered.clone();
 
             }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-
-            }
+            Interaction::None => {}
         }
 
     });
