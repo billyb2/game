@@ -6,10 +6,9 @@ Please follow the instructions below in order, while it seems complicated, it ma
 ### Firstly, install [Rust](https://www.rust-lang.org/tools/install)
 
 ### Windows
+Windows used to have to install OpenSSL, but thanks to conditional features, it just statically links OpenSSL
 - Please install [VS2019 Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16)
 - [Install CMake](https://cmake.org/download/)
-- [Install OPENSSL](https://slproweb.com/products/Win32OpenSSL.html)
-- Add the *OPENSSL_DIR* system environment variable, with the value being the *exact* path you installed OpenSSL to (default is C:\Program Files\OpenSSL-Win64 , but please double check to make sure)
 - `cargo install -f cargo-binutils && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
 - `rustup component add llvm-tools-preview rust-src`
 - `rustup toolchain install nightly`
