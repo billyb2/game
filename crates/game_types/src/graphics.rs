@@ -1,3 +1,5 @@
+use arrayvec::ArrayVec;
+
 use bevy::prelude::*;
 use bevy::math::const_vec3;
 use bevy::reflect::TypeUuid;
@@ -62,7 +64,7 @@ pub enum KeyBindingButtons {
 }
 
 // The UUID is just random
-#[derive(Component, RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, TypeUuid)]
 #[uuid = "463e4c8b-d555-4fc2-ba9f-5c880063ba92"]
 pub struct HelmetColor {
     pub value: Vec3,
@@ -79,7 +81,7 @@ impl HelmetColor {
     }
 }
 
-#[derive(Component, RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, TypeUuid)]
 #[uuid = "463e4c8b-d555-4fc2-ba9f-4c881163ba92"]
 pub struct InnerSuitColor {
     pub value: Vec3,
@@ -134,7 +136,6 @@ pub struct ProjectileMaterials {
     pub molotov: Handle<ColorMaterial>,
     pub molotov_fire: Handle<ColorMaterial>,
     pub molotov_liquid: Handle<ColorMaterial>,
-
     pub flamethrower1: Handle<ColorMaterial>,
     pub flamethrower2: Handle<ColorMaterial>,
     pub flamethrower3: Handle<ColorMaterial>,
@@ -143,29 +144,45 @@ pub struct ProjectileMaterials {
     pub arrow: Handle<ColorMaterial>,
 }
 
-#[derive(Component, Default)]
+#[derive(Component)]
 pub struct AssetsLoading {
-    pub vertex_shader: Handle<Shader>,
-    pub fragment_shader: Handle<Shader>,
+    pub vertex: Handle<Shader>,
+    pub player_frag: Handle<Shader>,
+    pub lighting_frag: Handle<Shader>,
     pub loaded: bool,
 }
 
 // The mouse's position in world coordinates
 pub struct MousePosition(pub Vec2);
 
-#[derive(Component, RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, TypeUuid)]
 #[uuid = "463e4b8a-d555-4fc2-ba9f-4c880063ba92"]
 pub struct ShaderMousePosition {
     pub value: Vec2,
 }
 
-#[derive(Component, RenderResources, Default, TypeUuid)]
+// LightsResource and the Lights struct need to remain synced constantly, since 1 is to make GLSL happy and the other is for rust
+pub struct LightsResource(pub ArrayVec<Vec2, 32>);
+
+#[derive(Component, RenderResources, TypeUuid)]
+#[uuid = "463e4b8a-af55-4fc2-ba9f-4c88b063ba12"]
+pub struct Lights {
+    pub value: [Vec2; 32],
+}
+
+#[derive(Component, RenderResources, TypeUuid)]
+#[uuid = "463f4b1a-af55-4fc2-bb9f-4c88b063ba12"]
+pub struct NumLights {
+    pub value: i32,
+}
+
+#[derive(Component, RenderResources, TypeUuid)]
 #[uuid = "463e4c8b-d555-4fc2-ba9f-4c880063ba92"]
 pub struct WindowSize {
     pub value: Vec2,
 }
 
-#[derive(Component, RenderResources, Default, TypeUuid)]
+#[derive(Component, RenderResources, TypeUuid)]
 #[uuid = "463e4c8b-d554-4fc2-bc9f-4c881163ba92"]
 pub struct Alpha {
     pub value: f32,

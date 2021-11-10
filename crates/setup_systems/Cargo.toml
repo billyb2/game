@@ -24,7 +24,8 @@ parallel = [
 ]
 
 graphics = [
-  "helper_functions/graphics"
+  "helper_functions/graphics",
+  "map/graphics",
 
 ]
 

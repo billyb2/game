@@ -1,6 +1,9 @@
 #![deny(clippy::all)]
 #![feature(path_try_exists)]
 
+#[cfg(feature = "native")]
+use std::io::ErrorKind;
+
 use serde::{Serialize, Deserialize};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use ron::de::from_str;
@@ -40,7 +43,6 @@ pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
     #[cfg(feature = "native")]
     let value = {
         use std::fs::{File, read_to_string};
-        use std::io::ErrorKind;
 
         let key_path = get_path_from_key(&key);
 
@@ -116,7 +118,7 @@ pub fn delete_data(key: String) -> Result<(), Option<std::io::Error>> {
         }
 
     } else {
-        // If the file doesn't exist, return an error
+        // If the key doesn't exist, return an error
         Err(None)
     }
 
@@ -145,8 +147,14 @@ fn get_path_from_key(key: &str) -> std::path::PathBuf {
     let config_dir = proj_dirs.config_dir();
 
     // Just try to create the directory every time, it doesn't really matter if the directory already exists
-    // TODO: Make it so that it panics if the error isn't that the directory already exists
-    create_dir_all(&config_dir);
+    if let Err(error) = create_dir_all(&config_dir) {
+        // Any error besides the directory already existing should panic
+        match error.kind() {
+            ErrorKind::AlreadyExists => (),
+            e => panic!("Error creating config dir: {:?}", e),
+        }
+
+    }
 
     let key_path = config_dir.join(key);
 

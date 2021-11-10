@@ -44,21 +44,35 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     let shader_assets = _shader_assets.unwrap();
 
     #[cfg(feature = "graphics")]
-    let pipeline_handle = _pipelines.unwrap().add(PipelineDescriptor::default_config(ShaderStages {
+    let pipelines = _pipelines.as_mut().unwrap();
+
+    #[cfg(feature = "graphics")]
+    let player_pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         // Vertex shaders are run once for every vertex in the mesh.
         // Each vertex can have attributes associated to it (e.g. position,
         // color, texture mapping). The output of a shader is per-vertex.
-        vertex: shader_assets.vertex_shader.clone(),
+        vertex: shader_assets.vertex.clone(),
         // Fragment shaders are run for each pixel
-        fragment: Some(shader_assets.fragment_shader.clone()),
+        fragment: Some(shader_assets.player_frag.clone()),
     }));
 
     #[cfg(feature = "graphics")]
     {
-        let mut render_graph = _render_graph.unwrap();
+        let render_graph = _render_graph.as_mut().unwrap();
+
         render_graph.add_system_node(
             "mouse_position",
             RenderResourcesNode::<ShaderMousePosition>::new(true),
+        );
+
+        render_graph.add_system_node(
+            "light_pos",
+            RenderResourcesNode::<Lights>::new(true),
+        );
+
+        render_graph.add_system_node(
+            "light_num",
+            RenderResourcesNode::<NumLights>::new(true),
         );
 
         render_graph.add_system_node(
@@ -93,9 +107,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     let map = maps.0.get(&map_crc32.0).unwrap();
     
-    map.spawn_points.iter().enumerate().for_each(|(mut i, coords)| {
-        i += 1;
-
+    map.spawn_points.iter().enumerate().for_each(|(i, coords)| {
         let i: u8 = i.try_into().unwrap();
 
         let ability = match &my_ability {
@@ -165,7 +177,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                 },
                 transform: Transform::from_translation(coords.extend(101.0)),
                 render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                    pipeline_handle.clone(),
+                    player_pipeline_handle.clone(),
                 )]),
 
                 ..Default::default()
@@ -176,6 +188,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
             })
             .insert(GameRelated)
             .insert(Alpha { value: 1.0})
+            .insert(Lights { value: [Vec2::ZERO; 32] } )
+            .insert(NumLights { value: 0 })
             .insert(helmet_color)
             .insert(inner_suit_color);
 

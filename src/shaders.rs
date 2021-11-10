@@ -12,15 +12,25 @@ use game_types::*;
 pub fn setup_asset_loading(asset_server: Res<AssetServer>, mut commands: Commands,) {
     asset_server.watch_for_changes().unwrap();
 
-    let (vert_shader, frag_shader) = match cfg!(feature = "web") {
-        true => ("shaders/sprite_wasm.vert", "shaders/sprite_wasm.frag"),
-        false => ("shaders/sprite.vert", "shaders/sprite.frag"),
-    };
+    #[cfg(feature = "web")]
+    let (vert_shader, player_frag_shader, lighting_frag_shader) = (
+        "shaders/sprite_wasm.vert", 
+        "shaders/player_wasm.frag", 
+        "shaders/lighting_wasm.frag"
+    );
+
+    #[cfg(feature = "native")]
+    let (vert_shader, player_frag_shader, lighting_frag_shader) = (
+        "shaders/sprite.vert", 
+        "shaders/player.frag", 
+        "shaders/lighting.frag"
+    );
 
     commands.insert_resource(AssetsLoading {
         loaded: false,
-        vertex_shader: asset_server.load::<Shader, _>(vert_shader),
-        fragment_shader: asset_server.load::<Shader, _>(frag_shader),
+        vertex: asset_server.load::<Shader, _>(vert_shader),
+        player_frag: asset_server.load::<Shader, _>(player_frag_shader),
+        lighting_frag: asset_server.load::<Shader, _>(lighting_frag_shader),
     });
 
 }
@@ -34,8 +44,10 @@ pub fn check_assets_ready(
         return;
     }
 
-    if asset_server.get_load_state(loading.fragment_shader.clone()) != LoadState::Loaded
-        || asset_server.get_load_state(loading.vertex_shader.clone()) != LoadState::Loaded
+    if 
+        asset_server.get_load_state(loading.player_frag.clone()) != LoadState::Loaded ||
+        asset_server.get_load_state(loading.lighting_frag.clone()) != LoadState::Loaded ||
+        asset_server.get_load_state(loading.vertex.clone()) != LoadState::Loaded
     {
         return;
     }
@@ -43,7 +55,12 @@ pub fn check_assets_ready(
     loading.loaded = true;
 
     let _ = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        vertex: loading.vertex_shader.clone(),
-        fragment: Some(loading.fragment_shader.clone()),
+        vertex: loading.vertex.clone(),
+        fragment: Some(loading.player_frag.clone()),
+    }));
+
+    let _ = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+        vertex: loading.vertex.clone(),
+        fragment: Some(loading.lighting_frag.clone()),
     }));
 }

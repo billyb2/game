@@ -5,10 +5,10 @@ authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgasto
 edition = "2021"
 
 [profile.dev]
-# Since neither me or Luke uses a debugger, turning off debug info should speed up compile times (although it does make debugging shaders a bit more difficult)
 debug = 0
 opt-level = 0
 overflow-checks = false
+incremental = false
 
 [profile.dev-windows]
 inherits = "dev"
@@ -46,6 +46,12 @@ opt-level = 3
 
 # The game library is the most time consuming to compile, so I lower the optimization level on just it
 [profile.dev.package.game]
+opt-level = 1
+
+[profile.dev.package.setup_systems]
+opt-level = 1
+
+[profile.dev.package.map]
 opt-level = 1
 
 [profile.server_cli.package.game]
@@ -151,6 +157,7 @@ graphics = [
   "setup_systems/graphics",
   "net/graphics",
   "helper_functions/graphics",
+  "map/graphics",
 ]
 
 

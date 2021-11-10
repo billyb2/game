@@ -1,6 +1,5 @@
 #![feature(core_intrinsics)]
 #![feature(drain_filter)]
-#![feature(option_result_unwrap_unchecked)]
 #![feature(stmt_expr_attributes)]
 #![feature(adt_const_params)]
 
@@ -10,6 +9,8 @@
 #![allow(incomplete_features)]
 
 mod logic;
+
+use arrayvec::ArrayVec;
 
 use bevy::prelude::*;
 #[cfg(feature = "native")]
@@ -138,6 +139,7 @@ fn main() {
     })
     // Gotta initialize the mouse position with something, or else the game crashes
     .insert_resource(MousePosition(Vec2::ZERO))
+    .insert_resource(LightsResource(ArrayVec::new()))
     // Used to make searches through queries for 1 player much quicker, with some overhead in the beginning of the program
     .insert_resource(MyPlayerID(None))
     .insert_resource(GameMode::Deathmatch)
@@ -253,6 +255,7 @@ fn main() {
             .with_system(use_ability.label(InputFromPlayer).label("player_attr"))
             .with_system(handle_ability_packets.label(InputFromPlayer).label("player_attr"))
             .with_system(reset_player_phasing.after(InputFromPlayer))
+            .with_system(sync_shader_lights.after(InputFromPlayer))
             .with_system(sync_physics_pos.before("move_objects").label("sync_physics_pos"))
             .with_system(move_camera.after("sync_physics_pos"))
             .with_system(move_objects.after(InputFromPlayer).label("move_objects"))

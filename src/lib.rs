@@ -4,7 +4,6 @@
 #![feature(core_intrinsics)]
 #![feature(destructuring_assignment)]
 #![feature(drain_filter)]
-#![feature(option_result_unwrap_unchecked)]
 #![feature(stmt_expr_attributes)]
 #![feature(slice_as_chunks)]
 #![feature(format_args_capture)]
@@ -96,7 +95,7 @@ pub struct ChatLogs(pub ArrayVec<GameLog, 10>);
 
 impl Logs for GameLogs {
     fn new() -> Self {
-        GameLogs(ArrayVec::new_const())
+        GameLogs(ArrayVec::new())
 
     }
 
@@ -127,7 +126,7 @@ impl Logs for GameLogs {
 
 impl Logs for ChatLogs {
     fn new() -> Self {
-        ChatLogs(ArrayVec::new_const())
+        ChatLogs(ArrayVec::new())
 
     }
 

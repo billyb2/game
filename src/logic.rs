@@ -4,6 +4,7 @@ use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
+use bevy::render::camera::Camera;
 use bevy::ecs::component::Component;
  
 use single_byte_hashmap::HashMap;
@@ -309,7 +310,9 @@ pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper,
 
             // Update the rigid body's sprite to the correct translation
             let rigid_body_translation = rigid_body.translation().component_mul(&Vector2::new(250.0, 250.0));
-            transform.translation = Vec3::new(rigid_body_translation.x, rigid_body_translation.y, transform.translation.z);
+
+            transform.translation.x = rigid_body_translation.x;
+            transform.translation.y = rigid_body_translation.y;
             
         }
 
@@ -687,6 +690,43 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
 
 
         }
+
+    });
+}
+
+pub fn sync_shader_lights(mut entities_affected_by_light: Query<(&mut Lights, &mut NumLights, &Transform, Option<&PlayerID>)>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>, mut light_res: ResMut<LightsResource>, my_player_id: Res<MyPlayerID>) {
+    entities_affected_by_light.for_each_mut(|(mut lights, mut num_of_lights, coords, player_id)| {
+        let (camera, camera_transform) = camera.single();
+
+        // Players give off light
+        if let Some(player_id) = player_id {
+            if let Some(mut coords) = camera.world_to_screen(&windows, camera_transform, coords.translation) {
+                let wnd = windows.get_primary().unwrap();
+                let size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+                coords.y = size.y - coords.y;
+
+
+                // Adjust the coordinates to make the shaders happy
+                if player_id.0 == my_player_id.0.as_ref().unwrap().0 {
+                    if light_res.0.len() < 1 {
+                        light_res.0.push(coords);
+
+                    } else {
+                        light_res.0[0] = coords;
+                    }
+
+                }
+            }
+
+        }
+
+        num_of_lights.value = light_res.0.len().try_into().unwrap();
+
+        let shader_light_slice = &mut lights.value[..light_res.0.len()];
+
+        //Just copy the actual lights resource into the shader version
+        shader_light_slice.copy_from_slice(light_res.0.as_slice());
 
     });
 }

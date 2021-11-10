@@ -972,7 +972,6 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
 
     let p = cursor_pos - size / 2.0;
 
-
     shader_mouse_pos.for_each_mut(|mut shader_mouse_pos| {
         shader_mouse_pos.value = cursor_pos / size;
 

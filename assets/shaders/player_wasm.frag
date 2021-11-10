@@ -28,36 +28,14 @@ layout(std140) uniform Alpha_value {
     float phasing;
 };
 
+layout(std140) uniform Lights_value {
+    uniform vec2 light_pos[32];
+};
+
 
 # ifdef COLORMATERIAL_TEXTURE 
-uniform sampler2D ColorMaterial_texture;  // set = 1, binding = 1
+uniform sampler2D ColorMaterial_texture;
 # endif
-
-//Lighting settings
-const float light_radius = 300.0;
-const float max_light_intensity = 1.0;
-
-// Light math
-void add_lighting(inout vec4 color) {
-    // Init vars
-    float color_change = 0.0;    
-
-    vec2 pixel_pos = gl_FragCoord.xy / screen_dimensions;
-    vec2 mouse_position = mouse_pos;
-    //mouse_position.y = screen_dimensions.y - mouse_position.y;
-
-    // By diving the distance of the mouse and the pixel, we can shrink how much is lit by the light
-    //mouse_position /= light_radius;
-    //pixel_pos /= light_radius;
-
-    float mouse_vert_dist = 0.0;
-
-    mouse_vert_dist = distance(mouse_position, pixel_pos);
-    color_change = mix(max_light_intensity, 0.0, mouse_vert_dist);
-
-    color *= color_change;
-
-}
 
 vec4 color_encode(vec4 linearRGB_in) {
     vec3 linearRGB = linearRGB_in.rgb;
@@ -67,8 +45,28 @@ vec4 color_encode(vec4 linearRGB_in) {
     return vec4(mix(a, b, c), linearRGB_in.a);
 }
 
+//Lighting settings
+const float light_radius = 300.0;
+const float max_light_intensity = 0.12;
 
-const float f32_epsilon = 0.00000011920929;
+// Light math
+void add_lighting(inout vec4 color) {
+    for (int i = 0; i < 32; i++) {
+        vec2 light_pos = light_pos[i];
+        if (light_pos != vec2(0.0, 0.0)) {
+            vec2 pixel_pos = gl_FragCoord.xy;
+
+            float light_distance = distance(light_pos, pixel_pos);
+            float color_change = abs(mix(max_light_intensity, 0.0, light_distance)) * 0.01;
+
+            color.rgb += color_change;
+
+
+        }
+
+    }
+
+}
 
 void set_color_of_player(inout vec4 color) {
     // Set color of player parts
@@ -85,6 +83,7 @@ void set_color_of_player(inout vec4 color) {
     }
 
 }
+
 void main() {
     vec4 color = Color;
 
@@ -94,7 +93,8 @@ void main() {
         color *= texture(ColorMaterial_texture, v_Uv);
     # endif
     set_color_of_player(color);
-    //add_lighting(color);
+    add_lighting(color);
 
-    o_Target = color_encode(color);
+    o_Target = color;
+    //o_Target = color_encode(color);
 }

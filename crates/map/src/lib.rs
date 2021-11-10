@@ -14,6 +14,15 @@ use std::ops::ControlFlow;
 use bevy::prelude::*;
 use bevy::math::const_vec2;
 
+use game_types::*;
+
+#[cfg(feature = "graphics")]
+use bevy::render::{
+    pipeline::{PipelineDescriptor, RenderPipeline},
+    render_graph::{RenderGraph, RenderResourcesNode},
+    shader::ShaderStages,
+};
+
 use game_types::{ColliderHandleWrapper, GameRelated, RigidBodyHandleWrapper, Size};
 
 use helper_functions::*;
@@ -129,7 +138,7 @@ impl MapObject {
 
         MapObject {
             // Gotta adjust for Bevy's coordinate system center being at (0, 0)
-            coords: MapObjectCoords(Vec4::new(x + width / 2.0, -y -height / 2.0, z, rotation)),
+            coords: MapObjectCoords(Vec4::new(x + width / 2.0, -y - height / 2.0, z, rotation)),
             size: Size::new(width, height),
             player_spawn: Bool(matches!(&chunk[(24)], 255)),
             collidable: Bool(matches!(&chunk[(25)], 255)),
@@ -294,11 +303,37 @@ impl Map {
 }
 
 // This system just iterates through the map and draws each MapObject
-pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>) {
+#[cfg(feature = "graphics")]
+pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, mut render_graph: ResMut<RenderGraph>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut shader_assets: Res<AssetsLoading>, wnds: Res<Windows>) {
     let map = maps.0.get(&map_crc32.0).unwrap();
+    let wnd = wnds.get_primary().unwrap();
 
     // Set the background color to the map's specified color
     commands.insert_resource(ClearColor(map.background_color));
+
+    let map_object_pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+        // Vertex shaders are run once for every vertex in the mesh.
+        // Each vertex can have attributes associated to it (e.g. position,
+        // color, texture mapping). The output of a shader is per-vertex.
+        vertex: shader_assets.vertex.clone(),
+        // Fragment shaders are run for each pixel
+        fragment: Some(shader_assets.lighting_frag.clone()),
+    }));
+
+    render_graph.add_system_node(
+        "light_pos",
+        RenderResourcesNode::<Lights>::new(true),
+    );
+
+    render_graph.add_system_node(
+        "num_of_lights",
+        RenderResourcesNode::<NumLights>::new(true),
+    );
+
+    render_graph.add_system_node(
+        "screen_dimensions",
+        RenderResourcesNode::<WindowSize>::new(true),
+    );
 
     map.objects.iter().for_each(|object| {
         let map_coords = &object.coords;
@@ -373,12 +408,20 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
                     ..Default::default()
 
                 },
+                render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
+                    map_object_pipeline_handle.clone(),
+                )]),
                 ..Default::default()
             });
 
         entity
             .insert(WallMarker)
-            .insert(GameRelated);
+            .insert(GameRelated)
+            .insert(Lights { value: [Vec2::ZERO; 32] } )
+            .insert(NumLights { value: 0 })
+            .insert(WindowSize {
+                value: Vec2::new(wnd.width(), wnd.height()),
+            });
 
         if let Some((rigid_body_handle, collider_handle)) = physics_handles {
             entity

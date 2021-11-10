@@ -784,7 +784,7 @@ impl PlayerName {
 
         player_name_as_string.truncate(MAX_LEN_OF_PLAYER_NAME);
 
-        let mut array_string: ArrayString<MAX_LEN_OF_PLAYER_NAME> = ArrayString::new_const();
+        let mut array_string: ArrayString<MAX_LEN_OF_PLAYER_NAME> = ArrayString::new();
         array_string.push_str(&player_name_as_string);
 
         PlayerName(array_string)

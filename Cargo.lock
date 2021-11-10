@@ -1617,7 +1617,6 @@ dependencies = [
  "fastrand",
  "game_types",
  "helper_functions",
- "lazy_static",
  "map",
  "net",
  "openssl",
