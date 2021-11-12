@@ -29,7 +29,7 @@ use helper_functions::{get_angle, f32_u8_to_u128};
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
-pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, res_scale: Res<ResScale>) {
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, res_scale: Res<ResScale>, wnds: Res<Windows>) {
     if let Some(my_player_id) = &my_player_id.0 {
         let (player, sprite, &perk) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
@@ -59,9 +59,14 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.x = x;
         camera.translation.y = y;
 
+        let wnd = wnds.get_primary().unwrap();
+        let wnd_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+        let res_scale = ((wnd_size / const_vec2!([1366.0, 768.0])) * 0.95).extend(1.0);
+
         camera.scale = match perk {
-            Perk::ExtendedVision => const_vec3!([1.3; 3]) * res_scale.0,
-            _ => const_vec3!([1.1; 3]) * res_scale.0,
+            Perk::ExtendedVision => const_vec3!([1.3; 3]) * res_scale,
+            _ => const_vec3!([1.1; 3]) * res_scale,
         };
 
     }
