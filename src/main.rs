@@ -1,4 +1,3 @@
-#![feature(core_intrinsics)]
 #![feature(drain_filter)]
 #![feature(stmt_expr_attributes)]
 #![feature(adt_const_params)]

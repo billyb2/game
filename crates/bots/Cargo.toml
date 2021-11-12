@@ -2,6 +2,7 @@
 name = "bots"
 version = "0.1.0"
 edition = "2021"
+crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }

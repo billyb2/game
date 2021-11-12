@@ -2,6 +2,7 @@
 name = "config"
 version = "0.1.0"
 edition = "2021"
+crate-type = ["rlib", "dylib"]
 
 [dependencies]
 # A file format for storing Rust objects

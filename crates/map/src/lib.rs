@@ -1,6 +1,5 @@
 #![feature(stmt_expr_attributes)]
 #![feature(slice_as_chunks)]
-#![feature(option_result_unwrap_unchecked)]
 #![feature(control_flow_enum)]
 
 #![deny(clippy::all)]

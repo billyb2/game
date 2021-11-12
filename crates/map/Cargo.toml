@@ -2,6 +2,7 @@
 name = "map"
 version = "0.1.0"
 edition = "2021"
+crate-type = ["rlib", "dylib"]
 
 [dependencies]
 # CRC32 is a very fast hashing algorithm for verifying files

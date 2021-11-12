@@ -1,4 +1,3 @@
-#![feature(option_result_unwrap_unchecked)]
 #![feature(format_args_capture)]
 
 #![deny(clippy::all)]

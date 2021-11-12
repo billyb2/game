@@ -1,5 +1,3 @@
-#![feature(core_intrinsics)]
-#![feature(option_result_unwrap_unchecked)]
 #![feature(stmt_expr_attributes)]
 #![feature(adt_const_params)]
 
