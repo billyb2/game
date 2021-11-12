@@ -8,10 +8,6 @@ layout(std140) uniform ColorMaterial_color {
     vec4 Color;
 };
 
-layout(std140) uniform ShaderMousePosition_value { // set = 2, binding = 2
-    vec2 mouse_pos;
-};
-
 layout(std140) uniform HelmetColor_value { // set = 2, binding = 3
     vec3 helmet_color;
 };
@@ -24,26 +20,23 @@ layout(std140) uniform WindowSize_value { // set = 2, binding = 5
     vec2 screen_dimensions;
 };
 
+layout(std140) uniform AmbientLightLevel_value {
+    float ambient_light_level;
+};
+
 layout(std140) uniform Alpha_value {
     float phasing;
 };
 
 layout(std140) uniform Lights_value {
-    uniform vec2 light_pos[32];
+    vec2 light_pos[8];
 };
 
 
 # ifdef COLORMATERIAL_TEXTURE 
-uniform sampler2D ColorMaterial_texture;
+uniform sampler2D ColorMaterial_texture;  // set = 1, binding = 1
 # endif
 
-vec4 color_encode(vec4 linearRGB_in) {
-    vec3 linearRGB = linearRGB_in.rgb;
-    vec3 a = 12.92 * linearRGB;
-    vec3 b = 1.055 * pow(linearRGB, vec3(1.0 / 2.4)) - 0.055;
-    vec3 c = step(vec3(0.0031308), linearRGB);
-    return vec4(mix(a, b, c), linearRGB_in.a);
-}
 
 //Lighting settings
 const float light_radius = 300.0;
@@ -56,16 +49,22 @@ void add_lighting(inout vec4 color) {
         if (light_pos != vec2(0.0, 0.0)) {
             vec2 pixel_pos = gl_FragCoord.xy;
 
-            float light_distance = distance(light_pos, pixel_pos);
-            float color_change = abs(mix(max_light_intensity, 0.0, light_distance)) * 0.01;
+            float light_distance = distance(light_pos, pixel_pos / screen_dimensions);
+            float color_change = smoothstep(light_radius, 0.0, light_distance);
 
-            color.rgb += color_change;
-
+            color.rgb *= clamp(color_change, 0.0, max_light_intensity) + ambient_light_level;
 
         }
 
     }
+}
 
+vec4 color_encode(vec4 linearRGB_in) {
+    vec3 linearRGB = linearRGB_in.rgb;
+    vec3 a = 12.92 * linearRGB;
+    vec3 b = 1.055 * pow(linearRGB, vec3(1.0 / 2.4)) - 0.055;
+    vec3 c = step(vec3(0.0031308), linearRGB);
+    return vec4(mix(a, b, c), linearRGB_in.a);
 }
 
 void set_color_of_player(inout vec4 color) {
@@ -83,7 +82,6 @@ void set_color_of_player(inout vec4 color) {
     }
 
 }
-
 void main() {
     vec4 color = Color;
 
@@ -95,6 +93,5 @@ void main() {
     set_color_of_player(color);
     add_lighting(color);
 
-    o_Target = color;
-    //o_Target = color_encode(color);
+    o_Target = color_encode(color);
 }

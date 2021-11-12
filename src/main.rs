@@ -9,8 +9,6 @@
 
 mod logic;
 
-use arrayvec::ArrayVec;
-
 use bevy::prelude::*;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
@@ -138,7 +136,7 @@ fn main() {
     })
     // Gotta initialize the mouse position with something, or else the game crashes
     .insert_resource(MousePosition(Vec2::ZERO))
-    .insert_resource(LightsResource(ArrayVec::new()))
+    .insert_resource(AmbientLightLevel { value: 0.875 })
     // Used to make searches through queries for 1 player much quicker, with some overhead in the beginning of the program
     .insert_resource(MyPlayerID(None))
     .insert_resource(GameMode::Deathmatch)

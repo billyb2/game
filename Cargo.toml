@@ -21,12 +21,12 @@ panic = "abort"
 debug = 0
 codegen-units = 1
 
-[profile.fast-web]
+[profile.fast-web-simd]
 inherits = "dev"
 panic = "abort"
 overflow-checks = false
 # Since web builds run like garbage, using a higher optimization level is nice
-opt-level = 1
+opt-level = 2
 
 [profile.server_cli]
 inherits = "dev"
@@ -57,7 +57,10 @@ opt-level = 1
 opt-level = 1
 
 [profile.fast-web-simd.package.game]
-opt-level = 1
+opt-level = 2
+
+[profile.fast-web-simd.package.setup_systems]
+opt-level = 2
 
 [profile.dev.package.net]
 opt-level = 1
@@ -66,13 +69,7 @@ opt-level = 1
 opt-level = 1
 
 [profile.fast-web-simd.package.net]
-opt-level = 1
-
-[profile.fast-web-simd]
-inherits = "dev"
-panic = "abort"
-# Since web builds run like garbage, using a higher optimization level is nice
-opt-level = 1
+opt-level = 2
 
 [profile.opt-web-simd]
 inherits = "release"

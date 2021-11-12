@@ -12,7 +12,15 @@ layout(set = 2, binding = 2) uniform WindowSize_value {
     vec2 screen_dimensions;
 };
 
-layout(set = 2, binding = 3) uniform Lights_value {
+layout(set = 2, binding = 3) uniform NumLights_value {
+    int num_lights;
+};
+
+layout(set = 2, binding = 4) uniform AmbientLightLevel_value {
+    float ambient_light_level;
+};
+
+layout(set = 2, binding = 5) uniform Lights_value {
     uniform vec2 light_pos[32];
 };
 
@@ -23,23 +31,19 @@ layout(set = 1, binding = 2) uniform sampler ColorMaterial_texture_sampler;
 # endif
 
 //Lighting settings
-const float light_radius = 0.4;
-const float max_light_intensity = 0.5;
+const float light_radius = 0.3;
+const float max_light_intensity = 0.8;
 
 // Light math
 void add_lighting(inout vec4 color) {
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < num_lights; i++) {
         vec2 light_pos = light_pos[i];
-        //TODO: Replace if statement with num_lights
-        if (light_pos != vec2(0.0, 0.0)) {
-            vec2 pixel_pos = gl_FragCoord.xy;
+        vec2 pixel_pos = gl_FragCoord.xy;
 
-            float light_distance = distance(light_pos / screen_dimensions, pixel_pos / screen_dimensions);
-            float color_change = smoothstep(light_radius, 0.0, light_distance);
+        float light_distance = distance(light_pos, pixel_pos / screen_dimensions);
+        float color_change = smoothstep(light_radius, 0.0, light_distance);
 
-            color.rgb *= color_change;
-
-        }
+        color.rgb *= clamp(color_change, 0.0, max_light_intensity) + ambient_light_level;
 
     }
 

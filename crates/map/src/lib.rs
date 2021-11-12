@@ -330,6 +330,11 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
     );
 
     render_graph.add_system_node(
+        "ambient_light",
+        RenderResourcesNode::<AmbientLightLevel>::new(true),
+    );
+
+    render_graph.add_system_node(
         "screen_dimensions",
         RenderResourcesNode::<WindowSize>::new(true),
     );
@@ -416,11 +421,12 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
         entity
             .insert(WallMarker)
             .insert(GameRelated)
-            .insert(Lights { value: [Vec2::ZERO; 32] } )
+            .insert(Lights::new())
             .insert(NumLights { value: 0 })
             .insert(WindowSize {
                 value: Vec2::new(wnd.width(), wnd.height()),
-            });
+            })
+            .insert(AmbientLightLevel { value: 0.8 });
 
         if let Some((rigid_body_handle, collider_handle)) = physics_handles {
             entity

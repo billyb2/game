@@ -203,9 +203,9 @@ pub enum GameMode {
 
 const SCORE_LIMIT: u8 = 10;
 
-pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players: Query<(&mut Visible, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>) {
+pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<DeathEvent>, mut players: Query<(Entity, &mut Visible, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName, &LightHandle)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut light_res: ResMut<LightsResource>) {
     death_events.iter().for_each(|ev| {
-        let (mut visible, mut respawn_timer, collider_handle, player_name) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
+        let (entity, mut visible, mut respawn_timer, collider_handle, player_name, light_handle) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
         let num = fastrand::u8(0..=3);
 
         let message = match num {
@@ -216,6 +216,9 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
             _ => unimplemented!(),
 
         };
+
+        light_res.remove_light(light_handle);
+        commands.entity(entity).remove::<LightHandle>();
 
         visible.is_visible = false;
 
@@ -229,9 +232,10 @@ pub fn death_event_system(mut death_events: EventReader<DeathEvent>, mut players
 }
 
 // This system just deals respawning players
-pub fn dead_players(mut players: Query<(&mut Health, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>) {
-    players.for_each_mut(|(mut health, rigid_body_handle, collider_handle, mut visibility, mut respawn_timer, perk, player_id)| {
+pub fn dead_players(mut commands: Commands, mut players: Query<(Entity, &mut Health, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut light_res: ResMut<LightsResource>) {
+    players.for_each_mut(|(entity, mut health, rigid_body_handle, collider_handle, mut visibility, mut respawn_timer, perk, player_id)| {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains_key(&player_id.0) {
+            commands.entity(entity).insert(light_res.add_light(Vec2::ZERO));
             let spawn_points = &maps.0.get(&map_crc32.0).unwrap().spawn_points;
 
             let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();

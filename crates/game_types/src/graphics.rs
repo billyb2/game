@@ -161,13 +161,75 @@ pub struct ShaderMousePosition {
     pub value: Vec2,
 }
 
-// LightsResource and the Lights struct need to remain synced constantly, since 1 is to make GLSL happy and the other is for rust
-pub struct LightsResource(pub ArrayVec<Vec2, 32>);
+// LightsResource and the Lights struct need to remain synced constantly, since the latter is to make GLSL happy and the former is for Rust
+pub struct LightsResource(ArrayVec<Vec2, 32>);
 
 #[derive(Component, RenderResources, TypeUuid)]
 #[uuid = "463e4b8a-af55-4fc2-ba9f-4c88b063ba12"]
 pub struct Lights {
     pub value: [Vec2; 32],
+}
+
+impl Lights {
+    pub const fn new() -> Self {
+        Lights {
+            value: [Vec2::ZERO; 32],
+
+        }
+
+    }
+}
+
+
+#[derive(Component)]
+pub struct LightHandle(usize);
+
+impl LightHandle {
+    fn new(index: usize) -> Self {
+        LightHandle(index)
+    }
+
+    fn to_index(&self) -> usize {
+        self.0
+    }
+}
+
+impl LightsResource {
+    pub fn new() -> Self {
+        LightsResource(ArrayVec::new())
+    }
+
+    pub fn add_light(&mut self, coords: Vec2) -> LightHandle {
+        self.0.push(coords);
+        LightHandle::new(self.0.len() - 1)
+
+    }
+
+    pub fn remove_light(&mut self, handle: &LightHandle) {
+        self.0.swap_remove(handle.to_index());
+
+    }
+
+    pub fn as_slice(&self) -> &[Vec2] {
+        self.0.as_slice()
+
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+
+    }
+
+    pub fn modify_light(&mut self, handle: &LightHandle) -> Option<&mut Vec2> {
+        self.0.get_mut(handle.to_index())
+
+    }
+}
+
+#[derive(Component, RenderResources, TypeUuid)]
+#[uuid = "463e4b8a-af55-3ac2-ba9f-4c88b063ba12"]
+pub struct AmbientLightLevel {
+    pub value: f32,
 }
 
 #[derive(Component, RenderResources, TypeUuid)]

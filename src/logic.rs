@@ -694,39 +694,36 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
     });
 }
 
-pub fn sync_shader_lights(mut entities_affected_by_light: Query<(&mut Lights, &mut NumLights, &Transform, Option<&PlayerID>)>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>, mut light_res: ResMut<LightsResource>, my_player_id: Res<MyPlayerID>) {
-    entities_affected_by_light.for_each_mut(|(mut lights, mut num_of_lights, coords, player_id)| {
+pub fn sync_shader_lights(mut entities_affected_by_light: Query<(&mut Lights, &mut NumLights, &mut AmbientLightLevel, Option<&LightHandle>, &Transform)>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>, mut light_res: ResMut<LightsResource>, global_ambient: Res<AmbientLightLevel>) {
+    let wnd = windows.get_primary().unwrap();
+    let wnd_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+    entities_affected_by_light.for_each_mut(|(mut lights, mut num_of_lights, mut ambient_light, light_handle, coords)| {
         let (camera, camera_transform) = camera.single();
 
-        // Players give off light
-        if let Some(player_id) = player_id {
+        // Entities that actually give off light
+        if let Some(light_handle) = light_handle {            
+            // Sync the coordinates of all entities giving off light
             if let Some(mut coords) = camera.world_to_screen(&windows, camera_transform, coords.translation) {
-                let wnd = windows.get_primary().unwrap();
-                let size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+                // Adjust the coordinates based off Bevy's camera system
+                coords.y = wnd_size.y - coords.y;
 
-                coords.y = size.y - coords.y;
-
-
-                // Adjust the coordinates to make the shaders happy
-                if player_id.0 == my_player_id.0.as_ref().unwrap().0 {
-                    if light_res.0.len() < 1 {
-                        light_res.0.push(coords);
-
-                    } else {
-                        light_res.0[0] = coords;
-                    }
+                if let Some(light_coords) = light_res.modify_light(light_handle) {
+                    *light_coords = coords / wnd_size;
 
                 }
+
             }
 
         }
 
-        num_of_lights.value = light_res.0.len().try_into().unwrap();
+        ambient_light.value = global_ambient.value;
+        num_of_lights.value = light_res.len().try_into().unwrap();
 
-        let shader_light_slice = &mut lights.value[..light_res.0.len()];
+        let shader_light_slice = &mut lights.value[..light_res.len()];
 
         //Just copy the actual lights resource into the shader version
-        shader_light_slice.copy_from_slice(light_res.0.as_slice());
+        shader_light_slice.copy_from_slice(light_res.as_slice());
 
     });
 }

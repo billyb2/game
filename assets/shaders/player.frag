@@ -8,33 +8,34 @@ layout(set = 1, binding = 0) uniform ColorMaterial_color {
     vec4 Color;
 };
 
-layout(set = 2, binding = 2) uniform ShaderMousePosition_value {
-    vec2 mouse_pos;
-};
-
-layout(set = 2, binding = 3) uniform HelmetColor_value {
+layout(set = 2, binding = 2) uniform HelmetColor_value {
     vec3 helmet_color;
 };
 
-layout(set = 2, binding = 4) uniform InnerSuitColor_value {
+layout(set = 2, binding = 3) uniform InnerSuitColor_value {
     vec3 inner_suit_color;
 };
 
-layout(set = 2, binding = 5) uniform WindowSize_value {
+layout(set = 2, binding = 4) uniform WindowSize_value {
     vec2 screen_dimensions;
 };
 
-layout(set = 2, binding = 6) uniform Alpha_value {
+layout(set = 2, binding = 5) uniform Alpha_value {
     float phasing;
 };
 
+layout(set = 2, binding = 6) uniform AmbientLightLevel_value {
+    float ambient_light_level;
+};
+
 /*layout(set = 2, binding = 7) uniform NumLights_value {
-    int light_num;
+    int num_lights;
 };*/
 
 layout(set = 2, binding = 8) uniform Lights_value {
     uniform vec2 light_pos[32];
 };
+
 
 
 # ifdef COLORMATERIAL_TEXTURE 
@@ -44,20 +45,19 @@ layout(set = 1, binding = 2) uniform sampler ColorMaterial_texture_sampler;
 
 //Lighting settings
 const float light_radius = 300.0;
-const float max_light_intensity = 0.12;
+const float max_light_intensity = 0.08;
 
 // Light math
 void add_lighting(inout vec4 color) {
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 32; i++) {
         vec2 light_pos = light_pos[i];
         if (light_pos != vec2(0.0, 0.0)) {
             vec2 pixel_pos = gl_FragCoord.xy;
 
-            float light_distance = distance(light_pos, pixel_pos);
-            float color_change = abs(mix(max_light_intensity, 0.0, light_distance)) * 0.01;
+            float light_distance = distance(light_pos, pixel_pos / screen_dimensions);
+            float color_change = smoothstep(light_radius, 0.0, light_distance);
 
-            color.rgb += color_change;
-
+            color.rgb *= clamp(color_change, 0.0, max_light_intensity) + ambient_light_level;
 
         }
 

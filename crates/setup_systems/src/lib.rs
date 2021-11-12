@@ -35,6 +35,9 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
     #[cfg(feature = "graphics")]
+    let lights_res = LightsResource::new();
+
+    #[cfg(feature = "graphics")]
     let wnds = _wnds.unwrap();
 
     #[cfg(feature = "graphics")]
@@ -61,8 +64,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         let render_graph = _render_graph.as_mut().unwrap();
 
         render_graph.add_system_node(
-            "mouse_position",
-            RenderResourcesNode::<ShaderMousePosition>::new(true),
+            "ambient_light_val",
+            RenderResourcesNode::<AmbientLightLevel>::new(true),
         );
 
         render_graph.add_system_node(
@@ -71,7 +74,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
         );
 
         render_graph.add_system_node(
-            "light_num",
+            "num_of_lights",
             RenderResourcesNode::<NumLights>::new(true),
         );
 
@@ -187,8 +190,9 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
                 value: Vec2::new(wnd.width(), wnd.height()),
             })
             .insert(GameRelated)
-            .insert(Alpha { value: 1.0})
-            .insert(Lights { value: [Vec2::ZERO; 32] } )
+            .insert(Alpha { value: 1.0 })
+            .insert(AmbientLightLevel { value: 0.8 })
+            .insert(Lights::new())
             .insert(NumLights { value: 0 })
             .insert(helmet_color)
             .insert(inner_suit_color);
@@ -278,6 +282,8 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
     commands.insert_resource(LocalPlayers(local_players));
 
     commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(10, BuildHasher::default())));
+
+    commands.insert_resource(lights_res);
 }
 
 #[cfg(not(feature = "graphics"))]
