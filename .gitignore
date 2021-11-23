@@ -9,5 +9,6 @@
 
 /src/map.xml
 
+**/*/*.spv
 **/*/target
 helper_functions/Cargo.lock

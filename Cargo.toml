@@ -133,6 +133,9 @@ net = { path = "crates/net" }
 [target.'cfg(target_os="windows")'.features]
 default = ["native", "graphics", "openssl/vendored"]
 
+[build-dependencies]
+inline-spirv = { version = "0.1" }
+
 [features]
 default = [
   "native",

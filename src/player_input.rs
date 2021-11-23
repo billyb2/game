@@ -641,7 +641,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .insert(ColliderHandleWrapper(collider_handle))
                             .insert(MaxDistance(ev.max_distance))
                             .insert(DistanceTraveled(0.0))
-                            .insert(Speed(ev.speed.abs()))
+                            .insert(Speed(ev.speed.abs()));
                             //.insert(light_handle)
                             //.insert(light_destruction_timer);
                     }
