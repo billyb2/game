@@ -90,10 +90,16 @@ pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_compl
 
 #[inline]
 pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: Perk) {
-    (health.0, speed.0) = match perk {
-        Perk::HeavyArmor => (health.0 * 1.1, speed.0 * 0.8),
-        Perk::LightArmor => (health.0 * 0.8, speed.0 * 1.1),
-        _ => (health.0, speed.0)
+    match perk {
+        Perk::HeavyArmor => {
+            health.0 *= 1.1;
+            speed.0 *= 0.8;
+        },
+        Perk::LightArmor => {
+            health.0 *= 0.8;
+            speed.0 *= 1.1;
+        },
+        _ => ()
 
     };
 

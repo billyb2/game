@@ -6,12 +6,19 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
-arrayvec = { version = "0.7", features = ["serde"] }
 rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
 serde = { version = "1", features = ["derive"] }
 rand = { version = "0.8", features = ["nightly"] }
 fastrand = { version = "1" }
+arrayvec = { version = "0.7" }
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 
+# Graphics only libs
+lights = { path = "crates/lights", optional = true }
+ui_graphics = { path = "crates/ui_graphics", optional = true }
+
 [features]
-graphics = []
+graphics = [
+	"lights",
+	"ui_graphics",
+]

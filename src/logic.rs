@@ -9,7 +9,7 @@ use bevy::ecs::component::Component;
  
 use single_byte_hashmap::HashMap;
 
-use game_lib::{GameLog, Logs};
+use game_lib::{GameLog, Logs, calc_shader_light_pos};
 use game_types::*;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 
@@ -694,36 +694,27 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
     });
 }
 
-pub fn sync_shader_lights(mut entities_affected_by_light: Query<(&mut Lights, &mut NumLights, &mut AmbientLightLevel, Option<&LightHandle>, &Transform)>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>, mut light_res: ResMut<LightsResource>, global_ambient: Res<AmbientLightLevel>) {
+pub fn sync_shader_lights(mut entities_affected_by_light: Query<(&mut Lights, &mut NumLights, &mut AmbientLightLevel)>, entities_giving_off_light: Query<(&Transform, &LightHandle)>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>, mut lights_res: ResMut<LightsResource>, global_ambient: Res<AmbientLightLevel>) {
     let wnd = windows.get_primary().unwrap();
     let wnd_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
 
-    entities_affected_by_light.for_each_mut(|(mut lights, mut num_of_lights, mut ambient_light, light_handle, coords)| {
-        let (camera, camera_transform) = camera.single();
+    let (camera, camera_transform) = camera.single();
 
-        // Entities that actually give off light
-        if let Some(light_handle) = light_handle {            
-            // Sync the coordinates of all entities giving off light
-            if let Some(mut coords) = camera.world_to_screen(&windows, camera_transform, coords.translation) {
-                // Adjust the coordinates based off Bevy's camera system
-                coords.y = wnd_size.y - coords.y;
+    entities_giving_off_light.for_each(|(transform, light_handle)| {
+        calc_shader_light_pos(transform.translation, &mut lights_res, camera, camera_transform, &windows, wnd_size, light_handle);
 
-                if let Some(light_coords) = light_res.modify_light(light_handle) {
-                    *light_coords = coords / wnd_size;
+    });
 
-                }
+    let num_of_lights_res: i32 = lights_res.len().try_into().unwrap();
 
-            }
-
-        }
-
+    entities_affected_by_light.for_each_mut(|(mut lights, mut num_of_lights, mut ambient_light)| {
+        // Update the settings of all entities affected by light
         ambient_light.value = global_ambient.value;
-        num_of_lights.value = light_res.len().try_into().unwrap();
+        num_of_lights.value = num_of_lights_res;
 
-        let shader_light_slice = &mut lights.value[..light_res.len()];
+        let lights_slice = &mut lights.value[..lights_res.len()];
 
-        //Just copy the actual lights resource into the shader version
-        shader_light_slice.copy_from_slice(light_res.as_slice());
+        lights_res.copy_pos_into_slice(lights_slice);
 
     });
 }

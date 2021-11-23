@@ -1,0 +1,21 @@
+[package]
+name = "setup_graphics"
+version = "0.1.0"
+edition = "2021"
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
+fastrand = { version = "1" }
+
+map = { path = "../../../map", features = ["graphics"] }
+game_types = { path = "../../../game_types", features = ["graphics"] }
+config = { path = "../../../config" }
+helper_functions = { path = "../../../helper_functions", features = ["graphics"] }
+
+[features]
+parallel = [
+  "single_byte_hashmap/rayon",
+  "map/parallel",
+]

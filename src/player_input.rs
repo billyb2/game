@@ -29,7 +29,7 @@ use helper_functions::{get_angle, f32_u8_to_u128};
 
 // This just keeps the camera in sync with the player
 //TODO: Make MapSize its own resource
-pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, res_scale: Res<ResScale>, wnds: Res<Windows>) {
+pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players: Query<(&Transform, &Sprite, &Perk), Without<GameCamera>>, my_player_id: Res<MyPlayerID>, window: Res<WindowDescriptor>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, wnds: Res<Windows>) {
     if let Some(my_player_id) = &my_player_id.0 {
         let (player, sprite, &perk) = players.get(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
@@ -38,21 +38,24 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         let mut x = sprite.size.x.mul_add(-0.5, player.translation.x);
         let mut y = sprite.size.y.mul_add(0.5, player.translation.y);
 
+        let half_window_width = window.width / 2.0;
+        let half_window_height = window.height / 2.0;
+
         let camera = &mut camera.single_mut();
 
-        if x - window.width / 2.0 < 0.0 {
-            x = window.width / 2.0;
+        if x - half_window_width < 0.0 {
+            x = half_window_width;
 
-        } else if x + window.width / 2.0 > map.size.x {
-            x = map.size.x - window.width / 2.0;
+        } else if x + half_window_width > map.size.x {
+            x = map.size.x - half_window_width;
 
         }
 
-        if -y - window.height / 2.0 < 0.0 {
-            y = -window.height / 2.0;
+        if -y - half_window_height < 0.0 {
+            y = -half_window_height;
 
-        } else if -y + window.height / 2.0 > map.size.y {
-            y = -map.size.y + window.height / 2.0;
+        } else if -y + half_window_height > map.size.y {
+            y = -map.size.y + half_window_height;
 
         }
 
@@ -65,8 +68,8 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         let res_scale = ((wnd_size / const_vec2!([1366.0, 768.0])) * 0.95).extend(1.0);
 
         camera.scale = match perk {
-            Perk::ExtendedVision => const_vec3!([1.3; 3]) * res_scale,
-            _ => const_vec3!([1.1; 3]) * res_scale,
+            Perk::ExtendedVision => const_vec3!([2.0; 3]) * res_scale,
+            _ => const_vec3!([1.8; 3]) * res_scale,
         };
 
     }
@@ -459,7 +462,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, mut lights_res: ResMut<LightsResource>, windows: Res<Windows>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>) {
     if my_player_id.0.is_some() {
         shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
@@ -608,7 +611,19 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                     let rigid_body_handle = rigid_body_set.insert(rigid_body);
                     let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
-                        
+
+                    /*let light_destruction_timer = LightDestructionTimer(Timer::from_seconds(0.05, false));
+
+                    let (camera, camera_transform) = camera.single();
+
+                    let wnd = windows.get_primary().unwrap();
+                    let wnd_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+
+                    let light_handle = lights_res.add_light(Vec2::ZERO);
+                    
+                    // Adjust the position of the shader's light
+                    calc_shader_light_pos(translation.into(), &mut lights_res, camera, camera_transform, &windows, wnd_size, &light_handle);*/
+
                         commands
                             .spawn_bundle(Projectile::new(ev.projectile_type, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
@@ -626,7 +641,9 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .insert(ColliderHandleWrapper(collider_handle))
                             .insert(MaxDistance(ev.max_distance))
                             .insert(DistanceTraveled(0.0))
-                            .insert(Speed(ev.speed.abs()));
+                            .insert(Speed(ev.speed.abs()))
+                            //.insert(light_handle)
+                            //.insert(light_destruction_timer);
                     }
                 }
 
@@ -914,7 +931,6 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandleWrapper)>, mut
             reload_timer.reloading = false;
             bursting.0 = false;
 
-
         }
 
         if using_ability.0 && ability_completed.0.finished() {
@@ -969,11 +985,7 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
 
     // the default orthographic projection is in pixels from the center;
     // just undo the translation
-    let cursor_pos = match wnd.cursor_position() {
-        Some(pos) => pos,
-        None => Vec2::ZERO,
-
-    };
+    let cursor_pos = wnd.cursor_position().unwrap_or(Vec2::ZERO);
 
     let p = cursor_pos - size / 2.0;
 

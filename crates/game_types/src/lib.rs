@@ -1,13 +1,9 @@
-#![feature(destructuring_assignment)]
 #![feature(variant_count)]
-#![feature(const_fn_floating_point_arithmetic)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
 pub mod player_attr;
-#[cfg(feature = "graphics")]
-pub mod graphics;
 
 use bevy::core::Timer;
 use bevy::ecs::component::Component;
@@ -18,7 +14,9 @@ use rapier2d::dynamics::RigidBodyHandle;
 use rapier2d::geometry::ColliderHandle;
 
 #[cfg(feature = "graphics")]
-pub use graphics::*;
+pub use ui_graphics::*;
+#[cfg(feature = "graphics")]
+pub use lights::*;
 
 pub use player_attr::*;
 

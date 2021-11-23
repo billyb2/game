@@ -1,9 +1,6 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
-#[cfg(feature = "graphics")]
-mod setup_graphics;
-
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::convert::TryInto;
 

@@ -44,16 +44,17 @@ const float max_light_intensity = 0.5;
 
 // Light math
 void add_lighting(inout vec4 color) {
+    vec2 adj_pixel_pos = gl_FragCoord.xy / screen_dimensions;
+
     for (int i = 0; i < num_lights; i++) {
         vec2 light_pos = light_pos[i];
-        vec2 pixel_pos = gl_FragCoord.xy;
 
-        float light_distance = distance(light_pos, pixel_pos / screen_dimensions);
+        float light_distance = distance(light_pos, adj_pixel_pos);
         float color_change = smoothstep(light_radius, 0.0, light_distance);
 
         color.rgb *= clamp(color_change, 0.0, max_light_intensity) + ambient_light_level;
-
     }
+
 }
 
 void main() {

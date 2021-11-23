@@ -44,7 +44,7 @@ const float max_light_intensity = 0.12;
 
 // Light math
 void add_lighting(inout vec4 color) {
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 8; i++) {
         vec2 light_pos = light_pos[i];
         if (light_pos != vec2(0.0, 0.0)) {
             vec2 pixel_pos = gl_FragCoord.xy;

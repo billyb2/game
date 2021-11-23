@@ -1617,6 +1617,7 @@ dependencies = [
  "fastrand",
  "game_types",
  "helper_functions",
+ "inline-spirv",
  "map",
  "net",
  "openssl",
@@ -1637,10 +1638,12 @@ dependencies = [
  "arrayvec 0.7.1",
  "bevy",
  "fastrand",
+ "lights",
  "rand 0.8.4",
  "rapier2d",
  "serde",
  "single_byte_hashmap",
+ "ui_graphics",
 ]
 
 [[package]]
@@ -2071,6 +2074,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a257582fdcde896fd96463bf2d40eefea0580021c0712a0e2b028b60b47a837a"
 
 [[package]]
+name = "inline-spirv"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d94edd18603b2b62d435e208952342f8d03d1ede1cc9b8d99d3688ae9e677022"
+dependencies = [
+ "quote",
+ "shaderc",
+ "syn",
+]
+
+[[package]]
 name = "inotify"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2205,6 +2219,14 @@ name = "libm"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
+
+[[package]]
+name = "lights"
+version = "0.1.0"
+dependencies = [
+ "arrayvec 0.7.1",
+ "bevy",
+]
 
 [[package]]
 name = "local_ipaddress"
@@ -3300,17 +3322,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "setup_systems"
+name = "setup_graphics"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bots",
  "config",
  "fastrand",
  "game_types",
  "helper_functions",
  "map",
+ "single_byte_hashmap",
+]
+
+[[package]]
+name = "setup_systems"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bots",
+ "game_types",
+ "map",
  "rapier2d",
+ "setup_graphics",
  "single_byte_hashmap",
 ]
 
@@ -3747,6 +3780,14 @@ name = "typenum"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b63708a265f51345575b27fe43f9500ad611579e764c79edbc2037b1121959ec"
+
+[[package]]
+name = "ui_graphics"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "serde",
+]
 
 [[package]]
 name = "unicode-bidi"

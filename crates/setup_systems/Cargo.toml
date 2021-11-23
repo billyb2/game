@@ -5,16 +5,15 @@ edition = "2021"
 crate-type = ["rlib", "dylib"]
 
 [dependencies]
-config = { path = "../config" }
 bots = { path = "../bots" }
 game_types = { path = "../game_types" }
-helper_functions = { path = "../helper_functions" }
 map = { path = "../map" }
 
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
-fastrand = { version = "1" }
+
+setup_graphics = { path = "crates/setup_graphics", optional = true }
 
 [features]
 parallel = [
@@ -23,12 +22,7 @@ parallel = [
   "rapier2d/parallel",
   "bots/parallel",
 ]
-
-graphics = [
-  "helper_functions/graphics",
-  "map/graphics",
-
-]
+graphics = ["setup_graphics"]
 
 native = []
 web = []

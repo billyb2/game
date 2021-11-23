@@ -29,7 +29,7 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
         .spawn_bundle(orthographic_camera)
         .insert(GameCamera);
 
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     {
         let res_scale = (window.width / 1366.0).min(window.height / 768.0) * 0.95;
         commands.insert_resource(ResScale(res_scale.recip()));
@@ -70,20 +70,20 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let flame2 = rng.u8(100..=150);
     let flame3 = rng.u8(100..=250);
 
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     let assets = asset_server.load_folder("map_assets/").unwrap();
 
 
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     let mut map_assets: HashMap<u8, Handle<ColorMaterial>> =
         HashMap::with_capacity_and_hasher(assets.len(), BuildHasher::default());
 
-    #[cfg(feature = "web")]
+    #[cfg(target_arch = "wasm32")]
     let map_assets: HashMap<u8, Handle<ColorMaterial>> =
         HashMap::with_capacity_and_hasher(256, BuildHasher::default());
 
     // Web builds can't preload assets
-    #[cfg(feature = "native")]
+    #[cfg(not(target_arch = "wasm32"))]
     {
         assets.iter().for_each(|asset| {
             let asset = asset.clone().typed();
@@ -1068,7 +1068,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
             });
 
             // Only PC's can host games
-            #[cfg(feature = "native")]
+            #[cfg(not(target_arch = "wasm32"))]
             node_parent
                 .spawn_bundle(ButtonBundle {
                     style: Style {
@@ -1105,7 +1105,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                 });
 
             // Only WASM can join games
-            #[cfg(feature = "web")]
+            #[cfg(target_arch = "wasm32")]
             node_parent
                 .spawn_bundle(ButtonBundle {
                     style: Style {

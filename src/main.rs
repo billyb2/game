@@ -47,12 +47,12 @@ fn main() {
     #[cfg(debug_assertions)]
     app
     // Antialiasing
-    .insert_resource(Msaa { samples: 8 });
+    .insert_resource(Msaa { samples: 2 });
 
     #[cfg(not(debug_assertions))]
     app
     // Antialiasing is lower for debug builds
-    .insert_resource(Msaa { samples: 2 });
+    .insert_resource(Msaa { samples: 8 });
 
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
@@ -161,9 +161,6 @@ fn main() {
     .add_event::<LogEvent>()
     .add_event::<ChatEvent>();
 
-    #[cfg(feature = "web")]
-    app.insert_resource(ResScale(res_scale.recip()));
-
     //The WebGL2 plugin is only added if we're compiling to WASM
     #[cfg(feature = "web")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
@@ -233,6 +230,7 @@ fn main() {
         SystemSet::on_update(AppState::InGame)
             // Timers should be ticked first
             .with_system(tick_timers.before("player_attr").before(InputFromPlayer).label("tick_timers"))
+            .with_system(destroy_light_timers.before("player_attr").before(InputFromPlayer))
             .with_system(explode_grenades.after("tick_timers"))
             .with_system(handle_text_messages)
             .with_system(set_mouse_coords.label(InputFromPlayer).before("player_attr").before("shoot"))
@@ -265,7 +263,7 @@ fn main() {
             .with_system(score_system.after("move_objects"))
             .with_system(despawn_destroyed_walls.after("move_objects"))
             .with_system(death_event_system.after("move_objects").after(InputFromPlayer).before("dead_players"))
-            .with_system(dead_players.after("move_objects").label("dead_players"))
+            .with_system(respawn_palyers.after("move_objects").label("dead_players"))
             .with_system(generic_log_system::<GameLogs, GameLogText, { None }, 8.0, LogEvent>.after("dead_players"))
             .with_system(generic_log_system::<ChatLogs, ChatLogText, { Some(20.0) }, 20.0, ChatEvent>.after(InputFromPlayer))
             .with_system(update_game_ui.after(InputFromPlayer).after("move_objects"))

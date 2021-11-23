@@ -5,9 +5,9 @@ authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgasto
 edition = "2021"
 
 [profile.dev]
-debug = 0
 opt-level = 0
 overflow-checks = false
+incremental = true
 
 [profile.dev-windows]
 inherits = "dev"
