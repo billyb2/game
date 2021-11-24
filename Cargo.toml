@@ -95,9 +95,6 @@ bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking
 # WASM logging
 wasm-bindgen = { version = "0.2.78", optional = true }
 
-# Used for sending structs over networks easily and efficiently
-serde = { version = "1", features = ["derive"] }
-
 # RNGs
 # Enabling nightly allows using some more optimizations
 rand = { version = "0.8", features = ["nightly"] }
@@ -115,9 +112,6 @@ rustc-hash = { version = "1" }
 # Physics
 rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
 
-# A fixed size stack allocated Vector
-arrayvec = { version = "0.7", features = ["serde"] }
-
 # Compiles OpenSSL from scratch when the vendored feature is enabled
 openssl = { version = "0.10", optional = true }
 
@@ -129,6 +123,8 @@ config = { path = "crates/config" }
 bots = { path = "crates/bots" }
 setup_systems = { path = "crates/setup_systems" }
 net = { path = "crates/net" }
+game_logic = { path = "crates/game_logic" }
+menus = { path = "crates/menus", optional = true }
 
 [target.'cfg(target_os="windows")'.features]
 default = ["native", "graphics", "openssl/vendored"]
@@ -157,6 +153,7 @@ graphics = [
   "net/graphics",
   "helper_functions/graphics",
   "map/graphics",
+  "menus",
 ]
 
 

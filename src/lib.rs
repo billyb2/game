@@ -16,8 +16,6 @@
 
 pub mod system_labels;
 #[cfg(feature = "graphics")]
-pub mod menus;
-#[cfg(feature = "graphics")]
 pub mod player_input;
 #[cfg(feature = "graphics")]
 pub mod shaders;
@@ -40,8 +38,6 @@ use rayon::prelude::*;
 
 #[cfg(feature = "web")]
 use wasm_bindgen::prelude::*;
-
-use arrayvec::ArrayVec;
 
 use map::*;
 use game_types::*;
@@ -74,112 +70,6 @@ pub struct Projectile {
     pub projectile_size: Size,
     pub damage: Damage,
 
-}
-
-pub trait Logs {
-    fn new() -> Self;
-    fn is_full(&self) -> bool;
-    fn first_mut(&mut self) -> Option<&mut GameLog>;
-    fn push_unchecked(&mut self, element: GameLog);
-    fn retain<F>(&mut self, f: F)
-        where F: FnMut(&mut GameLog) -> bool;
-    fn iter(&self) -> std::slice::Iter<'_, GameLog>;
-
-}
-
-#[derive(Component)]
-pub struct GameLogs(pub ArrayVec<GameLog, 10>);
-
-
-#[derive(Component)]
-pub struct ChatLogs(pub ArrayVec<GameLog, 10>);
-
-impl Logs for GameLogs {
-    fn new() -> Self {
-        GameLogs(ArrayVec::new())
-
-    }
-
-    fn is_full(&self) -> bool {
-        self.0.is_full()
-
-    }
-
-    fn first_mut(&mut self) -> Option<&mut GameLog> {
-        self.0.first_mut()
-    }
-
-    fn push_unchecked(&mut self, element: GameLog) {
-        unsafe { self.0.push_unchecked(element) }
-
-    }
-
-    fn retain<F>(&mut self, f: F)
-        where F: FnMut(&mut GameLog) -> bool {
-        self.0.retain(f)
-
-    }
-
-    fn iter(&self) -> std::slice::Iter<'_, GameLog> {
-        self.0.iter()
-    }
-}
-
-impl Logs for ChatLogs {
-    fn new() -> Self {
-        ChatLogs(ArrayVec::new())
-
-    }
-
-    fn is_full(&self) -> bool {
-        self.0.is_full()
-
-    }
-
-    fn first_mut(&mut self) -> Option<&mut GameLog> {
-        self.0.first_mut()
-    }
-
-    fn push_unchecked(&mut self, element: GameLog) {
-        unsafe { self.0.push_unchecked(element) }
-
-    }
-
-    fn retain<F>(&mut self, f: F)
-        where F: FnMut(&mut GameLog) -> bool {
-        self.0.retain(f)
-
-    }
-
-    fn iter(&self) -> std::slice::Iter<'_, GameLog> {
-        self.0.iter()
-    }
-}
-
-#[derive(Clone)]
-pub struct GameLog {
-    pub text: TextSection,
-    pub timer: Timer,
-
-}
-
-impl GameLog {
-    pub fn new(text: String, size: Option<f32>, text_screen_time: f32, asset_server: &AssetServer) -> Self {
-        GameLog {
-            text: TextSection {
-                style: TextStyle {
-                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
-                    font_size: size.unwrap_or(35.0 * (20.0 / text.len() as f32)),
-                    color: Color::WHITE,
-                },
-                value: text,
-            },
-            timer: Timer::from_seconds(text_screen_time, false),
-
-        }
-        
-    }
 }
 
 impl Projectile {
@@ -246,7 +136,7 @@ pub fn respawn_palyers(mut commands: Commands, mut players: Query<(Entity, &mut 
 
             let light_handle: LightHandle = lights_res.add_light(Vec2::ZERO);
 
-            calc_shader_light_pos(new_pos.extend(101.0), &mut lights_res, camera, camera_transform, &windows, wnd_size, &light_handle);
+            lights_res.calc_shader_light_pos(new_pos.extend(101.0), camera, camera_transform, &windows, wnd_size, &light_handle);
 
             commands.entity(entity).insert(light_handle);
 
@@ -504,19 +394,5 @@ pub fn reset_game(commands: Commands, mut deathmatch_score: ResMut<DeathmatchSco
 
     #[cfg(feature = "graphics")]
     {my_player_id.0 = None;}
-
-}
-
-#[cfg(feature = "graphics")]
-pub fn calc_shader_light_pos(translation: Vec3, lights_res: &mut LightsResource, camera: &Camera, camera_transform: &GlobalTransform, windows: &Windows, wnd_size: Vec2, light_handle: &LightHandle) {
-    if let Some(mut coords) = camera.world_to_screen(&windows, camera_transform, translation) {
-        // Adjust the coordinates based off Bevy's camera system
-        coords.y = wnd_size.y - coords.y;
-
-        if let Some(light_coords) = lights_res.modify_light_pos(light_handle) {
-            *light_coords = coords / wnd_size;
-
-        }
-    }
 
 }

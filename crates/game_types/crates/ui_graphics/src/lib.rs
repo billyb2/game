@@ -1,4 +1,5 @@
 #![feature(const_fn_floating_point_arithmetic)]
+use arrayvec::ArrayVec;
 
 use bevy::prelude::*;
 use bevy::math::const_vec3;
@@ -142,6 +143,7 @@ pub struct ProjectileMaterials {
     pub pulsewave: Handle<ColorMaterial>,
     pub beam: Handle<ColorMaterial>,
     pub arrow: Handle<ColorMaterial>,
+    pub used_bullet: Handle<ColorMaterial>,
 }
 
 #[derive(Component)]
@@ -174,4 +176,110 @@ pub struct WindowSize {
 #[uuid = "463e4c8b-d554-4fc2-bc9f-4c881163ba92"]
 pub struct Alpha {
     pub value: f32,
+}
+
+pub trait Logs {
+    fn new() -> Self;
+    fn is_full(&self) -> bool;
+    fn first_mut(&mut self) -> Option<&mut GameLog>;
+    fn push_unchecked(&mut self, element: GameLog);
+    fn retain<F>(&mut self, f: F)
+        where F: FnMut(&mut GameLog) -> bool;
+    fn iter(&self) -> std::slice::Iter<'_, GameLog>;
+
+}
+
+#[derive(Component)]
+pub struct GameLogs(pub ArrayVec<GameLog, 10>);
+
+
+#[derive(Component)]
+pub struct ChatLogs(pub ArrayVec<GameLog, 10>);
+
+impl Logs for GameLogs {
+    fn new() -> Self {
+        GameLogs(ArrayVec::new())
+
+    }
+
+    fn is_full(&self) -> bool {
+        self.0.is_full()
+
+    }
+
+    fn first_mut(&mut self) -> Option<&mut GameLog> {
+        self.0.first_mut()
+    }
+
+    fn push_unchecked(&mut self, element: GameLog) {
+        unsafe { self.0.push_unchecked(element) }
+
+    }
+
+    fn retain<F>(&mut self, f: F)
+        where F: FnMut(&mut GameLog) -> bool {
+        self.0.retain(f)
+
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, GameLog> {
+        self.0.iter()
+    }
+}
+
+impl Logs for ChatLogs {
+    fn new() -> Self {
+        ChatLogs(ArrayVec::new())
+
+    }
+
+    fn is_full(&self) -> bool {
+        self.0.is_full()
+
+    }
+
+    fn first_mut(&mut self) -> Option<&mut GameLog> {
+        self.0.first_mut()
+    }
+
+    fn push_unchecked(&mut self, element: GameLog) {
+        unsafe { self.0.push_unchecked(element) }
+
+    }
+
+    fn retain<F>(&mut self, f: F)
+        where F: FnMut(&mut GameLog) -> bool {
+        self.0.retain(f)
+
+    }
+
+    fn iter(&self) -> std::slice::Iter<'_, GameLog> {
+        self.0.iter()
+    }
+}
+
+#[derive(Clone)]
+pub struct GameLog {
+    pub text: TextSection,
+    pub timer: Timer,
+
+}
+
+impl GameLog {
+    pub fn new(text: String, size: Option<f32>, text_screen_time: f32, asset_server: &AssetServer) -> Self {
+        GameLog {
+            text: TextSection {
+                style: TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    // The text size becomes smaller as the actual text becomes larger, so that it will always fit on the screen
+                    font_size: size.unwrap_or(35.0 * (20.0 / text.len() as f32)),
+                    color: Color::WHITE,
+                },
+                value: text,
+            },
+            timer: Timer::from_seconds(text_screen_time, false),
+
+        }
+        
+    }
 }

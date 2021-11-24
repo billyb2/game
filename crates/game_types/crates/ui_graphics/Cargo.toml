@@ -7,3 +7,4 @@ crate-type = ["rlib", "dylib"]
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["render"] }
 serde = { version = "1", features = ["derive"] }
+arrayvec = { version = "0.7" }

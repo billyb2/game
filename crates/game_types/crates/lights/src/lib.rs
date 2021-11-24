@@ -2,6 +2,7 @@ use arrayvec::ArrayVec;
 
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
+use bevy::render::camera::Camera;
 use bevy::render::renderer::RenderResources;
 use bevy::math::Vec2;
 
@@ -110,6 +111,19 @@ impl LightsResource {
     
     pub fn light_in_use(&self, handle: &LightHandle) -> bool {
         self.used_indexes.contains(&handle)
+
+    }
+
+    pub fn calc_shader_light_pos(&mut self, translation: Vec3, camera: &Camera, camera_transform: &GlobalTransform, windows: &Windows, wnd_size: Vec2, light_handle: &LightHandle) {
+        if let Some(mut coords) = camera.world_to_screen(&windows, camera_transform, translation) {
+            // Adjust the coordinates based off Bevy's camera system
+            coords.y = wnd_size.y - coords.y;
+
+            if let Some(light_coords) = self.modify_light_pos(light_handle) {
+                *light_coords = coords / wnd_size;
+
+            }
+        }
 
     }
 }

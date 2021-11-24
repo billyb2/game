@@ -1,4 +1,7 @@
 #![deny(clippy::all)]
+#![allow(incomplete_features)]
+
+#![feature(adt_const_params)]
 
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
@@ -9,7 +12,6 @@ use bevy::ecs::component::Component;
  
 use single_byte_hashmap::HashMap;
 
-use game_lib::{GameLog, Logs, calc_shader_light_pos};
 use game_types::*;
 use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 
@@ -40,8 +42,8 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         
                     }
 
-                    let hit_player = other_collider.user_data == u128::MAX;
-                    let hit_map_object = other_collider.user_data == 0;
+                    let mut hit_player = other_collider.user_data == u128::MAX;
+                    let mut hit_map_object = other_collider.user_data == 0;
 
                     // Contains a mutable reference to the player or wall's health, and whether or not it's a player or a wall being hit
                     let health: Option<(&mut f32, bool)> = if health.as_ref().is_some() {
@@ -198,15 +200,20 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                     // Destroy any projectiles
                     } else if shot_from.is_some() {
                         let projectile_type_ref = **projectile_type.as_ref().unwrap();
+
+                        hit_player = hit_player && projectile_type_ref != ProjectileType::UsedBullet;
+                        hit_map_object = hit_map_object && projectile_type_ref != ProjectileType::UsedBullet;
+
                         if 
                         // None of the molov type should be destroyed when hit
                         (projectile_type_ref != ProjectileType::MolotovLiquid && projectile_type_ref != ProjectileType::Molotov && projectile_type_ref != ProjectileType::MolotovFire)
                         // The sticky grenade type shouldn't either
                         && projectile_type_ref != ProjectileType::StickyGrenade
                         // the projecitle hit a wall or a player
-                         && (hit_map_object || hit_player) 
-                         // If it's a pulsewave, it has to have hit a player to dissapear
-                         && (projectile_type_ref != ProjectileType::PulseWave || hit_player) {
+                        && (hit_map_object || hit_player)
+                        // If it's a pulsewave, it has to have hit a player to dissapear
+                        && (projectile_type_ref != ProjectileType::PulseWave) 
+                        {
                                 // Projectiles upon collision with any object destroy themselves, except for collisions with other bullets
                                 should_remove_rigid_body = true;
 
@@ -652,7 +659,7 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
             distance_traveled.0 += speed;
 
             if distance_traveled.0 >= max_distance.0 {
-                if !rigid_body.is_static() && *projectile_type != ProjectileType::Molotov && *projectile_type != ProjectileType::StickyGrenade {
+                if !rigid_body.is_static() && *projectile_type != ProjectileType::Molotov && *projectile_type != ProjectileType::StickyGrenade  {
 
                     rigid_body_set.remove(rigid_body_handle.0, &mut island_manager, &mut collider_set, &mut joint_set);
                     commands.entity(entity).despawn_recursive();
@@ -686,6 +693,10 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
                     }
 
                 }
+            } else if *projectile_type == ProjectileType::UsedBullet && rigid_body.linvel().abs() <= Vector2::new(0.3, 0.3) {
+                rigid_body_set.remove(rigid_body_handle.0, &mut island_manager, &mut collider_set, &mut joint_set);
+                commands.entity(entity).despawn_recursive();
+
             }
 
 
@@ -701,7 +712,7 @@ pub fn sync_shader_lights(mut entities_affected_by_light: Query<(&mut Lights, &m
     let (camera, camera_transform) = camera.single();
 
     entities_giving_off_light.for_each(|(transform, light_handle)| {
-        calc_shader_light_pos(transform.translation, &mut lights_res, camera, camera_transform, &windows, wnd_size, light_handle);
+        lights_res.calc_shader_light_pos(transform.translation, camera, camera_transform, &windows, wnd_size, light_handle);
 
     });
 

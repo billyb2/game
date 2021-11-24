@@ -1,13 +1,10 @@
 #![feature(drain_filter)]
 #![feature(stmt_expr_attributes)]
-#![feature(adt_const_params)]
 
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 #![allow(incomplete_features)]
-
-mod logic;
 
 use bevy::prelude::*;
 #[cfg(feature = "native")]
@@ -25,13 +22,14 @@ use helper_functions::aabb_check;
 
 use game_lib::*;
 use game_lib::player_input::*;
-use game_lib::menus::*;
 use game_lib::system_labels::*;
+
+use game_logic::*;
 use setup_systems::*;
 use game_types::*;
 use game_lib::shaders::*;
-use logic::*;
 use map::*;
+use menus::*;
 use config::*;
 use bots::*;
 use net::*;

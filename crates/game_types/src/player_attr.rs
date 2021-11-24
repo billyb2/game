@@ -343,6 +343,7 @@ pub enum ProjectileType {
     WidowMaker,
     Arrow,
     StickyGrenade,
+    UsedBullet,
 
 }
 
@@ -363,6 +364,7 @@ impl From<u8> for ProjectileType {
             9 => ProjectileType::WidowMaker,
             10 => ProjectileType::Arrow,
             11 => ProjectileType::StickyGrenade,
+            12 => ProjectileType::UsedBullet,
             _ => panic!("Projectile conversion out of bounds: {} was requested, max is {}", projectile_type, NUM_OF_PROJECTILE_TYPES),
 
         }
@@ -386,6 +388,7 @@ impl From<ProjectileType> for u8 {
             ProjectileType::WidowMaker => 9,
             ProjectileType::Arrow => 10,
             ProjectileType::StickyGrenade => 11,
+            ProjectileType::UsedBullet => 12,
 
         }
 

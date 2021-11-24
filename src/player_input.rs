@@ -6,7 +6,7 @@ use std::f32::consts::PI;
 use std::iter::repeat_with;
 
 use bevy::prelude::*;
-use bevy::math::{Size as UI_Size, Vec3A, const_vec3, const_vec2};
+use bevy::math::{Size as UI_Size, const_vec3, const_vec2};
 use bevy::utils::Duration;
 use bevy::input::ElementState;
 use bevy::input::keyboard::KeyboardInput;
@@ -472,7 +472,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
 
                 let mut shooting = false;
 
-                let speed = ev.speed.abs();
+                let speed = ev.speed;
 
                 let player_id = ev.player_id;
 
@@ -558,6 +558,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::Melee => materials.regular.clone(),
                                     ProjectileType::Arrow => materials.arrow.clone(),
                                     ProjectileType::StickyGrenade => materials.arrow.clone(),
+                                    // This branch should almost never happen
+                                    ProjectileType::UsedBullet => materials.used_bullet.clone(),
 
                                 }
 
@@ -571,13 +573,10 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             audio.play(sound);*/
 
 
-                        // Move the projectile in front of the player according to the projectile's size
-                        let size_vec3a = Vec3A::from((ev.size, 0.0));
-                        
-                        let angle_trig = Vec3A::new(angle.cos(), angle.sin(), 0.0);
-                        let mut translation: Vec3A = ev.start_pos.into();
-                        
-                        translation += (angle_trig * Vec3A::new(75.0, 75.0, 0.0)) + (size_vec3a * angle_trig);
+                        // Move the projectile in front of the player according to the projectile's size                        
+                        let angle_trig = Vec2::new(angle.cos(), angle.sin());
+
+                        let translation = ev.start_pos.truncate() + (angle_trig * const_vec2!([75.0; 2])) + (ev.size * angle_trig);
 
                         let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
                             // The user_data is the damage, (shot_from, projectile_type) (f32, (u8, u8)) of the bullet
@@ -630,7 +629,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 material,
                                 sprite: Sprite::new(ev.size),
                                 transform: Transform {
-                                    translation: translation.into(),
+                                    translation: translation.extend(ev.start_pos.z),
                                     rotation: Quat::from_rotation_z(angle),
                                     ..Default::default()
 
@@ -641,9 +640,54 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .insert(ColliderHandleWrapper(collider_handle))
                             .insert(MaxDistance(ev.max_distance))
                             .insert(DistanceTraveled(0.0))
-                            .insert(Speed(ev.speed.abs()));
+                            .insert(Speed(ev.speed));
                             //.insert(light_handle)
                             //.insert(light_destruction_timer);
+
+                        if ev.projectile_type == ProjectileType::Regular || ev.projectile_type == ProjectileType::WidowMaker {
+                            let rng = fastrand::Rng::new();
+
+                            let angle = rng.f32() * PI;
+                            let rotation = rng.f32() * PI;
+
+                            let rigid_body = RigidBodyBuilder::new(RigidBodyType::Dynamic)
+                                .user_data(f32_u8_to_u128(0.0, (player_id, ProjectileType::UsedBullet.into())))
+                                .translation((Vector2::new(ev.start_pos.x, ev.start_pos.y)).component_div(&Vector2::new(250.0, 250.0)))
+                                .linvel(Vector2::new(rng.f32() * 2.25 * rng.i8(..).signum() as f32, rng.f32() * 2.25 * rng.i8(..).signum() as f32))
+                                .linear_damping(5.0)
+                                .gravity_scale(0.0)
+                                .rotation(rotation)
+                                .build();
+
+                            let collider = ColliderBuilder::cuboid(collider_size.x, collider_size.x)
+                                .restitution(1.0)
+                                .friction(0.0)
+                                .collision_groups(InteractionGroups::new(0b0010, 0b0100),)
+                                .build();
+
+                            let rigid_body_handle = rigid_body_set.insert(rigid_body);
+                            let collider_handle = collider_set.insert_with_parent(collider, rigid_body_handle, &mut rigid_body_set);
+
+                            commands
+                                .spawn_bundle(Projectile::new(ProjectileType::UsedBullet, Size::new(ev.size.x, ev.size.y), player_id, Damage(0.0)))
+                                .insert_bundle(SpriteBundle {
+                                    material: materials.used_bullet.clone(),
+                                    sprite: Sprite::new(ev.size),
+                                    transform: Transform {
+                                        translation: ev.start_pos,
+                                        rotation: Quat::from_rotation_z(angle),
+                                        ..Default::default()
+
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(RigidBodyHandleWrapper(rigid_body_handle))
+                                .insert(ColliderHandleWrapper(collider_handle))
+                                .insert(MaxDistance(50.0))
+                                .insert(DistanceTraveled(0.0))
+                                .insert(Speed(0.01));
+
+                        }
                     }
                 }
 

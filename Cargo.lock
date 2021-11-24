@@ -1608,27 +1608,39 @@ dependencies = [
 name = "game"
 version = "0.1.0"
 dependencies = [
- "arrayvec 0.7.1",
  "bevy",
  "bevy_networking_turbulence",
  "bevy_webgl2",
  "bots",
  "config",
  "fastrand",
+ "game_logic",
  "game_types",
  "helper_functions",
  "inline-spirv",
  "map",
+ "menus",
  "net",
  "openssl",
  "rand 0.8.4",
  "rapier2d",
  "rayon",
  "rustc-hash",
- "serde",
  "setup_systems",
  "single_byte_hashmap",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "game_logic"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "game_types",
+ "helper_functions",
+ "map",
+ "rapier2d",
+ "single_byte_hashmap",
 ]
 
 [[package]]
@@ -2331,6 +2343,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59accc507f1338036a0477ef61afdae33cde60840f4dfe481319ce3ad116ddf9"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "menus"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_networking_turbulence",
+ "config",
+ "game_types",
+ "helper_functions",
+ "map",
+ "setup_systems",
+ "single_byte_hashmap",
 ]
 
 [[package]]
@@ -3785,6 +3811,7 @@ checksum = "b63708a265f51345575b27fe43f9500ad611579e764c79edbc2037b1121959ec"
 name = "ui_graphics"
 version = "0.1.0"
 dependencies = [
+ "arrayvec 0.7.1",
  "bevy",
  "serde",
 ]

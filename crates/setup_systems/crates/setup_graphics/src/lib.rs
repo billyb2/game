@@ -38,6 +38,9 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
 }
 
 pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
+    #[cfg(debug_assertions)]
+    asset_server.watch_for_changes().unwrap();
+
     //TODO: Use a spritesheet
     // The gorgeous assets are made by Shelby
     let p_pistol_sprite = asset_server.load("player_sprites/player_pistol.png");
@@ -68,24 +71,17 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
     let flame1 = rng.u8(200..=250);
     let flame2 = rng.u8(100..=150);
-    let flame3 = rng.u8(100..=250);
-
-    #[cfg(not(target_arch = "wasm32"))]
-    let assets = asset_server.load_folder("map_assets/").unwrap();
-
-
-    #[cfg(not(target_arch = "wasm32"))]
-    let mut map_assets: HashMap<u8, Handle<ColorMaterial>> =
-        HashMap::with_capacity_and_hasher(assets.len(), BuildHasher::default());
+    let flame3 = rng.u8(100..=250);    
 
     #[cfg(target_arch = "wasm32")]
-    let map_assets: HashMap<u8, Handle<ColorMaterial>> =
-        HashMap::with_capacity_and_hasher(256, BuildHasher::default());
+    let map_assets: HashMap<u8, Handle<ColorMaterial>> = HashMap::with_capacity_and_hasher(20, BuildHasher::default());
 
     // Web builds can't preload assets
     #[cfg(not(target_arch = "wasm32"))]
-    {
-        assets.iter().for_each(|asset| {
+    let map_assets: HashMap<u8, Handle<ColorMaterial>> = {
+        let assets = asset_server.load_folder("map_assets/").unwrap();
+
+        assets.iter().map(|asset| {
             let asset = asset.clone().typed();
             let asset_path = asset_server.get_handle_path(asset.clone()).unwrap();
             let path = asset_path.path();
@@ -93,12 +89,11 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
             let int = file_name_string.parse::<u8>().unwrap();
 
-            map_assets.insert(int, materials.add(asset.into()));
-        });
-    }
+            (int, materials.add(asset.into()))
 
-    #[cfg(debug_assertions)]
-    asset_server.watch_for_changes().unwrap();
+        }).collect()
+
+    };
 
     commands.insert_resource(Skin {
         player: [
@@ -134,6 +129,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         pulsewave: materials.add(pulsewave_sprite.into()),
         beam: materials.add(Color::rgba_u8(173, 216, 230, 50).into()),
         arrow: materials.add(arrow_sprite.into()),
+        used_bullet: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
     });
 
     commands.insert_resource(ButtonMaterials {

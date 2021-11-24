@@ -1,20 +1,20 @@
 #![deny(clippy::all)]
 #![feature(path_try_exists)]
 
-#[cfg(feature = "native")]
+#[cfg(any(feature = "native", not(target_arch = "wasm32")))]
 use std::io::ErrorKind;
 
 use serde::{Serialize, Deserialize};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use ron::de::from_str;
 
-#[cfg(feature = "web")]
+#[cfg(any(feature = "web", target_arch = "wasm32"))]
 use wasm_bindgen::prelude::*;
 
-#[cfg(feature = "native")]
+#[cfg(any(feature = "native", not(target_arch = "wasm32")))]
 use directories_next::ProjectDirs;
 
-#[cfg(feature = "web")]
+#[cfg(any(feature = "web", target_arch = "wasm32"))]
 #[wasm_bindgen(inline_js = "export function js_get_data(a){return localStorage.getItem(a)}export function js_write_data(a,b){localStorage.setItem(a,b)}export function js_delete_data(a){localStorage.removeItem(a)}export function js_key_exists(a){if(localStorage[a]){true}else{false}}")]
 extern "C" {
     fn js_get_data(key: String) -> Option<String>;
@@ -25,7 +25,7 @@ extern "C" {
 }
 
 pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
-    #[cfg(feature = "web")]
+    #[cfg(any(feature = "web", target_arch = "wasm32"))]
     let value = {
         let string = js_get_data(key);
 
@@ -40,7 +40,7 @@ pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
         }
     };
 
-    #[cfg(feature = "native")]
+    #[cfg(any(feature = "native", not(target_arch = "wasm32")))]
     let value = {
         use std::fs::{File, read_to_string};
 
@@ -71,7 +71,7 @@ pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
 }
 
 pub fn write_data<T>(key: String, value: T) where T: Serialize {
-    #[cfg(feature = "web")]
+    #[cfg(any(feature = "web", target_arch = "wasm32"))]
     {
         let ron_config = PrettyConfig::new();
         let value = to_string_pretty(&value, ron_config).unwrap();
@@ -79,7 +79,7 @@ pub fn write_data<T>(key: String, value: T) where T: Serialize {
         js_write_data(key, value);
     };
 
-    #[cfg(feature = "native")]
+    #[cfg(any(feature = "native", not(target_arch = "wasm32")))]
     {
         use std::fs::write;
 
@@ -96,7 +96,7 @@ pub fn write_data<T>(key: String, value: T) where T: Serialize {
 pub fn delete_data(key: String) -> Result<(), Option<std::io::Error>> {
     if check_key(key.clone()) {
         // Only try to delete an item if it exists
-        #[cfg(feature = "native")]
+        #[cfg(any(feature = "native", not(target_arch = "wasm32")))]
         {
             use std::fs::remove_file;
 
@@ -110,7 +110,7 @@ pub fn delete_data(key: String) -> Result<(), Option<std::io::Error>> {
 
         }
 
-        #[cfg(feature = "web")]
+        #[cfg(any(feature = "web", target_arch = "wasm32"))]
         {
             js_delete_data(key);
             Ok(())
@@ -125,10 +125,10 @@ pub fn delete_data(key: String) -> Result<(), Option<std::io::Error>> {
 }
 
 pub fn check_key(key: String) -> bool {
-    #[cfg(feature = "web")]
+    #[cfg(any(feature = "web", target_arch = "wasm32"))]
     let value = js_key_exists(key);
 
-    #[cfg(feature = "native")]
+    #[cfg(any(feature = "native", not(target_arch = "wasm32")))]
     let value = {
         use std::fs::try_exists;
 
@@ -139,7 +139,7 @@ pub fn check_key(key: String) -> bool {
     value
 }
 
-#[cfg(feature = "native")]
+#[cfg(any(feature = "native", not(target_arch = "wasm32")))]
 fn get_path_from_key(key: &str) -> std::path::PathBuf {
     use std::fs::create_dir_all;
 

@@ -1,6 +1,9 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
+#![allow(incomplete_features)]
+
+#![feature(adt_const_params)]
 
 use std::ops::Deref;
 use std::net::{SocketAddr, IpAddr};
@@ -11,20 +14,16 @@ use bevy::math::Size;
 use bevy::input::ElementState;
 use bevy::input::keyboard::KeyboardInput;
 
-use crate::*;
+//use crate::*;
+use bevy_networking_turbulence::*;
+use single_byte_hashmap::HashMap;
+
 use config::{get_data, write_data};
 use setup_systems::*;
-use game_types::player_attr::*;
+use map::*;
+use game_types::*;
 
 use helper_functions::graphics::spawn_button;
-
-#[cfg(feature = "web")]
-use crate::log;
-
-#[cfg(feature = "web")]
-macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
 
 pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
@@ -320,7 +319,6 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
         let header_text = &mut header_text.single_mut().sections[0].value;
 
         let mut connect_or_clear = 
-        #[inline(always)]
         |text: &mut String, header_text: &mut String| {
             match text.parse::<IpAddr>() {
                 Ok(addr) => {
@@ -404,9 +402,6 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
         let map = maps.0.get_mut(&map_crc32.0).unwrap(); 
 
         if map.objects.capacity() == 0 {
-            #[cfg(feature = "web")]
-            console_log!("Downloading metadata");
-
             net.broadcast_message((String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
 
         } else {
@@ -420,9 +415,6 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
                     false => None,
 
             }).for_each(|i| net.broadcast_message((map_crc32.0, i)));
-
-            #[cfg(feature = "web")]
-            console_log!("Downloading map object");
 
             // Request a map object for each default map object
             
