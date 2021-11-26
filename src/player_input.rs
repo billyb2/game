@@ -63,13 +63,11 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
         camera.translation.y = y;
 
         let wnd = wnds.get_primary().unwrap();
-        let wnd_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
-
-        let res_scale = ((wnd_size / const_vec2!([1366.0, 768.0])) * 0.95).extend(1.0);
+        let res_scale = ((wnd.width() as f32 / 1366.0).min(wnd.height() as f32 / 768.0) * 0.95).recip();
 
         camera.scale = match perk {
-            Perk::ExtendedVision => const_vec3!([2.0; 3]) * res_scale,
-            _ => const_vec3!([1.8; 3]) * res_scale,
+            Perk::ExtendedVision => const_vec3!([1.5; 3]) * Vec3::new(res_scale, res_scale, 1.0),
+            _ => const_vec3!([1.25; 3]) * Vec3::new(res_scale, res_scale, 1.0),
         };
 
     }

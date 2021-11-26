@@ -66,5 +66,5 @@ void main() {
 
     add_lighting(color);
 
-    o_Target = color;
+    o_Target = color_encode(color);
 }
