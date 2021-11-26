@@ -67,6 +67,8 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let pulsewave_sprite = asset_server.load("projectile_sprites/pulsewave.png");
     let arrow_sprite = asset_server.load("projectile_sprites/arrow.png");
 
+    let shield_cell_sprite = asset_server.load("misc/shield_cell.png");
+
     let rng = fastrand::Rng::new();
 
     let flame1 = rng.u8(200..=250);
@@ -130,6 +132,8 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         beam: materials.add(Color::rgba_u8(173, 216, 230, 50).into()),
         arrow: materials.add(arrow_sprite.into()),
         used_bullet: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+
+        shield_cell: materials.add(shield_cell_sprite.into())
     });
 
     commands.insert_resource(ButtonMaterials {

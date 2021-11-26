@@ -144,6 +144,8 @@ pub struct ProjectileMaterials {
     pub beam: Handle<ColorMaterial>,
     pub arrow: Handle<ColorMaterial>,
     pub used_bullet: Handle<ColorMaterial>,
+
+    pub shield_cell: Handle<ColorMaterial>,
 }
 
 #[derive(Component)]

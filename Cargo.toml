@@ -8,6 +8,7 @@ edition = "2021"
 opt-level = 0
 overflow-checks = false
 incremental = true
+crate-type = ["rlib", "dylib"]
 
 [profile.dev-windows]
 inherits = "dev"
@@ -123,7 +124,7 @@ config = { path = "crates/config" }
 bots = { path = "crates/bots" }
 setup_systems = { path = "crates/setup_systems" }
 net = { path = "crates/net" }
-game_logic = { path = "crates/game_logic" }
+game_logic = { path = "crates/game_logic", optional = true }
 menus = { path = "crates/menus", optional = true }
 
 [target.'cfg(target_os="windows")'.features]
@@ -154,6 +155,7 @@ graphics = [
   "helper_functions/graphics",
   "map/graphics",
   "menus",
+  "game_logic",
 ]
 
 

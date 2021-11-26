@@ -3,12 +3,15 @@
 
 #![feature(adt_const_params)]
 
+use std::f32::consts::PI;
+
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
 use bevy::render::camera::Camera;
 use bevy::ecs::component::Component;
+use bevy::math::const_vec2;
  
 use single_byte_hashmap::HashMap;
 
@@ -143,15 +146,48 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                     if !hit_wall {
                                         damage_source.as_mut().unwrap().0 = Some(shot_from);
 
+
+                                        let other_translation = other_collider.translation();
+                                        let rigid_body_pos = rigid_body.translation();
+
+                                        let angle = get_angle(other_translation.x, other_translation.y, rigid_body_pos.x, rigid_body_pos.y);
+                                        let cell_angle = angle + PI;
+                                        
+
+                                        let mut cell_transform = {
+                                            let translation = other_translation.component_mul(&Vector2::new(250.0, 250.0));
+                                            Transform {
+                                                translation: Vec2::new(translation.x, translation.y).extend(101.0),
+                                                rotation: Quat::from_rotation_z(cell_angle),
+                                                ..Default::default()
+                                            }
+
+                                        };
+
+                                        cell_transform.translation += (Vec2::new(cell_angle.cos(), cell_angle.sin()) * const_vec2!([25.0; 2])).extend(0.0);
+
+                                        commands.spawn_bundle(SpriteBundle {
+                                            material: proj_materials.shield_cell.clone(),
+                                            sprite: Sprite {
+                                                size: const_vec2!([36.0, 12.0]),
+                                                flip_x: true, 
+                                                resize_mode: SpriteResizeMode::Manual,
+
+                                                ..Default::default()
+                                            },
+                                            visible: Visible {
+                                                is_visible: true,
+                                                is_transparent: false,
+                                            },
+                                            transform: cell_transform,
+                                            ..Default::default()
+                                        })
+                                        .insert(DestructionTimer(Timer::from_seconds(0.1, false)));
+
                                         if projectile_type == ProjectileType::TractorBeam {
                                             const FORCE: Vector2<f32> = Vector2::new(250.0, 250.0);
 
-                                            let other_translation = other_collider.translation();
-                                            let rigid_body_pos = rigid_body.translation();
-
-                                            let angle_to_move = get_angle(other_translation.x, other_translation.y, rigid_body_pos.x, rigid_body_pos.y);
-
-                                            let force = FORCE.component_mul(&Vector2::new(angle_to_move.cos(), angle_to_move.sin()));
+                                            let force = FORCE.component_mul(&Vector2::new(angle.cos(), angle.sin()));
 
                                             rigid_body.apply_force(force, true);
 
@@ -344,10 +380,13 @@ pub fn heal_widowmaker_shots(mut widow_maker_heals: ResMut<WidowMakerHeals>, mut
 
 }
 
-pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionTimer, &RigidBodyHandleWrapper)>, mut rigid_body_set: ResMut<RigidBodySet>, mut island_manager: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>) {
+pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionTimer, Option<&RigidBodyHandleWrapper>)>, mut rigid_body_set: ResMut<RigidBodySet>, mut island_manager: ResMut<IslandManager>, mut collider_set: ResMut<ColliderSet>, mut joint_set: ResMut<JointSet>) {
     q.for_each(|(e, d_timer, rigid_body_handle)| {
         if d_timer.0.finished() {
-            rigid_body_set.remove(rigid_body_handle.0, &mut island_manager, &mut collider_set, &mut joint_set);
+            if let Some(rigid_body_handle) = rigid_body_handle {
+                rigid_body_set.remove(rigid_body_handle.0, &mut island_manager, &mut collider_set, &mut joint_set);
+            }
+
             commands.entity(e).despawn_recursive();
         }
 
