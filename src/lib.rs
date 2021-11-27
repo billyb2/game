@@ -97,16 +97,17 @@ const SCORE_LIMIT: u8 = 10;
 pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<DeathEvent>, mut players: Query<(Entity, &mut Visible, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName, &LightHandle)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut light_res: ResMut<LightsResource>) {
     death_events.iter().for_each(|ev| {
         let (entity, mut visible, mut respawn_timer, collider_handle, player_name, light_handle) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
-        let num = fastrand::u8(0..=3);
 
-        let message = match num {
-            0 => format!("{} got murked", player_name),
-            1 => format!("{} got gulaged", player_name),
-            2 => format!("{} got sent to the shadow realm", player_name),
-            3 => format!("{} died", player_name),
-            _ => unimplemented!(),
+        const DEATH_MESSAGES: [&'static str; 4] = [
+            "got murked",
+            "got gulaged",
+            "got sent to the shadow realm",
+            "died",
 
-        };
+        ];
+
+        let index = fastrand::usize(0..DEATH_MESSAGES.len());
+        let message = format!("{} {}", player_name, DEATH_MESSAGES[index]);
 
         light_res.remove_light(light_handle);
         commands.entity(entity).remove::<LightHandle>();

@@ -209,13 +209,18 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                         false => {
                                             if !hit_wall {
                                                 let speed = p_speed.as_mut().unwrap();
-                                                // Slow down players for X amount of seconds
+
+                                                // When taking damage, players are slowed down slightly to make being hit more of a punishment
+                                                speed.0 *= 0.85;
+                                                commands.entity(entity).insert(SlowedDown(Timer::from_seconds(1.0, false)));
+
+                                                // Pulsewaves and liquid molotovs slow down players
                                                 if projectile_type == ProjectileType::PulseWave {
                                                     speed.0 *=  0.25;
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.5, false)));
 
 
-                                                } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED * 0.65{
+                                                } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED * 0.65 {
                                                     speed.0 *= 0.65;
                                                     commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
 
