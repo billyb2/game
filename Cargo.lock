@@ -467,7 +467,7 @@ dependencies = [
  "bevy_app",
  "bevy_utils",
  "console_error_panic_hook",
- "tracing-subscriber",
+ "tracing-subscriber 0.2.25",
  "tracing-wasm",
 ]
 
@@ -1253,6 +1253,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e77a43b28d0668df09411cb0bc9a8c2adc40f9a048afe863e05fd43251e8e39c"
+dependencies = [
+ "cfg-if 1.0.0",
+ "num_cpus",
+ "rayon",
+]
+
+[[package]]
 name = "deflate"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1628,6 +1639,7 @@ dependencies = [
  "rustc-hash",
  "setup_systems",
  "single_byte_hashmap",
+ "tcp_server",
  "wasm-bindgen",
 ]
 
@@ -3611,6 +3623,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tcp_server"
+version = "0.1.0"
+dependencies = [
+ "bevy_app",
+ "bevy_ecs",
+ "bevy_utils",
+ "dashmap",
+ "tokio",
+]
+
+[[package]]
 name = "termcolor"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3668,6 +3691,23 @@ name = "tinyvec_macros"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
+
+[[package]]
+name = "tokio"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70e992e41e0d2fb9f755b37446f20900f64446ef54874f40a60c78f021ac6144"
+dependencies = [
+ "autocfg",
+ "bytes",
+ "libc",
+ "memchr",
+ "mio",
+ "num_cpus",
+ "parking_lot",
+ "pin-project-lite",
+ "winapi",
+]
 
 [[package]]
 name = "toml"
@@ -3755,13 +3795,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-wasm"
-version = "0.2.0"
+name = "tracing-subscriber"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ae741706df70547fca8715f74a8569677666e7be3454313af70f6e158034485"
+checksum = "7507ec620f809cdf07cccb5bc57b13069a88031b795efd4079b1c71b66c1613d"
+dependencies = [
+ "sharded-slab",
+ "thread_local",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-wasm"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4575c663a174420fa2d78f4108ff68f65bf2fbb7dd89f33749b6e826b3626e07"
 dependencies = [
  "tracing",
- "tracing-subscriber",
+ "tracing-subscriber 0.3.2",
  "wasm-bindgen",
 ]
 
@@ -4277,27 +4328,27 @@ checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
 [[patch.unused]]
 name = "bevy_app"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_core"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_ecs"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_reflect"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_tasks"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "naia-socket-shared"

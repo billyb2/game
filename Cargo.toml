@@ -126,6 +126,7 @@ setup_systems = { path = "crates/setup_systems" }
 net = { path = "crates/net" }
 game_logic = { path = "crates/game_logic", optional = true }
 menus = { path = "crates/menus", optional = true }
+tcp_server = { path = "crates/tcp_server", optional = true }
 
 [target.'cfg(target_os="windows")'.features]
 default = ["native", "graphics", "openssl/vendored"]
@@ -156,6 +157,7 @@ graphics = [
   "map/graphics",
   "menus",
   "game_logic",
+  "tcp_server",
 ]
 
 

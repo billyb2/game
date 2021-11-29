@@ -6,7 +6,6 @@
 #![feature(drain_filter)]
 #![feature(stmt_expr_attributes)]
 #![feature(slice_as_chunks)]
-#![feature(format_args_capture)]
 #![feature(adt_const_params)]
 
 #![deny(clippy::all)]

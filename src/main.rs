@@ -33,6 +33,7 @@ use menus::*;
 use config::*;
 use bots::*;
 use net::*;
+use tcp_server::*;
 
 fn main() {
     let mut app = App::new();
@@ -149,6 +150,7 @@ fn main() {
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
     .add_plugins(DefaultPlugins)
     .add_plugin(NetworkingPlugin::default())
+    .add_plugin(TcpNetworkingPlugin)
     //.add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
     // Adds some possible events, like reloading and using your ability
