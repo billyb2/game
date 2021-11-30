@@ -157,7 +157,6 @@ graphics = [
   "map/graphics",
   "menus",
   "game_logic",
-  "tcp_server",
 ]
 
 
@@ -166,6 +165,7 @@ native = [
   "config/native",
   "setup_systems/native",
   "net/native",
+  "tcp_server",
 ]
 
 parallel = [

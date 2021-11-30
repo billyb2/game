@@ -33,6 +33,8 @@ use menus::*;
 use config::*;
 use bots::*;
 use net::*;
+
+#[cfg(feature = "native")]
 use tcp_server::*;
 
 fn main() {
@@ -150,7 +152,6 @@ fn main() {
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
     .add_plugins(DefaultPlugins)
     .add_plugin(NetworkingPlugin::default())
-    .add_plugin(TcpNetworkingPlugin)
     //.add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
     // Adds some possible events, like reloading and using your ability
@@ -160,6 +161,9 @@ fn main() {
     .add_event::<DeathEvent>()
     .add_event::<LogEvent>()
     .add_event::<ChatEvent>();
+
+    #[cfg(feature = "native")]
+    app.add_plugin(TcpNetworkingPlugin);
 
     //The WebGL2 plugin is only added if we're compiling to WASM
     #[cfg(feature = "web")]
