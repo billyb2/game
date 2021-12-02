@@ -8,7 +8,6 @@ edition = "2021"
 opt-level = 0
 overflow-checks = false
 incremental = true
-crate-type = ["rlib", "dylib"]
 
 [profile.dev-windows]
 inherits = "dev"
@@ -126,7 +125,7 @@ setup_systems = { path = "crates/setup_systems" }
 net = { path = "crates/net" }
 game_logic = { path = "crates/game_logic", optional = true }
 menus = { path = "crates/menus", optional = true }
-tcp_server = { path = "crates/tcp_server", optional = true }
+net_tcp = { path = "crates/net_tcp", optional = true }
 
 [target.'cfg(target_os="windows")'.features]
 default = ["native", "graphics", "openssl/vendored"]
@@ -165,7 +164,7 @@ native = [
   "config/native",
   "setup_systems/native",
   "net/native",
-  "tcp_server",
+  "net_tcp",
 ]
 
 parallel = [

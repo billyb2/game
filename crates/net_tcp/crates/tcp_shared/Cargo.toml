@@ -1,0 +1,14 @@
+[package]
+name = "tcp_shared"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread"] }
+tokio-util = { version = "0.6", features = ["codec"] }
+
+bincode = { version = "1" }
+serde = { version = "1" }
+futures = { version = "0.3" }
+arrayvec = { version = "0.7" }
+dashmap = { version = "4", features = ["rayon"] }

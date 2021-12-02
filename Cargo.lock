@@ -1632,6 +1632,7 @@ dependencies = [
  "map",
  "menus",
  "net",
+ "net_tcp",
  "openssl",
  "rand 0.8.4",
  "rapier2d",
@@ -1639,7 +1640,6 @@ dependencies = [
  "rustc-hash",
  "setup_systems",
  "single_byte_hashmap",
- "tcp_server",
  "wasm-bindgen",
 ]
 
@@ -2613,8 +2613,24 @@ dependencies = [
  "bevy_networking_turbulence",
  "game_types",
  "map",
+ "net_tcp",
  "rapier2d",
  "single_byte_hashmap",
+]
+
+[[package]]
+name = "net_tcp"
+version = "0.1.0"
+dependencies = [
+ "bevy_app",
+ "bevy_ecs",
+ "bincode",
+ "dashmap",
+ "serde",
+ "tcp_client",
+ "tcp_server",
+ "tcp_shared",
+ "tokio",
 ]
 
 [[package]]
@@ -3623,15 +3639,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "tcp_server"
+name = "tcp_client"
 version = "0.1.0"
 dependencies = [
  "arrayvec 0.7.1",
- "bevy_app",
- "bevy_ecs",
- "bevy_utils",
  "bincode",
- "bytes",
+ "dashmap",
+ "serde",
+ "tcp_shared",
+ "tokio",
+]
+
+[[package]]
+name = "tcp_server"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "dashmap",
+ "serde",
+ "tcp_shared",
+ "tokio",
+]
+
+[[package]]
+name = "tcp_shared"
+version = "0.1.0"
+dependencies = [
+ "arrayvec 0.7.1",
+ "bincode",
  "dashmap",
  "futures",
  "serde",

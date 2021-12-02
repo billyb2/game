@@ -35,7 +35,7 @@ use bots::*;
 use net::*;
 
 #[cfg(feature = "native")]
-use tcp_server::*;
+use net_tcp::*;
 
 fn main() {
     let mut app = App::new();
@@ -150,7 +150,12 @@ fn main() {
     .insert_resource(name)
     .insert_resource(NumOfBots(0))
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
-    .add_plugins(DefaultPlugins)
+    .add_plugins(DefaultPlugins);
+
+    #[cfg(feature = "native")]
+    app.add_plugin(TcpNetworkingPlugin);
+
+    app
     .add_plugin(NetworkingPlugin::default())
     //.add_plugin(AudioPlugin)
     .add_event::<NetworkEvent>()
@@ -161,9 +166,6 @@ fn main() {
     .add_event::<DeathEvent>()
     .add_event::<LogEvent>()
     .add_event::<ChatEvent>();
-
-    #[cfg(feature = "native")]
-    app.add_plugin(TcpNetworkingPlugin);
 
     //The WebGL2 plugin is only added if we're compiling to WASM
     #[cfg(feature = "web")]
