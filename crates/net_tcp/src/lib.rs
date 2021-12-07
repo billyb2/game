@@ -6,18 +6,106 @@ mod types;
 use std::sync::Arc;
 
 use bevy_app::{App, Plugin};
-use bevy_ecs::prelude::*;
 
-use tokio::io::AsyncWriteExt;
-use tokio::sync::mpsc::unbounded_channel;
+use serde::ser::Serialize;
+
+pub use tokio::io::AsyncWriteExt;
+pub use tokio::sync::mpsc::unbounded_channel;
+use tokio::net::ToSocketAddrs;
 use tokio::runtime::Builder;
 
 use tcp_shared::*;
-use types::*;
+pub use types::*;
 
-pub use tcp_client::TcpClient;
-pub use tcp_server::TcpServer;
-pub use tcp_shared::{MessageChannelID, TcpResource};
+use tcp_client::TcpClient;
+use tcp_server::TcpServer;
+
+pub use tcp_shared::{ClientConnection, ConnID, ChannelProcessingError, MessageChannelID, TcpResourceTrait, add_to_message_queue};
+
+pub enum TcpResourceWrapper {
+    Server(TcpServer),
+    Client(TcpClient),
+
+}
+
+//TODO: Generic new fn?
+impl TcpResourceWrapper {
+    pub fn new_server(task_pool: Runtime) -> Self {
+        TcpResourceWrapper::Server(TcpServer::new(task_pool))
+
+    }
+
+    pub fn new_client(task_pool: Runtime) -> Self {
+        TcpResourceWrapper::Client(TcpClient::new(task_pool))
+    }
+
+    pub fn process_message_channel<T>(&self, channel_id: &MessageChannelID) -> Result<Vec<T>, ChannelProcessingError> where T: serde::de::DeserializeOwned {
+        let unprocessed_messages_recv_queue = match self {
+            TcpResourceWrapper::Server(res) => Arc::clone(&res.unprocessed_message_recv_queue),
+            TcpResourceWrapper::Client(res) => Arc::clone(&res.unprocessed_recv_messages_queue),
+
+
+        };
+
+        let result = match unprocessed_messages_recv_queue.get_mut(&channel_id) {
+            Some(mut unprocessed_channel) => {
+                let processed_messages = unprocessed_channel.iter().map(|message_bin| {
+                    bincode::deserialize::<T>(&message_bin)
+
+                }).collect::<Result<Vec<T>, bincode::Error>>()?;
+
+                // Since we've processed that message channel queue, we should clear it
+                unprocessed_channel.clear();
+
+                Ok(processed_messages)
+                
+            },
+            None => Err(ChannelProcessingError::ChannelNotFound)
+
+        };
+
+        result
+
+    }
+
+    pub fn is_connected(&self) -> bool {
+        match self {
+            TcpResourceWrapper::Server(res) => res.connected_clients.len() > 0,
+            TcpResourceWrapper::Client(res) => res.message_sender.is_some(),
+        }
+
+    }
+
+    pub fn is_server(&self) -> bool {
+        match self {
+            TcpResourceWrapper::Server(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_client(&self) -> bool {
+        !self.is_server()
+
+    }
+}
+
+impl TcpResourceTrait for TcpResourceWrapper {
+    fn setup(&mut self, addr: impl ToSocketAddrs + Send + 'static) {
+        match self {
+            TcpResourceWrapper::Server(tcp_res) => tcp_res.setup(addr),
+            TcpResourceWrapper::Client(tcp_res) => tcp_res.setup(addr),
+        }
+    }
+
+    fn send_message<M>(&self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
+    where M: Serialize {
+        match self {
+            TcpResourceWrapper::Server(tcp_res) => tcp_res.send_message(message, channel),
+            TcpResourceWrapper::Client(tcp_res) => tcp_res.send_message(message, channel),
+        }
+    }
+
+}
 
 pub type Runtime = Arc<tokio::runtime::Runtime>;
 
@@ -32,56 +120,6 @@ impl Plugin for TcpNetworkingPlugin {
 
         app
         .insert_resource(tokio_rt)
-        .insert_resource(NextUUID(0))
-        .add_system(handle_new_connections_server);
+        .insert_resource(NextUUID(0));
     }
-}
-
-fn handle_new_connections_server(mut server: Option<ResMut<TcpServer>>, mut next_uuid: ResMut<NextUUID>) {
-    if server.as_ref().is_none() {
-        return;
-
-    }
-
-    if server.as_ref().unwrap().connection_handler.as_ref().is_none() {
-        return;
-
-    }
-
-    let server = server.as_mut().unwrap();
-
-    // Hope the compiler optimizes out the unwraps lol
-    while let Ok((socket, addr)) = server.connection_handler.as_mut().unwrap().try_recv() {
-        let conn_id = ConnID {
-            uuid: next_uuid.0,
-            addr: addr.clone(),
-
-        };
-
-        next_uuid.0 += 1;
-
-        let (read, write) = socket.into_split();
-
-        let server_unprocessed_messages_recv_queue = server.unprocessed_message_recv_queue.clone();
-
-        let (message_sender, mut messages_to_send) = unbounded_channel::<Vec<u8>>();
-
-        let client_connection = ClientConnection {
-            receive_task: server.task_pool.spawn(add_to_message_queue(read, server_unprocessed_messages_recv_queue)),
-            send_task: server.task_pool.spawn(async move {
-                let mut write_socket = write;
-
-                while let Some(message) = messages_to_send.recv().await {
-                    write_socket.write_all(&message).await.unwrap();
-
-                }
-
-            }),
-            send_message: message_sender,
-
-        };
-
-        server.connected_clients.insert(conn_id, client_connection);
-    }
-
 }

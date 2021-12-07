@@ -14,3 +14,4 @@ game_types = { path = "../game_types", features = ["graphics"] }
 map = { path = "../map", features = ["graphics"] }
 setup_systems = { path = "../setup_systems", features = ["graphics"] }
 single_byte_hashmap = "0.1"
+net_tcp = { path = "../net_tcp" }

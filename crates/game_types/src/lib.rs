@@ -32,7 +32,7 @@ pub struct Health(pub f32);
 #[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Damage(pub f32);
 
-#[derive(Component, Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Component, Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlayerID(pub u8);
 
 // Projectile stuff
@@ -181,4 +181,20 @@ impl Size {
         Self(Vec2::new(w, h))
     }
 
+}
+
+// A resource stating whether or not the player is hosting
+pub struct Hosting(pub bool);
+
+pub trait WriteToStringSlice {
+    fn str_write(&mut self, new_str: &str);
+}
+
+impl WriteToStringSlice for String {
+    fn str_write(&mut self, new_str: &str) {
+        self.clear();
+        self.push_str(new_str);
+
+        debug_assert_eq!(self.as_str(), new_str);
+    }
 }

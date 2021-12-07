@@ -34,9 +34,6 @@ use config::*;
 use bots::*;
 use net::*;
 
-#[cfg(feature = "native")]
-use net_tcp::*;
-
 fn main() {
     let mut app = App::new();
 
@@ -52,7 +49,7 @@ fn main() {
 
     #[cfg(not(debug_assertions))]
     app
-    // Antialiasing is lower for debug builds
+    // Antialiasing is higher for release builds
     .insert_resource(Msaa { samples: 8 });
 
     app.insert_resource( WindowDescriptor {
@@ -188,10 +185,6 @@ fn main() {
     #[cfg(feature = "web")]
     app.insert_resource(Hosting(false));
 
-
-    #[cfg(feature = "native")]
-    app.add_startup_system(setup_listening);
-
     // Sprite culling
     // For some reason, sprite culling fails on WASM
     /*#[cfg(feature = "native")]
@@ -290,7 +283,6 @@ fn main() {
             .with_system(send_score)
     );
 
-    #[cfg(feature = "web")]
     app.add_system_set(
         SystemSet::on_update(AppState::Connecting)
             .with_system(request_player_info)

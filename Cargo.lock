@@ -1632,7 +1632,6 @@ dependencies = [
  "map",
  "menus",
  "net",
- "net_tcp",
  "openssl",
  "rand 0.8.4",
  "rapier2d",
@@ -2367,6 +2366,7 @@ dependencies = [
  "game_types",
  "helper_functions",
  "map",
+ "net_tcp",
  "setup_systems",
  "single_byte_hashmap",
 ]
@@ -2615,6 +2615,7 @@ dependencies = [
  "map",
  "net_tcp",
  "rapier2d",
+ "rayon",
  "single_byte_hashmap",
 ]
 
@@ -3656,6 +3657,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "dashmap",
+ "parking_lot",
  "serde",
  "tcp_shared",
  "tokio",
@@ -3668,10 +3670,8 @@ dependencies = [
  "arrayvec 0.7.1",
  "bincode",
  "dashmap",
- "futures",
  "serde",
  "tokio",
- "tokio-util",
 ]
 
 [[package]]
@@ -3748,20 +3748,6 @@ dependencies = [
  "parking_lot",
  "pin-project-lite",
  "winapi",
-]
-
-[[package]]
-name = "tokio-util"
-version = "0.6.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e99e1983e5d376cd8eb4b66604d2e99e79f5bd988c3055891dcd8c9e2604cc0"
-dependencies = [
- "bytes",
- "futures-core",
- "futures-sink",
- "log",
- "pin-project-lite",
- "tokio",
 ]
 
 [[package]]
@@ -3892,7 +3878,7 @@ version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f559b464de2e2bdabcac6a210d12e9b5a5973c251e102c44c585c71d51bd78e"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "static_assertions",
 ]
 

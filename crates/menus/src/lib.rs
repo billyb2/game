@@ -21,6 +21,7 @@ use single_byte_hashmap::HashMap;
 use config::{get_data, write_data};
 use setup_systems::*;
 use map::*;
+use net_tcp::*;
 use game_types::*;
 
 use helper_functions::graphics::spawn_button;
@@ -312,8 +313,8 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
     });
 }
 
-pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>), (Changed<Interaction>, With<Button>)>, mut net: ResMut<NetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>) {    
-    if addr.is_none() {
+pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>), (Changed<Interaction>, With<Button>)>, mut net: ResMut<NetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, mut tcp_res: Option<ResMut<TcpResourceWrapper>>, hosting: Res<Hosting>) {    
+    if addr.is_none() && !hosting.0 {
         let (entity, mut text) = text_query.single_mut();
         let text = &mut text.sections[0].value;
         let header_text = &mut header_text.single_mut().sections[0].value;
@@ -322,18 +323,26 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
         |text: &mut String, header_text: &mut String| {
             match text.parse::<IpAddr>() {
                 Ok(addr) => {
-                    let socket_addr = SocketAddr::new(addr, 9363);
+                    let socket_addr = SocketAddr::new(addr, match cfg!(target_arch = "wasm32") {
+                        true => 9363,
+                        false => 9364, 
+                    });
 
                     commands.entity(entity).despawn_recursive();
-                    commands.insert_resource(socket_addr);
-                    *text = format!("Connecting to {}...", socket_addr);
+                    header_text.str_write(format!("Connecting to {}...", socket_addr).as_str());
     
+                    #[cfg(target_arch = "wasm32")]
                     net.connect(socket_addr);
+
+                    #[cfg(not(target_arch = "wasm32"))]
+                    tcp_res.as_mut().unwrap().setup(socket_addr);
+
+                    commands.insert_resource(socket_addr);
                     
                 },
                 Err(err) => {
+                    header_text.str_write(format!("Couldn't connect to {text} due to error: {:?}", err).as_str());
                     text.clear();
-                    *header_text = format!("Error: {:?}", err);
                 },
             }
         };
@@ -343,19 +352,17 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                 Interaction::Clicked => connect_or_clear(text, header_text),
                 Interaction::Hovered => {
                     *material = button_materials.hovered.clone();
-                    *header_text = String::from("Connect");
+                    header_text.str_write("Connect");
     
                 }
                 Interaction::None => {
                     *material = button_materials.normal.clone();
-                    *header_text = String::from("IP to connect to:");
+                    header_text.str_write("IP to connect to:");
     
                 }
             }
     
         });
-    
-        char_input_events.iter().for_each(|c| text.push(c.char));
     
         if keyboard_input.just_pressed(KeyCode::Back) {
             text.pop();
@@ -370,6 +377,13 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
             app_state.set(AppState::GameMenu).unwrap();
         }
 
+        char_input_events.iter().for_each(|c| text.push(c.char));
+
+    } 
+
+    #[cfg(debug_assertions)]
+    if hosting.0 {
+        panic!("Hosting?????");
     }
 }
 
@@ -426,13 +440,14 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
     });
 }
 
-pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
+pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut hosting: ResMut<Hosting>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         match *interaction {
             Interaction::Clicked => {
                 if text.ends_with("game") {
+                    hosting.0 = text.starts_with("Host");
                     app_state.set(AppState::Connecting).unwrap();
 
                 } else {

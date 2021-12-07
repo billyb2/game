@@ -790,9 +790,11 @@ impl PlayerName {
         let adj_index = rng.usize(0..num_of_adjectives);
         let noun_index = rng.usize(0..num_of_nouns);
 
-        let mut player_name_as_string = format!("{}-{}", adjectives.nth(adj_index).unwrap(), nouns.nth(noun_index).unwrap());
+        // Need to convert the string to uppercase in order to make it consistent 
+        let mut player_name_as_string = format!("{}-{}", adjectives.nth(adj_index).unwrap(), nouns.nth(noun_index).unwrap()).to_uppercase();
 
         player_name_as_string.truncate(MAX_LEN_OF_PLAYER_NAME);
+        player_name_as_string.shrink_to_fit();
 
         let mut array_string: ArrayString<MAX_LEN_OF_PLAYER_NAME> = ArrayString::new();
         array_string.push_str(&player_name_as_string);

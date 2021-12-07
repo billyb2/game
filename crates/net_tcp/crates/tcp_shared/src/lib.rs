@@ -33,9 +33,7 @@ impl ConnID {
 }
 
 pub struct ClientConnection {
-    pub receive_task: JoinHandle<()>,
     pub send_task: JoinHandle<()>,
-
     pub send_message: UnboundedSender<Vec<u8>>,
 }
 
@@ -62,8 +60,9 @@ pub enum MessageRecipient {
 #[derive(Debug)]
 pub enum SendMessageError {
     Bincode(bincode::Error),
-    Mpsc(Box<SendError<Vec<u8>>>)
-    
+    Mpsc(SendError<Vec<u8>>),
+    NotConnected,
+
 }
 
 
@@ -76,15 +75,10 @@ impl From<bincode::Error> for SendMessageError {
 
 impl From<SendError<Vec<u8>>> for SendMessageError {
     fn from(error: SendError<Vec<u8>>) -> Self {
-        Self::Mpsc(Box::new(error))
+        Self::Mpsc(error)
     }
 }
 
-impl From<SendError<Arc<Vec<u8>>>> for SendMessageError {
-    fn from(error: SendError<Arc<Vec<u8>>>) -> Self {
-        Self::Mpsc(Box::new(SendError(Arc::try_unwrap(error.0).unwrap())))
-    }
-}
 
 #[derive(Debug)]
 pub enum ChannelProcessingError {
