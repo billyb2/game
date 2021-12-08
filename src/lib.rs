@@ -93,7 +93,7 @@ pub enum GameMode {
 
 const SCORE_LIMIT: u8 = 10;
 
-pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<DeathEvent>, mut players: Query<(Entity, &mut Visible, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName, &LightHandle)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut light_res: ResMut<LightsResource>) {
+pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<DeathEvent>, mut players: Query<(Entity, &mut Visible, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName, Option<&LightHandle>)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut light_res: ResMut<LightsResource>) {
     death_events.iter().for_each(|ev| {
         let (entity, mut visible, mut respawn_timer, collider_handle, player_name, light_handle) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
 
@@ -105,11 +105,13 @@ pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<
 
         ];
 
-        let index = fastrand::usize(0..DEATH_MESSAGES.len());
+        let index = fastrand::usize(..DEATH_MESSAGES.len());
         let message = format!("{} {}", player_name, DEATH_MESSAGES[index]);
 
-        light_res.remove_light(light_handle);
-        commands.entity(entity).remove::<LightHandle>();
+        if let Some(light_handle) = light_handle {
+            light_res.remove_light(light_handle);
+            commands.entity(entity).remove::<LightHandle>();
+        }
 
         visible.is_visible = false;
 
