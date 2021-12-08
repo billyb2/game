@@ -331,9 +331,8 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                     commands.entity(entity).despawn_recursive();
                     header_text.str_write(format!("Connecting to {}...", socket_addr).as_str());
     
-                    net.connect(socket_addr);
-
                     commands.insert_resource(socket_addr);
+                    net.connect(socket_addr);
                     
                 },
                 Err(err) => {

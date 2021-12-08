@@ -152,39 +152,44 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
     let mut messages_to_send: Vec<AbilityMessage> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
-        let messages: Result<Vec<AbilityMessage>, _> = net.view_messages(&PROJECTILE_MESSAGE_CHANNEL);
+        let messages: Result<Vec<AbilityMessage>, _> = net.view_messages(&ABILITY_MESSAGE_CHANNEL);
 
         match messages {
             Ok(messages) => messages.into_iter().for_each(|([player_id, ability], [player_x, player_y, angle])| {
-                    if player_id != my_id.0 {
-                        // The host broadcasts the locations of all other players
-                        #[cfg(feature = "native")]
-                        if _hosting.0 {
-                            messages_to_send.push(([player_id, ability], [player_x, player_y, angle]))
-
-                        }
+                if player_id != my_id.0 {
+                    // The host broadcasts the locations of all other players
+                    #[cfg(feature = "native")]
+                    if _hosting.0 {
+                        messages_to_send.push(([player_id, ability], [player_x, player_y, angle]))
 
                     }
 
-                    let ability: Ability = ability.into();
+                }
 
-                    if player_id != my_id.0 {
-                        // TODO: Dummy handle
-                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, &0);
-                        let (mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                if ability > NUM_OF_ABILITIES {
+                    println!("Received bad ability");
 
-                        *old_ability = ability;
+                }
 
-                        let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
+                let ability: Ability = ability.into();
 
-                        rigid_body.set_translation(Vector2::new(player_x, player_y).component_div(&Vector2::new(250.0, 250.0)), true);
-                        rigid_body.set_rotation(angle, true);
+                if player_id != my_id.0 {
+                    // TODO: Dummy handle
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, &0);
+                    let (mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                        if ability == Ability::Wall || ability == Ability::Cloak || ability == Ability::Ghost {
-                            ev_use_ability.send(AbilityEvent(player_id));
+                    *old_ability = ability;
 
-                        }
+                    let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
+
+                    rigid_body.set_translation(Vector2::new(player_x, player_y).component_div(&Vector2::new(250.0, 250.0)), true);
+                    rigid_body.set_rotation(angle, true);
+
+                    if ability == Ability::Wall || ability == Ability::Cloak || ability == Ability::Ghost {
+                        ev_use_ability.send(AbilityEvent(player_id));
+
                     }
+                }
             }), 
             Err(ChannelProcessingError::ChannelNotFound) => (),
             Err(e) => panic!("Unhandled error: {:?}", e),
@@ -250,12 +255,13 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
             let net_conn_state_text = &mut net_conn_state_text.single_mut().sections[0].value;
 
             if my_player_id.0.is_none() && !ability_set.0 {
+                println!("COnnecting");
                 const REQUEST_ID_MESSAGE: InfoMessage = [0; 3];
                 net_conn_state_text.str_write("Requesting ID from server...");
 
                 net.broadcast_message(&REQUEST_ID_MESSAGE, &INFO_MESSAGE_CHANNEL).unwrap();
         
-                ready_to_send_packet.0.set_duration(Duration::from_secs(5));
+                ready_to_send_packet.0.set_duration(Duration::from_secs(1));
         
             } else if my_player_id.0.is_some() {
                 if !ability_set.0 {
