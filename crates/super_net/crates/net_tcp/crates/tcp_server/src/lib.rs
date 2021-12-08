@@ -1,9 +1,8 @@
 use std::sync::Arc;
+use std::fmt::Debug;
 use parking_lot::Mutex;
 
 use dashmap::DashMap;
-
-use serde::ser::Serialize;
 
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, ToSocketAddrs};
@@ -103,7 +102,7 @@ impl TcpResourceTrait for TcpServer {
 
     }
 
-    fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: Serialize {
+    fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone {
         let message_bin = generate_message_bin(message, channel)?;
 
         for key_val_pair in self.connected_clients.iter() {

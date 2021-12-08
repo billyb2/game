@@ -304,7 +304,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>
     }
 }
 
-pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>, my_name: Res<PlayerName>) {
+pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>, my_name: Res<PlayerName>) {
     if typing.0 {
         let text = &mut chat_text.single_mut().sections[0].value;
 
@@ -319,7 +319,7 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
                             if text_in_chat {
                                 let my_player_id = my_player_id.0.as_ref().unwrap().0;
                                 let message: TextMessage = (my_player_id, text[6..].to_owned(), 0);
-                                net.broadcast_message(message);
+                                net.broadcast_message(&message, &TEXT_MESSAGE_CHANNEL);
                                 log_event.send(ChatEvent(format!("{}: {}", my_name.as_ref(), text[6..].to_owned())));
 
                                 text.truncate(6);
@@ -460,7 +460,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, mut lights_res: ResMut<LightsResource>, windows: Res<Windows>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, mut lights_res: ResMut<LightsResource>, windows: Res<Windows>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>) {
     if my_player_id.0.is_some() {
         shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
@@ -522,7 +522,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 if shooting || !player_is_local {
                     // Only broadcast shots that the player shoots
                     if player_is_local {
-                        net.broadcast_message((*ev).clone());
+                        net.broadcast_message(ev, &PROJECTILE_MESSAGE_CHANNEL);
 
                     }
 
@@ -710,7 +710,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
     });
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
                 let (transform, ability, mut ability_charge, mut
@@ -733,7 +733,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         let message: AbilityMessage = ([ev_id.0, Ability::Wall.into()], message_array);
 
                         if player_is_local {
-                            net.broadcast_message(message);
+                            net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
 
                         }
 
@@ -872,7 +872,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
                                 let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
 
-                                net.broadcast_message(message);
+                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
                             }
 
                             ability_completed.0.reset();
@@ -914,7 +914,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                     let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Ghost.into()], message_array);
 
 
-                                net.broadcast_message(message);
+                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
 
                             }
 

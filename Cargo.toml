@@ -90,7 +90,7 @@ bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", rev = "1b2e3ddb5
 #bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
 
 # Networking library
-bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", default-features = false, features = ["use-webrtc"] }
+bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
 
 # WASM logging
 wasm-bindgen = { version = "0.2.78", optional = true }
@@ -163,6 +163,7 @@ native = [
   "config/native",
   "setup_systems/native",
   "net/native",
+  "menus/native",
 ]
 
 parallel = [

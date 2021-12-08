@@ -4,9 +4,10 @@
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
-use net_tcp::*;
+use super_net::*;
 
 use bevy::core::Timer;
+use bevy::tasks::IoTaskPool;
 use bevy::ecs::schedule::State;
 use bevy::ecs::system::{Commands, Res, ResMut};
 use bevy::utils::Duration;
@@ -26,8 +27,7 @@ pub const CLIENT_STATE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannel
     packet_buffer_size: 1024,
 };
 
-pub(crate) const PROJECTILE_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(1);
-
+pub const PROJECTILE_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(1);
 // Projectile updates are reliable, since when someone shoots a bullet, the server *must* shoot
 pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: PROJECTILE_MESSAGE_CHANNEL.id,
@@ -52,9 +52,10 @@ pub const PROJECTILE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSe
     packet_buffer_size: 4096,
 };
 
+pub const ABILITY_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(2);
 // Some abilities, such as the wall, need to send a message over the network, so this does that here
 pub const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
-    channel: 2,
+    channel: ABILITY_MESSAGE_CHANNEL.id,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
             bandwidth: 256,
@@ -99,6 +100,8 @@ pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings
     packet_buffer_size: 1024,
 };
 
+pub const SCORE_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(4);
+
 pub const SCORE_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 4,
     channel_mode: MessageChannelMode::Unreliable,
@@ -130,8 +133,9 @@ pub const SET_MAP_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     packet_buffer_size: 8,
 };
 
+pub const REQUEST_MAP_OBJECT_CHANNEL: MessageChannelID = MessageChannelID::new(6);
 pub const REQUEST_MAP_OBJECT_SETTINGS: MessageChannelSettings = MessageChannelSettings {
-    channel: 6,
+    channel: REQUEST_MAP_OBJECT_CHANNEL.id,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
             bandwidth: 1024,
@@ -196,30 +200,9 @@ pub const MAP_METADATA_SETTINGS: MessageChannelSettings = MessageChannelSettings
     packet_buffer_size: 2048,
 };
 
-pub const DEBUG_TEXT: MessageChannelSettings = MessageChannelSettings {
-    channel: 9,
-    channel_mode: MessageChannelMode::Reliable {
-        reliability_settings: ReliableChannelSettings {
-            bandwidth: 1024,
-            recv_window_size: 2048,
-            send_window_size: 2048,
-            burst_bandwidth: 2048,
-            init_send: 1024,
-            wakeup_time: Duration::from_millis(50),
-            initial_rtt: Duration::from_millis(200),
-            // Info requests time out after 10 seconds
-            max_rtt: Duration::from_secs(10),
-            rtt_update_factor: 0.1,
-            rtt_resend_factor: 1.5,
-        },
-        max_message_len: 1024,
-    },
-    message_buffer_size: 8192,
-    packet_buffer_size: 8192,
-};
-
+pub const TEXT_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(9);
 pub const TEXT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
-    channel: 10,
+    channel: TEXT_MESSAGE_CHANNEL.id,
     channel_mode: MessageChannelMode::Reliable {
         reliability_settings: ReliableChannelSettings {
             bandwidth: 2048,
@@ -258,7 +241,12 @@ pub struct ReadyToSendPacket(pub Timer);
 pub struct SetAbility(pub bool);
 
 
-pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>, mut _app_state: Option<ResMut<State<AppState>>>, _server_addr: Option<Res<SocketAddr>>, hosting: Res<Hosting>, tokio_rt: Res<Runtime>, mut next_uuid: ResMut<NextUUID>) {
+pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<State<AppState>>>, _server_addr: Option<Res<SocketAddr>>, hosting: Res<Hosting>, tokio_rt: Res<Runtime>, task_pool: Res<IoTaskPool>) {
+    let mut net = match hosting.0 {
+        true => SuperNetworkResource::new_server(Arc::clone(&tokio_rt), task_pool.0.clone()),
+        false => SuperNetworkResource::new_client(Arc::clone(&tokio_rt), task_pool.0.clone()),
+    };
+
     // Currently, only PC builds can host
     #[cfg(feature = "native")]
     if hosting.0 {
@@ -280,14 +268,13 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
         };
 
-        const IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)); 
+        const IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+        const GAME_PORT: u16 = 9363;
 
-        net.listen(SocketAddr::new(IP_ADDR, 9363), Some(webrtc_listen_socket), Some(webrtc_listen_socket));
+        let socket_addr_webrtc = SocketAddr::new(IP_ADDR, GAME_PORT);
+        let socket_addr_tcp = SocketAddr::new(IP_ADDR, GAME_PORT + 1);
 
-        let mut tcp_res = TcpResourceWrapper::new_server(Arc::clone(&tokio_rt));
-        tcp_res.setup(SocketAddr::new(IP_ADDR, 9364));
-
-        commands.insert_resource(tcp_res);
+        net.listen(socket_addr_tcp, Some((socket_addr_webrtc, webrtc_listen_socket, webrtc_listen_socket)));
 
     }
 
@@ -335,10 +322,6 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
             .unwrap();
 
         builder
-            .register::<String>(DEBUG_TEXT)
-            .unwrap();
-
-        builder
             .register::<TextMessage>(TEXT_MESSAGE_SETTINGS)
             .unwrap();
 
@@ -350,26 +333,15 @@ pub fn setup_networking(mut commands: Commands, mut net: ResMut<NetworkResource>
     
 
     // If we've previously connected to a server, just connect automatically without prompt
-    #[cfg(feature = "web")]
     if let Some(server_addr) = _server_addr {
         net.connect(*server_addr);
     }
 
-    #[cfg(feature = "native")]
-    if !hosting.0 {
-        let mut tcp_res = TcpResourceWrapper::new_client(Arc::clone(&tokio_rt));
-
-        if let Some(server_addr) = _server_addr.as_ref() {
-            tcp_res.setup(*_server_addr.unwrap());
-
-        }
-
-        commands.insert_resource(tcp_res);
-
-    } else {
+    if hosting.0 {
         _app_state.unwrap().set(AppState::InGame).unwrap();
-
     }
+
+    commands.insert_resource(net);
 
 }
 

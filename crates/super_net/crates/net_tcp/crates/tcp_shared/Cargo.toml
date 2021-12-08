@@ -7,6 +7,7 @@ edition = "2021"
 tokio = { version = "1", features = ["rt-multi-thread", "io-util"] }
 
 bincode = { version = "1" }
-serde = { version = "1" }
-arrayvec = { version = "0.7" }
 dashmap = { version = "4", features = ["rayon"] }
+
+# Just used for MessageChannel trait
+turbulence = { version = "0.3" }

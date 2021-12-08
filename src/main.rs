@@ -10,8 +10,6 @@ use bevy::prelude::*;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
-use bevy_networking_turbulence::*;
-
 use rand::Rng;
 
 use rustc_hash::FxHashMap;
@@ -73,6 +71,7 @@ fn main() {
 
     });
 
+    //TOOD replace these with unwrap_or_else or somethign similar
     let model = match get_data(String::from("model")) {
         Some(object) => object,
         None => {
@@ -149,13 +148,9 @@ fn main() {
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
     .add_plugins(DefaultPlugins);
 
-    #[cfg(feature = "native")]
-    app.add_plugin(TcpNetworkingPlugin);
-
     app
-    .add_plugin(NetworkingPlugin::default())
+    .add_plugin(SuperNetworkingPlugin)
     //.add_plugin(AudioPlugin)
-    .add_event::<NetworkEvent>()
     // Adds some possible events, like reloading and using your ability
     .add_event::<ReloadEvent>()
     .add_event::<ShootEvent>()
@@ -177,8 +172,7 @@ fn main() {
     // Hot asset reloading
     .add_startup_system(setup_asset_loading)
     .add_startup_system(setup_physics)
-    .add_system(check_assets_ready)
-    .add_system(handle_debug_text);
+    .add_system(check_assets_ready);
 
     #[cfg(feature = "native")]
     app.insert_resource(Hosting(true));
@@ -228,6 +222,7 @@ fn main() {
     .add_system_set(
         SystemSet::on_update(AppState::InGame)
             // Timers should be ticked first
+            .with_system(receive_packets)
             .with_system(tick_timers.before("player_attr").before(InputFromPlayer).label("tick_timers"))
             .with_system(destroy_light_timers.before("player_attr").before(InputFromPlayer))
             .with_system(explode_grenades.after("tick_timers"))
@@ -236,6 +231,8 @@ fn main() {
             .with_system(send_stats.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_stat_packets.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_projectile_packets.label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
+            .with_system(handle_client_commands.before("player_attr").before(InputFromPlayer))
+            .with_system(handle_score_packets)
             .with_system(my_keyboard_input.label(InputFromPlayer).before("player_attr"))
             .with_system(score_input.label(InputFromPlayer).before("player_attr"))
             .with_system(chat_input.label(InputFromPlayer).before("player_attr"))
@@ -288,14 +285,6 @@ fn main() {
             .with_system(request_player_info)
             .with_system(handle_client_commands)
             .with_system(connection_menu)
-
-    );
-
-    #[cfg(feature = "web")]
-    app.add_system_set(
-        SystemSet::on_update(AppState::InGame)
-            .with_system(handle_client_commands.before("player_attr").before(InputFromPlayer))
-            .with_system(handle_score_packets)
 
     );
 

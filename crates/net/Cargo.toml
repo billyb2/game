@@ -6,19 +6,20 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
-bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", default-features = false, features = ["use-webrtc"] }
+bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 rapier2d = { version = "0.11", features = ["simd-nightly"]}
 rayon = { version = "1", optional = true }
+turbulence = { version = "0.3" }
 
 game_types = { path = "../game_types" }
 map = { path = "../map" }
-net_tcp = { path = "../net_tcp", optional = true }
+super_net = { path = "../super_net" }
 
 [features]
 graphics = []
 native = [
-	"net_tcp",
+	"super_net/native"
 ]
 web = []
 parallel = [

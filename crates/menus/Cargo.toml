@@ -6,12 +6,17 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
-bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", default-features = false, features = ["use-webrtc"] }
-
+bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
 config = { path = "../config" }
 helper_functions = { path = "../helper_functions", features = ["graphics"] }
 game_types = { path = "../game_types", features = ["graphics"] }
 map = { path = "../map", features = ["graphics"] }
+net = { path = "../net" }
 setup_systems = { path = "../setup_systems", features = ["graphics"] }
 single_byte_hashmap = "0.1"
-net_tcp = { path = "../net_tcp" }
+
+[features]
+native = [
+	"net/native",
+]
+

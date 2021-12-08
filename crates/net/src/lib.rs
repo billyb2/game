@@ -14,16 +14,17 @@ use map::*;
 use single_byte_hashmap::HashMap;
 
 use bevy::prelude::*;
+use bevy::ecs::event::Events;
 use bevy::utils::Duration;
 
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
-pub use net_tcp::*;
+pub use super_net::*;
 pub use setup::*;
 
 #[cfg(feature = "graphics")]
-pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>, tcp_res: Option<Res<TcpResourceWrapper>>) {
+pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>) {
     // Only start sending packets when your ID is set
     if my_player_id.0.is_some() {
         // Rate limiting so that the game sends 66 updates every second
@@ -43,11 +44,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &
 
                     let message: ClientStateMessage = (id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, alpha, damage_source.0, (gun_model, ability), *player_name);
 
-
-                    #[cfg(feature = "native")]
-                    tcp_res.as_ref().unwrap().send_message(&message, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
-
-                    net.broadcast_message(message);
+                    net.broadcast_message(&message, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
 
                 }
 
@@ -57,7 +54,7 @@ pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visible, &mut Alpha, &mut Model, &mut Ability, &mut PlayerName)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>, tcp_res: Res<TcpResourceWrapper>) {
+pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visible, &mut Alpha, &mut Model, &mut Ability, &mut PlayerName)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ClientStateMessage> = Vec::new();
     let my_id = my_player_id.0.unwrap();
@@ -104,72 +101,61 @@ pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<
 
     };
     
+    let messages = net.view_messages(&CLIENT_STATE_MESSAGE_CHANNEL);
 
-    if let Some(my_id) = &my_player_id.0 {
-        for (handle, connection) in net.connections.iter_mut() {
-            if let Some(channels) = connection.channels() {
-                while let Some(client_state_message) = channels.recv::<ClientStateMessage>() {
-                    stat_pack_logic(client_state_message, handle);
-
-                }
-            }
-        }
-
+    if messages.is_err() {
+        return;
     }
 
-    let tcp_messages = tcp_res.process_message_channel::<ClientStateMessage>(&CLIENT_STATE_MESSAGE_CHANNEL);
+    messages.unwrap().into_iter().for_each(|client_state_message| {
+        //TODO: Dummy handle
+        stat_pack_logic(client_state_message, &0);
 
-    match tcp_messages {
-        Ok(messages) => {
-            messages.into_iter().for_each(|message| {
-                // Dummy value, TODO
-                stat_pack_logic(message, &0);
-
-            });
-        },
-        Err(ChannelProcessingError::ChannelNotFound) => (),
-        e => panic!("Unhandled error: {:?}", e),
-    };
+    });
 
     // Broadcast the location of all players to everyone
     #[cfg(feature = "native")]
     if _hosting.0 {
-        for m in messages_to_send.into_iter() {
-            tcp_res.send_message(&m, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
-            net.broadcast_message(m);
+        for m in messages_to_send.iter() {
+            net.broadcast_message(m, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
 
         }
     }
 }
 
-#[cfg(feature = "web")]
-pub fn handle_score_packets(mut net: ResMut<NetworkResource>, mut score: ResMut<DeathmatchScore>) {
-    for (_handle, connection) in net.connections.iter_mut() {
-        if let Some(channels) = connection.channels() {
-            while let Some(new_score) = channels.recv::<HashMap<u8, u8>>() {
-                *score = DeathmatchScore(new_score);
+pub fn handle_score_packets(mut net: ResMut<SuperNetworkResource>, mut score: ResMut<DeathmatchScore>, hosting: Res<Hosting>) {
+    if !hosting.0 {
+        let messages = net.view_messages(&SCORE_MESSAGE_CHANNEL);
 
-            }
+        if messages.is_err() {
+            return;
+
         }
+
+        messages.unwrap().into_iter().for_each(|new_score| {
+            *score = DeathmatchScore(new_score);
+
+        });
     }
 }
 
-#[cfg(feature = "native")]
 #[inline]
-pub fn send_score(mut net: ResMut<NetworkResource>, score: Res<DeathmatchScore>, ready_to_send_packet: Res<ReadyToSendPacket>) {
-    if ready_to_send_packet.0.finished() {
-        net.broadcast_message(score.0.clone());
+#[cfg(feature = "native")]
+pub fn send_score(mut net: ResMut<SuperNetworkResource>, score: Res<DeathmatchScore>, ready_to_send_packet: Res<ReadyToSendPacket>, hosting: Res<Hosting>) {
+    if ready_to_send_packet.0.finished() && hosting.0 {
+        net.broadcast_message(&score.0, &SCORE_MESSAGE_CHANNEL).unwrap();
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Ability, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut Ability, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<AbilityMessage> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
-        for (handle, connection) in net.connections.iter_mut() {
-            if let Some(channels) = connection.channels() {
-                while let Some(([player_id, ability], [player_x, player_y, angle])) = channels.recv::<AbilityMessage>() {
+        let messages: Result<Vec<AbilityMessage>, _> = net.view_messages(&PROJECTILE_MESSAGE_CHANNEL);
+
+        match messages {
+            Ok(messages) => messages.into_iter().for_each(|([player_id, ability], [player_x, player_y, angle])| {
                     if player_id != my_id.0 {
                         // The host broadcasts the locations of all other players
                         #[cfg(feature = "native")]
@@ -183,7 +169,8 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
                     let ability: Ability = ability.into();
 
                     if player_id != my_id.0 {
-                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
+                        // TODO: Dummy handle
+                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, &0);
                         let (mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                         *old_ability = ability;
@@ -198,51 +185,57 @@ pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Que
 
                         }
                     }
-                }
-            }
-        }
+            }), 
+            Err(ChannelProcessingError::ChannelNotFound) => (),
+            Err(e) => panic!("Unhandled error: {:?}", e),
+
+        };
+
     }
 
     // Broadcast the location of all players to everyone
     #[cfg(feature = "native")]
-    for m in messages_to_send.into_iter() {
-        net.broadcast_message(m);
+    for m in messages_to_send.iter() {
+        net.broadcast_message(m, &ABILITY_MESSAGE_CHANNEL).unwrap();
 
     }
 }
 
-pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_projectile_packets(mut net: ResMut<SuperNetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ShootEvent> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
-        for (handle, connection) in net.connections.iter_mut() {
-            if let Some(channels) = connection.channels() {
-                while let Some(event) = channels.recv::<ShootEvent>() {
-                    if my_id.0 !=  event.player_id {
-                        make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, event.player_id, handle);
+        let messages: Result<Vec<ShootEvent>, _> = net.view_messages(&PROJECTILE_MESSAGE_CHANNEL);
 
-                        let mut transform = players.get_mut(*player_entity.get(&event.player_id).unwrap()).unwrap();
-                        transform.translation = event.start_pos;
+        match messages {
+            Ok(messages) => messages.iter().for_each(|event| {
+                if my_id.0 !=  event.player_id {
+                    // TODO: Dummy handle
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, event.player_id, &0);
 
-                        // The host broadcasts the shots fired of all other players
-                        #[cfg(feature = "native")]
-                        if _hosting.0 {
-                            messages_to_send.push(event.clone())
+                    let mut transform = players.get_mut(*player_entity.get(&event.player_id).unwrap()).unwrap();
+                    transform.translation = event.start_pos;
 
-                        }
-
-                        shoot_event.send(event);
+                    // The host broadcasts the shots fired of all other players
+                    #[cfg(feature = "native")]
+                    if _hosting.0 {
+                        messages_to_send.push(event.clone())
 
                     }
+
+                    shoot_event.send(event.clone());
                 }
-            }
-        }
+            }), 
+            Err(ChannelProcessingError::ChannelNotFound) => (),
+            Err(e) => panic!("Unhandled error: {:?}", e),
+
+        };
 
         #[cfg(feature = "native")]
         if _hosting.0 {
-            for m in messages_to_send.into_iter() {
-                net.broadcast_message(m);
+            for m in messages_to_send.iter() {
+                net.broadcast_message(m, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
 
             }
         }
@@ -250,30 +243,17 @@ pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_eve
 }
 
 
-pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>, server_ip: Option<Res<SocketAddr>>, tcp_res: Option<Res<TcpResourceWrapper>>) {
+pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<SuperNetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>, server_ip: Option<Res<SocketAddr>>) {
     if !hosting.0 {
-        #[cfg(feature = "native")]
-        let tcp_res = tcp_res.as_ref().unwrap();
-
-        #[cfg(feature = "native")]
-        let connected = tcp_res.is_connected();
-
-        #[cfg(feature = "web")]
-        let connected = net.connections.len() > 0;
-
         // Every few seconds, the client requests an ID from the host server until it gets one
-        if ready_to_send_packet.0.finished() && server_ip.is_some() && connected {
+        if ready_to_send_packet.0.finished() && server_ip.is_some() && net.is_connected() {
             let net_conn_state_text = &mut net_conn_state_text.single_mut().sections[0].value;
 
             if my_player_id.0.is_none() && !ability_set.0 {
                 const REQUEST_ID_MESSAGE: InfoMessage = [0; 3];
                 net_conn_state_text.str_write("Requesting ID from server...");
-        
-                #[cfg(feature = "native")]
-                tcp_res.send_message(&REQUEST_ID_MESSAGE, &INFO_MESSAGE_CHANNEL).unwrap();
 
-                #[cfg(feature = "web")]
-                net.broadcast_message(REQUEST_ID_MESSAGE);
+                net.broadcast_message(&REQUEST_ID_MESSAGE, &INFO_MESSAGE_CHANNEL).unwrap();
         
                 ready_to_send_packet.0.set_duration(Duration::from_secs(5));
         
@@ -283,14 +263,10 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
             
                     let set_ability_message: InfoMessage = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
 
-                    #[cfg(feature = "native")]
-                    tcp_res.send_message(&set_ability_message, &INFO_MESSAGE_CHANNEL).unwrap();
-
-                    #[cfg(feature = "web")]
-                    net.broadcast_message(set_ability_message);
+                    net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL).unwrap();
 
                 } else {
-                    println!("Starting game");
+                    println!("Starting game!");
                     net_conn_state_text.str_write("Starting game!");
 
                     // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
@@ -304,22 +280,17 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
         }
     }
 
-    #[cfg(debug_assertions)]
-    if hosting.0 {
-        panic!("Should not be hosting at this code point");
-
-    }
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>, tcp_res: Res<TcpResourceWrapper>) {
+pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
     if !hosting.0 {
         return;
     }
     // First item is the handle, the second is the ID
     let mut messages_to_send: Vec<(u32, InfoMessage)> = Vec::new();
 
-    let mut handle_server_commands_logic = |command: InfoMessage, handle: &u32| {
+    let mut handle_server_commands_logic = |command: &InfoMessage, handle: &u32| {
         // Send a player ID as well as an ability back
         if command[0] == 0 {
             if available_ids.len() > 0 {
@@ -351,43 +322,24 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
         }
     };
 
+    let messages: Result<Vec<InfoMessage>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
 
-    for (handle, connection) in net.connections.iter_mut() {            
-        let channels = connection.channels().unwrap();
-
-        while let Some(command) = channels.recv::<InfoMessage>() {
-            handle_server_commands_logic(command, handle);
-
-        }
-    }
-
-    let tcp_messages: Result<Vec<InfoMessage>, _> = tcp_res.process_message_channel(&INFO_MESSAGE_CHANNEL);
-
-    match tcp_messages {
+    match messages {
         // Since the TCP server (currently) cannot send messages to specific clients, we just use the dummy value of 0
         //TODO: Send messages to specific clients for TcpServer
-        Ok(messages) => messages.into_iter().for_each(|command| handle_server_commands_logic(command, &0)),
+        Ok(messages) => messages.iter().for_each(|command| handle_server_commands_logic(command, &0)),
         Err(ChannelProcessingError::ChannelNotFound) => (),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
-    for (handle, message) in messages_to_send.into_iter() {
-        #[cfg(feature = "native")]
-        {
-            tcp_res.send_message(&message, &INFO_MESSAGE_CHANNEL).unwrap();
-            tcp_res.send_message(&map_crc32.0, &SET_MAP_CHANNEL).unwrap();
-        }
-
-        #[cfg(feature = "web")]
-        {
-            net.send_message(handle, message).unwrap();
-            net.send_message(handle, map_crc32.0).unwrap();
-        }
+    for (handle, message) in messages_to_send.iter() {
+        net.broadcast_message(message, &INFO_MESSAGE_CHANNEL).unwrap();
+        net.broadcast_message(&map_crc32.0, &SET_MAP_CHANNEL).unwrap();
 
     }
 }
 
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>, tcp_res: Res<TcpResourceWrapper>) {    
+pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>) {    
     if hosting.0 {
         return;
     }
@@ -396,7 +348,6 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
         // The set player ID command
         if command[0] == 0 {
             let id = command[1];
-            println!("Setting ID");
 
             my_player_id.0 = Some(PlayerID(id));
             make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, id, handle);
@@ -409,11 +360,9 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
             let player_ability: Ability = ability.into();
 
             make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
-            println!("Setting ability");
 
             players.for_each_mut(|(id, mut ability, _sprite)| {
                 if id.0 == player_id {
-                    println!("Set abiility!");
                     *ability = player_ability;
 
                     /*let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
@@ -457,80 +406,58 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
     };
 
-    for (handle, connection) in net.connections.iter_mut() {
-        let channels = connection.channels().unwrap();
 
-        while let Some(command) = channels.recv::<InfoMessage>() {
-            info_message_logic(command, handle);
+    let info_messages: Result<Vec<InfoMessage>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
 
-        }
+    match info_messages {
+        // Dummy handle value
+        //TODO: feed real value
+        Ok(messages) => messages.into_iter().for_each(|m| info_message_logic(m, &0)),
+        Err(ChannelProcessingError::ChannelNotFound) => (),
+        Err(e) => panic!("Unhandled error: {:?}", e),
+    };
 
-        while let Some(new_crc32) = channels.recv::<u32>() {
-            map_u32_logic(new_crc32);
+    let map_messages: Result<Vec<u32>, _> = net.view_messages(&SET_MAP_CHANNEL);
 
-        }
-
-    }
-
-
-    #[cfg(feature = "native")]
-    {
-        use rayon::join;
-
-        // Since these two tasks are completely independent, they can safely be run in parallel
-        join(
-            || {
-                let info_messages: Result<Vec<InfoMessage>, _> = tcp_res.process_message_channel(&INFO_MESSAGE_CHANNEL);
-                match info_messages {
-                    // Dummy handle value
-                    //TODO: feed real value
-                    Ok(messages) => messages.into_iter().for_each(|m| info_message_logic(m, &0)),
-                    Err(ChannelProcessingError::ChannelNotFound) => (),
-                    Err(e) => panic!("Unhandled error: {:?}", e),
-                }
-            },
-            || {
-                let map_messages: Result<Vec<u32>, _> = tcp_res.process_message_channel(&SET_MAP_CHANNEL);
-
-                match map_messages {
-                    Ok(messages) => messages.into_iter().for_each(|m| map_u32_logic(m)),
-                    Err(ChannelProcessingError::ChannelNotFound) => (),
-                    Err(e) => panic!("Unhandled error: {:?}", e),
-                }
-            },
-
-        );
-        
-    }
+    match map_messages {
+        Ok(messages) => messages.into_iter().for_each(|m| map_u32_logic(m)),
+        Err(ChannelProcessingError::ChannelNotFound) => (),
+        Err(e) => panic!("Unhandled error: {:?}", e),
+    };
 
 }
 
-pub fn handle_map_object_request(mut net: ResMut<NetworkResource>, maps: Res<Maps>) {
+/*pub fn handle_map_object_request(mut net: ResMut<SuperNetworkResource>, maps: Res<Maps>) {
     let mut messages_to_send = Vec::new();
 
-    for (handle, connection) in net.connections.iter_mut() {
-        let channels = connection.channels().unwrap();
+    let messages: Result<(u32, u64), _> = net.view_messages(&REQUEST_MAP_OBJECT_CHANNEL);
 
-        while let Some((crc32, index)) = channels.recv::<(u32, u64)>() {
+    match messages {
+        Ok(messages) => messages.into_iter().for_each(|(crc32, index, map_object)| {
             // Normally, I just unwrap when getting a map object, but in this case, sending a fake CRC32 would be a really easy way to crash any host or client, so I'm just preparing for that
             //TODO: Add sending network error messages for bad requests
             if let Some(map) = maps.0.get(&crc32) {
                 let index_usize: usize = index.try_into().unwrap();
                 let map_object = &map.objects[index_usize];
 
-                messages_to_send.push((*handle, (crc32, index, map_object.to_bin())));
+                messages_to_send.push((0, (crc32, index, map_object.to_bin())));
                 println!("crc32: {}, index: {}", crc32, index);
             }
 
-        }
+        }, 
+        Err(ChannelProcessingError::ChannelNotFound) => (),
+        Err(e) => panic!("Unhandled error: {:?}", e),
 
-    }
+    };
 
-    messages_to_send.into_iter().for_each(|(handle, message)| {net.send_message(handle, message).unwrap();} );
+    messages_to_send.iter().for_each(|(_handle, message)| {
+        // TODO: send_message
+        net.broadcast_message(message);
+    });
 
-}
+}*/
 
-pub fn handle_map_object_data(mut net: ResMut<NetworkResource>, mut maps: ResMut<Maps>) {
+/*pub fn handle_map_object_data(mut net: ResMut<NetworkResource>, mut maps: ResMut<Maps>) {
     const MAP_OBJECT_DEFAULT: MapObject = MapObject::default();
 
     for (_handle, connection) in net.connections.iter_mut() {
@@ -610,26 +537,15 @@ pub fn handle_map_metadata(mut net: ResMut<NetworkResource>, mut maps: ResMut<Ma
     messages_to_send.into_iter().for_each(|(handle, message)| {net.send_message(handle, message).unwrap();} );
 
 }
-
-
-pub fn handle_debug_text(mut net: ResMut<NetworkResource>) {
-    for (_handle, connection) in net.connections.iter_mut() {
-        if let Some(channels) = connection.channels() {
-            while let Some(text) = channels.recv::<String>() {
-                println!("{}", text);
-
-            }
-        }
-    }
-}
-
-pub fn handle_text_messages(mut net: ResMut<NetworkResource>, mut log_event: EventWriter<ChatEvent>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>) {
+*/
+pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event: EventWriter<ChatEvent>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<TextMessage> = Vec::new();
 
-    for (_handle, connection) in net.connections.iter_mut() {
-        if let Some(channels) = connection.channels() {
-            while let Some((player_id, message, time)) = channels.recv::<TextMessage>() {
+    let messages: Result<Vec<TextMessage>, _> = net.view_messages(&TEXT_MESSAGE_CHANNEL);
+
+    match messages {
+        Ok(messages) => {messages.into_iter().for_each(|(player_id, message, time)| {
                 let player_name = names.get(*player_entity.get(&player_id).unwrap()).unwrap();
 
                 #[cfg(feature = "native")]
@@ -637,13 +553,15 @@ pub fn handle_text_messages(mut net: ResMut<NetworkResource>, mut log_event: Eve
 
                 log_event.send(ChatEvent(format!("{}: {}", player_name, message)));
 
-            }
-        }
-    }
+        });},
+        Err(ChannelProcessingError::ChannelNotFound) => (),
+        Err(e) => panic!("Unhandled error: {:?}", e),
+
+    };
 
     #[cfg(feature = "native")]
-    messages_to_send.into_iter().for_each(|m| {
-        net.broadcast_message(m);
+    messages_to_send.iter().for_each(|m| {
+        net.broadcast_message(m, &TEXT_MESSAGE_CHANNEL).unwrap();
 
     });
 }
@@ -664,7 +582,85 @@ pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_
 
 // Literally just removes all connections from the connections HashMap.
 #[inline(always)]
-pub fn disconnect(mut net: ResMut<NetworkResource>) {
-    net.connections.clear();
+pub fn disconnect(mut net: ResMut<SuperNetworkResource>) {
+    todo!();
 
+}
+
+
+pub fn receive_packets(
+    mut net: ResMut<SuperNetworkResource>,
+    mut network_events: ResMut<Events<NetworkEvent>>,
+) {
+    use std::sync::atomic;
+
+    use turbulence::{
+        buffer::BufferPacketPool,
+        message_channels::ChannelMessage,
+        packet::{Packet as PoolPacket, PacketPool, MAX_PACKET_LEN},
+        packet_multiplexer::{IncomingTrySendError, MuxPacketPool},
+    };
+
+    let naia = net.as_naia_mut();
+
+    if naia.is_none() {
+        return;
+
+    }
+
+    let net = naia.unwrap();
+
+    let pending_connections: Vec<Box<dyn Connection>> =
+        net.pending_connections.lock().unwrap().drain(..).collect();
+    for mut conn in pending_connections {
+        let handle: ConnectionHandle = net
+            .connection_sequence
+            .fetch_add(1, atomic::Ordering::Relaxed);
+        if let Some(channels_builder_fn) = net.channels_builder_fn.as_ref() {
+            conn.build_channels(
+                channels_builder_fn,
+                net.runtime.clone(),
+                net.packet_pool.clone(),
+            );
+        }
+        net.connections.insert(handle, conn);
+        network_events.send(NetworkEvent::Connected(handle));
+    }
+
+    let packet_pool = net.packet_pool.clone();
+    for (handle, connection) in net.connections.iter_mut() {
+        while let Some(result) = connection.receive() {
+            match result {
+                Ok(packet) => {
+                    // heartbeat packets are empty
+                    if packet.len() == 0 {
+                        // discard without sending a NetworkEvent
+                        continue;
+                    }
+                    let message = String::from_utf8_lossy(&packet);
+                    if let Some(channels_rx) = connection.channels_rx() {
+                        let mut pool_packet = packet_pool.acquire();
+                        pool_packet.resize(packet.len(), 0);
+                        pool_packet[..].copy_from_slice(&*packet);
+                        match channels_rx.try_send(pool_packet) {
+                            Ok(()) => {
+                                // cool
+                            }
+                            Err(err) => {
+                                network_events.send(NetworkEvent::Error(
+                                    *handle,
+                                    NetworkError::TurbulenceChannelError(err),
+                                ));
+                            }
+                        }
+                    } else {
+                        network_events.send(NetworkEvent::Packet(*handle, packet));
+                    }
+                }
+                Err(err) => {
+                    network_events.send(NetworkEvent::Error(*handle, err));
+                }
+            }
+        }
+    }
 }

@@ -492,7 +492,7 @@ dependencies = [
 [[package]]
 name = "bevy_networking_turbulence"
 version = "0.3.3"
-source = "git+https://github.com/billyb2/bevy_networking_turbulence#3bbf7544c5d3a199e0d759b64d5fcbf0d2cba286"
+source = "git+https://github.com/billyb2/bevy_networking_turbulence?branch=publicized#fadea03f6abb2455d0318d5424fd2685332ca8cf"
 dependencies = [
  "bevy",
  "bytes",
@@ -2366,7 +2366,7 @@ dependencies = [
  "game_types",
  "helper_functions",
  "map",
- "net_tcp",
+ "net",
  "setup_systems",
  "single_byte_hashmap",
 ]
@@ -2613,21 +2613,19 @@ dependencies = [
  "bevy_networking_turbulence",
  "game_types",
  "map",
- "net_tcp",
  "rapier2d",
  "rayon",
  "single_byte_hashmap",
+ "super_net",
+ "turbulence",
 ]
 
 [[package]]
 name = "net_tcp"
 version = "0.1.0"
 dependencies = [
- "bevy_app",
- "bevy_ecs",
  "bincode",
  "dashmap",
- "serde",
  "tcp_client",
  "tcp_server",
  "tcp_shared",
@@ -3623,6 +3621,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
+name = "super_net"
+version = "0.1.0"
+dependencies = [
+ "bevy_app",
+ "bevy_networking_turbulence",
+ "bevy_tasks",
+ "net_tcp",
+ "tokio",
+]
+
+[[package]]
 name = "svg_fmt"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3646,7 +3655,6 @@ dependencies = [
  "arrayvec 0.7.1",
  "bincode",
  "dashmap",
- "serde",
  "tcp_shared",
  "tokio",
 ]
@@ -3658,7 +3666,6 @@ dependencies = [
  "bincode",
  "dashmap",
  "parking_lot",
- "serde",
  "tcp_shared",
  "tokio",
 ]
@@ -3667,11 +3674,10 @@ dependencies = [
 name = "tcp_shared"
 version = "0.1.0"
 dependencies = [
- "arrayvec 0.7.1",
  "bincode",
  "dashmap",
- "serde",
  "tokio",
+ "turbulence",
 ]
 
 [[package]]

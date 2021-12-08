@@ -21,7 +21,7 @@ use single_byte_hashmap::HashMap;
 use config::{get_data, write_data};
 use setup_systems::*;
 use map::*;
-use net_tcp::*;
+use net::*;
 use game_types::*;
 
 use helper_functions::graphics::spawn_button;
@@ -313,7 +313,7 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
     });
 }
 
-pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>), (Changed<Interaction>, With<Button>)>, mut net: ResMut<NetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, mut tcp_res: Option<ResMut<TcpResourceWrapper>>, hosting: Res<Hosting>) {    
+pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>), (Changed<Interaction>, With<Button>)>, mut net: ResMut<SuperNetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, hosting: Res<Hosting>) {    
     if addr.is_none() && !hosting.0 {
         let (entity, mut text) = text_query.single_mut();
         let text = &mut text.sections[0].value;
@@ -331,11 +331,7 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                     commands.entity(entity).despawn_recursive();
                     header_text.str_write(format!("Connecting to {}...", socket_addr).as_str());
     
-                    #[cfg(target_arch = "wasm32")]
                     net.connect(socket_addr);
-
-                    #[cfg(not(target_arch = "wasm32"))]
-                    tcp_res.as_mut().unwrap().setup(socket_addr);
 
                     commands.insert_resource(socket_addr);
                     
@@ -387,7 +383,7 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
     }
 }
 
-pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<NetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
+pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<SuperNetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         const DEFAULT_MAP_OBJECT: MapObject = MapObject::default();
 
@@ -416,10 +412,10 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
         let map = maps.0.get_mut(&map_crc32.0).unwrap(); 
 
         if map.objects.capacity() == 0 {
-            net.broadcast_message((String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
+            //net.broadcast_message(&(String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
 
         } else {
-            map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
+/*            map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
                 match *object == DEFAULT_MAP_OBJECT {
                     true => {
                         let index: u64 = i.try_into().unwrap();
@@ -429,7 +425,7 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
                     false => None,
 
             }).for_each(|i| net.broadcast_message((map_crc32.0, i)));
-
+*/
             // Request a map object for each default map object
             
         }
@@ -711,7 +707,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut Model, &mut Perk, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<SuperNetworkResource>, mut players: Query<(Entity, &mut Ability, &mut Model, &mut Perk, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -798,7 +794,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
 
                             let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
-                            net.broadcast_message(set_ability_message);
+                            net.broadcast_message(&set_ability_message, &ABILITY_MESSAGE_CHANNEL);
 
                             let my_player_id = my_player_id.0.as_ref();
 

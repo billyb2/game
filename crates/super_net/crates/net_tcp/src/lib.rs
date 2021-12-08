@@ -3,24 +3,19 @@
 
 mod types;
 
+use std::fmt::Debug;
 use std::sync::Arc;
-
-use bevy_app::{App, Plugin};
-
-use serde::ser::Serialize;
 
 pub use tokio::io::AsyncWriteExt;
 pub use tokio::sync::mpsc::unbounded_channel;
 use tokio::net::ToSocketAddrs;
-use tokio::runtime::Builder;
 
-use tcp_shared::*;
 pub use types::*;
 
 use tcp_client::TcpClient;
 use tcp_server::TcpServer;
 
-pub use tcp_shared::{ClientConnection, ConnID, ChannelProcessingError, MessageChannelID, TcpResourceTrait, add_to_message_queue};
+pub use tcp_shared::{ClientConnection, ConnID, ChannelMessage, ChannelProcessingError, MessageChannelID, SendMessageError, TcpResourceTrait};
 
 pub enum TcpResourceWrapper {
     Server(TcpServer),
@@ -39,7 +34,7 @@ impl TcpResourceWrapper {
         TcpResourceWrapper::Client(TcpClient::new(task_pool))
     }
 
-    pub fn process_message_channel<T>(&self, channel_id: &MessageChannelID) -> Result<Vec<T>, ChannelProcessingError> where T: serde::de::DeserializeOwned {
+    pub fn process_message_channel<T>(&self, channel_id: &MessageChannelID) -> Result<Vec<T>, ChannelProcessingError> where T: ChannelMessage + Debug + Clone {
         let unprocessed_messages_recv_queue = match self {
             TcpResourceWrapper::Server(res) => Arc::clone(&res.unprocessed_message_recv_queue),
             TcpResourceWrapper::Client(res) => Arc::clone(&res.unprocessed_recv_messages_queue),
@@ -98,7 +93,7 @@ impl TcpResourceTrait for TcpResourceWrapper {
     }
 
     fn send_message<M>(&self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
-    where M: Serialize {
+    where M: ChannelMessage + Debug + Clone {
         match self {
             TcpResourceWrapper::Server(tcp_res) => tcp_res.send_message(message, channel),
             TcpResourceWrapper::Client(tcp_res) => tcp_res.send_message(message, channel),
@@ -109,17 +104,3 @@ impl TcpResourceTrait for TcpResourceWrapper {
 
 pub type Runtime = Arc<tokio::runtime::Runtime>;
 
-pub struct TcpNetworkingPlugin;
-
-impl Plugin for TcpNetworkingPlugin {
-    fn build(&self, app: &mut App) {
-        let tokio_rt = Arc::new(Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap());
-
-        app
-        .insert_resource(tokio_rt)
-        .insert_resource(NextUUID(0));
-    }
-}

@@ -1,15 +1,13 @@
 use crate::*;
-
-use serde::ser::Serialize;
+use std::fmt::Debug;
 
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::ToSocketAddrs;
 use tokio::io::AsyncReadExt;
 
-pub async fn add_to_message_queue(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
-    // Move the read half (the extra let binding isn't really necessary tbh)
-    //let mut read_socket = FramedRead::new(read, BytesCodec::new());
+pub use turbulence::message_channels::ChannelMessage;
 
+pub async fn add_to_message_queue(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
     let mut buffer: [u8; MAX_PACKET_SIZE] = [0; MAX_PACKET_SIZE];
 
     loop {
@@ -31,10 +29,9 @@ pub async fn add_to_message_queue(mut read_socket: OwnedReadHalf, unprocessed_me
         let mut key_val_pair = unprocessed_messages_recv_queue.entry(channel_id).or_insert(Vec::with_capacity(1));
         let messages = key_val_pair.value_mut();
 
-        let mut array_vec = ArrayVec::new();
-        array_vec.try_extend_from_slice(&msg_buffer).unwrap();
+        let byte_vec = msg_buffer.to_vec();
 
-        messages.push(array_vec);
+        messages.push(byte_vec);
 
     }
 
@@ -42,7 +39,7 @@ pub async fn add_to_message_queue(mut read_socket: OwnedReadHalf, unprocessed_me
 
 }
 
-pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Result<Vec<u8>, bincode::Error> where T: Serialize {
+pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Result<Vec<u8>, bincode::Error> where T: ChannelMessage + Debug + Clone {
     let msg_bin = bincode::serialize(message)?;
     // Add one extra byte to the message length for the channel ID
     let msg_len: u32 = msg_bin.len().try_into().unwrap();
@@ -63,5 +60,5 @@ pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Resul
 pub trait TcpResourceTrait {
     /// The actual setup of the network, whether it's connecting or listening
     fn setup(&mut self, addr: impl ToSocketAddrs + Send + 'static);
-    fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: Serialize;
+    fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone;
 }
