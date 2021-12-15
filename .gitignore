@@ -11,4 +11,6 @@
 
 **/*/*.spv
 **/*/target
+tools/**/*/Cargo.lock
+crates/**/*/Cargo.lock
 helper_functions/Cargo.lock

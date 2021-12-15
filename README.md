@@ -13,18 +13,23 @@ Windows used to have to install OpenSSL, but thanks to conditional features, it 
 - `rustup component add llvm-tools-preview rust-src`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make`
-- ### Ubuntu/Debian Linux
+
+Linux builds used the [mold](https://github.com/rui314/mold) linker for debug builds, since it's extremely fast, and use LLD for release builds, since it's faster than the default linker
+
+### Ubuntu/Debian Linux
 - `sudo apt-get install cmake clang lld libx11 pkgconf alsa-lib openssl`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.78`
 - `rustup component add rust-src`
+- Follow the instructions [here](https://github.com/rui314/mold) to install the mold linker
 ### Arch/Manjaro Linux
 - `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl --needed`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.78`
 - `rustup component add rust-src`
+- Install the AUR package [mold](https://github.com/rui314/mold). If you have `yay` installed, you can install it with `yay -Syu aur/mold --needed`. When building, it's recommended that you have `-march=native -O3 -flto` in `CFLAGS` in the /etc/makepkg.conf file, just to help improve the speed of the linker even further.
 ### MacOS
-MacOS, of course, does not have a working LLD linker (thanks Apple), though the ZLD linker is still faster than the default
+MacOS, of course, does not work with the LLD linker (thanks Apple), though the ZLD linker is still faster than the default
 - [Install CMake](https://cmake.org/download/)
 - `brew install michaeleisel/zld/zld`
 - `rustup toolchain install nightly`
