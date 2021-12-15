@@ -6,18 +6,23 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy_app = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 bevy_tasks = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 
 # For creating an interface to bevy_networking_turbulence
 bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
 
-tokio = { version = "1", features = ["rt-multi-thread", "net"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net"], optional = true }
+turbulence = { version = "0.3" }
 
 # For creating an interface to the TCP cli/serv
-net_tcp = { path = "crates/net_tcp", optional = true }
+net_tcp = { path = "crates/net_tcp" }
 
 [features]
 native = [
-	"net_tcp",
+	"net_tcp/native",
+	"tokio",
 ]
-web = []
+web = [
+	"net_tcp/web",
+]

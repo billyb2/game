@@ -10,18 +10,21 @@ bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 rapier2d = { version = "0.11", features = ["simd-nightly"]}
 rayon = { version = "1", optional = true }
-turbulence = { version = "0.3" }
 
 game_types = { path = "../game_types" }
 map = { path = "../map" }
 super_net = { path = "../super_net" }
+wasm-bindgen = { version = "0.2.78", optional = true }
 
 [features]
 graphics = []
 native = [
 	"super_net/native"
 ]
-web = []
+web = [
+	"super_net/web",
+	"wasm-bindgen",
+]
 parallel = [
 	"rayon",
 	"single_byte_hashmap/rayon",

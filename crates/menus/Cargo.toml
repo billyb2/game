@@ -6,7 +6,6 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
-bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
 config = { path = "../config" }
 helper_functions = { path = "../helper_functions", features = ["graphics"] }
 game_types = { path = "../game_types", features = ["graphics"] }

@@ -5,7 +5,7 @@ use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::ToSocketAddrs;
 use tokio::io::AsyncReadExt;
 
-pub use turbulence::message_channels::ChannelMessage;
+use turbulence::message_channels::ChannelMessage;
 
 pub async fn add_to_message_queue(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
     let mut buffer: [u8; MAX_PACKET_SIZE] = [0; MAX_PACKET_SIZE];

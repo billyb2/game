@@ -76,7 +76,7 @@ pub const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSetti
 };
 
 // When requesting or sending metadata about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
-pub(crate) const INFO_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(4);
+pub(crate) const INFO_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(3);
 
 pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: INFO_MESSAGE_CHANNEL.id,
@@ -241,11 +241,15 @@ pub struct ReadyToSendPacket(pub Timer);
 pub struct SetAbility(pub bool);
 
 
-pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<State<AppState>>>, _server_addr: Option<Res<SocketAddr>>, hosting: Res<Hosting>, tokio_rt: Res<Runtime>, task_pool: Res<IoTaskPool>) {
+pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<State<AppState>>>, server_addr: Option<Res<SocketAddr>>, hosting: Res<Hosting>, tokio_rt: Res<Runtime>, task_pool: Res<IoTaskPool>) {
+    #[cfg(feature = "native")]
     let mut net = match hosting.0 {
-        true => SuperNetworkResource::new_server(Arc::clone(&tokio_rt), task_pool.0.clone()),
-        false => SuperNetworkResource::new_client(Arc::clone(&tokio_rt), task_pool.0.clone()),
+        true => SuperNetworkResource::new_server(Some(Arc::clone(&tokio_rt)), task_pool.0.clone()),
+        false => SuperNetworkResource::new_client(Some(Arc::clone(&tokio_rt)), task_pool.0.clone()),
     };
+
+    #[cfg(feature = "web")]
+    let mut net = SuperNetworkResource::new_client(None, task_pool.0.clone());
 
     // Currently, only PC builds can host
     #[cfg(feature = "native")]
@@ -333,11 +337,11 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
     
 
     // If we've previously connected to a server, just connect automatically without prompt
-    if let Some(server_addr) = _server_addr {
-        net.connect(*server_addr);
-    }
-
-    if hosting.0 {
+    if !hosting.0 {
+        if let Some(server_addr) = server_addr {
+            net.connect(*server_addr);
+        }
+    } else {
         _app_state.unwrap().set(AppState::InGame).unwrap();
     }
 

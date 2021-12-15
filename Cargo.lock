@@ -2361,7 +2361,6 @@ name = "menus"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy_networking_turbulence",
  "config",
  "game_types",
  "helper_functions",
@@ -2617,7 +2616,7 @@ dependencies = [
  "rayon",
  "single_byte_hashmap",
  "super_net",
- "turbulence",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -3625,10 +3624,12 @@ name = "super_net"
 version = "0.1.0"
 dependencies = [
  "bevy_app",
+ "bevy_ecs",
  "bevy_networking_turbulence",
  "bevy_tasks",
  "net_tcp",
  "tokio",
+ "turbulence",
 ]
 
 [[package]]

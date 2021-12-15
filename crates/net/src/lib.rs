@@ -7,8 +7,7 @@ mod setup;
 use std::net::SocketAddr;
 use std::convert::TryInto;
 
-//use crate::*;
-use bevy_networking_turbulence::*;
+//use bevy_networking_turbulence::*;
 use game_types::*;
 use map::*;
 use single_byte_hashmap::HashMap;
@@ -20,8 +19,27 @@ use bevy::utils::Duration;
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
+#[cfg(feature = "web")]
+use wasm_bindgen::prelude::*;
+
 pub use super_net::*;
 pub use setup::*;
+
+#[cfg(feature = "web")]
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+
+}
+
+#[cfg(feature = "native")]
+fn log(s: &str) {
+    println!("{s}");
+} 
+
 
 #[cfg(feature = "graphics")]
 pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>) {
@@ -249,40 +267,43 @@ pub fn handle_projectile_packets(mut net: ResMut<SuperNetworkResource>, mut shoo
 
 
 pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<SuperNetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>, server_ip: Option<Res<SocketAddr>>) {
-    if !hosting.0 {
-        // Every few seconds, the client requests an ID from the host server until it gets one
-        if ready_to_send_packet.0.finished() && server_ip.is_some() && net.is_connected() {
-            let net_conn_state_text = &mut net_conn_state_text.single_mut().sections[0].value;
+    if hosting.0 {
+        return;
+    }
 
-            if my_player_id.0.is_none() && !ability_set.0 {
-                println!("COnnecting");
-                const REQUEST_ID_MESSAGE: InfoMessage = [0; 3];
-                net_conn_state_text.str_write("Requesting ID from server...");
+    // Every few seconds, the client requests an ID from the host server until it gets one
+    if ready_to_send_packet.0.finished() && server_ip.is_some() && net.is_connected() {
+        let net_conn_state_text = &mut net_conn_state_text.single_mut().sections[0].value;
 
-                net.broadcast_message(&REQUEST_ID_MESSAGE, &INFO_MESSAGE_CHANNEL).unwrap();
+        if my_player_id.0.is_none() && !ability_set.0 {
+            println!("Connecting");
+            const REQUEST_ID_MESSAGE: InfoMessage = [0; 3];
+            net_conn_state_text.str_write("Requesting ID from server...");
+            log("Requesting ID");
+
+            net.broadcast_message(&REQUEST_ID_MESSAGE, &INFO_MESSAGE_CHANNEL).unwrap();
+    
+            ready_to_send_packet.0.set_duration(Duration::from_secs(1));
+    
+        } else if my_player_id.0.is_some() {
+            if !ability_set.0 {
+                net_conn_state_text.str_write("Requesting ability from server...");
         
-                ready_to_send_packet.0.set_duration(Duration::from_secs(1));
+                let set_ability_message: InfoMessage = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
+
+                net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL).unwrap();
+
+            } else {
+                println!("Starting game!");
+                net_conn_state_text.str_write("Starting game!");
+
+                // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
+                ready_to_send_packet.0.set_duration(Duration::from_millis(15));
         
-            } else if my_player_id.0.is_some() {
-                if !ability_set.0 {
-                    net_conn_state_text.str_write("Requesting ability from server...");
-            
-                    let set_ability_message: InfoMessage = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
+                app_state.set(AppState::InGame).unwrap();
 
-                    net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL).unwrap();
-
-                } else {
-                    println!("Starting game!");
-                    net_conn_state_text.str_write("Starting game!");
-
-                    // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
-                    ready_to_send_packet.0.set_duration(Duration::from_millis(15));
-            
-                    app_state.set(AppState::InGame).unwrap();
-
-                }
-        
             }
+    
         }
     }
 
@@ -293,17 +314,19 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
     if !hosting.0 {
         return;
     }
+
     // First item is the handle, the second is the ID
     let mut messages_to_send: Vec<(u32, InfoMessage)> = Vec::new();
 
     let mut handle_server_commands_logic = |command: &InfoMessage, handle: &u32| {
+        println!("{:?}", command);
         // Send a player ID as well as an ability back
         if command[0] == 0 {
             if available_ids.len() > 0 {
-                    let player_id = available_ids.remove(0);
+                let player_id = available_ids.remove(0);
 
-                    // Sending back the player id
-                    messages_to_send.push((*handle, [0, player_id.0, 0]));
+                // Sending back the player id
+                messages_to_send.push((*handle, [0, player_id.0, 0]));
 
             } else {
                 //TODO: Send back a lobby full command
@@ -591,82 +614,4 @@ pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_
 pub fn disconnect(mut net: ResMut<SuperNetworkResource>) {
     todo!();
 
-}
-
-
-pub fn receive_packets(
-    mut net: ResMut<SuperNetworkResource>,
-    mut network_events: ResMut<Events<NetworkEvent>>,
-) {
-    use std::sync::atomic;
-
-    use turbulence::{
-        buffer::BufferPacketPool,
-        message_channels::ChannelMessage,
-        packet::{Packet as PoolPacket, PacketPool, MAX_PACKET_LEN},
-        packet_multiplexer::{IncomingTrySendError, MuxPacketPool},
-    };
-
-    let naia = net.as_naia_mut();
-
-    if naia.is_none() {
-        return;
-
-    }
-
-    let net = naia.unwrap();
-
-    let pending_connections: Vec<Box<dyn Connection>> =
-        net.pending_connections.lock().unwrap().drain(..).collect();
-    for mut conn in pending_connections {
-        let handle: ConnectionHandle = net
-            .connection_sequence
-            .fetch_add(1, atomic::Ordering::Relaxed);
-        if let Some(channels_builder_fn) = net.channels_builder_fn.as_ref() {
-            conn.build_channels(
-                channels_builder_fn,
-                net.runtime.clone(),
-                net.packet_pool.clone(),
-            );
-        }
-        net.connections.insert(handle, conn);
-        network_events.send(NetworkEvent::Connected(handle));
-    }
-
-    let packet_pool = net.packet_pool.clone();
-    for (handle, connection) in net.connections.iter_mut() {
-        while let Some(result) = connection.receive() {
-            match result {
-                Ok(packet) => {
-                    // heartbeat packets are empty
-                    if packet.len() == 0 {
-                        // discard without sending a NetworkEvent
-                        continue;
-                    }
-                    let message = String::from_utf8_lossy(&packet);
-                    if let Some(channels_rx) = connection.channels_rx() {
-                        let mut pool_packet = packet_pool.acquire();
-                        pool_packet.resize(packet.len(), 0);
-                        pool_packet[..].copy_from_slice(&*packet);
-                        match channels_rx.try_send(pool_packet) {
-                            Ok(()) => {
-                                // cool
-                            }
-                            Err(err) => {
-                                network_events.send(NetworkEvent::Error(
-                                    *handle,
-                                    NetworkError::TurbulenceChannelError(err),
-                                ));
-                            }
-                        }
-                    } else {
-                        network_events.send(NetworkEvent::Packet(*handle, packet));
-                    }
-                }
-                Err(err) => {
-                    network_events.send(NetworkEvent::Error(*handle, err));
-                }
-            }
-        }
-    }
 }

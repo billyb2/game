@@ -198,6 +198,9 @@ fn main() {
     app.add_system_set(
         SystemSet::on_update(AppState::Connecting)
             .with_system(tick_timers)
+            .with_system(request_player_info)
+            .with_system(handle_client_commands)
+            .with_system(connection_menu)
 
     );
 
@@ -222,7 +225,6 @@ fn main() {
     .add_system_set(
         SystemSet::on_update(AppState::InGame)
             // Timers should be ticked first
-            .with_system(receive_packets)
             .with_system(tick_timers.before("player_attr").before(InputFromPlayer).label("tick_timers"))
             .with_system(destroy_light_timers.before("player_attr").before(InputFromPlayer))
             .with_system(explode_grenades.after("tick_timers"))
@@ -278,14 +280,6 @@ fn main() {
         SystemSet::on_update(AppState::InGame)
             .with_system(handle_server_commands)
             .with_system(send_score)
-    );
-
-    app.add_system_set(
-        SystemSet::on_update(AppState::Connecting)
-            .with_system(request_player_info)
-            .with_system(handle_client_commands)
-            .with_system(connection_menu)
-
     );
 
     app.add_system_set(

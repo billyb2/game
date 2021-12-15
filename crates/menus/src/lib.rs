@@ -14,8 +14,6 @@ use bevy::math::Size;
 use bevy::input::ElementState;
 use bevy::input::keyboard::KeyboardInput;
 
-//use crate::*;
-use bevy_networking_turbulence::*;
 use single_byte_hashmap::HashMap;
 
 use config::{get_data, write_data};
@@ -325,11 +323,11 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                 Ok(addr) => {
                     let socket_addr = SocketAddr::new(addr, match cfg!(target_arch = "wasm32") {
                         true => 9363,
-                        false => 9364, 
+                        false => 9364,
                     });
 
                     commands.entity(entity).despawn_recursive();
-                    header_text.str_write(format!("Connecting to {}...", socket_addr).as_str());
+                    header_text.str_write(format!("Connecting to {socket_addr}...").as_str());
     
                     commands.insert_resource(socket_addr);
                     net.connect(socket_addr);
@@ -471,7 +469,6 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
 }
 
 pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, (Without<CustomizeHelpText>, Without<NameText>)>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut my_name: ResMut<PlayerName>, mut help_text: Query<&mut Text, (With<CustomizeHelpText>, Without<NameText>)>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut name_text: Query<&mut Text, (With<NameText>, Without<CustomizeHelpText>)>) {
-
     if typing.0 {
         let text = &mut name_text.single_mut().sections[0].value;
 

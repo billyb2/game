@@ -35,7 +35,7 @@ fn main() {
 	let mut wasm_bytes = Cursor::new(wasm_bytes);
 
 
-	let mut compressed_bytes = Vec::with_capacity(3000000);
+	let mut compressed_bytes = Vec::with_capacity(3_000_000);
 
 	println!("Original WASM file length: {:.1}MB", len as f32 / 1000000.0);
 	println!("Compressing WASM file...");
