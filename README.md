@@ -23,11 +23,10 @@ Linux builds used the [mold](https://github.com/rui314/mold) linker for debug bu
 - `rustup component add rust-src`
 - Follow the instructions [here](https://github.com/rui314/mold) to install the mold linker
 ### Arch/Manjaro Linux
-- `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl --needed`
+- `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl mold --needed`
 - `rustup toolchain install nightly`
 - `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.78`
 - `rustup component add rust-src`
-- Install the AUR package [mold](https://github.com/rui314/mold). If you have `yay` installed, you can install it with `yay -Syu aur/mold --needed`. When building, it's recommended that you have `-march=native -O3 -flto` in `CFLAGS` in the /etc/makepkg.conf file, just to help improve the speed of the linker even further.
 ### MacOS
 MacOS, of course, does not work with the LLD linker (thanks Apple), though the ZLD linker is still faster than the default
 - [Install CMake](https://cmake.org/download/)
@@ -86,7 +85,7 @@ I only recommend debug builds if you want to very quickly check a change, rather
 Currently, the game uses a custom binary format that I made designed to take up very little space (maps used to take up a few MB, now they're a few hundred bytes), and is also future proofed to be easy to add custom assets (since the final map is compressed with LZ4, multiple files could be added and then compressed into a single archive). Anyway, enough patting myself on the back, how do you set up the map editor?
 
 ### What makes the maps look the way they do
-The map itself is stored as the map1.tmx file. Each object that you see in the game is a thing in Tiled called an object. These objects can be created relatively easily, though I recommend copying and pasting an already existing object, since each object has certain custom attributes added to it. As of writing, these attributes are the RGBA (the colors) of said objects, whether the object can be a player spawn, and whether it's possible to collide with aid objet. For example, the current map1 that we use has 3 player spawns, each with an alpha value of 0 (meaning they're completely transparent), they're set to not be player collidable, and they're set to be player spawns. All other objects in the game are either red or blue, are not player spawns, and are player collidable. The map itself also has some metadata associated with it, including the size of the map and the background color.
+The map itself is stored as the map1.tmx file. Each object that you see in the game is a thing in Tiled called an object. These objects can be created relatively easily, though I recommend copying and pasting an already existing object, since each object has certain custom attributes added to it. As of writing, these attributes are the RGBA (the colors) of said objects, whether the object can be a player spawn, and whether it's possible to collide with said object. For example, the current map1 that we use has 3 player spawns, each with an alpha value of 0 (meaning they're completely transparent), they're set to not be player collidable, and they're set to be player spawns. All other objects in the game are either red or blue, are not player spawns, and are player collidable. The map itself also has some metadata associated with it, including the size of the map and the background color.
 
 Now this information might seem useless, but it's very important to understand these as you make your own lovely maps. If a map object, for example, doesn't include all of the attributes it's supposed to, the map might not build correctly, the map file could be corrupted, and more!
 
@@ -101,7 +100,7 @@ Then, for every map object, the x, y, z (how objects are stacked onto each other
 
 Then, the map has a built in checksum (a way of knowing if a map file has been corrupted or not), that uses the CRC32 algorithm (since it's very fast and does the job well). The CRC32 takes up 32 more bytes, and is appended after the null map object. The CRC32 is also useful for uniquely identifying maps, so that when a playe rtries to join another player's game, the client can check to see if the checksums match, and if not, request to download the map.
 
-Finally, the entire map is compressed using the LZ4 compression algorithm, since it has relatoively slow compression times, but very very fast decompression times. The custom map extension is used since it's not anything like JSON or XML, it's an entirely new binary format I made just for this game (though eventually we should probably use a real file format name so people can recognize it).
+Finally, the entire map is compressed using the LZ4 compression algorithm, since it has okay compression times, but very very fast decompression times. The custom map extension is used since it's not anything like JSON or XML, it's an entirely new binary format I made just for this game (though eventually we should probably use a real file format name so people can recognize it).
 
 To view how all of this works, please see the `tiled/custom.js` file or the `crates/map/src/lib.rs` file. I apologize for how much code there is in the first line for the javascript file, that's a WASM version of the original C-lang LZ4 compression algorithm, since the JavaScript ones I used before were too slow for my liking.
 
