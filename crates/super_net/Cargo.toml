@@ -9,6 +9,9 @@ bevy_app = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 bevy_ecs = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 bevy_tasks = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 
+# TODO: Delete this dep
+game_types = { path = "../game_types" }
+
 # For creating an interface to bevy_networking_turbulence
 bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
 

@@ -24,6 +24,8 @@ use net_tcp::*;
 #[cfg(feature = "native")]
 pub use net_tcp::{ChannelProcessingError, MessageChannelID, Runtime, SendMessageError};
 
+use game_types::log;
+
 #[cfg(feature = "web")]
 pub use net_tcp::*;
 
@@ -125,17 +127,10 @@ impl SuperNetworkResource {
         }
 
         if let Some(naia) = self.naia.as_mut() {
-            println!("Server has naia!");
-
             for (_handle, connection) in naia.connections.iter_mut() {
-                println!("Is connected");
-
                 let channels = connection.channels().unwrap();
 
-               println!("Trying to recv msg");
-
                 while let Some(message) = channels.try_recv::<M>()? {
-                    println!("Received msg");
                     messages.push(message);
 
                 }
@@ -154,7 +149,7 @@ impl SuperNetworkResource {
 
         if let Some(naia) = self.naia.as_mut() {
             // Inlined version of naia.broadcast_message(), with some modifications
-            for (handle, connection) in naia.connections.iter_mut() {
+            for (_handle, connection) in naia.connections.iter_mut() {
                 use std::any::type_name;
 
                 let channels = connection.channels().unwrap();
@@ -162,7 +157,7 @@ impl SuperNetworkResource {
                 //  There's probably a better way to do this (TODO?) but since I haven't run into this issue yet, 
                 //  I don't care lol
                 if channels.try_send(message.clone())?.is_some() {
-                    panic!("Message channel full for type: {}", type_name::<M>());
+                    panic!("Message channel full for type: {:?}", type_name::<M>());
 
                 }
 
@@ -263,8 +258,6 @@ fn rcv_naia_packets(super_net: Option<ResMut<SuperNetworkResource>>, mut network
     let pending_connections: Vec<Box<dyn Connection>> = net.pending_connections.lock().unwrap().drain(..).collect();
     
     for mut conn in pending_connections {
-        println!("New pending connection!");
-
         let handle: ConnectionHandle = net
             .connection_sequence
             .fetch_add(1, atomic::Ordering::Relaxed);

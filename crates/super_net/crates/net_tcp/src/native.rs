@@ -40,7 +40,7 @@ impl TcpResourceWrapper {
 
         };
 
-        let result = match unprocessed_messages_recv_queue.get_mut(&channel_id) {
+        let result = match unprocessed_messages_recv_queue.get_mut(channel_id) {
             Some(mut unprocessed_channel) => {
                 let processed_messages = unprocessed_channel.iter().map(|message_bin| {
                     bincode::deserialize::<T>(&message_bin)
@@ -53,7 +53,12 @@ impl TcpResourceWrapper {
                 Ok(processed_messages)
                 
             },
-            None => Err(ChannelProcessingError::ChannelNotFound)
+            None => {
+                unprocessed_messages_recv_queue.insert(channel_id.clone(), Vec::with_capacity(1));
+
+                Ok(Vec::new())
+
+            },
 
         };
 

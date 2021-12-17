@@ -20,6 +20,9 @@ pub use lights::*;
 
 pub use player_attr::*;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 #[derive(Component)]
 pub struct DistanceTraveled(pub f32);
 
@@ -198,3 +201,18 @@ impl WriteToStringSlice for String {
         debug_assert_eq!(self.as_str(), new_str);
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+
+}
+
+#[cfg(target_arch = "x86_64")]
+pub fn log(s: &str) {
+    println!("{s}");
+} 

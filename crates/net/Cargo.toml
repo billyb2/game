@@ -14,7 +14,6 @@ rayon = { version = "1", optional = true }
 game_types = { path = "../game_types" }
 map = { path = "../map" }
 super_net = { path = "../super_net" }
-wasm-bindgen = { version = "0.2.78", optional = true }
 
 [features]
 graphics = []
@@ -23,7 +22,6 @@ native = [
 ]
 web = [
 	"super_net/web",
-	"wasm-bindgen",
 ]
 parallel = [
 	"rayon",

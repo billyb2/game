@@ -19,27 +19,8 @@ use bevy::utils::Duration;
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
-#[cfg(feature = "web")]
-use wasm_bindgen::prelude::*;
-
 pub use super_net::*;
 pub use setup::*;
-
-#[cfg(feature = "web")]
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-
-}
-
-#[cfg(feature = "native")]
-fn log(s: &str) {
-    println!("{s}");
-} 
-
 
 #[cfg(feature = "graphics")]
 pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>) {
@@ -185,7 +166,7 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
                 }
 
                 if ability > NUM_OF_ABILITIES {
-                    println!("Received bad ability");
+                    println!("Received bad ability: {ability}, prepare to crash!");
 
                 }
 
@@ -209,7 +190,6 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
                     }
                 }
             }), 
-            Err(ChannelProcessingError::ChannelNotFound) => (),
             Err(e) => panic!("Unhandled error: {:?}", e),
 
         };
@@ -250,7 +230,6 @@ pub fn handle_projectile_packets(mut net: ResMut<SuperNetworkResource>, mut shoo
                     shoot_event.send(event.clone());
                 }
             }), 
-            Err(ChannelProcessingError::ChannelNotFound) => (),
             Err(e) => panic!("Unhandled error: {:?}", e),
 
         };
@@ -276,14 +255,19 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
         let net_conn_state_text = &mut net_conn_state_text.single_mut().sections[0].value;
 
         if my_player_id.0.is_none() && !ability_set.0 {
-            println!("Connecting");
             const REQUEST_ID_MESSAGE: InfoMessage = [0; 3];
             net_conn_state_text.str_write("Requesting ID from server...");
             log("Requesting ID");
 
             net.broadcast_message(&REQUEST_ID_MESSAGE, &INFO_MESSAGE_CHANNEL).unwrap();
     
-            ready_to_send_packet.0.set_duration(Duration::from_secs(1));
+            #[cfg(feature = "web")]
+            const REQUEST_ID_DUR: u64 = 5;
+
+            #[cfg(feature = "native")]
+            const REQUEST_ID_DUR: u64 = 2;
+
+            ready_to_send_packet.0.set_duration(Duration::from_secs(REQUEST_ID_DUR));
     
         } else if my_player_id.0.is_some() {
             if !ability_set.0 {
@@ -294,7 +278,6 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
                 net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL).unwrap();
 
             } else {
-                println!("Starting game!");
                 net_conn_state_text.str_write("Starting game!");
 
                 // Once the client gets an ID and an ability, it starts sending location data every 15 miliseconds
@@ -340,8 +323,8 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
 
             make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
 
-            println!("Player {} has joined!", player_id);
-            log_event.send(LogEvent(format!("Player {} has joined!", player_id)));
+            println!("Player {player_id} has joined!");
+            log_event.send(LogEvent(format!("Player {player_id} has joined!")));
 
             let (_id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).expect(&format!("ID {} not found!", player_id));
             *ability = player_ability;
@@ -357,7 +340,6 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
         // Since the TCP server (currently) cannot send messages to specific clients, we just use the dummy value of 0
         //TODO: Send messages to specific clients for TcpServer
         Ok(messages) => messages.iter().for_each(|command| handle_server_commands_logic(command, &0)),
-        Err(ChannelProcessingError::ChannelNotFound) => (),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
@@ -442,7 +424,6 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
         // Dummy handle value
         //TODO: feed real value
         Ok(messages) => messages.into_iter().for_each(|m| info_message_logic(m, &0)),
-        Err(ChannelProcessingError::ChannelNotFound) => (),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
@@ -450,7 +431,6 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
 
     match map_messages {
         Ok(messages) => messages.into_iter().for_each(|m| map_u32_logic(m)),
-        Err(ChannelProcessingError::ChannelNotFound) => (),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
@@ -474,7 +454,6 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
             }
 
         }, 
-        Err(ChannelProcessingError::ChannelNotFound) => (),
         Err(e) => panic!("Unhandled error: {:?}", e),
 
     };
@@ -583,7 +562,6 @@ pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event
                 log_event.send(ChatEvent(format!("{}: {}", player_name, message)));
 
         });},
-        Err(ChannelProcessingError::ChannelNotFound) => (),
         Err(e) => panic!("Unhandled error: {:?}", e),
 
     };
