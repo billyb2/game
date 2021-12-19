@@ -198,9 +198,11 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
 
     // Broadcast the location of all players to everyone
     #[cfg(feature = "native")]
-    for m in messages_to_send.iter() {
-        net.broadcast_message(m, &ABILITY_MESSAGE_CHANNEL).unwrap();
+    if _hosting.0 {
+        for m in messages_to_send.iter() {
+            net.broadcast_message(m, &ABILITY_MESSAGE_CHANNEL).unwrap();
 
+        }
     }
 }
 
@@ -546,7 +548,7 @@ pub fn handle_map_metadata(mut net: ResMut<NetworkResource>, mut maps: ResMut<Ma
 
 }
 */
-pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event: EventWriter<ChatEvent>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event: EventWriter<ChatEvent>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>, hosting: Res<Hosting>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<TextMessage> = Vec::new();
 
@@ -557,7 +559,10 @@ pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event
                 let player_name = names.get(*player_entity.get(&player_id).unwrap()).unwrap();
 
                 #[cfg(feature = "native")]
-                messages_to_send.push((player_id, message.clone(), time));
+                if hosting.0 {
+                    messages_to_send.push((player_id, message.clone(), time));
+
+                }
 
                 log_event.send(ChatEvent(format!("{}: {}", player_name, message)));
 
@@ -567,10 +572,12 @@ pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event
     };
 
     #[cfg(feature = "native")]
-    messages_to_send.iter().for_each(|m| {
-        net.broadcast_message(m, &TEXT_MESSAGE_CHANNEL).unwrap();
+    if hosting.0 {
+        messages_to_send.iter().for_each(|m| {
+            net.broadcast_message(m, &TEXT_MESSAGE_CHANNEL).unwrap();
 
-    });
+        });
+    }
 }
 
 // This function makes players that aren't online, online, if they aren't already
