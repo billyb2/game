@@ -5,6 +5,7 @@ authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgasto
 edition = "2021"
 
 [profile.dev]
+debug = 0
 opt-level = 0
 overflow-checks = false
 incremental = true
@@ -112,9 +113,6 @@ rustc-hash = { version = "1" }
 # Physics
 rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
 
-# Compiles OpenSSL from scratch when the vendored feature is enabled
-openssl = { version = "0.10", optional = true }
-
 # Local libraries
 helper_functions = { path = "crates/helper_functions" }
 game_types = { path = "crates/game_types" }
@@ -126,8 +124,9 @@ net = { path = "crates/net" }
 game_logic = { path = "crates/game_logic", optional = true }
 menus = { path = "crates/menus", optional = true }
 
-[target.'cfg(target_os="windows")'.features]
-default = ["native", "graphics", "openssl/vendored"]
+[target.'cfg(windows)'.dependencies]
+# Compiles OpenSSL from scratch when the vendored feature is enabled
+openssl = { version = "0.10", features = ["vendored"] }
 
 [build-dependencies]
 inline-spirv = { version = "0.1" }
@@ -194,6 +193,7 @@ path = "src/server_cli.rs"
 
 [patch.crates-io]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+turbulence = { git = "https://github.com/billyb2/turbulence", branch = "v3_clone" }
 # The bevy_* patches are specifically for bevy_networking_turbulence
 bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
 bevy_app = { git = "https://github.com/bevyengine/bevy" }

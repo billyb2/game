@@ -9,8 +9,10 @@ tokio = { version = "1", features = ["rt-multi-thread", "io-util"], optional = t
 bincode = { version = "1" }
 dashmap = { version = "4", features = ["rayon"], optional = true }
 
+helper_functions = { path = "../../../../../helper_functions" }
+
 # Just used for MessageChannel trait
-turbulence = { version = "0.3" }
+turbulence = { git = "https://github.com/billyb2/turbulence", branch = "v3_clone" }
 
 [features]
 native = [

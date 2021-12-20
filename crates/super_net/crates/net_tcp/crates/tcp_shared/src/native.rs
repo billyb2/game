@@ -2,14 +2,12 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 
 use dashmap::DashMap;
-use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 
-use turbulence::message_channels::MessageTypeUnregistered;
-
 use crate::shared::*;
 pub use crate::logic::*;
+pub use helper_functions::get_available_port;
 
 // 1 KB max packet size (TODO: move into NetworkSettings struct)
 pub const MAX_PACKET_SIZE: usize = 1024;
@@ -32,7 +30,17 @@ impl ConnID {
     }
 }
 
-pub struct ClientConnection {
+pub struct ReliableClientConnection {
     pub send_task: JoinHandle<()>,
     pub send_message: UnboundedSender<Vec<u8>>,
+}
+
+pub struct UnreliableClientConnection {
+    pub send_task: JoinHandle<()>,
+    pub send_message: UnboundedSender<Vec<u8>>,
+}
+
+pub enum ChannelType {
+    Reliable, 
+    Unreliable,
 }

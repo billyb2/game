@@ -2,6 +2,7 @@ use std::sync::{Arc, atomic};
 use std::fmt::Debug;
 use std::net::{SocketAddr, ToSocketAddrs};
 
+use turbulence::message_channels::ChannelAlreadyRegistered;
 use turbulence::{
     buffer::BufferPacketPool,
     message_channels::ChannelMessage,
@@ -72,9 +73,9 @@ impl SuperNetworkResource {
 
     /// The WebRTC listen info is only necessary for naia 
     #[cfg(feature = "native")]
-    pub fn listen(&mut self, tcp_addr: impl TokioToSocketAddrs + Send + 'static, webrtc_listen_info: Option<(impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static)>) {
+    pub fn listen(&mut self, tcp_addr: impl TokioToSocketAddrs + Send + 'static, udp_addr: impl TokioToSocketAddrs + Send + 'static, webrtc_listen_info: Option<(impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static)>) {
         if self.is_server() {
-            self.tcp.setup(tcp_addr);
+            self.tcp.setup(tcp_addr, udp_addr);
 
             let naia = self.naia.as_mut().unwrap();
 
@@ -94,11 +95,13 @@ impl SuperNetworkResource {
 
     }
 
-    pub fn connect(&mut self, addr: SocketAddr) {
+    // TODO: Make this an impl ToSocketAddr
+    pub fn connect(&mut self, addr: SocketAddr, udp_addr: Option<SocketAddr>) {
         if self.is_client() {
             #[cfg(feature = "native")]
-            self.tcp.setup(addr);
+            self.tcp.setup(addr, udp_addr.unwrap());
 
+            #[cfg(feature = "web")]
             if let Some(naia) = self.naia.as_mut() {
                 naia.connect(addr);
 
@@ -119,11 +122,6 @@ impl SuperNetworkResource {
         {
             let mut tcp_messages = self.tcp.process_message_channel(channel)?;
             messages.append(&mut tcp_messages);
-        }
-
-        #[cfg(debug_assertions)]
-        if self.is_server() && self.naia.is_none() {
-            panic!("Server without naia");
         }
 
         if let Some(naia) = self.naia.as_mut() {
@@ -172,13 +170,26 @@ impl SuperNetworkResource {
 
     }
 
-    // A function that only exists for Naia compatibility
-    pub fn set_channels_builder<F>(&mut self, builder: F) where F: Fn(&mut ConnectionChannelsBuilder) + Send + Sync + 'static {
-        if let Some(naia) = self.naia.as_mut() {
-            naia.set_channels_builder(builder);
+    // TODO: const_genericize this to const the channel_mode match
+    pub fn register_message_channel<T>(&mut self, settings: MessageChannelSettings, channel: &MessageChannelID) -> Result<(), ChannelAlreadyRegistered>
+        where T: ChannelMessage {
 
+        self.tcp.register_message(channel, match &settings.channel_mode {
+            MessageChannelMode::Unreliable => ChannelType::Unreliable,
+            _ => ChannelType::Reliable,
+
+        })?;
+
+        if let Some(naia) = self.naia.as_mut() {
+            naia.set_channels_builder(move |builder: &mut ConnectionChannelsBuilder| {
+                // TODO: Figure out how to return Error here
+                builder.register::<T>(settings.clone()).unwrap();
+
+            });
         }
 
+        Ok(())
+        
     }
 
     pub fn is_connected(&self) -> bool {

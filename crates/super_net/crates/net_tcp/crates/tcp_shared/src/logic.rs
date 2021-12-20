@@ -1,13 +1,17 @@
 use crate::*;
 use std::fmt::Debug;
+use std::sync::Arc;
+
+use dashmap::DashMap;
 
 use tokio::net::tcp::OwnedReadHalf;
-use tokio::net::ToSocketAddrs;
+use tokio::net::{ToSocketAddrs, UdpSocket};
 use tokio::io::AsyncReadExt;
 
-use turbulence::message_channels::ChannelMessage;
+use turbulence::MessageChannelMode;
+use turbulence::message_channels::{ChannelMessage, ChannelAlreadyRegistered};
 
-pub async fn add_to_message_queue(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
+pub async fn tcp_add_to_msg_queue(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
     let mut buffer: [u8; MAX_PACKET_SIZE] = [0; MAX_PACKET_SIZE];
 
     loop {
@@ -24,9 +28,10 @@ pub async fn add_to_message_queue(mut read_socket: OwnedReadHalf, unprocessed_me
         let num_bytes_read = read_socket.read_exact(msg_buffer).await?;
 
         // If these differ, we read a corrupted message
+        // TODO: Error something
         assert_eq!(msg_len, num_bytes_read);
 
-        let mut key_val_pair = unprocessed_messages_recv_queue.entry(channel_id).or_insert(Vec::with_capacity(1));
+        let mut key_val_pair = unprocessed_messages_recv_queue.entry(channel_id).or_insert(Vec::with_capacity(5));
         let messages = key_val_pair.value_mut();
 
         let byte_vec = msg_buffer.to_vec();
@@ -52,6 +57,7 @@ pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Resul
 
     final_message_bin.extend_from_slice(&msg_bin);
 
+    // Just a check to make sure we're properly encoding the message
     debug_assert_eq!(usize::try_from(u32::from_be_bytes(final_message_bin.as_slice()[..4].try_into().unwrap())).unwrap(), final_message_bin.as_slice()[5..].len());
 
     Ok(final_message_bin)
@@ -59,6 +65,7 @@ pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Resul
 
 pub trait TcpResourceTrait {
     /// The actual setup of the network, whether it's connecting or listening
-    fn setup(&mut self, addr: impl ToSocketAddrs + Send + 'static);
+    fn setup(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static);
+    fn register_message(&self, channel: &MessageChannelID, mode: ChannelType) -> Result<(), ChannelAlreadyRegistered>;
     fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone;
 }

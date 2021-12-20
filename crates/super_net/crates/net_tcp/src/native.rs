@@ -13,7 +13,7 @@ pub use crate::types::*;
 use tcp_client::TcpClient;
 use tcp_server::TcpServer;
 
-pub use tcp_shared::{ClientConnection, ConnID, ChannelMessage, ChannelProcessingError, MessageChannelID, SendMessageError, TcpResourceTrait};
+pub use tcp_shared::{ReliableClientConnection, ConnID, ChannelMessage, ChannelType, ChannelProcessingError, MessageChannelID, SendMessageError, TcpResourceTrait};
 
 pub enum TcpResourceWrapper {
     Server(TcpServer),
@@ -68,8 +68,8 @@ impl TcpResourceWrapper {
 
     pub fn is_connected(&self) -> bool {
         match self {
-            TcpResourceWrapper::Server(res) => res.connected_clients.len() > 0,
-            TcpResourceWrapper::Client(res) => res.message_sender.is_some(),
+            TcpResourceWrapper::Server(res) => res.tcp_connected_clients.len() > 0,
+            TcpResourceWrapper::Client(res) => res.reliable_message_sender.is_some(),
         }
 
     }
@@ -93,18 +93,25 @@ impl TcpResourceWrapper {
 }
 
 impl TcpResourceTrait for TcpResourceWrapper {
-    fn setup(&mut self, addr: impl ToSocketAddrs + Send + 'static) {
+    fn setup(&mut self, udp_addr: impl ToSocketAddrs + Send + 'static, tcp_addr: impl ToSocketAddrs + Send + 'static) {
         match self {
-            TcpResourceWrapper::Server(tcp_res) => tcp_res.setup(addr),
-            TcpResourceWrapper::Client(tcp_res) => tcp_res.setup(addr),
+            TcpResourceWrapper::Server(tcp_res) => tcp_res.setup(udp_addr, tcp_addr),
+            TcpResourceWrapper::Client(tcp_res) => tcp_res.setup(udp_addr, tcp_addr),
         }
     }
 
     fn send_message<M>(&self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
-    where M: ChannelMessage + Debug + Clone {
+        where M: ChannelMessage + Debug + Clone {
         match self {
             TcpResourceWrapper::Server(tcp_res) => tcp_res.send_message(message, channel),
             TcpResourceWrapper::Client(tcp_res) => tcp_res.send_message(message, channel),
+        }
+    }
+
+    fn register_message(&self, channel: &MessageChannelID, mode: tcp_shared::ChannelType) -> Result<(), tcp_shared::ChannelAlreadyRegistered> {
+        match self {
+            TcpResourceWrapper::Server(tcp_res) => tcp_res.register_message(channel, mode),
+            TcpResourceWrapper::Client(tcp_res) => tcp_res.register_message(channel, mode),
         }
     }
 

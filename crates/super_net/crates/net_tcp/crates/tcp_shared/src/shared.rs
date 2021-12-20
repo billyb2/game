@@ -1,4 +1,4 @@
-pub use turbulence::message_channels::ChannelMessage;
+pub use turbulence::message_channels::{ChannelAlreadyRegistered, ChannelMessage};
 use turbulence::message_channels::MessageTypeUnregistered;
 
 #[cfg(feature = "native")]
@@ -55,7 +55,6 @@ impl From<MessageTypeUnregistered> for SendMessageError {
 #[derive(Debug)]
 pub enum ChannelProcessingError {
     Bincode(bincode::Error),
-    ChannelNotFound,
     Turbulence(MessageTypeUnregistered),
 }
 

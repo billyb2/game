@@ -330,7 +330,7 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                     header_text.str_write(format!("Connecting to {socket_addr}...").as_str());
     
                     commands.insert_resource(socket_addr);
-                    net.connect(socket_addr);
+                    net.connect(socket_addr, Some(SocketAddr::new(addr, 9365)));
                     
                 },
                 Err(err) => {

@@ -11,6 +11,9 @@ use bevy::math::{Vec2, const_vec2};
 use std::f32::consts::PI;
 use std::convert::TryInto;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::net::UdpSocket;
+
 #[cfg(feature = "graphics")]
 pub mod graphics;
 
@@ -135,4 +138,16 @@ pub fn mean_angle(angles: &[f32]) -> f32 {
     let cos_mean: f32 = angles.iter().fold(0.0, |sum, i| sum + i.cos()) / length;
     let sin_mean: f32 = angles.iter().fold(0.0, |sum, i| sum + i.sin()) / length;
     (sin_mean).atan2(cos_mean)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[inline]
+pub fn get_available_port(ip: &str) -> Option<u16> {
+    (8000..9000).into_iter().find(|port| port_is_available(ip, *port))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[inline(always)]
+fn port_is_available(ip: &str, port: u16) -> bool {
+    UdpSocket::bind((ip, port)).is_ok()
 }

@@ -12,6 +12,7 @@ rapier2d = { version = "0.11", features = ["simd-nightly"]}
 rayon = { version = "1", optional = true }
 
 game_types = { path = "../game_types" }
+helper_functions = { path = "../helper_functions" }
 map = { path = "../map" }
 super_net = { path = "../super_net" }
 

@@ -492,7 +492,7 @@ dependencies = [
 [[package]]
 name = "bevy_networking_turbulence"
 version = "0.3.3"
-source = "git+https://github.com/billyb2/bevy_networking_turbulence?branch=publicized#fadea03f6abb2455d0318d5424fd2685332ca8cf"
+source = "git+https://github.com/billyb2/bevy_networking_turbulence?branch=publicized#d5ddf1b0f71b49e650779764324b2e53068c6ed9"
 dependencies = [
  "bevy",
  "bytes",
@@ -1667,6 +1667,7 @@ dependencies = [
  "serde",
  "single_byte_hashmap",
  "ui_graphics",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -2611,12 +2612,12 @@ dependencies = [
  "bevy",
  "bevy_networking_turbulence",
  "game_types",
+ "helper_functions",
  "map",
  "rapier2d",
  "rayon",
  "single_byte_hashmap",
  "super_net",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2838,6 +2839,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssl-src"
+version = "111.17.0+1.1.1m"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05d6a336abd10814198f66e2a91ccd7336611f30334119ca8ce300536666fcf4"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2846,6 +2856,7 @@ dependencies = [
  "autocfg",
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -3627,6 +3638,7 @@ dependencies = [
  "bevy_ecs",
  "bevy_networking_turbulence",
  "bevy_tasks",
+ "game_types",
  "net_tcp",
  "tokio",
  "turbulence",
@@ -3677,6 +3689,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "dashmap",
+ "helper_functions",
  "tokio",
  "turbulence",
 ]
@@ -3868,8 +3881,7 @@ checksum = "7ae2f58a822f08abdaf668897e96a5656fe72f5a9ce66422423e8849384872e6"
 [[package]]
 name = "turbulence"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2140dc12e5b8b6a747ee3bd42e58dc0e506dddb64b269f3d9a40cca057bdba09"
+source = "git+https://github.com/billyb2/turbulence?branch=v3_clone#9621f6cf20511e3ccd2aeb7a7daab2b1e5fa1b27"
 dependencies = [
  "bincode",
  "byteorder",

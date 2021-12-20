@@ -16,7 +16,7 @@ game_types = { path = "../game_types" }
 bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
 
 tokio = { version = "1", features = ["rt-multi-thread", "net"], optional = true }
-turbulence = { version = "0.3" }
+turbulence = { git = "https://github.com/billyb2/turbulence", branch = "v3_clone" }
 
 # For creating an interface to the TCP cli/serv
 net_tcp = { path = "crates/net_tcp" }
