@@ -549,6 +549,7 @@ impl Gun {
                     Model::StickyGrenade => Timer::from_seconds(6.0, false),
                 },
                 reloading: false,
+                fast_reload: false,
 
             },
             // Ammo in mag and max_ammo should match

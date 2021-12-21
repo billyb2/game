@@ -702,6 +702,8 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
 
         if ammo_in_mag.0 < max_ammo.0 && !reload_timer.reloading {
             reload_timer.reloading = true;
+            // If the player reloads with one round or more in their mag, they reload faster
+            reload_timer.fast_reload = ammo_in_mag.0 > 0;
             reload_timer.timer.reset();
 
         }
@@ -971,6 +973,7 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandleWrapper)>, mut
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
+            reload_timer.fast_reload = false;
             bursting.0 = false;
 
         }
