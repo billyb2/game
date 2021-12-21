@@ -10,15 +10,15 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::task::JoinHandle;
 
-use tcp_shared::*;
+use native_shared::*;
 
 // Basically, there's the top level hashmap of each messagechannel, with a vec below that consisting of every message recipient and a binary version of the packet
-pub struct TcpServer {
+pub struct NativeServer {
     pub task_pool: Arc<Runtime>,
     pub tcp_connection_handler: Option<JoinHandle<()>>,
     pub udp_connection_handler: Option<JoinHandle<()>>,
-    pub tcp_connected_clients: Arc<DashMap<ConnID, ReliableClientConnection>>,
-    pub udp_connected_clients: Arc<DashMap<ConnID, UnreliableClientConnection>>,
+    pub tcp_connected_clients: Arc<DashMap<ConnID, TcpCliConn>>,
+    pub udp_connected_clients: Arc<DashMap<ConnID, UdpCliConn>>,
     pub registered_channels: Arc<DashMap<MessageChannelID, ChannelType>>,
     pub unprocessed_message_recv_queue: RecvQueue,
     pub server_handle: Option<JoinHandle<()>>,
@@ -26,7 +26,7 @@ pub struct TcpServer {
 
 }
 
-impl TcpServer {
+impl NativeServer {
     pub fn new(task_pool: Arc<Runtime>) -> Self {
         Self {
             task_pool,
@@ -42,8 +42,8 @@ impl TcpServer {
     }
 }
 
-impl TcpResourceTrait for TcpServer {
-    fn setup(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static) {
+impl NativeResourceTrait for NativeServer {
+    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static) {
         let (reliable_conn_send, mut reliable_conn_recv) = unbounded_channel();
 
         // Arc clones of some of self to prevent moving
@@ -90,7 +90,7 @@ impl TcpResourceTrait for TcpServer {
 
                     let arc_sock_clone = Arc::clone(&arc_sock);
 
-                    udp_connected_clients_clone.insert(ConnID::new(*next_uuid, recv_addr.clone()), UnreliableClientConnection {
+                    udp_connected_clients_clone.insert(ConnID::new(*next_uuid, recv_addr.clone()), UdpCliConn {
                         send_task: task_pool.spawn(async move {
                             let recv_addr = recv_addr.clone();
 
@@ -147,7 +147,7 @@ impl TcpResourceTrait for TcpServer {
 
                 let (tcp_message_sender, mut tcp_messages_to_send) = unbounded_channel::<Vec<u8>>();
 
-                task_pool.spawn(tcp_add_to_msg_queue(tcp_read_socket, msg_rcv_queue));
+                task_pool.spawn(tcp_add_to_msg_queue::<MAX_PACKET_SIZE>(tcp_read_socket, msg_rcv_queue));
 
                 let mut next_uuid = next_uuid.lock();
 
@@ -157,7 +157,7 @@ impl TcpResourceTrait for TcpServer {
                         addr,
                     },
 
-                    ReliableClientConnection {
+                    TcpCliConn {
                         send_task: task_pool.spawn(async move {
                             while let Some(message) = tcp_messages_to_send.recv().await {
                                 tcp_write_socket.write_all(&message).await.unwrap();

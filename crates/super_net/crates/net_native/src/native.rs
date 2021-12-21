@@ -1,5 +1,4 @@
 //TODO: Eventually use Bevy taskpool instead of tokio runtime
-//TODO: Maybe using ArrayVec isn't the best idea (because of allocating MAX_PACKET_SIZE per message)
 
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -10,32 +9,32 @@ use tokio::net::ToSocketAddrs;
 
 pub use crate::types::*;
 
-use tcp_client::TcpClient;
-use tcp_server::TcpServer;
+use native_client::NativeClient;
+use native_server::NativeServer;
 
-pub use tcp_shared::{ReliableClientConnection, ConnID, ChannelMessage, ChannelType, ChannelProcessingError, MessageChannelID, SendMessageError, TcpResourceTrait};
+pub use native_shared::{TcpCliConn, ConnID, ChannelMessage, ChannelType, ChannelProcessingError, MessageChannelID, SendMessageError, NativeResourceTrait};
 
-pub enum TcpResourceWrapper {
-    Server(TcpServer),
-    Client(TcpClient),
+pub enum NativeNetResourceWrapper {
+    Server(NativeServer),
+    Client(NativeClient),
 
 }
 
 //TODO: Generic new fn?
-impl TcpResourceWrapper {
+impl NativeNetResourceWrapper {
     pub fn new_server(task_pool: Runtime) -> Self {
-        TcpResourceWrapper::Server(TcpServer::new(task_pool))
+        NativeNetResourceWrapper::Server(NativeServer::new(task_pool))
 
     }
 
     pub fn new_client(task_pool: Runtime) -> Self {
-        TcpResourceWrapper::Client(TcpClient::new(task_pool))
+        NativeNetResourceWrapper::Client(NativeClient::new(task_pool))
     }
 
     pub fn process_message_channel<T>(&self, channel_id: &MessageChannelID) -> Result<Vec<T>, ChannelProcessingError> where T: ChannelMessage + Debug + Clone {
         let unprocessed_messages_recv_queue = match self {
-            TcpResourceWrapper::Server(res) => Arc::clone(&res.unprocessed_message_recv_queue),
-            TcpResourceWrapper::Client(res) => Arc::clone(&res.unprocessed_recv_messages_queue),
+            NativeNetResourceWrapper::Server(res) => Arc::clone(&res.unprocessed_message_recv_queue),
+            NativeNetResourceWrapper::Client(res) => Arc::clone(&res.unprocessed_messages),
 
 
         };
@@ -68,8 +67,8 @@ impl TcpResourceWrapper {
 
     pub fn is_connected(&self) -> bool {
         match self {
-            TcpResourceWrapper::Server(res) => res.tcp_connected_clients.len() > 0,
-            TcpResourceWrapper::Client(res) => res.reliable_message_sender.is_some(),
+            NativeNetResourceWrapper::Server(res) => res.tcp_connected_clients.len() > 0,
+            NativeNetResourceWrapper::Client(res) => res.tcp_msg_sender.is_some(),
         }
 
     }
@@ -77,7 +76,7 @@ impl TcpResourceWrapper {
     pub fn is_server(&self) -> bool {
         #[cfg(feature = "native")]
         match self {
-            TcpResourceWrapper::Server(_) => true,
+            NativeNetResourceWrapper::Server(_) => true,
             _ => false,
         }
 
@@ -92,26 +91,26 @@ impl TcpResourceWrapper {
     }
 }
 
-impl TcpResourceTrait for TcpResourceWrapper {
-    fn setup(&mut self, udp_addr: impl ToSocketAddrs + Send + 'static, tcp_addr: impl ToSocketAddrs + Send + 'static) {
+impl NativeResourceTrait for NativeNetResourceWrapper {
+    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, udp_addr: impl ToSocketAddrs + Send + 'static, tcp_addr: impl ToSocketAddrs + Send + 'static) {
         match self {
-            TcpResourceWrapper::Server(tcp_res) => tcp_res.setup(udp_addr, tcp_addr),
-            TcpResourceWrapper::Client(tcp_res) => tcp_res.setup(udp_addr, tcp_addr),
+            NativeNetResourceWrapper::Server(res) => res.setup::<MAX_PACKET_SIZE>(udp_addr, tcp_addr),
+            NativeNetResourceWrapper::Client(res) => res.setup::<MAX_PACKET_SIZE>(udp_addr, tcp_addr),
         }
     }
 
     fn send_message<M>(&self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
         where M: ChannelMessage + Debug + Clone {
         match self {
-            TcpResourceWrapper::Server(tcp_res) => tcp_res.send_message(message, channel),
-            TcpResourceWrapper::Client(tcp_res) => tcp_res.send_message(message, channel),
+            NativeNetResourceWrapper::Server(res) => res.send_message(message, channel),
+            NativeNetResourceWrapper::Client(res) => res.send_message(message, channel),
         }
     }
 
-    fn register_message(&self, channel: &MessageChannelID, mode: tcp_shared::ChannelType) -> Result<(), tcp_shared::ChannelAlreadyRegistered> {
+    fn register_message(&self, channel: &MessageChannelID, mode: native_shared::ChannelType) -> Result<(), native_shared::ChannelAlreadyRegistered> {
         match self {
-            TcpResourceWrapper::Server(tcp_res) => tcp_res.register_message(channel, mode),
-            TcpResourceWrapper::Client(tcp_res) => tcp_res.register_message(channel, mode),
+            NativeNetResourceWrapper::Server(res) => res.register_message(channel, mode),
+            NativeNetResourceWrapper::Client(res) => res.register_message(channel, mode),
         }
     }
 

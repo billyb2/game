@@ -11,7 +11,7 @@ use tokio::io::AsyncReadExt;
 use turbulence::MessageChannelMode;
 use turbulence::message_channels::{ChannelMessage, ChannelAlreadyRegistered};
 
-pub async fn tcp_add_to_msg_queue(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
+pub async fn tcp_add_to_msg_queue<const MAX_PACKET_SIZE: usize>(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
     let mut buffer: [u8; MAX_PACKET_SIZE] = [0; MAX_PACKET_SIZE];
 
     loop {
@@ -63,9 +63,9 @@ pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Resul
     Ok(final_message_bin)
 }
 
-pub trait TcpResourceTrait {
+pub trait NativeResourceTrait {
     /// The actual setup of the network, whether it's connecting or listening
-    fn setup(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static);
+    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static);
     fn register_message(&self, channel: &MessageChannelID, mode: ChannelType) -> Result<(), ChannelAlreadyRegistered>;
     fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone;
 }

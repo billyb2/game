@@ -1,11 +1,10 @@
+// Some code that's needed by both net_native and super_net
+
 pub use turbulence::message_channels::{ChannelAlreadyRegistered, ChannelMessage};
 use turbulence::message_channels::MessageTypeUnregistered;
 
 #[cfg(feature = "native")]
 use tokio::sync::mpsc::error::SendError;
-
-// super_net shared between native and web
-// I could make yet another crate, but I don't want to, so I'm just stuffing it into tcp_shared
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct MessageChannelID {

@@ -119,5 +119,5 @@ This is as easy as running `mkdir -p $HOME/.config/tiled/extensions/ && ln -s /p
 
 ## Before pushing your Git commit
 
-Please try running `cargo make serve-fast-simd` and verifying that WASM both compiles and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later on. Usually, they should be almost identical, but there is some WASM specific and native specific code in the codebase (see `crates/src/config` as a prominent example).
+Please try running `cargo make serve-fast-simd` and verifying that WASM both compiles and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later on. Usually, they should be almost identical, but there is some WASM specific and native specific code in the codebase (see `crates/config` as a prominent example).
 

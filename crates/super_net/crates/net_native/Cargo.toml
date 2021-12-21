@@ -1,5 +1,5 @@
 [package]
-name = "net_tcp"
+name = "net_native"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,19 +11,19 @@ tokio = { version = "1", features = ["parking_lot", "net"], optional = true }
 
 bincode = { version = "1" }
 
-tcp_server = { path = "crates/tcp_server", optional = true }
-tcp_client = { path = "crates/tcp_client", optional = true }
-tcp_shared = { path = "crates/tcp_shared" }
+native_server = { path = "crates/native_server", optional = true }
+native_client = { path = "crates/native_client", optional = true }
+native_shared = { path = "crates/native_shared" }
 
 [features]
 native = [
 	"dashmap",
 	"tokio",
-	"tcp_client",
-	"tcp_server",
-	"tcp_shared/native"
+	"native_client",
+	"native_server",
+	"native_shared/native"
 
 ]
 web = [
-	"tcp_shared/web"
+	"native_shared/web"
 ]

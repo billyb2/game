@@ -2533,6 +2533,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "native_client"
+version = "0.1.0"
+dependencies = [
+ "arrayvec 0.7.1",
+ "bincode",
+ "dashmap",
+ "native_shared",
+ "tokio",
+]
+
+[[package]]
+name = "native_server"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "dashmap",
+ "native_shared",
+ "parking_lot",
+ "tokio",
+]
+
+[[package]]
+name = "native_shared"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "dashmap",
+ "helper_functions",
+ "tokio",
+ "turbulence",
+]
+
+[[package]]
 name = "ndk"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2621,14 +2654,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "net_tcp"
+name = "net_native"
 version = "0.1.0"
 dependencies = [
  "bincode",
  "dashmap",
- "tcp_client",
- "tcp_server",
- "tcp_shared",
+ "native_client",
+ "native_server",
+ "native_shared",
  "tokio",
 ]
 
@@ -3638,8 +3671,7 @@ dependencies = [
  "bevy_ecs",
  "bevy_networking_turbulence",
  "bevy_tasks",
- "game_types",
- "net_tcp",
+ "net_native",
  "tokio",
  "turbulence",
 ]
@@ -3659,39 +3691,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
-]
-
-[[package]]
-name = "tcp_client"
-version = "0.1.0"
-dependencies = [
- "arrayvec 0.7.1",
- "bincode",
- "dashmap",
- "tcp_shared",
- "tokio",
-]
-
-[[package]]
-name = "tcp_server"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "dashmap",
- "parking_lot",
- "tcp_shared",
- "tokio",
-]
-
-[[package]]
-name = "tcp_shared"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "dashmap",
- "helper_functions",
- "tokio",
- "turbulence",
 ]
 
 [[package]]

@@ -282,7 +282,7 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
         let socket_addr_tcp = SocketAddr::new(IP_ADDR, GAME_PORT + 1);
         let socket_addr_udp = SocketAddr::new(IP_ADDR, GAME_PORT + 2);
 
-        net.listen(socket_addr_tcp, socket_addr_udp, Some((socket_addr_webrtc, webrtc_listen_socket, webrtc_listen_socket)));
+        net.listen::<2048>(socket_addr_tcp, socket_addr_udp, Some((socket_addr_webrtc, webrtc_listen_socket, webrtc_listen_socket)));
 
     }
 
@@ -305,7 +305,7 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
     // If we've previously connected to a server, just connect automatically without prompt
     if !hosting.0 {
         if let Some(server_addr) = server_addr {
-            net.connect(*server_addr, Some(SocketAddr::new(server_addr.ip(), 9365)));
+            net.connect::<2048>(*server_addr, Some(SocketAddr::new(server_addr.ip(), 9365)));
         }
     } else {
         _app_state.unwrap().set(AppState::InGame).unwrap();

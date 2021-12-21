@@ -9,9 +9,6 @@ use crate::shared::*;
 pub use crate::logic::*;
 pub use helper_functions::get_available_port;
 
-// 1 KB max packet size (TODO: move into NetworkSettings struct)
-pub const MAX_PACKET_SIZE: usize = 1024;
-
 // Lists of binary messages
 pub type RecvQueue = Arc<DashMap<MessageChannelID, Vec<Vec<u8>>>>;
 
@@ -30,12 +27,12 @@ impl ConnID {
     }
 }
 
-pub struct ReliableClientConnection {
+pub struct TcpCliConn {
     pub send_task: JoinHandle<()>,
     pub send_message: UnboundedSender<Vec<u8>>,
 }
 
-pub struct UnreliableClientConnection {
+pub struct UdpCliConn {
     pub send_task: JoinHandle<()>,
     pub send_message: UnboundedSender<Vec<u8>>,
 }

@@ -61,6 +61,7 @@ pub struct ShootEvent {
 #[cfg(target_arch = "wasm32")]
 pub const DEFAULT_PLAYER_SPEED: f32 = 5.5;
 
+// Pretty stupid hack to get around weird speed bug
 #[cfg(not(target_arch = "wasm32"))]
 pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 

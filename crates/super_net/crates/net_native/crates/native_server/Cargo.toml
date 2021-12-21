@@ -1,5 +1,5 @@
 [package]
-name = "tcp_server"
+name = "native_server"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,4 +9,4 @@ tokio = { version = "1", features = ["net", "parking_lot", "rt-multi-thread", "s
 bincode = { version = "1" }
 dashmap = { version = "4", features = ["rayon"] }
 
-tcp_shared = { path = "../tcp_shared" }
+native_shared = { path = "../native_shared" }

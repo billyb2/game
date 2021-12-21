@@ -10,37 +10,37 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio::task::JoinHandle;
 
-use tcp_shared::*;
+use native_shared::*;
 
-pub struct TcpClient {
+pub struct NativeClient {
     pub task_pool: Arc<Runtime>,
-    write_handle: Option<JoinHandle<()>>,
-    read_handle: Option<JoinHandle<()>>,
-    pub reliable_message_sender: Option<UnboundedSender<Vec<u8>>>,
-    pub unreliable_message_sender: Option<UnboundedSender<Vec<u8>>>,
-    pub unprocessed_recv_messages_queue: RecvQueue,
+    write_task_handle: Option<JoinHandle<()>>,
+    read_task_handle: Option<JoinHandle<()>>,
+    pub tcp_msg_sender: Option<UnboundedSender<Vec<u8>>>,
+    pub udp_msg_sender: Option<UnboundedSender<Vec<u8>>>,
+    pub unprocessed_messages: RecvQueue,
     pub registered_channels: Arc<DashMap<MessageChannelID, ChannelType>>,
 
 }
 
-impl TcpClient {
+impl NativeClient {
     pub fn new(task_pool: Arc<Runtime>) -> Self {
         Self {
             task_pool,
-            write_handle: None,
-            read_handle: None,
-            reliable_message_sender: None,
-            unreliable_message_sender: None,
-            unprocessed_recv_messages_queue: Arc::new(DashMap::new()),
+            write_task_handle: None,
+            read_task_handle: None,
+            tcp_msg_sender: None,
+            udp_msg_sender: None,
+            unprocessed_messages: Arc::new(DashMap::new()),
             registered_channels: Arc::new(DashMap::new()),
         }
     }
 }
 
-impl TcpResourceTrait for TcpClient {
-    fn setup(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static) {
-        let m_queue = Arc::clone(&self.unprocessed_recv_messages_queue);
-        let m_queue_2 = Arc::clone(&self.unprocessed_recv_messages_queue);
+impl NativeResourceTrait for NativeClient {
+    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static) {
+        let m_queue = Arc::clone(&self.unprocessed_messages);
+        let m_queue_2 = Arc::clone(&self.unprocessed_messages);
 
         let task_pool = Arc::clone(&self.task_pool);
         let task_pool_2 = Arc::clone(&self.task_pool);
@@ -48,7 +48,7 @@ impl TcpResourceTrait for TcpClient {
         let (udp_message_sender, mut udp_message_receiver) = unbounded_channel::<Vec<u8>>();
         let (tcp_message_sender, mut tcp_message_receiver) = unbounded_channel::<Vec<u8>>();
 
-        let msg_rcv_queue = Arc::clone(&self.unprocessed_recv_messages_queue);
+        let msg_rcv_queue = Arc::clone(&self.unprocessed_messages);
 
         self.task_pool.spawn(async move {
             let socket = TcpStream::connect(tcp_addr).await.unwrap();
@@ -64,7 +64,7 @@ impl TcpResourceTrait for TcpClient {
             };
 
             let write_handle = task_pool.spawn(send_loop);
-            let read_handle = task_pool.spawn(tcp_add_to_msg_queue(read_socket, m_queue_clone));
+            let read_handle = task_pool.spawn(tcp_add_to_msg_queue::<MAX_PACKET_SIZE>(read_socket, m_queue_clone));
         });
 
         self.task_pool.spawn(async move {
@@ -126,8 +126,8 @@ impl TcpResourceTrait for TcpClient {
 
         });
 
-        self.reliable_message_sender = Some(tcp_message_sender);
-        self.unreliable_message_sender = Some(udp_message_sender);
+        self.tcp_msg_sender = Some(tcp_message_sender);
+        self.udp_msg_sender = Some(udp_message_sender);
 
     }
 
@@ -139,8 +139,8 @@ impl TcpResourceTrait for TcpClient {
         let mode = key_val_pair.value();
 
         let message_sender = match mode {
-            ChannelType::Reliable => &self.reliable_message_sender,
-            ChannelType::Unreliable => &self.unreliable_message_sender,
+            ChannelType::Reliable => &self.tcp_msg_sender,
+            ChannelType::Unreliable => &self.udp_msg_sender,
         };
 
         message_sender.as_ref().unwrap().send(message_bin)?;
@@ -155,7 +155,7 @@ impl TcpResourceTrait for TcpClient {
 
         } else {
             self.registered_channels.insert(channel.clone(), mode);
-            self.unprocessed_recv_messages_queue.insert(channel.clone(), Vec::with_capacity(5));
+            self.unprocessed_messages.insert(channel.clone(), Vec::with_capacity(5));
 
             Ok(())
 

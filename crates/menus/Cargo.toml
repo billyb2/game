@@ -6,6 +6,7 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+
 config = { path = "../config" }
 helper_functions = { path = "../helper_functions", features = ["graphics"] }
 game_types = { path = "../game_types", features = ["graphics"] }

@@ -1,3 +1,5 @@
+#![feature(explicit_generic_args_with_impl_trait)]
+
 use std::sync::{Arc, atomic};
 use std::fmt::Debug;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -21,20 +23,18 @@ use tokio::runtime::Builder;
 use tokio::net::ToSocketAddrs as TokioToSocketAddrs;
 
 #[cfg(feature = "native")]
-use net_tcp::*;
+use net_native::*;
 #[cfg(feature = "native")]
-pub use net_tcp::{ChannelProcessingError, MessageChannelID, Runtime, SendMessageError};
-
-use game_types::log;
+pub use net_native::{ChannelProcessingError, MessageChannelID, Runtime, SendMessageError};
 
 #[cfg(feature = "web")]
-pub use net_tcp::*;
+pub use net_native::*;
 
 /// Stores all the networking stuff
 pub struct SuperNetworkResource {
     /// Sadly, web clients can't use TCP
     #[cfg(feature = "native")]
-    tcp: TcpResourceWrapper,
+    native: NativeNetResourceWrapper,
     /// Naia stuff isn't used for native TCP clients
     naia: Option<NetworkResource>,
     is_server: bool,
@@ -49,7 +49,7 @@ impl SuperNetworkResource {
     #[cfg(feature = "native")]
     pub fn new_server(tokio_rt: Option<Runtime>, task_pool: TaskPool) -> Self {
         Self {
-            tcp: TcpResourceWrapper::new_server(tokio_rt.unwrap()),
+            native: NativeNetResourceWrapper::new_server(tokio_rt.unwrap()),
             naia: Some(NetworkResource::new(task_pool, None, MessageFlushingStrategy::OnEverySend, None, None)),
             is_server: true,
         }
@@ -58,24 +58,23 @@ impl SuperNetworkResource {
     pub fn new_client(tokio_rt: Option<Runtime>, task_pool: TaskPool) -> Self {
         Self {
             #[cfg(feature = "native")]
-            tcp: TcpResourceWrapper::new_client(tokio_rt.unwrap()),
+            native: NativeNetResourceWrapper::new_client(tokio_rt.unwrap()),
             // The match statement should be optimized out by the compiler
-            naia: match cfg!(feature = "native") {
-                // Native clients should not use Naia
-                true => None,
-                // Web clients should use Naia
-                false => Some(NetworkResource::new(task_pool, None, MessageFlushingStrategy::OnEverySend, None, None)),
-
-            },
+            #[cfg(feature = "native")]
+            // Native clients should not use Naia
+            naia: None,
+            // Web clients should
+            #[cfg(feature = "web")]
+            naia: Some(NetworkResource::new(task_pool, None, MessageFlushingStrategy::OnEverySend, None, None)),
             is_server: false,
         } 
     }
 
     /// The WebRTC listen info is only necessary for naia 
     #[cfg(feature = "native")]
-    pub fn listen(&mut self, tcp_addr: impl TokioToSocketAddrs + Send + 'static, udp_addr: impl TokioToSocketAddrs + Send + 'static, webrtc_listen_info: Option<(impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static)>) {
+    pub fn listen<const MAX_NATIVE_PACKET_SIZE: usize>(&mut self, tcp_addr: impl TokioToSocketAddrs + Send + 'static, udp_addr: impl TokioToSocketAddrs + Send + 'static, webrtc_listen_info: Option<(impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static)>) {
         if self.is_server() {
-            self.tcp.setup(tcp_addr, udp_addr);
+            self.native.setup::<MAX_NATIVE_PACKET_SIZE>(tcp_addr, udp_addr);
 
             let naia = self.naia.as_mut().unwrap();
 
@@ -96,10 +95,10 @@ impl SuperNetworkResource {
     }
 
     // TODO: Make this an impl ToSocketAddr
-    pub fn connect(&mut self, addr: SocketAddr, udp_addr: Option<SocketAddr>) {
+    pub fn connect<const MAX_NATIVE_PACKET_SIZE: usize>(&mut self, addr: SocketAddr, udp_addr: Option<SocketAddr>) {
         if self.is_client() {
             #[cfg(feature = "native")]
-            self.tcp.setup(addr, udp_addr.unwrap());
+            self.native.setup::<MAX_NATIVE_PACKET_SIZE>(addr, udp_addr.unwrap());
 
             #[cfg(feature = "web")]
             if let Some(naia) = self.naia.as_mut() {
@@ -120,7 +119,7 @@ impl SuperNetworkResource {
 
         #[cfg(feature = "native")]
         {
-            let mut tcp_messages = self.tcp.process_message_channel(channel)?;
+            let mut tcp_messages = self.native.process_message_channel(channel)?;
             messages.append(&mut tcp_messages);
         }
 
@@ -143,7 +142,7 @@ impl SuperNetworkResource {
     pub fn broadcast_message<M>(&mut self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
         where M: ChannelMessage + Debug + Clone {
         #[cfg(feature = "native")]
-        self.tcp.send_message(message, channel)?;
+        self.native.send_message(message, channel)?;
 
         if let Some(naia) = self.naia.as_mut() {
             // Inlined version of naia.broadcast_message(), with some modifications
@@ -174,7 +173,7 @@ impl SuperNetworkResource {
     pub fn register_message_channel<T>(&mut self, settings: MessageChannelSettings, channel: &MessageChannelID) -> Result<(), ChannelAlreadyRegistered>
         where T: ChannelMessage {
 
-        self.tcp.register_message(channel, match &settings.channel_mode {
+        self.native.register_message(channel, match &settings.channel_mode {
             MessageChannelMode::Unreliable => ChannelType::Unreliable,
             _ => ChannelType::Reliable,
 
@@ -201,7 +200,7 @@ impl SuperNetworkResource {
 
         let tcp_connected = {
             #[cfg(feature = "native")]
-            let connected = self.tcp.is_connected();
+            let connected = self.native.is_connected();
 
             #[cfg(feature = "web")]
             let connected = false;
