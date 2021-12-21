@@ -61,6 +61,7 @@ pub struct DashingInfo {
 pub struct TimeSinceStartReload {
     pub timer: Timer,
     pub reloading: bool,
+    pub fast_reload: bool,
 
 }
 

@@ -222,6 +222,11 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
 
         // If the player is reloading
         if time_since_start_reload.reloading {
+            let delta = match time_since_start_reload.fast_reload {
+                false => delta,
+                true => Duration::from_secs_f32(delta.as_secs_f32() * 1.15),
+            };
+
             time_since_start_reload.timer.tick(delta);
 
         }
