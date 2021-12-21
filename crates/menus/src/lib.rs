@@ -370,7 +370,12 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
             app_state.set(AppState::GameMenu).unwrap();
         }
 
-        char_input_events.iter().for_each(|c| text.push(c.char));
+        char_input_events.iter().for_each(|c| {
+            if c.char.is_numeric() || c.char == '.' {
+                text.push(c.char);
+            }
+
+        });
 
     } 
 
