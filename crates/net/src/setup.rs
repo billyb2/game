@@ -16,6 +16,7 @@ use bevy_networking_turbulence::*;
 use single_byte_hashmap::HashMap;
 use game_types::*;
 
+#[cfg(feature = "native")]
 use helper_functions::get_available_port;
 
 pub(crate) const CLIENT_STATE_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(0);
@@ -288,14 +289,61 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
 
     // Registers message types
     // Because of using many generics, this takes a long time to compile
-    net.register_message_channel::<ClientStateMessage>(CLIENT_STATE_MESSAGE_SETTINGS, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel::<ShootEvent>(PROJECTILE_MESSAGE_SETTINGS, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel::<HashMap<u8, u8>>(SCORE_MESSAGE_SETTINGS, &SCORE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel::<InfoMessage>(INFO_MESSAGE_SETTINGS, &INFO_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel::<AbilityMessage>(ABILITY_MESSAGE_SETTINGS, &ABILITY_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel::<u32>(SET_MAP_SETTINGS, &SET_MAP_CHANNEL).unwrap();
-    net.register_message_channel::<(u32, u64)>(REQUEST_MAP_OBJECT_SETTINGS, &REQUEST_MAP_OBJECT_CHANNEL).unwrap();
-    net.register_message_channel::<TextMessage>(TEXT_MESSAGE_SETTINGS, &TEXT_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native::<ClientStateMessage>(CLIENT_STATE_MESSAGE_SETTINGS, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native::<ShootEvent>(PROJECTILE_MESSAGE_SETTINGS, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native::<HashMap<u8, u8>>(SCORE_MESSAGE_SETTINGS, &SCORE_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native::<InfoMessage>(INFO_MESSAGE_SETTINGS, &INFO_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native::<AbilityMessage>(ABILITY_MESSAGE_SETTINGS, &ABILITY_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native::<u32>(SET_MAP_SETTINGS, &SET_MAP_CHANNEL).unwrap();
+    net.register_message_channel_native::<(u32, u64)>(REQUEST_MAP_OBJECT_SETTINGS, &REQUEST_MAP_OBJECT_CHANNEL).unwrap();
+    net.register_message_channel_native::<TextMessage>(TEXT_MESSAGE_SETTINGS, &TEXT_MESSAGE_CHANNEL).unwrap();
+
+    net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
+        builder
+            .register::<ClientStateMessage>(CLIENT_STATE_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<ShootEvent>(PROJECTILE_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<HashMap<u8, u8>>(SCORE_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<InfoMessage>(INFO_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<AbilityMessage>(ABILITY_MESSAGE_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<u32>(SET_MAP_SETTINGS)
+            .unwrap();
+
+        builder
+            // Using a u64 instead of a usize since I'm pretty sure WASM is 32 bit
+            // First item of the tuple is the crc32 of the map object, the second item is the index of the map object in the vector
+            .register::<(u32, u64)>(REQUEST_MAP_OBJECT_SETTINGS)
+            .unwrap();
+
+        builder
+            // Index 0 is the crc32, index 1 is the index of the map object, and index 2 is the map object as binary
+            .register::<(u32, u64, [u8; 32])>(SEND_MAP_OBJECT_SETTINGS)
+            .unwrap();
+
+        builder
+            // Index 0 is the map name, index 1 is the length of the map objects vector, index 2 is the background color, 3 is the map size, 4 is the crc32
+            .register::<(String, u64, [f32; 3], [f32; 2], u32)>(MAP_METADATA_SETTINGS)
+            .unwrap();
+
+        builder
+            .register::<TextMessage>(TEXT_MESSAGE_SETTINGS)
+            .unwrap();
+
+    });
     
     commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), true)));
     #[cfg(feature = "graphics")]

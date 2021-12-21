@@ -74,6 +74,7 @@ impl SuperNetworkResource {
     #[cfg(feature = "native")]
     pub fn listen<const MAX_NATIVE_PACKET_SIZE: usize>(&mut self, tcp_addr: impl TokioToSocketAddrs + Send + 'static, udp_addr: impl TokioToSocketAddrs + Send + 'static, webrtc_listen_info: Option<(impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static)>) {
         if self.is_server() {
+            #[cfg(feature = "native")]
             self.native.setup::<MAX_NATIVE_PACKET_SIZE>(tcp_addr, udp_addr);
 
             let naia = self.naia.as_mut().unwrap();
@@ -170,25 +171,25 @@ impl SuperNetworkResource {
     }
 
     // TODO: const_genericize this to const the channel_mode match
-    pub fn register_message_channel<T>(&mut self, settings: MessageChannelSettings, channel: &MessageChannelID) -> Result<(), ChannelAlreadyRegistered>
+    pub fn register_message_channel_native<T>(&mut self, settings: MessageChannelSettings, channel: &MessageChannelID) -> Result<(), ChannelAlreadyRegistered>
         where T: ChannelMessage {
-
+        #[cfg(feature = "native")]
         self.native.register_message(channel, match &settings.channel_mode {
             MessageChannelMode::Unreliable => ChannelType::Unreliable,
             _ => ChannelType::Reliable,
 
         })?;
 
-        if let Some(naia) = self.naia.as_mut() {
-            naia.set_channels_builder(move |builder: &mut ConnectionChannelsBuilder| {
-                // TODO: Figure out how to return Error here
-                builder.register::<T>(settings.clone()).unwrap();
-
-            });
-        }
-
         Ok(())
         
+    }
+
+    // TODO: Combine register_message_channel_native with this fn
+    pub fn set_channels_builder<F>(&mut self, builder: F) where F: Fn(&mut ConnectionChannelsBuilder) + Send + Sync + 'static {
+        if let Some(naia) = self.naia.as_mut() {
+            naia.set_channels_builder(builder);
+        }
+
     }
 
     pub fn is_connected(&self) -> bool {
