@@ -286,7 +286,7 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
             let timer_finished = timer.finished();
 
             if timer_finished {
-                println!("Player {id} at handle {handle} has timed out!");
+                println!("Player {id} at handle {:?} has timed out!", handle);
                 
                 let (entity, _, _, _, _, _, _, _, _, _, _, _, _, _) = player_timers.iter_mut().find(|(_entity, _ability, _ability_charge, _ability_completed, _using_ability, _health, _time_since_last_shot, _time_since_start_reload, _respawn_timer, _dashing_info, _player_speed, _slowed_down, _can_melee, player_id)| player_id.0 == *id).unwrap();
                 commands.entity(entity).despawn_recursive();

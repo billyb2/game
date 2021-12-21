@@ -11,7 +11,7 @@ use tokio::io::AsyncReadExt;
 use turbulence::MessageChannelMode;
 use turbulence::message_channels::{ChannelMessage, ChannelAlreadyRegistered};
 
-pub async fn tcp_add_to_msg_queue<const MAX_PACKET_SIZE: usize>(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue) -> std::io::Result<()>{
+pub async fn tcp_add_to_msg_queue<const MAX_PACKET_SIZE: usize>(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue, conn_id: SuperConnectionHandle) -> std::io::Result<()>{
     let mut buffer: [u8; MAX_PACKET_SIZE] = [0; MAX_PACKET_SIZE];
 
     loop {
@@ -36,7 +36,7 @@ pub async fn tcp_add_to_msg_queue<const MAX_PACKET_SIZE: usize>(mut read_socket:
 
         let byte_vec = msg_buffer.to_vec();
 
-        messages.push(byte_vec);
+        messages.push((conn_id.clone(), byte_vec));
 
     }
 
@@ -44,7 +44,7 @@ pub async fn tcp_add_to_msg_queue<const MAX_PACKET_SIZE: usize>(mut read_socket:
 
 }
 
-pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Result<Vec<u8>, bincode::Error> where T: ChannelMessage + Debug + Clone {
+pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Result<Vec<u8>, bincode::Error> where T: ChannelMessage + Debug {
     let msg_bin = bincode::serialize(message)?;
     // Add one extra byte to the message length for the channel ID
     let msg_len: u32 = msg_bin.len().try_into().unwrap();
@@ -65,7 +65,8 @@ pub fn generate_message_bin<T>(message: &T, channel: &MessageChannelID) -> Resul
 
 pub trait NativeResourceTrait {
     /// The actual setup of the network, whether it's connecting or listening
-    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static);
+    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + Clone + 'static, udp_addr: impl ToSocketAddrs + Send + Clone + 'static);
     fn register_message(&self, channel: &MessageChannelID, mode: ChannelType) -> Result<(), ChannelAlreadyRegistered>;
-    fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone;
+    fn broadcast_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone;
+    fn send_message<T>(&self, message: &T, channel: &MessageChannelID, conn_id: &ConnID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug;
 }

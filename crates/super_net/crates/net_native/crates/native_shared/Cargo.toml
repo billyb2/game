@@ -14,6 +14,8 @@ helper_functions = { path = "../../../../../helper_functions" }
 # Just used for MessageChannel trait
 turbulence = { git = "https://github.com/billyb2/turbulence", branch = "v3_clone" }
 
+game_types = { path = "../../../../../game_types" }
+
 [features]
 native = [
 	"tokio",

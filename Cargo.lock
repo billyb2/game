@@ -2560,6 +2560,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "dashmap",
+ "game_types",
  "helper_functions",
  "tokio",
  "turbulence",

@@ -12,7 +12,7 @@ pub use crate::types::*;
 use native_client::NativeClient;
 use native_server::NativeServer;
 
-pub use native_shared::{TcpCliConn, ConnID, ChannelMessage, ChannelType, ChannelProcessingError, MessageChannelID, SendMessageError, NativeResourceTrait};
+pub use native_shared::{TcpCliConn, ConnID, ChannelMessage, ChannelType, ChannelProcessingError, MessageChannelID, SendMessageError, SuperConnectionHandle, NativeResourceTrait};
 
 pub enum NativeNetResourceWrapper {
     Server(NativeServer),
@@ -31,7 +31,7 @@ impl NativeNetResourceWrapper {
         NativeNetResourceWrapper::Client(NativeClient::new(task_pool))
     }
 
-    pub fn process_message_channel<T>(&self, channel_id: &MessageChannelID) -> Result<Vec<T>, ChannelProcessingError> where T: ChannelMessage + Debug + Clone {
+    pub fn process_message_channel<T>(&self, channel_id: &MessageChannelID) -> Result<Vec<(SuperConnectionHandle, T)>, ChannelProcessingError> where T: ChannelMessage + Debug + Clone {
         let unprocessed_messages_recv_queue = match self {
             NativeNetResourceWrapper::Server(res) => Arc::clone(&res.unprocessed_message_recv_queue),
             NativeNetResourceWrapper::Client(res) => Arc::clone(&res.unprocessed_messages),
@@ -41,10 +41,11 @@ impl NativeNetResourceWrapper {
 
         let result = match unprocessed_messages_recv_queue.get_mut(channel_id) {
             Some(mut unprocessed_channel) => {
-                let processed_messages = unprocessed_channel.iter().map(|message_bin| {
-                    bincode::deserialize::<T>(&message_bin)
+                let mut processed_messages = Vec::with_capacity(unprocessed_channel.len());
 
-                }).collect::<Result<Vec<T>, bincode::Error>>()?;
+                for (handle, message_bin) in unprocessed_channel.iter() {
+                    processed_messages.push((handle.clone(), bincode::deserialize::<T>(&message_bin)?))
+                }
 
                 // Since we've processed that message channel queue, we should clear it
                 unprocessed_channel.clear();
@@ -53,8 +54,7 @@ impl NativeNetResourceWrapper {
                 
             },
             None => {
-                unprocessed_messages_recv_queue.insert(channel_id.clone(), Vec::with_capacity(1));
-
+                unprocessed_messages_recv_queue.insert(channel_id.clone(), Vec::with_capacity(5));
                 Ok(Vec::new())
 
             },
@@ -92,18 +92,26 @@ impl NativeNetResourceWrapper {
 }
 
 impl NativeResourceTrait for NativeNetResourceWrapper {
-    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, udp_addr: impl ToSocketAddrs + Send + 'static, tcp_addr: impl ToSocketAddrs + Send + 'static) {
+    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + Clone + 'static, udp_addr: impl ToSocketAddrs + Clone + Send + 'static) {
         match self {
-            NativeNetResourceWrapper::Server(res) => res.setup::<MAX_PACKET_SIZE>(udp_addr, tcp_addr),
-            NativeNetResourceWrapper::Client(res) => res.setup::<MAX_PACKET_SIZE>(udp_addr, tcp_addr),
+            NativeNetResourceWrapper::Server(res) => res.setup::<MAX_PACKET_SIZE>(tcp_addr, udp_addr),
+            NativeNetResourceWrapper::Client(res) => res.setup::<MAX_PACKET_SIZE>(tcp_addr, udp_addr),
         }
     }
 
-    fn send_message<M>(&self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
+    fn broadcast_message<M>(&self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
         where M: ChannelMessage + Debug + Clone {
         match self {
-            NativeNetResourceWrapper::Server(res) => res.send_message(message, channel),
-            NativeNetResourceWrapper::Client(res) => res.send_message(message, channel),
+            NativeNetResourceWrapper::Server(res) => res.broadcast_message(message, channel),
+            NativeNetResourceWrapper::Client(res) => res.broadcast_message(message, channel),
+        }
+    }
+
+    fn send_message<M>(&self, message: &M, channel: &MessageChannelID, conn_id: &ConnID) -> Result<(), SendMessageError>
+        where M: ChannelMessage + Debug {
+        match self {
+            NativeNetResourceWrapper::Server(res) => res.send_message(message, channel, conn_id),
+            NativeNetResourceWrapper::Client(res) => res.send_message(message, channel, conn_id),
         }
     }
 

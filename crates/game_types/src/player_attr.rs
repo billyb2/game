@@ -735,7 +735,7 @@ pub struct DeathmatchScore(pub HashMap<u8, u8>);
 pub struct MyPlayerID(pub Option<PlayerID>);
 
 // The first item is the player ID, the second item is the network handle and a timeout timer
-pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(u32, Timer)>>);
+pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(SuperConnectionHandle, Timer)>>);
 
 #[derive(Component)]
 pub struct ExplodeTimer(pub Timer);

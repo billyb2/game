@@ -5,6 +5,8 @@
 
 pub mod player_attr;
 
+use std::net::SocketAddr;
+
 use bevy::core::Timer;
 use bevy::ecs::component::Component;
 use bevy::math::Vec2;
@@ -216,3 +218,67 @@ extern "C" {
 pub fn log(s: &str) {
     println!("{s}");
 } 
+
+#[derive(Clone, Debug)]
+pub enum SuperConnectionHandle {
+    Native(ConnID),
+    Naia(u32),
+}
+
+impl SuperConnectionHandle {
+    pub const fn new_native(conn_id: ConnID) -> Self {
+        SuperConnectionHandle::Native(conn_id)
+
+    }
+
+    pub const fn new_naia(handle: u32) -> Self {
+        SuperConnectionHandle::Naia(handle)
+
+    }
+
+    pub fn native(&self) -> &ConnID {
+        match *self {
+            SuperConnectionHandle::Native(ref id) => id,
+            SuperConnectionHandle::Naia(_) => panic!("Naia"),
+
+        }
+    }
+
+    pub fn naia(&self) -> &u32 {
+        match *self {
+            SuperConnectionHandle::Naia(ref handle) => handle,
+            SuperConnectionHandle::Native(_) => panic!("Native"),
+
+        }
+    }
+
+    pub fn is_native(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        match self {
+            SuperConnectionHandle::Native(_) => true,
+            SuperConnectionHandle::Naia(_) => false,
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        false
+    }
+
+    pub fn is_naia(&self) -> bool {
+        !self.is_native()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ConnID {
+    pub uuid: u32,
+    pub addr: SocketAddr,
+}
+
+impl ConnID {
+    pub fn new(uuid: u32, addr: SocketAddr) -> Self {
+        Self {
+            uuid,
+            addr,
+        }
+    }
+}

@@ -1,5 +1,6 @@
 #![feature(explicit_generic_args_with_impl_trait)]
 
+use std::any::type_name;
 use std::sync::{Arc, atomic};
 use std::fmt::Debug;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -25,7 +26,7 @@ use tokio::net::ToSocketAddrs as TokioToSocketAddrs;
 #[cfg(feature = "native")]
 use net_native::*;
 #[cfg(feature = "native")]
-pub use net_native::{ChannelProcessingError, MessageChannelID, Runtime, SendMessageError};
+pub use net_native::{ChannelProcessingError, MessageChannelID, Runtime, SendMessageError, SuperConnectionHandle};
 
 #[cfg(feature = "web")]
 pub use net_native::*;
@@ -72,7 +73,7 @@ impl SuperNetworkResource {
 
     /// The WebRTC listen info is only necessary for naia 
     #[cfg(feature = "native")]
-    pub fn listen<const MAX_NATIVE_PACKET_SIZE: usize>(&mut self, tcp_addr: impl TokioToSocketAddrs + Send + 'static, udp_addr: impl TokioToSocketAddrs + Send + 'static, webrtc_listen_info: Option<(impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static)>) {
+    pub fn listen<const MAX_NATIVE_PACKET_SIZE: usize>(&mut self, tcp_addr: impl TokioToSocketAddrs + Send + Clone + 'static, udp_addr: impl TokioToSocketAddrs + Send + Clone + 'static, webrtc_listen_info: Option<(impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static, impl ToSocketAddrs + Send + 'static)>) {
         if self.is_server() {
             #[cfg(feature = "native")]
             self.native.setup::<MAX_NATIVE_PACKET_SIZE>(tcp_addr, udp_addr);
@@ -114,9 +115,9 @@ impl SuperNetworkResource {
 
     }
 
-    pub fn view_messages<M>(&mut self, channel: &MessageChannelID) -> Result<Vec<M>, ChannelProcessingError> 
+    pub fn view_messages<M>(&mut self, channel: &MessageChannelID) -> Result<Vec<(SuperConnectionHandle, M)>, ChannelProcessingError> 
         where M: ChannelMessage + Debug + Clone {
-        let mut messages: Vec<M> = Vec::new();
+        let mut messages: Vec<(SuperConnectionHandle, M)> = Vec::new();
 
         #[cfg(feature = "native")]
         {
@@ -125,11 +126,11 @@ impl SuperNetworkResource {
         }
 
         if let Some(naia) = self.naia.as_mut() {
-            for (_handle, connection) in naia.connections.iter_mut() {
+            for (handle, connection) in naia.connections.iter_mut() {
                 let channels = connection.channels().unwrap();
 
                 while let Some(message) = channels.try_recv::<M>()? {
-                    messages.push(message);
+                    messages.push((SuperConnectionHandle::new_naia(*handle), message));
 
                 }
             }
@@ -143,13 +144,11 @@ impl SuperNetworkResource {
     pub fn broadcast_message<M>(&mut self, message: &M, channel: &MessageChannelID) -> Result<(), SendMessageError>
         where M: ChannelMessage + Debug + Clone {
         #[cfg(feature = "native")]
-        self.native.send_message(message, channel)?;
+        self.native.broadcast_message(message, channel)?;
 
         if let Some(naia) = self.naia.as_mut() {
             // Inlined version of naia.broadcast_message(), with some modifications
             for (_handle, connection) in naia.connections.iter_mut() {
-                use std::any::type_name;
-
                 let channels = connection.channels().unwrap();
                 // If the result is Some(msg), that means that the message channel is full, which is no bueno. 
                 //  There's probably a better way to do this (TODO?) but since I haven't run into this issue yet, 
@@ -170,7 +169,35 @@ impl SuperNetworkResource {
 
     }
 
-    // TODO: const_genericize this to const the channel_mode match
+    pub fn send_message<M>(&mut self, message: &M, channel: &MessageChannelID, handle: &SuperConnectionHandle) -> Result<(), SendMessageError>
+        where M: ChannelMessage + Debug + Clone {
+        if handle.is_native() {
+            #[cfg(feature = "native")]
+            self.native.send_message(message, channel, handle.native())?;
+
+        } else {
+            let naia = self.naia.as_mut().unwrap();
+
+            // Inlined version of naia.send_message(), with some modifications
+            match naia.connections.get_mut(handle.naia()) {
+                Some(connection) => {
+                    let channels = connection.channels().unwrap();
+                    if channels.try_send(message.clone())?.is_some() {
+                        panic!("Message channel full for type: {:?}", type_name::<M>());
+
+                    }
+
+                    channels.try_flush::<M>()?;
+                }
+                None => return Err(SendMessageError::NotConnected),
+            }
+
+        }
+
+        Ok(())
+
+    }
+
     pub fn register_message_channel_native<T>(&mut self, settings: MessageChannelSettings, channel: &MessageChannelID) -> Result<(), ChannelAlreadyRegistered>
         where T: ChannelMessage {
         #[cfg(feature = "native")]

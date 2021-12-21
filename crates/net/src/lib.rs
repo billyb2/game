@@ -60,7 +60,7 @@ pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Q
     let mut messages_to_send: Vec<ClientStateMessage> = Vec::new();
     let my_id = my_player_id.0.unwrap();
 
-    let mut stat_pack_logic = |(player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability), new_player_name): ClientStateMessage, handle: &u32| {
+    let mut stat_pack_logic = |(player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability), new_player_name): ClientStateMessage, handle: &SuperConnectionHandle| {
         // The host broadcasts the locations of all other players
         #[cfg(feature = "native")]
         if _hosting.0 {
@@ -108,9 +108,8 @@ pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Q
         return;
     }
 
-    messages.unwrap().into_iter().for_each(|client_state_message| {
-        //TODO: Dummy handle
-        stat_pack_logic(client_state_message, &0);
+    messages.unwrap().into_iter().for_each(|(handle, client_state_message)| {
+        stat_pack_logic(client_state_message, &handle);
 
     });
 
@@ -133,7 +132,7 @@ pub fn handle_score_packets(mut net: ResMut<SuperNetworkResource>, mut score: Re
 
         }
 
-        messages.unwrap().into_iter().for_each(|new_score| {
+        messages.unwrap().into_iter().for_each(|(_handle, new_score)| {
             *score = DeathmatchScore(new_score);
 
         });
@@ -153,10 +152,10 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
     let mut messages_to_send: Vec<AbilityMessage> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
-        let messages: Result<Vec<AbilityMessage>, _> = net.view_messages(&ABILITY_MESSAGE_CHANNEL);
+        let messages: Result<Vec<(SuperConnectionHandle, AbilityMessage)>, _> = net.view_messages(&ABILITY_MESSAGE_CHANNEL);
 
         match messages {
-            Ok(messages) => messages.into_iter().for_each(|([player_id, ability], [player_x, player_y, angle])| {
+            Ok(messages) => messages.into_iter().for_each(|(handle, ([player_id, ability], [player_x, player_y, angle]))| {
                 if player_id != my_id.0 {
                     // The host broadcasts the locations of all other players
                     #[cfg(feature = "native")]
@@ -175,8 +174,7 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
                 let ability: Ability = ability.into();
 
                 if player_id != my_id.0 {
-                    // TODO: Dummy handle
-                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, &0);
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, &handle);
                     let (mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
                     *old_ability = ability;
@@ -213,13 +211,12 @@ pub fn handle_projectile_packets(mut net: ResMut<SuperNetworkResource>, mut shoo
     let mut messages_to_send: Vec<ShootEvent> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
-        let messages: Result<Vec<ShootEvent>, _> = net.view_messages(&PROJECTILE_MESSAGE_CHANNEL);
+        let messages: Result<Vec<(SuperConnectionHandle, ShootEvent)>, _> = net.view_messages(&PROJECTILE_MESSAGE_CHANNEL);
 
         match messages {
-            Ok(messages) => messages.iter().for_each(|event| {
+            Ok(messages) => messages.iter().for_each(|(handle, event)| {
                 if my_id.0 !=  event.player_id {
-                    // TODO: Dummy handle
-                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, event.player_id, &0);
+                    make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, event.player_id, handle);
 
                     let mut transform = players.get_mut(*player_entity.get(&event.player_id).unwrap()).unwrap();
                     transform.translation = event.start_pos;
@@ -303,17 +300,16 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
     }
 
     // First item is the handle, the second is the ID
-    let mut messages_to_send: Vec<(u32, InfoMessage)> = Vec::new();
+    let mut messages_to_send: Vec<(SuperConnectionHandle, InfoMessage)> = Vec::new();
 
-    let mut handle_server_commands_logic = |command: &InfoMessage, handle: &u32| {
-        println!("{:?}", command);
+    let mut handle_server_commands_logic = |command: &InfoMessage, handle: &SuperConnectionHandle| {
         // Send a player ID as well as an ability back
         if command[0] == 0 {
             if available_ids.len() > 0 {
                 let player_id = available_ids.remove(0);
 
                 // Sending back the player id
-                messages_to_send.push((*handle, [0, player_id.0, 0]));
+                messages_to_send.push((handle.clone(), [0, player_id.0, 0]));
 
             } else {
                 //TODO: Send back a lobby full command
@@ -333,23 +329,23 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
             let (_id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).expect(&format!("ID {} not found!", player_id));
             *ability = player_ability;
             // Send the abilities of all players
-            messages_to_send.push((*handle, [1, (*ability).into(), player_id]));
+            messages_to_send.push((handle.clone(), [1, (*ability).into(), player_id]));
 
         }
     };
 
-    let messages: Result<Vec<InfoMessage>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
+    let messages: Result<Vec<(SuperConnectionHandle, InfoMessage)>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
 
     match messages {
         // Since the TCP server (currently) cannot send messages to specific clients, we just use the dummy value of 0
         //TODO: Send messages to specific clients for TcpServer
-        Ok(messages) => messages.iter().for_each(|command| handle_server_commands_logic(command, &0)),
+        Ok(messages) => messages.iter().for_each(|(handle, command)| handle_server_commands_logic(command, handle)),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
     for (handle, message) in messages_to_send.iter() {
-        net.broadcast_message(message, &INFO_MESSAGE_CHANNEL).unwrap();
-        net.broadcast_message(&map_crc32.0, &SET_MAP_CHANNEL).unwrap();
+        net.send_message(message, &INFO_MESSAGE_CHANNEL, handle).unwrap();
+        net.send_message(&map_crc32.0, &SET_MAP_CHANNEL, handle).unwrap();
 
     }
 }
@@ -359,7 +355,7 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
         return;
     }
 
-    let mut info_message_logic = |command: InfoMessage, handle: &u32| {
+    let mut info_message_logic = |command: InfoMessage, handle: &SuperConnectionHandle| {
         // The set player ID command
         if command[0] == 0 {
             let id = command[1];
@@ -422,19 +418,17 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
     };
 
 
-    let info_messages: Result<Vec<InfoMessage>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
+    let info_messages: Result<Vec<(SuperConnectionHandle, InfoMessage)>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
 
     match info_messages {
-        // Dummy handle value
-        //TODO: feed real value
-        Ok(messages) => messages.into_iter().for_each(|m| info_message_logic(m, &0)),
+        Ok(messages) => messages.into_iter().for_each(|(handle, msg)| info_message_logic(msg, &handle)),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
-    let map_messages: Result<Vec<u32>, _> = net.view_messages(&SET_MAP_CHANNEL);
+    let map_messages: Result<Vec<(SuperConnectionHandle, u32)>, _> = net.view_messages(&SET_MAP_CHANNEL);
 
     match map_messages {
-        Ok(messages) => messages.into_iter().for_each(|m| map_u32_logic(m)),
+        Ok(messages) => messages.into_iter().for_each(|(_handle, msg)| map_u32_logic(msg)),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
@@ -554,10 +548,10 @@ pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<TextMessage> = Vec::new();
 
-    let messages: Result<Vec<TextMessage>, _> = net.view_messages(&TEXT_MESSAGE_CHANNEL);
+    let messages: Result<Vec<(SuperConnectionHandle, TextMessage)>, _> = net.view_messages(&TEXT_MESSAGE_CHANNEL);
 
     match messages {
-        Ok(messages) => {messages.into_iter().for_each(|(player_id, message, time)| {
+        Ok(messages) => {messages.into_iter().for_each(|(_handle, (player_id, message, time))| {
                 let player_name = names.get(*player_entity.get(&player_id).unwrap()).unwrap();
 
                 #[cfg(feature = "native")]
@@ -586,13 +580,13 @@ pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event
 // Basically, the function just checks if the player is in online_player_ids, and if not, it inserts them into that and deathmatch score
 // This function should be run on pretty much any net function that receives an ID
 #[inline]
-pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_ids: &mut HashMap<u8, Option<(u32, Timer)>>, player_id: u8, handle: &u32) {
+pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_ids: &mut HashMap<u8, Option<(SuperConnectionHandle, Timer)>>, player_id: u8, handle: &SuperConnectionHandle) {
     if !deathmatch_score.contains_key(&player_id) {
         deathmatch_score.insert(player_id, 0);
 
     }
 
-    online_player_ids.insert(player_id, Some((*handle, Timer::from_seconds(15.0, false))));
+    online_player_ids.insert(player_id, Some((handle.clone(), Timer::from_seconds(15.0, false))));
 
 }
 

@@ -1,6 +1,9 @@
 // Some code that's needed by both net_native and super_net
+use std::net::SocketAddr;
 
 pub use turbulence::message_channels::{ChannelAlreadyRegistered, ChannelMessage};
+pub use game_types::{ConnID, SuperConnectionHandle};
+
 use turbulence::message_channels::MessageTypeUnregistered;
 
 #[cfg(feature = "native")]

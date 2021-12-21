@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::fmt::Debug;
 use parking_lot::Mutex;
 
@@ -22,7 +23,7 @@ pub struct NativeServer {
     pub registered_channels: Arc<DashMap<MessageChannelID, ChannelType>>,
     pub unprocessed_message_recv_queue: RecvQueue,
     pub server_handle: Option<JoinHandle<()>>,
-    pub next_uuid: Arc<Mutex<u32>>,
+    pub next_uuid: Arc<AtomicU32>,
 
 }
 
@@ -37,13 +38,13 @@ impl NativeServer {
             udp_connection_handler: None,
             unprocessed_message_recv_queue: Arc::new(DashMap::new()),
             registered_channels: Arc::new(DashMap::new()),
-            next_uuid: Arc::new(Mutex::new(0)),
+            next_uuid: Arc::new(AtomicU32::new(0)),
         }
     }
 }
 
 impl NativeResourceTrait for NativeServer {
-    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + 'static, udp_addr: impl ToSocketAddrs + Send + 'static) {
+    fn setup<const MAX_PACKET_SIZE: usize>(&mut self, tcp_addr: impl ToSocketAddrs + Send + Clone + 'static, udp_addr: impl ToSocketAddrs + Send + Clone + 'static) {
         let (reliable_conn_send, mut reliable_conn_recv) = unbounded_channel();
 
         // Arc clones of some of self to prevent moving
@@ -77,20 +78,32 @@ impl NativeResourceTrait for NativeServer {
 
             while let Ok((num_bytes_read, recv_addr)) = arc_sock.recv_from(&mut buffer).await {
                 // Checks to see if the addr is in the connected_clients dashmap, and if it isn't, it adds it
+                let mut conn_id = None;
+
                 let not_connected = udp_connected_clients_clone.iter().find(|key_val| {
-                    let conn_id = key_val.key();
-                    conn_id.addr == recv_addr
+                    let local_conn_id = key_val.key();
+
+                    if local_conn_id.addr == recv_addr {
+                        conn_id = Some(local_conn_id.clone());
+                        true
+
+                    } else {
+                        false
+                    }
 
                 }).is_none();
 
                 // If the address isn't already in the DashMap, add it
                 if not_connected {
-                    let mut next_uuid = next_uuid_2.lock();
+                    let next_uuid = next_uuid_2.fetch_add(1, Ordering::Relaxed);
                     let (msg_send, mut msg_to_send) = unbounded_channel::<Vec<u8>>();
 
                     let arc_sock_clone = Arc::clone(&arc_sock);
 
-                    udp_connected_clients_clone.insert(ConnID::new(*next_uuid, recv_addr.clone()), UdpCliConn {
+                    let new_conn_id = ConnID::new(next_uuid, recv_addr.clone());
+                    conn_id = Some(new_conn_id.clone());
+
+                    udp_connected_clients_clone.insert(new_conn_id, UdpCliConn {
                         send_task: task_pool.spawn(async move {
                             let recv_addr = recv_addr.clone();
 
@@ -102,9 +115,6 @@ impl NativeResourceTrait for NativeServer {
                         }),
                         send_message: msg_send,
                     });
-
-                    println!("Added new uuid {}", *next_uuid);
-                    *next_uuid += 1;
 
                 }
 
@@ -129,7 +139,7 @@ impl NativeResourceTrait for NativeServer {
 
                 let byte_vec = msg_buffer.to_vec();
 
-                messages.push(byte_vec);
+                messages.push((SuperConnectionHandle::new_native(conn_id.unwrap()), byte_vec));
 
             }
 
@@ -146,17 +156,19 @@ impl NativeResourceTrait for NativeServer {
                 let (tcp_read_socket, mut tcp_write_socket) = socket.into_split();
 
                 let (tcp_message_sender, mut tcp_messages_to_send) = unbounded_channel::<Vec<u8>>();
+                let next_uuid = next_uuid.fetch_add(1, Ordering::Relaxed);
 
-                task_pool.spawn(tcp_add_to_msg_queue::<MAX_PACKET_SIZE>(tcp_read_socket, msg_rcv_queue));
+                let conn_id = ConnID {
+                    uuid: next_uuid,
+                    addr,
+                };
 
-                let mut next_uuid = next_uuid.lock();
+                let handle = SuperConnectionHandle::new_native(conn_id.clone());
+
+                task_pool.spawn(tcp_add_to_msg_queue::<MAX_PACKET_SIZE>(tcp_read_socket, msg_rcv_queue, handle));
 
                 connected_clients.insert(
-                    ConnID {
-                        uuid: *next_uuid,
-                        addr,
-                    },
-
+                    conn_id,
                     TcpCliConn {
                         send_task: task_pool.spawn(async move {
                             while let Some(message) = tcp_messages_to_send.recv().await {
@@ -169,9 +181,6 @@ impl NativeResourceTrait for NativeServer {
                     }
                 );
 
-                *next_uuid += 1;
-
-
             }
 
         };      
@@ -182,7 +191,7 @@ impl NativeResourceTrait for NativeServer {
 
     }
 
-    fn send_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone {
+    fn broadcast_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone {
         let message_bin = generate_message_bin(message, channel)?;
 
         // TODO: Return an error
@@ -209,6 +218,46 @@ impl NativeResourceTrait for NativeServer {
 
         Ok(())
 
+
+    }
+
+    fn send_message<T>(&self, message: &T, channel: &MessageChannelID, conn_id: &ConnID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug {
+        let message_bin = generate_message_bin(message, channel)?;
+
+        // TODO: Return an error
+        let key_val_pair = self.registered_channels.get(channel).unwrap();
+        let mode = key_val_pair.value();
+
+        match mode {
+            ChannelType::Reliable => {
+                let cli = self.tcp_connected_clients.get(conn_id);
+
+                match cli {
+                    Some(cli) =>  {
+                        let conn = cli.value();
+                        conn.send_message.send(message_bin)?;
+                    },
+                    None => return Err(SendMessageError::NotConnected),
+
+                }
+
+            },
+            ChannelType::Unreliable => {
+                let cli = self.udp_connected_clients.get(conn_id);
+
+                match cli {
+                    Some(cli) =>  {
+                        let conn = cli.value();
+                        conn.send_message.send(message_bin)?;
+                    },
+                    None => return Err(SendMessageError::NotConnected),
+
+                }
+
+            },
+        };
+
+        Ok(())
 
     }
 

@@ -9,23 +9,8 @@ use crate::shared::*;
 pub use crate::logic::*;
 pub use helper_functions::get_available_port;
 
-// Lists of binary messages
-pub type RecvQueue = Arc<DashMap<MessageChannelID, Vec<Vec<u8>>>>;
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct ConnID {
-    pub uuid: u32,
-    pub addr: SocketAddr,
-}
-
-impl ConnID {
-    pub fn new(uuid: u32, addr: SocketAddr) -> Self {
-        Self {
-            uuid,
-            addr,
-        }
-    }
-}
+// Lists of binary messages, along with the handle of who sent it
+pub type RecvQueue = Arc<DashMap<MessageChannelID, Vec<(SuperConnectionHandle, Vec<u8>)>>>;
 
 pub struct TcpCliConn {
     pub send_task: JoinHandle<()>,
