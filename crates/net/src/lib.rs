@@ -1,3 +1,4 @@
+#![feature(drain_filter)]
 #![feature(explicit_generic_args_with_impl_trait)]
 
 #![deny(clippy::all)]
@@ -305,9 +306,7 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
     let mut handle_server_commands_logic = |command: &InfoMessage, handle: &SuperConnectionHandle| {
         // Send a player ID as well as an ability back
         if command[0] == 0 {
-            if available_ids.len() > 0 {
-                let player_id = available_ids.remove(0);
-
+            if let Some(player_id) = available_ids.first() {
                 // Sending back the player id
                 messages_to_send.push((handle.clone(), [0, player_id.0, 0]));
 
@@ -321,15 +320,33 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
             let player_id = command[2];
             let player_ability: Ability = command[1].into();
 
-            make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
+            let mut found_id = false;
 
-            println!("Player {player_id} has joined!");
-            log_event.send(LogEvent(format!("Player {player_id} has joined!")));
+            for i in 0..available_ids.len() {
+                if unsafe { available_ids.get_unchecked(i).0 } == player_id {
+                    available_ids.remove(i);
+                    found_id = true;
+                    break;
 
-            let (_id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).expect(&format!("ID {} not found!", player_id));
-            *ability = player_ability;
-            // Send the abilities of all players
-            messages_to_send.push((handle.clone(), [1, (*ability).into(), player_id]));
+                }
+
+            }
+
+            if found_id {
+                make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
+
+                println!("Player {player_id} has joined!");
+                log_event.send(LogEvent(format!("Player {player_id} has joined!")));
+
+                let (_id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).expect(&format!("ID {} not found!", player_id));
+                *ability = player_ability;
+                // Send the player's ability back
+                messages_to_send.push((handle.clone(), [1, (*ability).into(), player_id]));
+
+            } else {
+                println!("Illegal id request for ID: {player_id}");
+
+            }
 
         }
     };
@@ -375,12 +392,6 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
             players.for_each_mut(|(id, mut ability, _sprite)| {
                 if id.0 == player_id {
                     *ability = player_ability;
-
-                    /*let (new_helmet_color, new_inner_suit_color) = set_player_colors(&player_ability);
-
-                        *helmet_color = new_helmet_color;
-                        *inner_suit_color = new_inner_suit_color;*/
-
                     ability_set.0 = true;
 
                 }
