@@ -11,6 +11,8 @@ use tokio::io::AsyncReadExt;
 use turbulence::MessageChannelMode;
 use turbulence::message_channels::{ChannelMessage, ChannelAlreadyRegistered};
 
+pub use game_types::DisconnectError;
+
 pub async fn tcp_add_to_msg_queue<const MAX_PACKET_SIZE: usize>(mut read_socket: OwnedReadHalf, unprocessed_messages_recv_queue: RecvQueue, conn_id: SuperConnectionHandle) -> std::io::Result<()>{
     let mut buffer: [u8; MAX_PACKET_SIZE] = [0; MAX_PACKET_SIZE];
 
@@ -69,4 +71,6 @@ pub trait NativeResourceTrait {
     fn register_message(&self, channel: &MessageChannelID, mode: ChannelType) -> Result<(), ChannelAlreadyRegistered>;
     fn broadcast_message<T>(&self, message: &T, channel: &MessageChannelID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug + Clone;
     fn send_message<T>(&self, message: &T, channel: &MessageChannelID, conn_id: &ConnID) -> Result<(), SendMessageError> where T: ChannelMessage + Debug;
+    fn disconnect_from(&mut self, conn_id: &ConnID) -> Result<(), DisconnectError>;
+    fn disconnect_from_all(&mut self);
 }

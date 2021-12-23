@@ -39,6 +39,7 @@ pub struct SuperNetworkResource {
     /// Naia stuff isn't used for native TCP clients
     naia: Option<NetworkResource>,
     is_server: bool,
+    is_setup: bool,
 
 }
 
@@ -53,6 +54,7 @@ impl SuperNetworkResource {
             native: NativeNetResourceWrapper::new_server(tokio_rt.unwrap()),
             naia: Some(NetworkResource::new(task_pool, None, MessageFlushingStrategy::OnEverySend, None, None)),
             is_server: true,
+            is_setup: false,
         }
     }
 
@@ -68,6 +70,7 @@ impl SuperNetworkResource {
             #[cfg(feature = "web")]
             naia: Some(NetworkResource::new(task_pool, None, MessageFlushingStrategy::OnEverySend, None, None)),
             is_server: false,
+            is_setup: false,
         } 
     }
 
@@ -241,6 +244,40 @@ impl SuperNetworkResource {
 
     }
 
+    pub fn disconnect_from(&mut self, handle: &SuperConnectionHandle) -> Result<(), DisconnectError> {
+        #[cfg(feature = "native")]
+        if handle.is_native() {
+            let handle = handle.native();
+            self.native.disconnect_from(handle)?;
+
+        }
+
+        if handle.is_naia() {
+            let handle = handle.naia();
+
+            match self.naia.as_mut() {
+                Some(naia) => naia.disconnect(*handle),
+                None => Err(DisconnectError::NotConnected)?,
+
+            };
+
+        }
+
+        Ok(())
+
+    }
+
+    pub fn disconnect_from_all(&mut self) {
+        #[cfg(feature = "native")]
+        self.native.disconnect_from_all();
+
+        if let Some(naia) = self.naia.as_mut() {
+            naia.connections.clear()
+
+        }
+
+    }
+
     pub fn as_naia_mut(&mut self) -> Option<&mut NetworkResource> {
         self.naia.as_mut()
     }
@@ -251,7 +288,11 @@ impl SuperNetworkResource {
     }
 
     pub fn is_client(&self) -> bool {
-        !self.is_server()
+        !self.is_server
+    }
+
+    pub fn is_setup(&self) -> bool {
+        self.is_setup
     }
 }
 

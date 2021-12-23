@@ -272,13 +272,26 @@ impl SuperConnectionHandle {
 pub struct ConnID {
     pub uuid: u32,
     pub addr: SocketAddr,
+    pub mode: NativeConnectionType,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum NativeConnectionType {
+    Tcp,
+    Udp,
 }
 
 impl ConnID {
-    pub fn new(uuid: u32, addr: SocketAddr) -> Self {
+    pub fn new(uuid: u32, addr: SocketAddr, mode: NativeConnectionType) -> Self {
         Self {
             uuid,
             addr,
+            mode,
         }
     }
+}
+
+#[derive(Debug)]
+pub enum DisconnectError {
+    NotConnected,
 }

@@ -1,6 +1,5 @@
 #![feature(explicit_generic_args_with_impl_trait)]
 
-mod types;
 #[cfg(feature = "native")]
 mod native;
 
@@ -9,5 +8,3 @@ pub use native::*;
 
 #[cfg(feature = "web")]
 pub use native_shared::*;
-
-pub use types::*;

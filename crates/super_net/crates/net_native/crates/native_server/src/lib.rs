@@ -100,7 +100,7 @@ impl NativeResourceTrait for NativeServer {
 
                     let arc_sock_clone = Arc::clone(&arc_sock);
 
-                    let new_conn_id = ConnID::new(next_uuid, recv_addr.clone());
+                    let new_conn_id = ConnID::new(next_uuid, recv_addr.clone(), NativeConnectionType::Udp);
                     conn_id = Some(new_conn_id.clone());
 
                     udp_connected_clients_clone.insert(new_conn_id, UdpCliConn {
@@ -161,6 +161,7 @@ impl NativeResourceTrait for NativeServer {
                 let conn_id = ConnID {
                     uuid: next_uuid,
                     addr,
+                    mode: NativeConnectionType::Tcp,
                 };
 
                 let handle = SuperConnectionHandle::new_native(conn_id.clone());
@@ -273,6 +274,38 @@ impl NativeResourceTrait for NativeServer {
 
         Ok(())
         
+
+    }
+
+    fn disconnect_from(&mut self, conn_id: &ConnID) -> Result<(), DisconnectError> {
+        match conn_id.mode {
+            NativeConnectionType::Tcp => {
+                match self.tcp_connected_clients.get(conn_id) {
+                    Some(conn) => conn.send_task.abort(),
+                    None => return Err(DisconnectError::NotConnected),
+                };
+
+                self.tcp_connected_clients.remove(conn_id);
+
+            },
+            NativeConnectionType::Udp => {
+                match self.udp_connected_clients.get(conn_id) {
+                    Some(conn) => conn.send_task.abort(),
+                    None => return Err(DisconnectError::NotConnected),
+                };
+
+                self.udp_connected_clients.remove(conn_id);
+
+            },
+        };
+
+        Ok(())
+
+    }
+
+    fn disconnect_from_all(&mut self) {
+        self.tcp_connected_clients.clear();
+        self.udp_connected_clients.clear();
 
     }
 

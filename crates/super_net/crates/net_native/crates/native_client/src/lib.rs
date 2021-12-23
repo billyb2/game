@@ -70,6 +70,7 @@ impl NativeResourceTrait for NativeClient {
             let handle = SuperConnectionHandle::new_native(ConnID {
                 uuid: 0,
                 addr: peer_addr.unwrap(),
+                mode: NativeConnectionType::Tcp,
             });
 
             let read_handle = task_pool.spawn(tcp_add_to_msg_queue::<MAX_PACKET_SIZE>(read_socket, m_queue_clone, handle));
@@ -105,7 +106,7 @@ impl NativeResourceTrait for NativeClient {
                 let mut buffer: [u8; MAX_PACKET_SIZE] = [0; MAX_PACKET_SIZE];
                 let udp_addr = lookup_host(udp_addr_clone).await.unwrap().nth(0).unwrap();
 
-                while let Ok(num_bytes_read) = sock.recv(&mut buffer).await {
+                while let Ok(total_num_bytes_read) = sock.recv(&mut buffer).await {
                     let msg_len: usize = u32::from_be_bytes([buffer[0], buffer[1], buffer[2], buffer[3]]).try_into().unwrap();
                     let channel_id = MessageChannelID::new(buffer[4]);
 
@@ -116,7 +117,7 @@ impl NativeResourceTrait for NativeClient {
 
                     let msg_buffer = &mut buffer[5..msg_len + 5];
 
-                    let num_bytes_read = num_bytes_read - 4;
+                    let msg_num_bytes_read = total_num_bytes_read - 4;
 
                     // If these differ, we read a corrupted message
                     // TODO: Error something
@@ -127,7 +128,7 @@ impl NativeResourceTrait for NativeClient {
 
                     let byte_vec = msg_buffer.to_vec();
 
-                    messages.push((SuperConnectionHandle::new_native(ConnID::new(0, udp_addr.clone())), byte_vec));
+                    messages.push((SuperConnectionHandle::new_native(ConnID::new(0, udp_addr.clone(), NativeConnectionType::Udp)), byte_vec));
 
 
                 }
@@ -189,7 +190,31 @@ impl NativeResourceTrait for NativeClient {
             Ok(())
 
         }
-        
+    }
+
+    fn disconnect_from_all(&mut self) {
+        if let Some(write_handle) = self.write_task_handle.as_ref() {
+            write_handle.abort();
+
+        }
+
+        if let Some(read_handle) = self.read_task_handle.as_ref() {
+            read_handle.abort();
+
+        }
+
+        self.read_task_handle = None;
+        self.write_task_handle = None;
+        self.tcp_msg_sender = None;
+        self.udp_msg_sender = None;
+        self.unprocessed_messages.clear();
+
+    }
+
+    fn disconnect_from(&mut self, _conn_id: &ConnID) -> Result<(), DisconnectError> {
+        self.disconnect_from_all();
+
+        Ok(())
 
     }
 }

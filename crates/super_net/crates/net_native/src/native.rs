@@ -7,12 +7,10 @@ pub use tokio::io::AsyncWriteExt;
 pub use tokio::sync::mpsc::unbounded_channel;
 use tokio::net::ToSocketAddrs;
 
-pub use crate::types::*;
-
 use native_client::NativeClient;
 use native_server::NativeServer;
 
-pub use native_shared::{TcpCliConn, ConnID, ChannelMessage, ChannelType, ChannelProcessingError, MessageChannelID, SendMessageError, SuperConnectionHandle, NativeResourceTrait};
+pub use native_shared::{TcpCliConn, ConnID, ChannelMessage, ChannelType, ChannelProcessingError, DisconnectError, MessageChannelID, SendMessageError, SuperConnectionHandle, NativeResourceTrait};
 
 pub enum NativeNetResourceWrapper {
     Server(NativeServer),
@@ -119,6 +117,20 @@ impl NativeResourceTrait for NativeNetResourceWrapper {
         match self {
             NativeNetResourceWrapper::Server(res) => res.register_message(channel, mode),
             NativeNetResourceWrapper::Client(res) => res.register_message(channel, mode),
+        }
+    }
+
+    fn disconnect_from(&mut self, conn_id: &ConnID) -> Result<(), native_shared::DisconnectError> {
+        match self {
+            NativeNetResourceWrapper::Server(res) => res.disconnect_from(conn_id),
+            NativeNetResourceWrapper::Client(res) => res.disconnect_from(conn_id),
+        }
+    }
+
+    fn disconnect_from_all(&mut self) {
+        match self {
+            NativeNetResourceWrapper::Server(res) => res.disconnect_from_all(),
+            NativeNetResourceWrapper::Client(res) => res.disconnect_from_all(),
         }
     }
 

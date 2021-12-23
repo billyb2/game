@@ -2,7 +2,7 @@
 use std::net::SocketAddr;
 
 pub use turbulence::message_channels::{ChannelAlreadyRegistered, ChannelMessage};
-pub use game_types::{ConnID, SuperConnectionHandle};
+pub use game_types::{ConnID, DisconnectError, NativeConnectionType, SuperConnectionHandle};
 
 use turbulence::message_channels::MessageTypeUnregistered;
 

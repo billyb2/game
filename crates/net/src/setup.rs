@@ -256,7 +256,7 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
 
     // Currently, only PC builds can host
     #[cfg(feature = "native")]
-    if hosting.0 {
+    if hosting.0 && !net.is_setup() {
         // The WebRTC listening address just picks a random port
         let webrtc_listen_socket = {
             let webrtc_listen_ip = match bevy_networking_turbulence::find_my_ip_address() {
