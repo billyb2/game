@@ -328,22 +328,26 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
 }
 
-pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper, Option<&Health>, Option<&Children>, Option<&PlayerName>, Option<Changed<PlayerName>>)>, mut names: Query<(&mut Text, &mut Transform,  &mut Visible), Without<RigidBodyHandleWrapper>>, rigid_body_set: Res<RigidBodySet>) {
-    obj.for_each_mut(|(mut transform, rigid_body_handle, health, children, player_name, name_changed)| {
+//TODO: Name visibility
+pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper, Option<&Health>, Option<&Children>, Option<&PlayerName>, Option<Changed<PlayerName>>, Option<&Alpha>)>, mut names: Query<(&mut Text, &mut Transform,  &mut Visible), Without<RigidBodyHandleWrapper>>, rigid_body_set: Res<RigidBodySet>) {
+    obj.for_each_mut(|(mut transform, rigid_body_handle, health, children, player_name, name_changed, alpha)| {
         if let Some(rigid_body) = rigid_body_set.get(rigid_body_handle.0) {
             if let Some(children) = children.as_ref() {
                 children.iter().for_each(|child| {
                     let (mut text, mut text_transform, mut visible) = names.get_mut(*child).unwrap();
-                    if health.as_ref().unwrap().0 > 0.0 {
+                    if health.as_ref().unwrap().0 > 0.0 && alpha.as_ref().unwrap().value > 0.0{
                         text_transform.rotation = transform.rotation.inverse();
                         text_transform.translation = text_transform.translation.normalize();
 
                         visible.is_visible = true;
 
                         if name_changed.unwrap() {
-                            text.sections[0].value = format!("{}", player_name.as_ref().unwrap());
+                            text.sections[0].value = player_name.as_ref().unwrap().to_string();
 
                         }
+
+                    } else {
+                        visible.is_visible = false;
 
                     }
 

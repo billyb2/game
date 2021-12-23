@@ -79,7 +79,7 @@ pub const ABILITY_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSetti
 };
 
 // When requesting or sending metadata about the game, such as the assigned player ids or abilities, it's fine to have up to a 10 second delay before getting a response
-pub(crate) const INFO_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(3);
+pub const INFO_MESSAGE_CHANNEL: MessageChannelID = MessageChannelID::new(3);
 
 pub const INFO_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: INFO_MESSAGE_CHANNEL.id,

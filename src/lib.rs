@@ -125,7 +125,7 @@ pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<
 }
 
 // This system just deals respawning players
-pub fn respawn_palyers(mut commands: Commands, mut players: Query<(Entity, &mut Health, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut lights_res: ResMut<LightsResource>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>) {
+pub fn respawn_players(mut commands: Commands, mut players: Query<(Entity, &mut Health, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut lights_res: ResMut<LightsResource>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>) {
     let (camera, camera_transform) = camera.single();
 
     let wnd = windows.get_primary().unwrap();
@@ -215,10 +215,10 @@ pub fn score_system(mut commands: Commands, deathmatch_score: Res<DeathmatchScor
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, mut chat: ResMut<ChatLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut explode_timers: Query<&mut ExplodeTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>, mut local_players: ResMut<LocalPlayers>) {
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &UsingAbility, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut DashingInfo, &mut PlayerSpeed, Option<&mut SlowedDown>, &mut CanMelee, &PlayerID, &mut Visible)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, mut chat: ResMut<ChatLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut explode_timers: Query<&mut ExplodeTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>, mut local_players: ResMut<LocalPlayers>) {
     let delta = time.delta();
 
-    player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee, _player_id)| {
+    player_timers.for_each_mut(|(entity, ability, mut ability_charge, mut ability_completed, using_ability, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut dashing_info, mut player_speed, slowed_down, mut can_melee, _player_id, _visible)| {
         time_since_last_shot.0.tick(delta);
 
         // If the player is reloading
@@ -288,10 +288,9 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
             if timer_finished {
                 println!("Player {id} at handle {:?} has timed out!", handle);
                 
-                let (entity, _, _, _, _, _, _, _, _, _, _, _, _, _) = player_timers.iter_mut().find(|(_entity, _ability, _ability_charge, _ability_completed, _using_ability, _health, _time_since_last_shot, _time_since_start_reload, _respawn_timer, _dashing_info, _player_speed, _slowed_down, _can_melee, player_id)| player_id.0 == *id).unwrap();
-                commands.entity(entity).despawn_recursive();
+                let (_entity, _, _, _, _, _, _, _, _, _, _, _, _, _, mut visible) = player_timers.iter_mut().find(|(_entity, _ability, _ability_charge, _ability_completed, _using_ability, _health, _time_since_last_shot, _time_since_start_reload, _respawn_timer, _dashing_info, _player_speed, _slowed_down, _can_melee, player_id, _visible)| player_id.0 == *id).unwrap();
+                visible.is_visible = false;
                 deathmatch_score.0.remove(id);
-                // TODO: Switch to VecDequeue
                 available_player_ids.push(PlayerID(*id));
 
                 // TODO: Use CountingSort?

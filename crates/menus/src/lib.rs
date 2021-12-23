@@ -795,7 +795,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
 
                             let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
-                            net.broadcast_message(&set_ability_message, &ABILITY_MESSAGE_CHANNEL);
+                            net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL);
 
                             let my_player_id = my_player_id.0.as_ref();
 
