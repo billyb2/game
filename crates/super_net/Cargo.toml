@@ -16,7 +16,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "net"], optional = true 
 turbulence = { git = "https://github.com/billyb2/turbulence", branch = "v3_clone" }
 
 # For creating an interface to the TCP cli/serv
-net_native = { path = "crates/net_native" }
+net_native = { path = "net_native" }
 
 [features]
 native = [

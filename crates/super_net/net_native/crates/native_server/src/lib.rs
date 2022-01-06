@@ -9,6 +9,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, ToSocketAddrs, UdpSocket};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::error::SendError;
 use tokio::task::JoinHandle;
 
 use native_shared::*;
@@ -49,15 +50,24 @@ impl NativeResourceTrait for NativeServer {
 
         // Arc clones of some of self to prevent moving
         let task_pool = Arc::clone(&self.task_pool);
+        let task_pool_2 = Arc::clone(&self.task_pool);
         let task_pool_clone = Arc::clone(&self.task_pool);
 
         let tcp_connected_clients_clone = Arc::clone(&self.tcp_connected_clients);
         let udp_connected_clients_clone = Arc::clone(&self.udp_connected_clients);
 
+        let tcp_connected_clients_clone_2 = Arc::clone(&self.tcp_connected_clients);
+        let udp_connected_clients_clone_2 = Arc::clone(&self.udp_connected_clients);
+
         let msg_rcv_queue = Arc::clone(&self.unprocessed_message_recv_queue);
         let msg_rcv_queue_2 = Arc::clone(&self.unprocessed_message_recv_queue);
         let next_uuid = Arc::clone(&self.next_uuid);
         let next_uuid_2 = Arc::clone(&self.next_uuid);
+
+        let (req_destroy_cli, mut clients_to_destroy) = unbounded_channel::<ConnID>();
+
+        let req_destroy_cli_clone = req_destroy_cli.clone();
+        let req_destroy_cli_clone_2 = req_destroy_cli.clone();
 
         let tcp_listen_loop = async move {
             let listener = TcpListener::bind(tcp_addr).await.unwrap();
@@ -69,7 +79,6 @@ impl NativeResourceTrait for NativeServer {
 
         };
 
-        //TODO: Remove connection after 15 seconds of inactivity
         let udp_listen_loop = async move {
             let sock = UdpSocket::bind(udp_addr).await.unwrap();
             let arc_sock = Arc::new(sock);
@@ -104,7 +113,7 @@ impl NativeResourceTrait for NativeServer {
                     conn_id = Some(new_conn_id.clone());
 
                     udp_connected_clients_clone.insert(new_conn_id, UdpCliConn {
-                        send_task: task_pool.spawn(async move {
+                        send_task: task_pool_2.spawn(async move {
                             let recv_addr = recv_addr.clone();
 
                             while let Some(msg) = msg_to_send.recv().await {
@@ -145,17 +154,36 @@ impl NativeResourceTrait for NativeServer {
 
         };
 
+      task_pool.spawn(async move {
+            let tcp_conn_cli = tcp_connected_clients_clone_2;
+            let udp_conn_cli = udp_connected_clients_clone_2;
+
+            while let Some(cli) = clients_to_destroy.recv().await {
+                println!("Removing client!");
+
+                match cli.mode {
+                    NativeConnectionType::Tcp => {tcp_conn_cli.remove(&cli);},
+                    NativeConnectionType::Udp => {udp_conn_cli.remove(&cli);},
+                };
+
+            }
+
+        });
+
         let handle_connections = async move {
             let task_pool = task_pool_clone;
             let connected_clients = tcp_connected_clients_clone;
 
             while let Some((socket, addr)) = reliable_conn_recv.recv().await {
+                let req_destroy_clone = req_destroy_cli_clone_2.clone();
+
                 let task_pool = Arc::clone(&task_pool);
 
                 let msg_rcv_queue = Arc::clone(&msg_rcv_queue);
                 let (tcp_read_socket, mut tcp_write_socket) = socket.into_split();
 
                 let (tcp_message_sender, mut tcp_messages_to_send) = unbounded_channel::<Vec<u8>>();
+
                 let next_uuid = next_uuid.fetch_add(1, Ordering::Relaxed);
 
                 let conn_id = ConnID {
@@ -163,6 +191,7 @@ impl NativeResourceTrait for NativeServer {
                     addr,
                     mode: NativeConnectionType::Tcp,
                 };
+                let conn_id_clone = conn_id.clone();
 
                 let handle = SuperConnectionHandle::new_native(conn_id.clone());
 
@@ -172,8 +201,28 @@ impl NativeResourceTrait for NativeServer {
                     conn_id,
                     TcpCliConn {
                         send_task: task_pool.spawn(async move {
+                            let conn_id = conn_id_clone;
+                            let req_destroy_cli = req_destroy_clone;
+
                             while let Some(message) = tcp_messages_to_send.recv().await {
-                                tcp_write_socket.write_all(&message).await.unwrap();
+                                if let Some(err) = tcp_write_socket.write_all(&message).await.err() {
+                                    use std::io::ErrorKind;
+
+                                    match err.kind() {
+                                        ErrorKind::BrokenPipe | ErrorKind::ConnectionRefused => {
+                                            // Should gracefully close connection and shutdown tokio task
+                                            req_destroy_cli.clone().send(conn_id.clone());
+                                            break;
+                                        },
+                                        // Any other errors should also close the connection, and shutdown the tokio task
+                                        _ => {
+                                            req_destroy_cli.clone().send(conn_id.clone());
+                                            break;
+                                        },
+
+                                    }
+
+                                }
 
                             }
 
@@ -203,7 +252,7 @@ impl NativeResourceTrait for NativeServer {
             ChannelType::Reliable => {
                 for key_val_pair in self.tcp_connected_clients.iter() {
                     let conn = key_val_pair.value();
-                    conn.send_message.send(message_bin.clone())?;
+                    conn.send_message.send(message_bin.clone());
 
                 }
 
@@ -211,7 +260,7 @@ impl NativeResourceTrait for NativeServer {
             ChannelType::Unreliable => {
                 for key_val_pair in self.udp_connected_clients.iter() {
                     let conn = key_val_pair.value();
-                    conn.send_message.send(message_bin.clone())?;
+                    conn.send_message.send(message_bin.clone());
 
                 }
             },

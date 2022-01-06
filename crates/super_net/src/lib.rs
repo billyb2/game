@@ -36,7 +36,7 @@ pub struct SuperNetworkResource {
     /// Sadly, web clients can't use TCP
     #[cfg(feature = "native")]
     native: NativeNetResourceWrapper,
-    /// Naia stuff isn't used for native TCP clients
+    /// Naia stuff is used for native WebRTC servers and wasm clients
     naia: Option<NetworkResource>,
     is_server: bool,
     is_setup: bool,
@@ -201,8 +201,7 @@ impl SuperNetworkResource {
 
     }
 
-    pub fn register_message_channel_native<T>(&mut self, settings: MessageChannelSettings, channel: &MessageChannelID) -> Result<(), ChannelAlreadyRegistered>
-        where T: ChannelMessage {
+    pub fn register_message_channel_native(&mut self, settings: MessageChannelSettings, channel: &MessageChannelID) -> Result<(), ChannelAlreadyRegistered> {
         #[cfg(feature = "native")]
         self.native.register_message(channel, match &settings.channel_mode {
             MessageChannelMode::Unreliable => ChannelType::Unreliable,

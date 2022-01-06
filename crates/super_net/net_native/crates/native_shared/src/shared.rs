@@ -1,10 +1,8 @@
 // Some code that's needed by both net_native and super_net
-use std::net::SocketAddr;
-
-pub use turbulence::message_channels::{ChannelAlreadyRegistered, ChannelMessage};
 pub use game_types::{ConnID, DisconnectError, NativeConnectionType, SuperConnectionHandle};
+pub use turbulence::message_channels::{ChannelAlreadyRegistered, ChannelMessage};
+use turbulence::message_channels::{MessageTypeUnregistered};
 
-use turbulence::message_channels::MessageTypeUnregistered;
 
 #[cfg(feature = "native")]
 use tokio::sync::mpsc::error::SendError;

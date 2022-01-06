@@ -10,14 +10,16 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio::task::JoinHandle;
 
+use parking_lot::Mutex;
+
 use native_shared::*;
 
 pub struct NativeClient {
     pub task_pool: Arc<Runtime>,
     write_task_handle: Option<JoinHandle<()>>,
     read_task_handle: Option<JoinHandle<()>>,
-    pub tcp_msg_sender: Option<UnboundedSender<Vec<u8>>>,
-    pub udp_msg_sender: Option<UnboundedSender<Vec<u8>>>,
+    pub tcp_msg_sender: Arc<Mutex<Option<UnboundedSender<Vec<u8>>>>>,
+    pub udp_msg_sender: Arc<Mutex<Option<UnboundedSender<Vec<u8>>>>>,
     pub unprocessed_messages: RecvQueue,
     pub registered_channels: Arc<DashMap<MessageChannelID, ChannelType>>,
 
@@ -29,8 +31,8 @@ impl NativeClient {
             task_pool,
             write_task_handle: None,
             read_task_handle: None,
-            tcp_msg_sender: None,
-            udp_msg_sender: None,
+            tcp_msg_sender: Arc::new(Mutex::new(None)),
+            udp_msg_sender: Arc::new(Mutex::new(None)),
             unprocessed_messages: Arc::new(DashMap::new()),
             registered_channels: Arc::new(DashMap::new()),
         }
@@ -48,7 +50,11 @@ impl NativeResourceTrait for NativeClient {
         let (udp_message_sender, mut udp_message_receiver) = unbounded_channel::<Vec<u8>>();
         let (tcp_message_sender, mut tcp_message_receiver) = unbounded_channel::<Vec<u8>>();
 
+        let (req_destroy_cli, mut clis_to_destroy) = unbounded_channel::<()>();
+
         let msg_rcv_queue = Arc::clone(&self.unprocessed_messages);
+        let tcp_msg_sender_clone = Arc::clone(&self.tcp_msg_sender);
+        let udp_msg_sender_clone = Arc::clone(&self.udp_msg_sender);
 
         self.task_pool.spawn(async move {
             let socket = TcpStream::connect(tcp_addr).await.unwrap();
@@ -59,10 +65,26 @@ impl NativeResourceTrait for NativeClient {
             let m_queue_clone = Arc::clone(&m_queue);
 
             let send_loop = async move {
-                while let Some(message) = tcp_message_receiver.recv().await {
-                    write_socket.write_all(&message).await.unwrap();
+                tokio::select! {
+                    _ = async move {
+                        while let Some(message) = tcp_message_receiver.recv().await {
+                            write_socket.write_all(&message).await.unwrap();
 
-                }
+                        }
+                    } => (),
+                    _ = async move {
+                        loop {
+                            if clis_to_destroy.recv().await.is_some() {
+                                *tcp_msg_sender_clone.lock() = None;
+                                *udp_msg_sender_clone.lock() = None;
+                                break;
+
+                            }
+                        }
+
+                    } => println!("Successfully stopped sending"),
+                };
+
             };
 
             let write_handle = task_pool.spawn(send_loop);
@@ -93,7 +115,24 @@ impl NativeResourceTrait for NativeClient {
 
             let send_loop = async move {
                 while let Some(message) = udp_message_receiver.recv().await {
-                    socket_write_clone.send(&message).await.unwrap();
+                    if let Some(err) = socket_write_clone.send(&message).await.err() {
+                        use std::io::ErrorKind;
+
+                        match err.kind() {
+                            ErrorKind::BrokenPipe | ErrorKind::ConnectionRefused => {
+                                // Should gracefully close connection and shutdown tokio task
+                                req_destroy_cli.clone().send(());
+                                break;
+                            },
+                            // Any other errors should also close the connection, and shutdown the tokio task
+                            _ => {
+                                req_destroy_cli.clone().send(());
+                                break;
+                            },
+
+                        }
+
+                    }
 
                 }
             };
@@ -137,8 +176,8 @@ impl NativeResourceTrait for NativeClient {
 
         });
 
-        self.tcp_msg_sender = Some(tcp_message_sender);
-        self.udp_msg_sender = Some(udp_message_sender);
+        *self.tcp_msg_sender.lock() = Some(tcp_message_sender);
+        *self.udp_msg_sender.lock() = Some(udp_message_sender);
 
     }
 
@@ -154,9 +193,13 @@ impl NativeResourceTrait for NativeClient {
             ChannelType::Unreliable => &self.udp_msg_sender,
         };
 
-        message_sender.as_ref().unwrap().send(message_bin)?;
+        if let Some(message_sender) = message_sender.lock().as_ref() {
+           Ok(message_sender.send(message_bin)?)
 
-        Ok(())
+        } else {
+            Err(SendMessageError::NotConnected)
+
+        }
 
     }
 
@@ -173,7 +216,7 @@ impl NativeResourceTrait for NativeClient {
             ChannelType::Unreliable => &self.udp_msg_sender,
         };
 
-        message_sender.as_ref().unwrap().send(message_bin)?;
+        message_sender.lock().as_ref().unwrap().send(message_bin)?;
 
         Ok(())        
         
@@ -205,8 +248,8 @@ impl NativeResourceTrait for NativeClient {
 
         self.read_task_handle = None;
         self.write_task_handle = None;
-        self.tcp_msg_sender = None;
-        self.udp_msg_sender = None;
+        *self.tcp_msg_sender.lock() = None;
+        *self.udp_msg_sender.lock() = None;
         self.unprocessed_messages.clear();
 
     }

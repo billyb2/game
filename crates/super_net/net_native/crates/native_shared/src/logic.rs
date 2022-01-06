@@ -21,7 +21,7 @@ pub async fn tcp_add_to_msg_queue<const MAX_PACKET_SIZE: usize>(mut read_socket:
         let channel_id = MessageChannelID::new(read_socket.read_u8().await?);
 
         if msg_len > MAX_PACKET_SIZE {
-            eprintln!("Received a packet that was too big!\nPacket was {msg_len} bytes");
+            eprintln!("Received a packet that was too big!\nPacket was {} bytes", msg_len);
             break;
         }
 

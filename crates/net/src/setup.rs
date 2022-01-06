@@ -289,14 +289,14 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
 
     // Registers message types
     // Because of using many generics, this takes a long time to compile
-    net.register_message_channel_native::<ClientStateMessage>(CLIENT_STATE_MESSAGE_SETTINGS, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native::<ShootEvent>(PROJECTILE_MESSAGE_SETTINGS, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native::<HashMap<u8, u8>>(SCORE_MESSAGE_SETTINGS, &SCORE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native::<InfoMessage>(INFO_MESSAGE_SETTINGS, &INFO_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native::<AbilityMessage>(ABILITY_MESSAGE_SETTINGS, &ABILITY_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native::<u32>(SET_MAP_SETTINGS, &SET_MAP_CHANNEL).unwrap();
-    net.register_message_channel_native::<(u32, u64)>(REQUEST_MAP_OBJECT_SETTINGS, &REQUEST_MAP_OBJECT_CHANNEL).unwrap();
-    net.register_message_channel_native::<TextMessage>(TEXT_MESSAGE_SETTINGS, &TEXT_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native(CLIENT_STATE_MESSAGE_SETTINGS, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native(PROJECTILE_MESSAGE_SETTINGS, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native(SCORE_MESSAGE_SETTINGS, &SCORE_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native(INFO_MESSAGE_SETTINGS, &INFO_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native(ABILITY_MESSAGE_SETTINGS, &ABILITY_MESSAGE_CHANNEL).unwrap();
+    net.register_message_channel_native(SET_MAP_SETTINGS, &SET_MAP_CHANNEL).unwrap();
+    net.register_message_channel_native(REQUEST_MAP_OBJECT_SETTINGS, &REQUEST_MAP_OBJECT_CHANNEL).unwrap();
+    net.register_message_channel_native(TEXT_MESSAGE_SETTINGS, &TEXT_MESSAGE_CHANNEL).unwrap();
 
     net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
         builder

@@ -522,7 +522,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 if shooting || !player_is_local {
                     // Only broadcast shots that the player shoots
                     if player_is_local {
-                        net.broadcast_message(ev, &PROJECTILE_MESSAGE_CHANNEL);
+                        net.broadcast_message(ev, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
 
                     }
 

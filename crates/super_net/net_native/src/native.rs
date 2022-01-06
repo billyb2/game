@@ -39,16 +39,16 @@ impl NativeNetResourceWrapper {
 
         let result = match unprocessed_messages_recv_queue.get_mut(channel_id) {
             Some(mut unprocessed_channel) => {
-                let mut processed_messages = Vec::with_capacity(unprocessed_channel.len());
+                // Iterates through the channel while clearing it
+                let processed_messages: Result<Vec<(SuperConnectionHandle, T)>, ChannelProcessingError> = unprocessed_channel.drain(..).map(|(handle, message_bin) | {
+                    match bincode::deserialize::<T>(&message_bin) {
+                        Ok(msg) => Ok((handle, msg)),
+                        Err(e) => Err(e.into()),
+                    }
 
-                for (handle, message_bin) in unprocessed_channel.iter() {
-                    processed_messages.push((handle.clone(), bincode::deserialize::<T>(&message_bin)?))
-                }
+                }).collect();
 
-                // Since we've processed that message channel queue, we should clear it
-                unprocessed_channel.clear();
-
-                Ok(processed_messages)
+                processed_messages
                 
             },
             None => {
@@ -66,7 +66,7 @@ impl NativeNetResourceWrapper {
     pub fn is_connected(&self) -> bool {
         match self {
             NativeNetResourceWrapper::Server(res) => res.tcp_connected_clients.len() > 0,
-            NativeNetResourceWrapper::Client(res) => res.tcp_msg_sender.is_some(),
+            NativeNetResourceWrapper::Client(res) => res.tcp_msg_sender.lock().is_some(),
         }
 
     }
