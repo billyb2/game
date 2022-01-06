@@ -31,7 +31,6 @@ pub enum SendMessageError {
 
 }
 
-
 impl From<bincode::Error> for SendMessageError {
     fn from(error: bincode::Error) -> Self {
         Self::Bincode(error)

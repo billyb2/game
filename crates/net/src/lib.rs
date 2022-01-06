@@ -7,10 +7,10 @@
 
 mod setup;
 
+use std::result::Result;
 use std::net::SocketAddr;
 use std::convert::TryInto;
 
-//use bevy_networking_turbulence::*;
 use game_types::*;
 use map::*;
 use single_byte_hashmap::HashMap;
@@ -26,7 +26,7 @@ pub use super_net::*;
 pub use setup::*;
 
 #[cfg(feature = "graphics")]
-pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>) {
+pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>, mut app_state: ResMut<State<AppState>>) {
     // Only start sending packets when your ID is set
     if my_player_id.0.is_some() {
         // Rate limiting so that the game sends 66 updates every second
@@ -46,7 +46,7 @@ pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&Player
 
                     let message: ClientStateMessage = (id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, alpha, damage_source.0, (gun_model, ability), *player_name);
 
-                    net.broadcast_message(&message, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
+                    net.broadcast_message(&message, &CLIENT_STATE_MESSAGE_CHANNEL).err_on_server_disconnect(&mut net, &mut app_state);
 
                 }
 
@@ -605,5 +605,28 @@ pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_
 #[inline(always)]
 pub fn disconnect(mut net: ResMut<SuperNetworkResource>) {
     net.disconnect_from_all();
+
+}
+
+pub trait ErrorToMainMenu {
+    fn err_on_server_disconnect(&self, net: &SuperNetworkResource, app_state: &mut State<AppState>);
+}
+
+// If a command fails to send due to a disconnect error on the client, then we should return to game menu and show an error to the client
+impl ErrorToMainMenu for Result<(), SendMessageError> {
+    fn err_on_server_disconnect(&self, net: &SuperNetworkResource, app_state: &mut State<AppState>) {
+        if let Some(err) = self.as_ref().err() {
+            match err {
+                SendMessageError::NotConnected => {
+                    if net.is_client() {
+                        println!("Server suddenly disconnected!");
+                        app_state.set(AppState::GameMenu).unwrap();
+
+                    }
+                },
+                _ => (),
+            }
+        }
+    }
 
 }

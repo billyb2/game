@@ -188,11 +188,7 @@ pub fn score_system(mut commands: Commands, deathmatch_score: Res<DeathmatchScor
                 .insert(GameRelated);
 
         } else if player_continue_timer.single().0.finished() {
-            commands.insert_resource(RigidBodySet::new());
-            commands.insert_resource(ColliderSet::new());
-
             setup_systems::setup_physics(commands);
-
             app_state.set(AppState::GameMenu).unwrap();
 
         }

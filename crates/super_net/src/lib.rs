@@ -151,18 +151,24 @@ impl SuperNetworkResource {
 
         if let Some(naia) = self.naia.as_mut() {
             // Inlined version of naia.broadcast_message(), with some modifications
-            for (_handle, connection) in naia.connections.iter_mut() {
-                let channels = connection.channels().unwrap();
-                // If the result is Some(msg), that means that the message channel is full, which is no bueno. 
-                //  There's probably a better way to do this (TODO?) but since I haven't run into this issue yet, 
-                //  I don't care lol
-                if channels.try_send(message.clone())?.is_some() {
-                    panic!("Message channel full for type: {:?}", type_name::<M>());
+            if naia.connections.len() > 0 {
+                for (_handle, connection) in naia.connections.iter_mut() {
+                    let channels = connection.channels().unwrap();
+                    // If the result is Some(msg), that means that the message channel is full, which is no bueno. 
+                    //  There's probably a better way to do this (TODO?) but since I haven't run into this issue yet, 
+                    //  I don't care lol
+                    if channels.try_send(message.clone())?.is_some() {
+                        panic!("Message channel full for type: {:?}", type_name::<M>());
+
+                    }
+
+                    // Since we're using OnEverySend channel flushing, we don't need the if statement in the normal fn
+                    channels.try_flush::<M>()?;
 
                 }
-
-                // Since we're using OnEverySend channel flushing, we don't need the if statement in the normal fn
-                channels.try_flush::<M>()?;
+            // If there are no connections and the resource is a client
+            } else if self.is_client() {
+                return Err(SendMessageError::NotConnected);
 
             }
 
