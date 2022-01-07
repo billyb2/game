@@ -9,6 +9,10 @@ Please follow the instructions below in order, while it seems complicated, it ma
 Windows used to have to install OpenSSL, but thanks to conditional features, it just statically links OpenSSL
 - Please install [VS2019 Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16)
 - [Install CMake](https://cmake.org/download/)
+- [Download Ninja](https://github.com/ninja-build/ninja/releases) and add it to system PATH
+- [Install Python](https://www.python.org/downloads/windows)
+- [Install Perl](https://strawberryperl.com/)
+- [Install NASM](https://www.nasm.us/pub/nasm/releasebuilds/?C=M;O=D) and make sure nasm.exe is in PATH
 - `cargo install -f cargo-binutils && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
 - `rustup component add llvm-tools-preview rust-src`
 - `rustup toolchain install nightly`
@@ -118,5 +122,5 @@ This is as easy as running `mkdir -p $HOME/.config/tiled/extensions/ && ln -s /p
 
 ## Before pushing your Git commit
 
-Please try running `cargo make serve-fast-simd` and verifying that WASM both compiles and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later on. Usually, they should be almost identical, but there is some WASM specific and native specific code in the codebase (see `crates/src/config` as a prominent example).
+Please try running `cargo make serve-fast-simd` and verifying that WASM both compiles and runs correctly. I know WASM builds take a long time, but if a commit slips through that doesn't work with WASM, it makes it far more difficult to debug why native builds work and why WASM builds don't later on. Usually, they should be almost identical, but there is some WASM specific and native specific code in the codebase (see `crates/config` as a prominent example).
 

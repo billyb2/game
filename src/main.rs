@@ -10,8 +10,6 @@ use bevy::prelude::*;
 #[cfg(feature = "native")]
 use bevy::render::draw::OutsideFrustum;
 
-use bevy_networking_turbulence::*;
-
 use rand::Rng;
 
 use rustc_hash::FxHashMap;
@@ -49,7 +47,7 @@ fn main() {
 
     #[cfg(not(debug_assertions))]
     app
-    // Antialiasing is lower for debug builds
+    // Antialiasing is higher for release builds
     .insert_resource(Msaa { samples: 8 });
 
     app.insert_resource( WindowDescriptor {
@@ -73,6 +71,7 @@ fn main() {
 
     });
 
+    //TOOD replace these with unwrap_or_else or somethign similar
     let model = match get_data(String::from("model")) {
         Some(object) => object,
         None => {
@@ -147,10 +146,11 @@ fn main() {
     .insert_resource(name)
     .insert_resource(NumOfBots(0))
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
-    .add_plugins(DefaultPlugins)
-    .add_plugin(NetworkingPlugin::default())
+    .add_plugins(DefaultPlugins);
+
+    app
+    .add_plugin(SuperNetworkingPlugin)
     //.add_plugin(AudioPlugin)
-    .add_event::<NetworkEvent>()
     // Adds some possible events, like reloading and using your ability
     .add_event::<ReloadEvent>()
     .add_event::<ShootEvent>()
@@ -172,17 +172,12 @@ fn main() {
     // Hot asset reloading
     .add_startup_system(setup_asset_loading)
     .add_startup_system(setup_physics)
-    .add_system(check_assets_ready)
-    .add_system(handle_debug_text);
+    .add_system(check_assets_ready);
 
     #[cfg(feature = "native")]
     app.insert_resource(Hosting(true));
     #[cfg(feature = "web")]
     app.insert_resource(Hosting(false));
-
-
-    #[cfg(feature = "native")]
-    app.add_startup_system(setup_listening);
 
     // Sprite culling
     // For some reason, sprite culling fails on WASM
@@ -203,6 +198,9 @@ fn main() {
     app.add_system_set(
         SystemSet::on_update(AppState::Connecting)
             .with_system(tick_timers)
+            .with_system(request_player_info)
+            .with_system(handle_client_commands)
+            .with_system(connection_menu)
 
     );
 
@@ -235,6 +233,8 @@ fn main() {
             .with_system(send_stats.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_stat_packets.label(InputFromPlayer).before("player_attr"))
             .with_system(handle_projectile_packets.label(InputFromPlayer).before("player_attr").before("spawn_projectiles"))
+            .with_system(handle_client_commands.before("player_attr").before(InputFromPlayer))
+            .with_system(handle_score_packets)
             .with_system(my_keyboard_input.label(InputFromPlayer).before("player_attr"))
             .with_system(score_input.label(InputFromPlayer).before("player_attr"))
             .with_system(chat_input.label(InputFromPlayer).before("player_attr"))
@@ -261,7 +261,7 @@ fn main() {
             .with_system(score_system.after("move_objects"))
             .with_system(despawn_destroyed_walls.after("move_objects"))
             .with_system(death_event_system.after("move_objects").after(InputFromPlayer).before("dead_players"))
-            .with_system(respawn_palyers.after("move_objects").label("dead_players"))
+            .with_system(respawn_players.after("move_objects").label("dead_players"))
             .with_system(generic_log_system::<GameLogs, GameLogText, { None }, 8.0, LogEvent>.after("dead_players"))
             .with_system(generic_log_system::<ChatLogs, ChatLogText, { Some(20.0) }, 20.0, ChatEvent>.after(InputFromPlayer))
             .with_system(update_game_ui.after(InputFromPlayer).after("move_objects"))
@@ -280,23 +280,6 @@ fn main() {
         SystemSet::on_update(AppState::InGame)
             .with_system(handle_server_commands)
             .with_system(send_score)
-    );
-
-    #[cfg(feature = "web")]
-    app.add_system_set(
-        SystemSet::on_update(AppState::Connecting)
-            .with_system(request_player_info)
-            .with_system(handle_client_commands)
-            .with_system(connection_menu)
-
-    );
-
-    #[cfg(feature = "web")]
-    app.add_system_set(
-        SystemSet::on_update(AppState::InGame)
-            .with_system(handle_client_commands.before("player_attr").before(InputFromPlayer))
-            .with_system(handle_score_packets)
-
     );
 
     app.add_system_set(

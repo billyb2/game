@@ -492,7 +492,7 @@ dependencies = [
 [[package]]
 name = "bevy_networking_turbulence"
 version = "0.3.3"
-source = "git+https://github.com/billyb2/bevy_networking_turbulence#3bbf7544c5d3a199e0d759b64d5fcbf0d2cba286"
+source = "git+https://github.com/billyb2/bevy_networking_turbulence?branch=publicized#d5ddf1b0f71b49e650779764324b2e53068c6ed9"
 dependencies = [
  "bevy",
  "bytes",
@@ -1253,6 +1253,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e77a43b28d0668df09411cb0bc9a8c2adc40f9a048afe863e05fd43251e8e39c"
+dependencies = [
+ "cfg-if 1.0.0",
+ "num_cpus",
+ "rayon",
+]
+
+[[package]]
 name = "deflate"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1656,6 +1667,7 @@ dependencies = [
  "serde",
  "single_byte_hashmap",
  "ui_graphics",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -2350,11 +2362,11 @@ name = "menus"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy_networking_turbulence",
  "config",
  "game_types",
  "helper_functions",
  "map",
+ "net",
  "setup_systems",
  "single_byte_hashmap",
 ]
@@ -2521,6 +2533,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "native_client"
+version = "0.1.0"
+dependencies = [
+ "arrayvec 0.7.1",
+ "bincode",
+ "dashmap",
+ "native_shared",
+ "parking_lot",
+ "tokio",
+]
+
+[[package]]
+name = "native_server"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "dashmap",
+ "native_shared",
+ "parking_lot",
+ "tokio",
+]
+
+[[package]]
+name = "native_shared"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "dashmap",
+ "game_types",
+ "helper_functions",
+ "tokio",
+ "turbulence",
+]
+
+[[package]]
 name = "ndk"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2600,9 +2647,24 @@ dependencies = [
  "bevy",
  "bevy_networking_turbulence",
  "game_types",
+ "helper_functions",
  "map",
  "rapier2d",
+ "rayon",
  "single_byte_hashmap",
+ "super_net",
+]
+
+[[package]]
+name = "net_native"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "dashmap",
+ "native_client",
+ "native_server",
+ "native_shared",
+ "tokio",
 ]
 
 [[package]]
@@ -2812,6 +2874,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssl-src"
+version = "111.17.0+1.1.1m"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05d6a336abd10814198f66e2a91ccd7336611f30334119ca8ce300536666fcf4"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2820,6 +2891,7 @@ dependencies = [
  "autocfg",
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -3594,6 +3666,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
+name = "super_net"
+version = "0.1.0"
+dependencies = [
+ "bevy_app",
+ "bevy_ecs",
+ "bevy_networking_turbulence",
+ "bevy_tasks",
+ "net_native",
+ "tokio",
+ "turbulence",
+]
+
+[[package]]
 name = "svg_fmt"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3668,6 +3753,35 @@ name = "tinyvec_macros"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
+
+[[package]]
+name = "tokio"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70e992e41e0d2fb9f755b37446f20900f64446ef54874f40a60c78f021ac6144"
+dependencies = [
+ "autocfg",
+ "bytes",
+ "libc",
+ "memchr",
+ "mio",
+ "num_cpus",
+ "parking_lot",
+ "pin-project-lite",
+ "tokio-macros",
+ "winapi",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b557f72f448c511a979e2564e55d74e6c4432fc96ff4f6241bc6bded342643b7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "toml"
@@ -3780,8 +3894,7 @@ checksum = "7ae2f58a822f08abdaf668897e96a5656fe72f5a9ce66422423e8849384872e6"
 [[package]]
 name = "turbulence"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2140dc12e5b8b6a747ee3bd42e58dc0e506dddb64b269f3d9a40cca057bdba09"
+source = "git+https://github.com/billyb2/turbulence?branch=v3_clone#9621f6cf20511e3ccd2aeb7a7daab2b1e5fa1b27"
 dependencies = [
  "bincode",
  "byteorder",
@@ -4277,27 +4390,27 @@ checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
 [[patch.unused]]
 name = "bevy_app"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_core"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_ecs"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_reflect"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "bevy_tasks"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy#ffde86efa049dbdaf4ae4be3cd64c4c1c0f776f3"
+source = "git+https://github.com/bevyengine/bevy#3de391be21666c90661066ca395c63813352b4bb"
 
 [[patch.unused]]
 name = "naia-socket-shared"

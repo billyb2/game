@@ -14,13 +14,12 @@ use bevy::math::Size;
 use bevy::input::ElementState;
 use bevy::input::keyboard::KeyboardInput;
 
-//use crate::*;
-use bevy_networking_turbulence::*;
 use single_byte_hashmap::HashMap;
 
 use config::{get_data, write_data};
 use setup_systems::*;
 use map::*;
+use net::*;
 use game_types::*;
 
 use helper_functions::graphics::spawn_button;
@@ -312,8 +311,8 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
     });
 }
 
-pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>), (Changed<Interaction>, With<Button>)>, mut net: ResMut<NetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>) {    
-    if addr.is_none() {
+pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>), (Changed<Interaction>, With<Button>)>, mut net: ResMut<SuperNetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, hosting: Res<Hosting>) {    
+    if addr.is_none() && !hosting.0 {
         let (entity, mut text) = text_query.single_mut();
         let text = &mut text.sections[0].value;
         let header_text = &mut header_text.single_mut().sections[0].value;
@@ -322,18 +321,21 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
         |text: &mut String, header_text: &mut String| {
             match text.parse::<IpAddr>() {
                 Ok(addr) => {
-                    let socket_addr = SocketAddr::new(addr, 9363);
+                    let socket_addr = SocketAddr::new(addr, match cfg!(target_arch = "wasm32") {
+                        true => 9363,
+                        false => 9364,
+                    });
 
                     commands.entity(entity).despawn_recursive();
-                    commands.insert_resource(socket_addr);
-                    *text = format!("Connecting to {}...", socket_addr);
+                    header_text.str_write(format!("Connecting to {socket_addr}...").as_str());
     
-                    net.connect(socket_addr);
+                    commands.insert_resource(socket_addr);
+                    net.connect::<2048>(socket_addr, Some(SocketAddr::new(addr, 9365)));
                     
                 },
                 Err(err) => {
+                    header_text.str_write(format!("Couldn't connect to {text} due to error: {:?}", err).as_str());
                     text.clear();
-                    *header_text = format!("Error: {:?}", err);
                 },
             }
         };
@@ -343,19 +345,17 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                 Interaction::Clicked => connect_or_clear(text, header_text),
                 Interaction::Hovered => {
                     *material = button_materials.hovered.clone();
-                    *header_text = String::from("Connect");
+                    header_text.str_write("Connect");
     
                 }
                 Interaction::None => {
                     *material = button_materials.normal.clone();
-                    *header_text = String::from("IP to connect to:");
+                    header_text.str_write("IP to connect to:");
     
                 }
             }
     
         });
-    
-        char_input_events.iter().for_each(|c| text.push(c.char));
     
         if keyboard_input.just_pressed(KeyCode::Back) {
             text.pop();
@@ -370,10 +370,22 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
             app_state.set(AppState::GameMenu).unwrap();
         }
 
+        char_input_events.iter().for_each(|c| {
+            if c.char.is_numeric() || c.char == '.' {
+                text.push(c.char);
+            }
+
+        });
+
+    } 
+
+    #[cfg(debug_assertions)]
+    if hosting.0 {
+        panic!("Hosting?????");
     }
 }
 
-pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<NetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
+pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<SuperNetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         const DEFAULT_MAP_OBJECT: MapObject = MapObject::default();
 
@@ -402,10 +414,10 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
         let map = maps.0.get_mut(&map_crc32.0).unwrap(); 
 
         if map.objects.capacity() == 0 {
-            net.broadcast_message((String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
+            //net.broadcast_message(&(String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
 
         } else {
-            map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
+/*            map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
                 match *object == DEFAULT_MAP_OBJECT {
                     true => {
                         let index: u64 = i.try_into().unwrap();
@@ -415,7 +427,7 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
                     false => None,
 
             }).for_each(|i| net.broadcast_message((map_crc32.0, i)));
-
+*/
             // Request a map object for each default map object
             
         }
@@ -426,13 +438,14 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
     });
 }
 
-pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
+pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut hosting: ResMut<Hosting>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
         match *interaction {
             Interaction::Clicked => {
                 if text.ends_with("game") {
+                    hosting.0 = text.starts_with("Host");
                     app_state.set(AppState::Connecting).unwrap();
 
                 } else {
@@ -461,7 +474,6 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
 }
 
 pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, (Without<CustomizeHelpText>, Without<NameText>)>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut my_name: ResMut<PlayerName>, mut help_text: Query<&mut Text, (With<CustomizeHelpText>, Without<NameText>)>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut name_text: Query<&mut Text, (With<NameText>, Without<CustomizeHelpText>)>) {
-
     if typing.0 {
         let text = &mut name_text.single_mut().sections[0].value;
 
@@ -696,7 +708,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut Ability, &mut Model, &mut Perk, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<SuperNetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -783,11 +795,11 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
 
                             let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
-                            net.broadcast_message(set_ability_message);
+                            net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL);
 
                             let my_player_id = my_player_id.0.as_ref();
 
-                            let (entity, mut ability, mut model, mut perk, mut ability_charge, mut ability_completed, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
+                            let (entity, mut ability_info, mut model, mut perk, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
 
                             if *my_ability == Ability::Brute {
                                 *my_gun_model = Model::Melee;
@@ -799,7 +811,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             write_data(String::from("ability"), *my_ability);
                             write_data(String::from("perk"), *my_perk);
 
-                            *ability = *my_ability;
+                            ability_info.ability = *my_ability;
                             *model = *my_gun_model;
                             *perk = *my_perk;
 
@@ -808,7 +820,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             *helmet_color = new_helmet_color;
                             *inner_suit_color = new_inner_suit_color;
 
-                            set_ability_player_attr(&mut ability_charge, &mut ability_completed, *ability);
+                            set_ability_player_attr(&mut ability_info);
 
                             commands.entity(entity).insert_bundle(Gun::new(*my_gun_model, *my_ability, *my_perk));
 

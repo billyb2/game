@@ -27,7 +27,7 @@ use rapier2d::na::Vector2;
 pub use setup_graphics::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps: Res<Maps>, mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, map_crc32: Res<MapCRC32>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, mut _rigid_body_set: Option<ResMut<RigidBodySet>>, mut _collider_set: Option<ResMut<ColliderSet>>, num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (maps, map_crc32): (Res<Maps>, Res<MapCRC32>), mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, (mut _rigid_body_set, mut _collider_set): (Option<ResMut<RigidBodySet>>, Option<ResMut<ColliderSet>>), num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>, hosting: Res<Hosting>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -260,12 +260,15 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, maps
 
     #[cfg(all(feature = "native", feature = "graphics"))]
     {
-        let p_id = available_player_ids.remove(0);
-        commands.insert_resource(MyPlayerID(Some(p_id)));
+        if hosting.0 {
+            let p_id = available_player_ids.remove(0);
+            commands.insert_resource(MyPlayerID(Some(p_id)));
 
-        online_player_ids.insert(p_id.0, None);
-        _deathmatch_score.0.insert(p_id.0, 0);
-        local_players.push(p_id.0);
+            online_player_ids.insert(p_id.0, None);
+            _deathmatch_score.0.insert(p_id.0, 0);
+            local_players.push(p_id.0);
+
+        }
         
     }
 

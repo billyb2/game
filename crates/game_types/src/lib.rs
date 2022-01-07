@@ -5,6 +5,8 @@
 
 pub mod player_attr;
 
+use std::net::SocketAddr;
+
 use bevy::core::Timer;
 use bevy::ecs::component::Component;
 use bevy::math::Vec2;
@@ -20,6 +22,9 @@ pub use lights::*;
 
 pub use player_attr::*;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 #[derive(Component)]
 pub struct DistanceTraveled(pub f32);
 
@@ -32,7 +37,7 @@ pub struct Health(pub f32);
 #[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Damage(pub f32);
 
-#[derive(Component, Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Component, Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlayerID(pub u8);
 
 // Projectile stuff
@@ -103,12 +108,7 @@ pub enum InGameSettings {
 }
 
 #[derive(Component)]
-
 pub struct CustomizeHelpText;
-
-#[derive(Component)]
-
-pub struct SlowedDown(pub Timer);
 
 #[derive(Component)]
 pub struct GameRelated;
@@ -181,4 +181,112 @@ impl Size {
         Self(Vec2::new(w, h))
     }
 
+}
+
+// A resource stating whether or not the player is hosting
+pub struct Hosting(pub bool);
+
+pub trait WriteToStringSlice {
+    fn str_write(&mut self, new_str: &str);
+}
+
+impl WriteToStringSlice for String {
+    fn str_write(&mut self, new_str: &str) {
+        self.clear();
+        self.push_str(new_str);
+
+        debug_assert_eq!(self.as_str(), new_str);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+
+}
+
+#[cfg(target_arch = "x86_64")]
+pub fn log(s: &str) {
+    println!("{s}");
+} 
+
+#[derive(Clone, Debug)]
+pub enum SuperConnectionHandle {
+    Native(ConnID),
+    Naia(u32),
+}
+
+impl SuperConnectionHandle {
+    pub const fn new_native(conn_id: ConnID) -> Self {
+        SuperConnectionHandle::Native(conn_id)
+
+    }
+
+    pub const fn new_naia(handle: u32) -> Self {
+        SuperConnectionHandle::Naia(handle)
+
+    }
+
+    pub fn native(&self) -> &ConnID {
+        match *self {
+            SuperConnectionHandle::Native(ref id) => id,
+            SuperConnectionHandle::Naia(_) => panic!("Naia"),
+
+        }
+    }
+
+    pub fn naia(&self) -> &u32 {
+        match *self {
+            SuperConnectionHandle::Naia(ref handle) => handle,
+            SuperConnectionHandle::Native(_) => panic!("Native"),
+
+        }
+    }
+
+    pub fn is_native(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        match self {
+            SuperConnectionHandle::Native(_) => true,
+            SuperConnectionHandle::Naia(_) => false,
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        false
+    }
+
+    pub fn is_naia(&self) -> bool {
+        !self.is_native()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ConnID {
+    pub uuid: u32,
+    pub addr: SocketAddr,
+    pub mode: NativeConnectionType,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum NativeConnectionType {
+    Tcp,
+    Udp,
+}
+
+impl ConnID {
+    pub fn new(uuid: u32, addr: SocketAddr, mode: NativeConnectionType) -> Self {
+        Self {
+            uuid,
+            addr,
+            mode,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum DisconnectError {
+    NotConnected,
 }

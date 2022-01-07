@@ -1,0 +1,28 @@
+[package]
+name = "super_net"
+version = "0.1.0"
+edition = "2021"
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+bevy_app = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_tasks = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+
+# For creating an interface to bevy_networking_turbulence
+bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
+
+tokio = { version = "1", features = ["rt-multi-thread", "net"], optional = true }
+turbulence = { git = "https://github.com/billyb2/turbulence", branch = "v3_clone" }
+
+# For creating an interface to the TCP cli/serv
+net_native = { path = "net_native" }
+
+[features]
+native = [
+	"net_native/native",
+	"tokio",
+]
+web = [
+	"net_native/web",
+]

@@ -1104,8 +1104,6 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                     });
                 });
 
-            // Only WASM can join games
-            #[cfg(target_arch = "wasm32")]
             node_parent
                 .spawn_bundle(ButtonBundle {
                     style: Style {

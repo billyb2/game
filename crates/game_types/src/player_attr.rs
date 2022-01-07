@@ -27,17 +27,31 @@ use crate::Size;
 pub struct Player {
     pub id: PlayerID,
     pub health: Health,
-    pub speed: PlayerSpeed,
-    pub ability: Ability,
-    pub ability_charge: AbilityCharge,
-    pub ability_completed: AbilityCompleted,
-    pub using_ability: UsingAbility,
+    pub ability_info: AbilityInfo,
     pub can_respawn: RespawnTimer,
     pub can_melee: CanMelee,
-    pub dashing_info: DashingInfo,
     pub perk: Perk,
     pub damage_source: DamageSource,
     pub name: PlayerName,
+    pub speed_info: PlayerSpeedInfo,
+}
+
+#[derive(Component)]
+pub struct AbilityInfo {
+    pub ability: Ability,
+    pub ability_charge: Timer,
+    // The AbilityCompleted timer is just the duration of how long the ability lasts (if it has an affect over time)
+    pub ability_completed: Timer,
+    pub using_ability: bool,
+
+}
+
+#[derive(Component)]
+pub struct PlayerSpeedInfo {
+    pub slowed_down_timer: Option<Timer>,
+    pub speed: f32,
+    pub dash_info: DashingInfo,
+    
 }
 
 #[derive(Component, Clone, Debug, Deserialize, Serialize)]
@@ -61,43 +75,45 @@ pub struct ShootEvent {
 #[cfg(target_arch = "wasm32")]
 pub const DEFAULT_PLAYER_SPEED: f32 = 5.5;
 
+// Pretty stupid hack to get around weird speed bug
+//TODO: Should actually fix this someday
 #[cfg(not(target_arch = "wasm32"))]
 pub const DEFAULT_PLAYER_SPEED: f32 = 11.0;
 
-pub fn set_ability_player_attr(ability_charge: &mut AbilityCharge, ability_completed: &mut AbilityCompleted, ability: Ability) {
-    *ability_charge = match ability {
-        Ability::Stim => AbilityCharge(Timer::from_seconds(7.5, false)),
-        Ability::Warp => AbilityCharge(Timer::from_seconds(5.0, false)),
-        Ability::Wall => AbilityCharge(Timer::from_seconds(4.0, false)),
-        Ability::Engineer => AbilityCharge(Timer::from_seconds(1.0, false)),
-        Ability::Inferno => AbilityCharge(Timer::from_seconds(10.0, false)),
-        Ability::Cloak => AbilityCharge(Timer::from_seconds(7.0, false)),
-        Ability::PulseWave => AbilityCharge(Timer::from_seconds(6.5, false)),
-        Ability::Ghost => AbilityCharge(Timer::from_seconds(12.0, false)),
-        Ability::Brute => AbilityCharge(Timer::from_seconds(8.0, false)),
+pub fn set_ability_player_attr(info: &mut AbilityInfo) {
+    info.ability_charge = match info.ability {
+        Ability::Stim => Timer::from_seconds(7.5, false),
+        Ability::Warp => Timer::from_seconds(5.0, false),
+        Ability::Wall => Timer::from_seconds(4.0, false),
+        Ability::Engineer => Timer::from_seconds(1.0, false),
+        Ability::Inferno => Timer::from_seconds(10.0, false),
+        Ability::Cloak => Timer::from_seconds(7.0, false),
+        Ability::PulseWave => Timer::from_seconds(6.5, false),
+        Ability::Ghost => Timer::from_seconds(12.0, false),
+        Ability::Brute => Timer::from_seconds(8.0, false),
 
     };
 
-    *ability_completed = match ability {
-        Ability::Stim => AbilityCompleted(Timer::from_seconds(3.0, false)),
-        Ability::Ghost => AbilityCompleted(Timer::from_seconds(4.75, false)),
-        Ability::Cloak => AbilityCompleted(Timer::from_seconds(3.5, false)),
+    info.ability_completed = match info.ability {
+        Ability::Stim => Timer::from_seconds(3.0, false),
+        Ability::Ghost => Timer::from_seconds(4.75, false),
+        Ability::Cloak => Timer::from_seconds(3.5, false),
         // Only stim and cloak have a duration, so this variable can be set to whatever for the other abilities
-        _ => AbilityCompleted(Timer::from_seconds(0.0, false)),
+        _ => Timer::from_seconds(0.0, false),
     };
 
 }
 
 #[inline]
-pub fn set_perk_player_attr(health: &mut Health, speed: &mut PlayerSpeed, perk: Perk) {
+pub fn set_perk_player_attr(health: &mut Health, speed: &mut f32, perk: Perk) {
     match perk {
         Perk::HeavyArmor => {
             health.0 *= 1.1;
-            speed.0 *= 0.8;
+            *speed *= 0.8;
         },
         Perk::LightArmor => {
             health.0 *= 0.8;
-            speed.0 *= 1.1;
+            *speed *= 1.1;
         },
         _ => ()
 
@@ -124,42 +140,50 @@ impl Player {
                 true => Health(100.0),
                 false => Health(0.0),
             },
-            speed: match ability {
-                // Stim and Brute players have a faster default running speed
-                Ability::Stim => PlayerSpeed(DEFAULT_PLAYER_SPEED + 1.0),
-                Ability::Brute => PlayerSpeed(DEFAULT_PLAYER_SPEED * 1.4),
-                _ => PlayerSpeed(DEFAULT_PLAYER_SPEED),
-            },
-            ability,
-            ability_charge: AbilityCharge(Timer::from_seconds(0.0, false)),
-            // The AbilityCompleted timer is just the duration of how long the ability lasts (if it has an affect over time)
-            ability_completed: AbilityCompleted(Timer::from_seconds(0.0, false)),
-            using_ability: UsingAbility(false),
-            can_respawn: RespawnTimer(Timer::from_seconds(2.5, false)),
-            dashing_info: DashingInfo {
-                time_till_can_dash: match ability {
-                    Ability::Brute => Timer::from_seconds(2.0, false),
-                    _ => Timer::from_seconds(4.0, false),
+            speed_info: PlayerSpeedInfo {
+                slowed_down_timer: None,
+                speed: match ability {
+                    // Stim and Brute players have a faster default running speed
+                    Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
+                    Ability::Brute => DEFAULT_PLAYER_SPEED * 1.4,
+                    _ => DEFAULT_PLAYER_SPEED,
+                },
+                dash_info: DashingInfo {
+                    time_till_can_dash: match ability {
+                        Ability::Brute => Timer::from_seconds(2.0, false),
+                        _ => Timer::from_seconds(4.0, false),
 
+                    },
+                    time_till_stop_dash: match ability {
+                        Ability::Brute => Timer::from_seconds(0.4, false),
+                        _ => Timer::from_seconds(0.2, false),
+                    },
+                    dashing: false,
                 },
-                time_till_stop_dash: match ability {
-                    Ability::Brute => Timer::from_seconds(0.4, false),
-                    _ => Timer::from_seconds(0.2, false),
-                },
-                dashing: false,
             },
-            can_melee: CanMelee(Timer::from_seconds(0.6, false)),
+            ability_info: AbilityInfo {
+                ability,
+                ability_charge: Timer::from_seconds(0.0, false),
+                ability_completed:Timer::from_seconds(0.0, false),
+                using_ability: false,
+            },
+            can_respawn: RespawnTimer(Timer::from_seconds(2.5, false)),
+            can_melee: match ability {
+                Ability::Brute => CanMelee(Timer::from_seconds(0.25, false)),
+                _ => CanMelee(Timer::from_seconds(0.5, false)),
+
+            },
             perk,
             damage_source: DamageSource(None),
-            name: name.unwrap_or(PlayerName::get_random_name()),
+            name: name.unwrap_or_else(|| PlayerName::get_random_name()),
         };
 
-        set_perk_player_attr(&mut player.health, &mut player.speed, player.perk);
-        set_ability_player_attr(&mut player.ability_charge, &mut player.ability_completed, player.ability);
+        set_perk_player_attr(&mut player.health, &mut player.speed_info.speed, player.perk);
+        set_ability_player_attr(&mut player.ability_info);
 
         // The ability charge is ready on game start
-        finish_timer(&mut player.ability_charge.0);
-        finish_timer(&mut player.dashing_info.time_till_can_dash);
+        finish_timer(&mut player.ability_info.ability_charge);
+        finish_timer(&mut player.speed_info.dash_info.time_till_can_dash);
 
         player
     }
@@ -309,25 +333,11 @@ impl Distribution<Perk> for Standard {
     }
 }
 
-
-#[derive(Component)]
-pub struct PlayerSpeed(pub f32);
-
 #[derive(Component)]
 pub struct DamageSource(pub Option<u8>);
 
 #[derive(Component)]
-pub struct AbilityCharge(pub Timer);
-
-#[derive(Component)]
-pub struct AbilityCompleted(pub Timer);
-
-#[derive(Component)]
 pub struct RespawnTimer(pub Timer);
-
-#[derive(Component)]
-pub struct UsingAbility(pub bool);
-
 
 #[derive(Component, Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum ProjectileType {
@@ -734,7 +744,7 @@ pub struct DeathmatchScore(pub HashMap<u8, u8>);
 pub struct MyPlayerID(pub Option<PlayerID>);
 
 // The first item is the player ID, the second item is the network handle and a timeout timer
-pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(u32, Timer)>>);
+pub struct OnlinePlayerIDs(pub HashMap<u8, Option<(SuperConnectionHandle, Timer)>>);
 
 #[derive(Component)]
 pub struct ExplodeTimer(pub Timer);
@@ -790,9 +800,11 @@ impl PlayerName {
         let adj_index = rng.usize(0..num_of_adjectives);
         let noun_index = rng.usize(0..num_of_nouns);
 
-        let mut player_name_as_string = format!("{}-{}", adjectives.nth(adj_index).unwrap(), nouns.nth(noun_index).unwrap());
+        // Need to convert the string to uppercase in order to make it consistent 
+        let mut player_name_as_string = format!("{}-{}", adjectives.nth(adj_index).unwrap(), nouns.nth(noun_index).unwrap()).to_uppercase();
 
         player_name_as_string.truncate(MAX_LEN_OF_PLAYER_NAME);
+        player_name_as_string.shrink_to_fit();
 
         let mut array_string: ArrayString<MAX_LEN_OF_PLAYER_NAME> = ArrayString::new();
         array_string.push_str(&player_name_as_string);

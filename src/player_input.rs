@@ -74,7 +74,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 }
 
 
-pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSpeed, &mut DashingInfo, &RigidBodyHandleWrapper, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut typing: ResMut<Typing>, keyboard_input: Res<Input<KeyCode>>) {
+pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSpeedInfo, &RigidBodyHandleWrapper, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut typing: ResMut<Typing>, keyboard_input: Res<Input<KeyCode>>) {
     if !typing.0 {
         if in_game_settings.is_empty() {
             let mut angle = None;
@@ -213,14 +213,14 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
             }
 
             if let Some(my_player_id) = &my_player_id.0 {
-                let (mut speed, mut dashing_info, rigid_body_handle, health) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+                let (mut player_speed_info, rigid_body_handle, health) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
 
                 if health.0 > 0.0 {
-                    if keyboard_input.just_pressed(keybindings.dash) && !dashing_info.dashing && dashing_info.time_till_can_dash.finished() {
-                        speed.0 *= 3.1;
+                    if keyboard_input.just_pressed(keybindings.dash) && !player_speed_info.dash_info.dashing && player_speed_info.dash_info.time_till_can_dash.finished() {
+                        player_speed_info.speed *= 3.1;
 
-                        dashing_info.dashing = true;
-                        dashing_info.time_till_stop_dash.reset();
+                        player_speed_info.dash_info.dashing = true;
+                        player_speed_info.dash_info.time_till_stop_dash.reset();
 
                     }
 
@@ -230,9 +230,11 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
                     }
 
                     if let Some(angle) = angle {
+                        let speed = &mut player_speed_info.speed;
+
                         let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
                         // If the player is dashing then they can't change the angle that they move in
-                        let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(speed.0, speed.0));
+                        let new_linvel = Vector2::new(angle.cos(), angle.sin()).component_mul(&Vector2::new(*speed, *speed));
 
                         rigid_body.set_linvel(new_linvel, true);
 
@@ -304,7 +306,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>
     }
 }
 
-pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>, my_name: Res<PlayerName>) {
+pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>, my_name: Res<PlayerName>, mut app_state: ResMut<State<AppState>>) {
     if typing.0 {
         let text = &mut chat_text.single_mut().sections[0].value;
 
@@ -319,7 +321,7 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
                             if text_in_chat {
                                 let my_player_id = my_player_id.0.as_ref().unwrap().0;
                                 let message: TextMessage = (my_player_id, text[6..].to_owned(), 0);
-                                net.broadcast_message(message);
+                                net.broadcast_message(&message, &TEXT_MESSAGE_CHANNEL).err_on_server_disconnect(&mut net, &mut app_state);
                                 log_event.send(ChatEvent(format!("{}: {}", my_name.as_ref(), text[6..].to_owned())));
 
                                 text.truncate(6);
@@ -367,10 +369,12 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
 
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &Ability, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &AbilityInfo, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
-            let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, player_ability, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+            let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, ability_info, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
+
+            let player_ability = &ability_info.ability;
 
             if btn.pressed(MouseButton::Left) || btn.just_pressed(MouseButton::Left) || bursting.0 {
                 // To allow for deterministic shooting, the recoil of every bullet is pre-generated and then sent over the network
@@ -460,7 +464,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, mut lights_res: ResMut<LightsResource>, windows: Res<Windows>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, mut lights_res: ResMut<LightsResource>, windows: Res<Windows>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>) {
     if my_player_id.0.is_some() {
         shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
@@ -522,7 +526,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 if shooting || !player_is_local {
                     // Only broadcast shots that the player shoots
                     if player_is_local {
-                        net.broadcast_message((*ev).clone());
+                        net.broadcast_message(ev, &PROJECTILE_MESSAGE_CHANNEL).err_on_server_disconnect(&mut net, &mut app_state);
 
                     }
 
@@ -710,18 +714,19 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
     });
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &Ability, &mut AbilityCharge, &mut AbilityCompleted, &mut PlayerSpeed, &Health, &mut UsingAbility, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &Health, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
-                let (transform, ability, mut ability_charge, mut
-            ability_completed, mut speed, health, mut using_ability, model, reload_timer, mut shader_phasing, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
+            let (transform, mut ability_info, mut speed_info, health, model, reload_timer, mut shader_phasing, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
+
+            let speed = &mut speed_info.speed;
 
             let player_is_local = local_players.0.contains(&ev_id.0);
 
             // Events that come from other players dont need to wait for ability charge to finish
-            if (*ability != Ability::Brute && ability_charge.0.finished()) || !player_is_local || (*ability == Ability::Brute && ability_charge.0.elapsed_secs() >= 0.5) {
+            if (ability_info.ability != Ability::Brute && ability_info.ability_charge.finished()) || !player_is_local || (ability_info.ability == Ability::Brute && ability_info.ability_charge.elapsed_secs() >= 0.5) {
 
-                match ability {
+                match ability_info.ability {
                     Ability::Wall => {
                         let rotation = get_angle(mouse_pos.0.x, mouse_pos.0.y, transform.translation.x, transform.translation.y);
                         let coords = transform.translation + const_vec3!([100.0, 100.0, 0.0]) * Vec3::new(rotation.cos(), rotation.sin(), 0.0);
@@ -733,7 +738,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         let message: AbilityMessage = ([ev_id.0, Ability::Wall.into()], message_array);
 
                         if player_is_local {
-                            net.broadcast_message(message);
+                            net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
 
                         }
 
@@ -794,7 +799,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                             .insert(RigidBodyHandleWrapper(rigid_body_handle))
                             .insert(ColliderHandleWrapper(collider_handle));
 
-                        ability_charge.0.reset();
+                        ability_info.ability_charge.reset();
 
                     },
                     Ability::Warp => {
@@ -821,14 +826,14 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         let new_pos = rigid_body.translation() + warp_distance;
 
                         rigid_body.set_translation(new_pos, true);
-                        ability_charge.0.reset();
+                        ability_info.ability_charge.reset();
 
                     },
                     Ability::Stim => {
-                        if !using_ability.0 && ability_charge.0.finished() {
-                            speed.0 *= 2.0;
-                            ability_completed.0.reset();
-                            using_ability.0 = true;
+                        if !ability_info.using_ability && ability_info.ability_charge.finished() {
+                            speed_info.speed *= 2.0;
+                            ability_info.ability_completed.reset();
+                            ability_info.using_ability = true;
 
                         }
                     },
@@ -850,7 +855,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                             speed: PROJECTILE_SPEED,
                             projectile_type: ProjectileType::Molotov,
                             damage: Damage(5.0),
-                            player_ability: *ability,
+                            player_ability: ability_info.ability,
                             size: Vec2::new(7.0, 7.0),
                             reloading: reload_timer.reloading,
 
@@ -858,11 +863,11 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                         shoot_event.send(event);
 
-                        ability_charge.0.reset();
+                        ability_info.ability_charge.reset();
 
                     },
                     Ability::Cloak => {
-                        if !player_is_local || (!using_ability.0 && ability_charge.0.finished()) {
+                        if !player_is_local || (!ability_info.using_ability && ability_info.ability_charge.finished()) {
                             shader_phasing.value = match my_player_id.0 == ev_id.0 {
                                 true => 0.25,
                                 false => 0.0,
@@ -872,11 +877,11 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
                                 let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
 
-                                net.broadcast_message(message);
+                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
                             }
 
-                            ability_completed.0.reset();
-                            using_ability.0 = true;
+                            ability_info.ability_completed.reset();
+                            ability_info.using_ability = true;
                         }
 
                     },
@@ -902,11 +907,11 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                         shoot_event.send(event);
 
-                        ability_charge.0.reset();             
+                        ability_info.ability_charge.reset();             
 
                     },
                     Ability::Ghost =>  {
-                        if !player_is_local || (!using_ability.0 && ability_charge.0.finished()) {
+                        if !player_is_local || (!ability_info.using_ability && ability_info.ability_charge.finished()) {
                             shader_phasing.value = 0.5;
 
                                 if player_is_local {
@@ -914,15 +919,15 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                     let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Ghost.into()], message_array);
 
 
-                                net.broadcast_message(message);
+                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
 
                             }
 
                             let collider = collider_set.get_mut(collider_handle.0).unwrap();
                             collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1011));
 
-                            using_ability.0 = true;
-                            ability_completed.0.reset();
+                            ability_info.using_ability = true;
+                            ability_info.ability_completed.reset();
                         }
                     },
                     Ability::Brute => {
@@ -947,12 +952,12 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                         shoot_event.send(event);
 
-                        if ability_charge.0.elapsed_secs() - 0.8 >= 0.0 {
-                            let new_charge_f32 = ability_charge.0.elapsed() - Duration::from_secs_f32(0.06);
-                            ability_charge.0.set_elapsed(new_charge_f32);
+                        if ability_info.ability_charge.elapsed_secs() - 0.8 >= 0.0 {
+                            let new_charge_f32 = ability_info.ability_charge.elapsed() - Duration::from_secs_f32(0.06);
+                            ability_info.ability_charge.set_elapsed(new_charge_f32);
 
                         } else {
-                            ability_charge.0.set_elapsed(Duration::from_secs_f32(0.0));
+                            ability_info.ability_charge.set_elapsed(Duration::from_secs_f32(0.0));
 
                         }
 
@@ -966,10 +971,8 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 }
 
 pub fn reset_player_resources(mut query: Query<(&mut AmmoInMag, &MaxAmmo, &mut
-TimeSinceStartReload, &mut Bursting, &AbilityCompleted, &Ability, &mut UsingAbility, &mut
-AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandleWrapper)>, mut collider_set: ResMut<ColliderSet>) {
-    query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, ability_completed, ability,
-        mut using_ability, mut ability_charge, mut speed, mut dashing_info, collider_handle)| {
+TimeSinceStartReload, &mut Bursting, &mut AbilityInfo, &mut PlayerSpeedInfo, &ColliderHandleWrapper)>, mut collider_set: ResMut<ColliderSet>) {
+    query.for_each_mut(|(mut ammo_in_mag, max_ammo, mut reload_timer, mut bursting, mut ability_info, mut speed_info, collider_handle)| {
         if reload_timer.reloading && reload_timer.timer.finished() {
             ammo_in_mag.0 = max_ammo.0;
             reload_timer.reloading = false;
@@ -978,42 +981,42 @@ AbilityCharge, &mut PlayerSpeed, &mut DashingInfo, &ColliderHandleWrapper)>, mut
 
         }
 
-        if using_ability.0 && ability_completed.0.finished() {
-            if *ability == Ability::Stim {
-                speed.0 = DEFAULT_PLAYER_SPEED + 1.0;
+        if ability_info.using_ability && ability_info.ability_completed.finished() {
+            if ability_info.ability == Ability::Stim {
+                speed_info.speed = DEFAULT_PLAYER_SPEED + 1.0;
 
-            } else if *ability == Ability::Ghost {
+            } else if ability_info.ability == Ability::Ghost {
                 let collider = collider_set.get_mut(collider_handle.0).unwrap();
                 collider.set_collision_groups(InteractionGroups::new(0b1000, 0b1111));
 
             }
 
-            using_ability.0 = false;
-            ability_charge.0.reset();
+            ability_info.using_ability = false;
+            ability_info.ability_charge.reset();
 
         }
 
-        if dashing_info.dashing && dashing_info.time_till_stop_dash.finished() {
-            speed.0 = match *ability {
+        if speed_info.dash_info.dashing && speed_info.dash_info.time_till_stop_dash.finished() {
+            speed_info.speed = match ability_info.ability {
                 Ability::Stim => DEFAULT_PLAYER_SPEED + 1.0,
                 Ability::Brute => DEFAULT_PLAYER_SPEED * 1.4,
                 _ => DEFAULT_PLAYER_SPEED,
 
             };
 
-            dashing_info.dashing = false;
-            dashing_info.time_till_can_dash.reset();
+            speed_info.dash_info.dashing = false;
+            speed_info.dash_info.time_till_can_dash.reset();
 
         }
 
     });
 }
 
-pub fn reset_player_phasing(mut query: Query<(&PlayerID, &UsingAbility, &Ability, &mut Alpha)>, local_players: Res<LocalPlayers>) {
-    query.for_each_mut(|(player_id, using_ability, ability, mut shader_phasing)| {
+pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo, &mut Alpha)>, local_players: Res<LocalPlayers>) {
+    query.for_each_mut(|(player_id, ability_info, mut shader_phasing)| {
         let player_is_local = local_players.0.contains(&player_id.0);
 
-        if !using_ability.0 && *ability != Ability::Stim && player_is_local {
+        if !ability_info.using_ability && ability_info.ability != Ability::Stim && player_is_local {
             shader_phasing.value = 1.0;
 
         }

@@ -61,18 +61,18 @@ pub trait Bot {
 
 }
 
-pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandleWrapper, &mut Health, &Model, &Ability, &MaxDistance, &Speed, &TimeSinceLastShot, &AmmoInMag, &RecoilRange, &TimeSinceStartReload, &UsingAbility, &AbilityCharge)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_ability: EventWriter<AbilityEvent>) {
+pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWrapper>, &RigidBodyHandleWrapper, &mut Health, &Model, &AbilityInfo, &MaxDistance, &Speed, &TimeSinceLastShot, &AmmoInMag, &RecoilRange, &TimeSinceStartReload)>, mut rigid_body_set: ResMut<RigidBodySet>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, mut shoot_event: EventWriter<ShootEvent>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_ability: EventWriter<AbilityEvent>) {
     // Generate the list of TruncatedPlayer by looping over the bots list initially
-    let players: Vec<(TruncatedPlayer, bool)> = bots.iter_mut().map(|(transform, id, _bw, _rgb, health, _model, ability, _md, _pjs, _ttls, _aig, _rr, _rt, using_ability, _ab_ch)| {
+    let players: Vec<(TruncatedPlayer, bool)> = bots.iter_mut().map(|(transform, id, _bw, _rgb, health, _model, ability_info, _md, _pjs, _ttls, _aig, _rr, _rt)| {
         // Cloaking players aren't shown to bots
         (TruncatedPlayer {
             pos: transform.translation.truncate(),
             id: *id,
-        }, (*ability == Ability::Cloak && using_ability.0) || health.0 <= 0.0 )
+        }, (ability_info.ability == Ability::Cloak && ability_info.using_ability) || health.0 <= 0.0 )
 
     }).collect();
 
-    bots.for_each_mut(|(mut transform, player_id, mut bot, rigid_body_handle, mut health, model, ability, max_distance, proj_speed, time_since_last_shot, ammo_in_mag, recoil_range, reload_timer, _using_ability, ability_charge)| {
+    bots.for_each_mut(|(mut transform, player_id, mut bot, rigid_body_handle, mut health, model, ability_info, max_distance, proj_speed, time_since_last_shot, ammo_in_mag, recoil_range, reload_timer)| {
         let rigid_body_handle = &rigid_body_handle.0;
 
         if let Some(bot) = bot.as_mut() {
@@ -92,7 +92,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
             bot.0.update_health(*health);
             bot.0.misc_update();
 
-            let gun = Gun::new(*model, *ability, Perk::ExtendedMag);
+            let gun = Gun::new(*model, ability_info.ability, Perk::ExtendedMag);
 
             if health.0 > 0.0 {
                 if let Some((angle, dashing)) = bot.0.movement() {
@@ -140,7 +140,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
                                     speed: proj_speed.0,
                                     projectile_type: gun.projectile_type,
                                     damage: gun.damage,
-                                    player_ability: *ability,
+                                    player_ability: ability_info.ability,
                                     size: Vec2::new(5.0, 5.0),
                                     reloading: reload_timer.reloading,
                                 }
@@ -155,7 +155,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut BotWr
 
                 }
 
-                if bot.0.use_ability() && ability_charge.0.finished() {
+                if bot.0.use_ability() && ability_info.ability_charge.finished() {
                     ev_ability.send(AbilityEvent(player_id.0));
 
                 }
