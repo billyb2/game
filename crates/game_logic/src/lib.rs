@@ -210,12 +210,16 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                             if !hit_wall {
                                                 let p_speed_info = p_speed_info.as_mut().unwrap();
 
+                                                // When hit, players are slowed down to make taking damage more of a punishment
+                                                speed.0 *= 0.85;
+                                                commands.entity(entity).insert(SlowedDown(Timer::from_seconds(1.0, false)));
+
                                                 // Slow down players for X amount of seconds
                                                 if projectile_type == ProjectileType::PulseWave {
                                                     p_speed_info.speed *=  0.25;
                                                     p_speed_info.slowed_down_timer = Some(Timer::from_seconds(2.5, false));
 
-                                                } else if projectile_type == ProjectileType::MolotovLiquid && p_speed_info.speed >= DEFAULT_PLAYER_SPEED * 0.65{
+                                                } else if projectile_type == ProjectileType::MolotovLiquid && p_speed_info.speed >= DEFAULT_PLAYER_SPEED * 0.65 {
                                                     p_speed_info.speed *= 0.65;
                                                     p_speed_info.slowed_down_timer = Some(Timer::from_seconds(2.0, false));
 
@@ -246,9 +250,8 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         // The sticky grenade type shouldn't either
                         && projectile_type_ref != ProjectileType::StickyGrenade
                         // the projecitle hit a wall or a player
-                        && (hit_map_object || hit_player)
+                        && ((hit_map_object && projectile_type_ref != ProjectileType::PulseWave) || hit_player)
                         // If it's a pulsewave, it has to have hit a player to dissapear
-                        && (projectile_type_ref != ProjectileType::PulseWave) 
                         {
                                 // Projectiles upon collision with any object destroy themselves, except for collisions with other bullets
                                 should_remove_rigid_body = true;
@@ -274,6 +277,26 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             
                         } else if projectile_type_ref == ProjectileType::StickyGrenade && hit_map_object {
                             commands.entity(entity).insert(ExplodeTimer(Timer::from_seconds(3.0, false)));
+
+                        // Molotovs when hitting an object become molotov liquid
+                        } else if projectile_type_ref == ProjectileType::Molotov {
+                            let collider = collider_set.get_mut(*collider_handle).unwrap();
+
+                            **projectile_type.as_mut().unwrap() = ProjectileType::MolotovLiquid;
+                            *material = proj_materials.molotov_liquid.clone();
+
+                            sprite.size = Vec2::splat(200.0);
+                            collider.set_shape(SharedShape::ball(200.0 / 500.0));
+                            rigid_body.set_body_type(RigidBodyType::Static);
+
+                            collider.set_collision_groups(InteractionGroups::new(0b0010, 0b0100));
+
+                            commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(45.0, false)));
+
+                            let (_damage, (shot_from, _proj_type)) = u128_to_f32_u8(rigid_body.user_data);
+
+                            rigid_body.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
+                            collider.user_data = f32_u8_to_u128(0.0, (shot_from, ProjectileType::MolotovLiquid.into()));
 
                         }
 
