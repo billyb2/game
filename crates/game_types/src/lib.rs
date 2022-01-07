@@ -108,12 +108,7 @@ pub enum InGameSettings {
 }
 
 #[derive(Component)]
-
 pub struct CustomizeHelpText;
-
-#[derive(Component)]
-
-pub struct SlowedDown(pub Timer);
 
 #[derive(Component)]
 pub struct GameRelated;

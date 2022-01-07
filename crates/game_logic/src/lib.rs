@@ -21,8 +21,8 @@ use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 use map::MapHealth;
 
 //TODO: Damage numbers
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeed>, &mut Handle<ColorMaterial>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>) {
-    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed, mut material)| {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeedInfo>, &mut Handle<ColorMaterial>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>) {
+    movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed_info, mut material)| {
         let mut should_remove_rigid_body = false;
 
         let rigid_body_handle = &rigid_body_handle.0;
@@ -208,16 +208,16 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                         },
                                         false => {
                                             if !hit_wall {
-                                                let speed = p_speed.as_mut().unwrap();
+                                                let p_speed_info = p_speed_info.as_mut().unwrap();
+
                                                 // Slow down players for X amount of seconds
                                                 if projectile_type == ProjectileType::PulseWave {
-                                                    speed.0 *=  0.25;
-                                                    commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.5, false)));
+                                                    p_speed_info.speed *=  0.25;
+                                                    p_speed_info.slowed_down_timer = Some(Timer::from_seconds(2.5, false));
 
-
-                                                } else if projectile_type == ProjectileType::MolotovLiquid && speed.0 >= DEFAULT_PLAYER_SPEED * 0.65{
-                                                    speed.0 *= 0.65;
-                                                    commands.entity(entity).insert(SlowedDown(Timer::from_seconds(2.0, false)));
+                                                } else if projectile_type == ProjectileType::MolotovLiquid && p_speed_info.speed >= DEFAULT_PLAYER_SPEED * 0.65{
+                                                    p_speed_info.speed *= 0.65;
+                                                    p_speed_info.slowed_down_timer = Some(Timer::from_seconds(2.0, false));
 
                                                 }
 
@@ -241,7 +241,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                         hit_map_object = hit_map_object && projectile_type_ref != ProjectileType::UsedBullet;
 
                         if 
-                        // None of the molov type should be destroyed when hit
+                        // None of the molov types should be destroyed when hit
                         (projectile_type_ref != ProjectileType::MolotovLiquid && projectile_type_ref != ProjectileType::Molotov && projectile_type_ref != ProjectileType::MolotovFire)
                         // The sticky grenade type shouldn't either
                         && projectile_type_ref != ProjectileType::StickyGrenade
@@ -449,15 +449,17 @@ pub fn generic_log_system<L: Component + Logs, T: Component, const TEXT_SIZE: Op
 
 
 //TODO: Change this to seperate queries using Without
-pub fn update_game_ui(query: Query<(&AbilityCharge, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>, mut ammo_text: Query<&mut Text, (With<AmmoText>, Without<AbilityChargeText>)>, mut ability_charge_text: Query<&mut Text, (With<AbilityChargeText>, Without<HealthText>)>, mut health_text: Query<&mut Text, (With<HealthText>, Without<AmmoText>)>,
+pub fn update_game_ui(query: Query<(&AbilityInfo, &AmmoInMag, &MaxAmmo, &TimeSinceStartReload, &Health), With<Model>>, mut ammo_style: Query<&mut Style, With<AmmoText>>, mut ammo_text: Query<&mut Text, (With<AmmoText>, Without<AbilityChargeText>)>, mut ability_charge_text: Query<&mut Text, (With<AbilityChargeText>, Without<HealthText>)>, mut health_text: Query<&mut Text, (With<HealthText>, Without<AmmoText>)>,
     my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>) {
     if let Some(my_id) = &my_player_id.0 {
-        let (ability_charge, player_ammo_count, player_max_ammo, reload_timer, player_health) = query.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
+        let (ability_info, player_ammo_count, player_max_ammo, reload_timer, player_health) = query.get(*player_entity.get(&my_id.0).unwrap()).unwrap();
+
+        let ability_charge = &ability_info.ability_charge;
 
         let ammo_in_mag = (*player_ammo_count).0;
         let max_ammo = (*player_max_ammo).0;
 
-        let ability_charge_percent = ability_charge.0.percent() * 100.0;
+        let ability_charge_percent = ability_charge.percent() * 100.0;
 
         let reloading = reload_timer.reloading;
         let health = player_health.0;

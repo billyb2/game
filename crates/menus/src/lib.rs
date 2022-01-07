@@ -708,7 +708,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<SuperNetworkResource>, mut players: Query<(Entity, &mut Ability, &mut Model, &mut Perk, &mut AbilityCharge, &mut AbilityCompleted, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<SuperNetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -799,7 +799,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                             let my_player_id = my_player_id.0.as_ref();
 
-                            let (entity, mut ability, mut model, mut perk, mut ability_charge, mut ability_completed, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
+                            let (entity, mut ability_info, mut model, mut perk, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
 
                             if *my_ability == Ability::Brute {
                                 *my_gun_model = Model::Melee;
@@ -811,7 +811,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             write_data(String::from("ability"), *my_ability);
                             write_data(String::from("perk"), *my_perk);
 
-                            *ability = *my_ability;
+                            ability_info.ability = *my_ability;
                             *model = *my_gun_model;
                             *perk = *my_perk;
 
@@ -820,7 +820,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             *helmet_color = new_helmet_color;
                             *inner_suit_color = new_inner_suit_color;
 
-                            set_ability_player_attr(&mut ability_charge, &mut ability_completed, *ability);
+                            set_ability_player_attr(&mut ability_info);
 
                             commands.entity(entity).insert_bundle(Gun::new(*my_gun_model, *my_ability, *my_perk));
 

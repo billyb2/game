@@ -26,23 +26,23 @@ pub use super_net::*;
 pub use setup::*;
 
 #[cfg(feature = "graphics")]
-pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &Ability, &UsingAbility, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>, mut app_state: ResMut<State<AppState>>) {
+pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &Alpha, &AbilityInfo, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>, mut app_state: ResMut<State<AppState>>) {
     // Only start sending packets when your ID is set
     if my_player_id.0.is_some() {
         // Rate limiting so that the game sends 66 updates every second
         if ready_to_send_packet.0.finished() {
-            players.for_each(|(id, transform, health, damage_source, alpha, ability, using_ability, gun_model, player_name)| {
+            players.for_each(|(id, transform, health, damage_source, alpha, ability_info, gun_model, player_name)| {
                 if local_players.0.contains(&id.0) {
                     let quat_xyzw: [f32; 4] = transform.rotation.into();
 
-                    let alpha = match *ability == Ability::Cloak && using_ability.0 {
+                    let alpha = match ability_info.ability == Ability::Cloak && ability_info.using_ability {
                         true => 0.0,
                         false => alpha.value,
 
                     };
 
                     let gun_model: u8 = (*gun_model).into();
-                    let ability: u8 = (*ability).into();
+                    let ability: u8 = (ability_info.ability).into();
 
                     let message: ClientStateMessage = (id.0, [transform.translation.x, transform.translation.y], quat_xyzw, health.0, alpha, damage_source.0, (gun_model, ability), *player_name);
 
@@ -56,7 +56,7 @@ pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&Player
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visible, &mut Alpha, &mut Model, &mut Ability, &mut PlayerName)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visible, &mut Alpha, &mut Model, &mut AbilityInfo, &mut PlayerName)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ClientStateMessage> = Vec::new();
     let my_id = my_player_id.0.unwrap();
@@ -71,11 +71,11 @@ pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Q
 
         make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
 
-        let (mut transform, rigid_body_handle, mut health, mut visible, mut player_alpha, mut model, mut ability, mut player_name) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+        let (mut transform, rigid_body_handle, mut health, mut visible, mut player_alpha, mut model, mut ability_info, mut player_name) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
         let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
 
         *model = gun_model.into();
-        *ability = new_ability.into();
+        ability_info.ability = new_ability.into();
 
         transform.rotation = Quat::from_xyzw(rot_x, rot_y, rot_z, rot_w);
 
@@ -148,7 +148,7 @@ pub fn send_score(mut net: ResMut<SuperNetworkResource>, score: Res<DeathmatchSc
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut Ability, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut AbilityInfo, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<AbilityMessage> = Vec::new();
 
@@ -176,9 +176,9 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
 
                 if player_id != my_id.0 {
                     make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, &handle);
-                    let (mut old_ability, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
+                    let (mut old_ability_info, rigid_body_handle) = players.get_mut(*player_entity.get(&player_id).unwrap()).unwrap();
 
-                    *old_ability = ability;
+                    old_ability_info.ability = ability;
 
                     let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
 
@@ -295,7 +295,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut Ability)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
+pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
     if !hosting.0 {
         return;
     }
@@ -317,13 +317,13 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
             }
         // Respond to the player's ability request
         } else if command[0] == 1 {
-            let player_id = command[2];
+            let requested_player_id = command[2];
             let player_ability: Ability = command[1].into();
 
             let mut found_id = false;
 
             for i in 0..available_ids.len() {
-                if unsafe { available_ids.get_unchecked(i).0 } == player_id {
+                if unsafe { available_ids.get_unchecked(i).0 } == requested_player_id {
                     available_ids.remove(i);
                     found_id = true;
                     break;
@@ -333,18 +333,18 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
             }
 
             if found_id {
-                make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
+                make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, requested_player_id, handle);
 
-                println!("Player {player_id} has joined!");
-                log_event.send(LogEvent(format!("Player {player_id} has joined!")));
+                println!("Player {requested_player_id} has joined!");
+                log_event.send(LogEvent(format!("Player {requested_player_id} has joined!")));
 
-                let (_id, mut ability) = players.iter_mut().find(|(id, _ability)| id.0 == player_id).expect(&format!("ID {} not found!", player_id));
-                *ability = player_ability;
+                let (_id, mut ability_info) = players.iter_mut().find(|(id, _ability)| id.0 == requested_player_id).expect(&format!("ID {} not found!", requested_player_id));
+                ability_info.ability = player_ability;
                 // Send the player's ability back
-                messages_to_send.push((handle.clone(), [1, (*ability).into(), player_id]));
+                messages_to_send.push((handle.clone(), [1, ability_info.ability.into(), requested_player_id]));
 
             } else {
-                println!("Illegal id request for ID: {player_id}");
+                println!("Illegal id request for ID: {requested_player_id}");
 
             }
 
@@ -367,7 +367,7 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
     }
 }
 
-pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut Ability, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>) {    
+pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut AbilityInfo, &mut Handle<ColorMaterial>)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>) {    
     if hosting.0 {
         return;
     }
@@ -389,9 +389,9 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
 
             make_player_online(&mut deathmatch_score.0, &mut online_player_ids.0, player_id, handle);
 
-            players.for_each_mut(|(id, mut ability, _sprite)| {
+            players.for_each_mut(|(id, mut ability_info, _sprite)| {
                 if id.0 == player_id {
-                    *ability = player_ability;
+                    ability_info.ability = player_ability;
                     ability_set.0 = true;
 
                 }
