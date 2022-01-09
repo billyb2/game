@@ -82,7 +82,7 @@ args = ["build", "--features", "native,use_wgpu,graphics,bevy/dynamic", "--bin",
 command = "cargo"
 
 [tasks.build-windows]
-env = { "RUSTFLAGS" = "-Ctarget-cpu=x86-64-v3 -Zstrip=symbols" }
+env = { "RUSTFLAGS" = "-Ctarget-cpu=x86-64-v3 -Zstrip=symbols -Ctarget-feature=+crt-static" }
 args = ["build", "--features", "native,use_wgpu,graphics,openssl/vendored", "--bin", "game", "--target", "x86_64-pc-windows-gnu", "--profile", "dev-windows"]
 command = "cargo"
 

@@ -66,13 +66,12 @@ linker = "/usr/bin/x86_64-w64-mingw32-gcc"
 ar = "/usr/x86_64-w64-mingw32/bin/ar"
 ```
 - Finally, to start building the binary, run `cargo make build-windows`
-- To actually run the binary, you're gonna need the following DLL's in the same directory as the exe: libgcc_s_seh-1.dll, libstdc++-6.dll, and libwinpthread-1.dll. Most of these can be found in /usr/x86_64-w64-mingw32/ on Linux
 
-To actually run the binary, you'll need a machine running Windows or a compatibility layer like Wine or Proton
+To actually run the binary, you'll need a machine running Windows or a compatibility layer like Wine or Proton. At the time of writing, the game doesn't run on Wine, just Proton, and even on Proton tokio networking doesn't work.
 
-Thanks to `bevy_webgl2`, this game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded and because of the fact that WASM does slow programs down compared to running natively.
+This game can run on the web! When running the game, expect to wait a few seconds on the page with a completely blank, or a canvas with black lines. This is because web builds are typically slower, since they're single threaded and because of the fact that WASM does slow programs down compared to running natively.
 
-I'd recommend using Chrome (or Chromium based browsers like Brave) for testing WASM builds. The performance on Firefox isn't great (30 fps) without messing with flags, and even then it's still slightly worse than Chrome.
+I'd recommend using Chrome (or Chromium based browsers like Brave) for testing WASM builds. The performance on Firefox isn't great, and even then it's still slightly worse than Chrome. When running release builds, performance is good on both browsers.
 
 To build for WASM (Web ASseMbly), run:
 `cargo make serve-opt-simd`
@@ -80,7 +79,7 @@ To build for WASM (Web ASseMbly), run:
 To make a very optimized build for WASM (slow build times, fast run times), run:
 `cargo make serve-release-simd`
 
-To run a debug WASM build (not recommended for playtesting since the performance is horrible), run:
+To run a debug WASM build (not recommended for playtesting since the performance is horrible, but good for making sure basic new features are working), run:
 `cargo make serve-fast-simd`
 
 I only recommend debug builds if you want to very quickly check a change, rather than playtesting the game
