@@ -14,6 +14,7 @@ use bevy::math::Size;
 use bevy::input::ElementState;
 use bevy::input::keyboard::KeyboardInput;
 
+//use helper_functions::color_to_image_handle;
 use single_byte_hashmap::HashMap;
 
 use config::{get_data, write_data};
@@ -24,7 +25,7 @@ use game_types::*;
 
 use helper_functions::graphics::spawn_button;
 
-pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
+pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), With<Button>>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut keybindings: ResMut<KeyBindings>, mut selected_key_button: Query<&mut SelectedKeyButton>, mut keyboard_input: ResMut<Input<KeyCode>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let mut selected_key_button = selected_key_button.single_mut();
 
@@ -285,7 +286,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
     });
 }
 
-pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
+pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -300,18 +301,18 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
 
             }
             Interaction::Hovered => {
-                *material = button_materials.hovered.clone();
+                *material = button_materials.hovered;
 
             }
             Interaction::None => {
-                *material = button_materials.normal.clone();
+                *material = button_materials.normal;
 
             }
         }
     });
 }
 
-pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>), (Changed<Interaction>, With<Button>)>, mut net: ResMut<SuperNetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, hosting: Res<Hosting>) {    
+pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut UiColor), (Changed<Interaction>, With<Button>)>, mut net: ResMut<SuperNetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, hosting: Res<Hosting>) {    
     if addr.is_none() && !hosting.0 {
         let (entity, mut text) = text_query.single_mut();
         let text = &mut text.sections[0].value;
@@ -385,7 +386,7 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
     }
 }
 
-pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<SuperNetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
+pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<SuperNetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         const DEFAULT_MAP_OBJECT: MapObject = MapObject::default();
 
@@ -438,7 +439,7 @@ pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interacti
     });
 }
 
-pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut hosting: ResMut<Hosting>) {
+pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut hosting: ResMut<Hosting>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -473,7 +474,7 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
     });
 }
 
-pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, (Without<CustomizeHelpText>, Without<NameText>)>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut my_name: ResMut<PlayerName>, mut help_text: Query<&mut Text, (With<CustomizeHelpText>, Without<NameText>)>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut name_text: Query<&mut Text, (With<NameText>, Without<CustomizeHelpText>)>) {
+pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text, (Without<CustomizeHelpText>, Without<NameText>)>, mut app_state: ResMut<State<AppState>>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut my_name: ResMut<PlayerName>, mut help_text: Query<&mut Text, (With<CustomizeHelpText>, Without<NameText>)>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut name_text: Query<&mut Text, (With<NameText>, Without<CustomizeHelpText>)>) {
     if typing.0 {
         let text = &mut name_text.single_mut().sections[0].value;
 
@@ -648,7 +649,7 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
 
 }
 
-pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>, mut num_of_bots: ResMut<NumOfBots>) {
+pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>, mut num_of_bots: ResMut<NumOfBots>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -708,7 +709,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut Handle<ColorMaterial>, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<SuperNetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk, &mut HelmetColor, &mut InnerSuitColor)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<SuperNetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -738,8 +739,8 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                         ..Default::default()
                                     },
-                                    material: materials.add(Color::rgba_u8(255, 255, 255, 10).into()),
-                                    visible: Visible {
+                                    color: UiColor(Color::rgba_u8(255, 255, 255, 10)),
+                                    visibility: Visibility {
                                         is_visible: true,
                                         ..Default::default()
                                     },
@@ -765,13 +766,13 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                     });
 
-                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Ability: {}", *my_ability), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                    spawn_button::<{ None }, 85.0>(node_parent, format!("Ability: {}", *my_ability), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Gun: {}", *my_gun_model), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                    spawn_button::<{ None }, 85.0>(node_parent, format!("Gun: {}", *my_gun_model), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                    spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), format!("Perk: {}", *my_perk), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                    spawn_button::<{ None }, 85.0>(node_parent, format!("Perk: {}", *my_perk), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
-                                    spawn_button::<{ Some(225.0) }, 85.0>(node_parent, button_materials.normal.clone(), String::from("Back"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                    spawn_button::<{ Some(225.0) }, 85.0>(node_parent, String::from("Back"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
 
                                 })
@@ -799,7 +800,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                             let my_player_id = my_player_id.0.as_ref();
 
-                            let (entity, mut ability_info, mut model, mut perk, mut helmet_color, mut inner_suit_color) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
+                            let (entity, mut ability_info, mut model, mut perk) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
 
                             if *my_ability == Ability::Brute {
                                 *my_gun_model = Model::Melee;
@@ -815,10 +816,10 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
                             *model = *my_gun_model;
                             *perk = *my_perk;
 
-                            let (new_helmet_color, new_inner_suit_color) = set_player_colors(&my_ability);
+                            /*let (new_helmet_color, new_inner_suit_color) = set_player_colors(&my_ability);
 
                             *helmet_color = new_helmet_color;
-                            *inner_suit_color = new_inner_suit_color;
+                            *inner_suit_color = new_inner_suit_color;*/
 
                             set_ability_player_attr(&mut ability_info);
 
@@ -840,8 +841,8 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                     ..Default::default()
                                 },
-                                material: materials.add(Color::rgba_u8(255, 255, 255, 10).into()),
-                                visible: Visible {
+                                color: UiColor(Color::rgba_u8(255, 255, 255, 10)),
+                                visibility: Visibility {
                                     is_visible: true,
                                     ..Default::default()
                                 },
@@ -867,7 +868,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_mate
 
                                 });
 
-                                spawn_button::<{ None }, 85.0>(node_parent, button_materials.normal.clone(), String::from("Customize"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+                                spawn_button::<{ None }, 85.0>(node_parent, String::from("Customize"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
                             })
                             .insert(InGameSettings::Settings);

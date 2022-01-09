@@ -7,8 +7,6 @@
 #![allow(incomplete_features)]
 
 use bevy::prelude::*;
-#[cfg(feature = "native")]
-use bevy::render::draw::OutsideFrustum;
 
 use rand::Rng;
 
@@ -25,7 +23,6 @@ use game_lib::system_labels::*;
 use game_logic::*;
 use setup_systems::*;
 use game_types::*;
-use game_lib::shaders::*;
 use map::*;
 use menus::*;
 use config::*;
@@ -43,12 +40,12 @@ fn main() {
     #[cfg(debug_assertions)]
     app
     // Antialiasing
-    .insert_resource(Msaa { samples: 2 });
+    .insert_resource(Msaa { samples: 1 });
 
     #[cfg(not(debug_assertions))]
     app
     // Antialiasing is higher for release builds
-    .insert_resource(Msaa { samples: 8 });
+    .insert_resource(Msaa { samples: 1 });
 
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
@@ -133,7 +130,6 @@ fn main() {
     })
     // Gotta initialize the mouse position with something, or else the game crashes
     .insert_resource(MousePosition(Vec2::ZERO))
-    .insert_resource(AmbientLightLevel { value: 0.875 })
     // Used to make searches through queries for 1 player much quicker, with some overhead in the beginning of the program
     .insert_resource(MyPlayerID(None))
     .insert_resource(GameMode::Deathmatch)
@@ -148,6 +144,10 @@ fn main() {
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
     .add_plugins(DefaultPlugins);
 
+    //#[cfg(feature = "graphics")]
+    //app
+    //.add_plugin(MaterialPlugin::<PlayerMaterial>::default());
+
     app
     .add_plugin(SuperNetworkingPlugin)
     //.add_plugin(AudioPlugin)
@@ -159,20 +159,13 @@ fn main() {
     .add_event::<LogEvent>()
     .add_event::<ChatEvent>();
 
-    //The WebGL2 plugin is only added if we're compiling to WASM
-    #[cfg(feature = "web")]
-    app.add_plugin(bevy_webgl2::WebGL2Plugin);
-
     app
     // All the materials of the game NEED to be added before everything else
     .add_startup_system(setup_materials)
     // The cameras also need to be added first as well
     .add_startup_system(setup_cameras)
     .add_startup_system(setup_default_controls)
-    // Hot asset reloading
-    .add_startup_system(setup_asset_loading)
-    .add_startup_system(setup_physics)
-    .add_system(check_assets_ready);
+    .add_startup_system(setup_physics);
 
     #[cfg(feature = "native")]
     app.insert_resource(Hosting(true));
@@ -226,7 +219,6 @@ fn main() {
         SystemSet::on_update(AppState::InGame)
             // Timers should be ticked first
             .with_system(tick_timers.before("player_attr").before(InputFromPlayer).label("tick_timers"))
-            .with_system(destroy_light_timers.before("player_attr").before(InputFromPlayer))
             .with_system(explode_grenades.after("tick_timers"))
             .with_system(handle_text_messages)
             .with_system(set_mouse_coords.label(InputFromPlayer).before("player_attr").before("shoot"))
@@ -248,7 +240,6 @@ fn main() {
             .with_system(use_ability.label(InputFromPlayer).label("player_attr"))
             .with_system(handle_ability_packets.label(InputFromPlayer).label("player_attr"))
             .with_system(reset_player_phasing.after(InputFromPlayer))
-            .with_system(sync_shader_lights.after(InputFromPlayer))
             .with_system(sync_physics_pos.before("move_objects").label("sync_physics_pos"))
             .with_system(move_camera.after("sync_physics_pos"))
             .with_system(move_objects.after(InputFromPlayer).label("move_objects"))
@@ -364,46 +355,4 @@ fn main() {
     );
 
     app.run();
-}
-
-// Sprite culling doesn't render sprites outside of the camera viewport when enabled
-// Culling doesn't work for WASM builds, atm
-// Adapted from Bevy, https://github.com/bevyengine/bevy/blob/cf221f9659127427c99d621b76c8085c4860e2ef/crates/bevy_sprite/src/frustum_culling.rs
-/*
-MIT License
-
-Copyright (c) 2020 Carter Anderson
-*/
-#[cfg(feature = "native")]
-pub fn sprite_culling(mut commands: Commands, camera: Query<&Transform, With<GameCamera>>, query: Query<(Entity, &Transform, &Sprite), Without<GameCamera>>, wnds: Res<Windows>, culled_sprites: Query<&OutsideFrustum, With<Sprite>>) {
-    let wnd = wnds.get_primary().unwrap();
-    let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
-
-    let camera = camera.single();
-
-    let camera_size = window_size * camera.scale.truncate();
-
-    let camera_pos = camera.translation.truncate();
-    let camera_size = camera_size;
-
-
-    query.for_each(|(entity, transform, sprite)| {
-        let sprite_pos = transform.translation.truncate();
-        let sprite_size = sprite.size;
-
-        let collision = aabb_check(camera_pos, camera_size, sprite_pos, sprite_size);
-
-        if collision {
-            if culled_sprites.get(entity).is_ok() {
-                commands.entity(entity).remove::<OutsideFrustum>();
-
-            }
-
-        } else if culled_sprites.get(entity).is_err() {
-            commands.entity(entity).insert(OutsideFrustum);
-
-        }
-
-    });
-
 }

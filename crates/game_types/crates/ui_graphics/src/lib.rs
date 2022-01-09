@@ -4,7 +4,6 @@ use arrayvec::ArrayVec;
 use bevy::prelude::*;
 use bevy::math::const_vec3;
 use bevy::reflect::TypeUuid;
-use bevy::render::renderer::RenderResources;
 
 use serde::{Deserialize, Serialize};
 
@@ -21,14 +20,14 @@ pub const fn u8_to_color(value: [u8; 3]) -> [f32; 3] {
 }
 
 pub struct ButtonMaterials {
-    pub normal: Handle<ColorMaterial>,
-    pub hovered: Handle<ColorMaterial>,
+    pub normal: UiColor,
+    pub hovered: UiColor,
 
 }
 
 pub struct GameMenuButtonMaterials {
-    pub normal: Handle<ColorMaterial>,
-    pub hovered: Handle<ColorMaterial>,
+    pub normal: UiColor,
+    pub hovered: UiColor,
 
 }
 
@@ -64,40 +63,6 @@ pub enum KeyBindingButtons {
     Talk,
 }
 
-// The UUID is just random
-#[derive(Component, RenderResources, TypeUuid)]
-#[uuid = "463e4c8b-d555-4fc2-ba9f-5c880063ba92"]
-pub struct HelmetColor {
-    pub value: Vec3,
-
-}
-
-impl HelmetColor {
-    pub const fn new(value: [u8; 3]) -> Self {
-        Self {
-            value: const_vec3!(u8_to_color(value)),
-
-        }
-
-    }
-}
-
-#[derive(Component, RenderResources, TypeUuid)]
-#[uuid = "463e4c8b-d555-4fc2-ba9f-4c881163ba92"]
-pub struct InnerSuitColor {
-    pub value: Vec3,
-
-}
-
-impl InnerSuitColor {
-    pub const fn new(value: [u8; 3]) -> Self {
-        Self {
-            value: const_vec3!(u8_to_color(value)),
-
-        }
-    }
-}
-
 #[derive(Component)]
 pub struct GameCamera;
 
@@ -131,54 +96,26 @@ pub struct ChampionText;
 pub struct NetConnStateText;
 
 pub struct ProjectileMaterials {
-    pub regular: Handle<ColorMaterial>,
-    pub speedball: Handle<ColorMaterial>,
-    pub engineer: Handle<ColorMaterial>,
-    pub molotov: Handle<ColorMaterial>,
-    pub molotov_fire: Handle<ColorMaterial>,
-    pub molotov_liquid: Handle<ColorMaterial>,
-    pub flamethrower1: Handle<ColorMaterial>,
-    pub flamethrower2: Handle<ColorMaterial>,
-    pub flamethrower3: Handle<ColorMaterial>,
-    pub pulsewave: Handle<ColorMaterial>,
-    pub beam: Handle<ColorMaterial>,
-    pub arrow: Handle<ColorMaterial>,
-    pub used_bullet: Handle<ColorMaterial>,
+    pub regular: Handle<Image>,
+    pub speedball: Handle<Image>,
+    pub engineer: Handle<Image>,
+    pub molotov: Handle<Image>,
+    pub molotov_fire: Handle<Image>,
+    pub molotov_liquid: Handle<Image>,
+    pub flamethrower1: Handle<Image>,
+    pub flamethrower2: Handle<Image>,
+    pub flamethrower3: Handle<Image>,
+    pub pulsewave: Handle<Image>,
+    pub beam: Handle<Image>,
+    pub arrow: Handle<Image>,
+    pub used_bullet: Handle<Image>,
 
-    pub shield_cell: Handle<ColorMaterial>,
-}
-
-#[derive(Component)]
-pub struct AssetsLoading {
-    pub vertex: Handle<Shader>,
-    pub player_frag: Handle<Shader>,
-    pub lighting_frag: Handle<Shader>,
-    pub loaded: bool,
+    pub shield_cell: Handle<Image>,
 }
 
 // The mouse's position in world coordinates
 pub struct MousePosition(pub Vec2);
-
-#[derive(Component, RenderResources, TypeUuid)]
-#[uuid = "463e4b8a-d555-4fc2-ba9f-4c880063ba92"]
-pub struct ShaderMousePosition {
-    pub value: Vec2,
-}
-
-
 pub struct PlayerToSpectate(pub u8);
-
-#[derive(Component, RenderResources, TypeUuid)]
-#[uuid = "463e4c8b-d555-4fc2-ba9f-4c880063ba92"]
-pub struct WindowSize {
-    pub value: Vec2,
-}
-
-#[derive(Component, RenderResources, TypeUuid)]
-#[uuid = "463e4c8b-d554-4fc2-bc9f-4c881163ba92"]
-pub struct Alpha {
-    pub value: f32,
-}
 
 pub trait Logs {
     fn new() -> Self;

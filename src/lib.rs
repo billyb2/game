@@ -16,8 +16,6 @@
 pub mod system_labels;
 #[cfg(feature = "graphics")]
 pub mod player_input;
-#[cfg(feature = "graphics")]
-pub mod shaders;
 
 use bevy_networking_turbulence::*;
 
@@ -93,9 +91,9 @@ pub enum GameMode {
 
 const SCORE_LIMIT: u8 = 10;
 
-pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<DeathEvent>, mut players: Query<(Entity, &mut Visible, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName, Option<&LightHandle>)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut light_res: ResMut<LightsResource>) {
+pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<DeathEvent>, mut players: Query<(Entity, &mut Visibility, &mut RespawnTimer, &ColliderHandleWrapper, &PlayerName)>, mut log_event: EventWriter<LogEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>) {
     death_events.iter().for_each(|ev| {
-        let (entity, mut visible, mut respawn_timer, collider_handle, player_name, light_handle) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
+        let (entity, mut visible, mut respawn_timer, collider_handle, player_name) = players.get_mut(*player_entity.get(&ev.0).unwrap()).unwrap();
 
         const DEATH_MESSAGES: [&'static str; 4] = [
             "got murked",
@@ -107,11 +105,6 @@ pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<
 
         let index = fastrand::usize(..DEATH_MESSAGES.len());
         let message = format!("{} {}", player_name, DEATH_MESSAGES[index]);
-
-        if let Some(light_handle) = light_handle {
-            light_res.remove_light(light_handle);
-            commands.entity(entity).remove::<LightHandle>();
-        }
 
         visible.is_visible = false;
 
@@ -125,22 +118,13 @@ pub fn death_event_system(mut commands: Commands, mut death_events: EventReader<
 }
 
 // This system just deals respawning players
-pub fn respawn_players(mut commands: Commands, mut players: Query<(Entity, &mut Health, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Visible, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut lights_res: ResMut<LightsResource>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>) {
+pub fn respawn_players(mut commands: Commands, mut players: Query<(Entity, &mut Health, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Visibility, &mut RespawnTimer, &Perk, &PlayerID)>, game_mode: Res<GameMode>, online_player_ids: Res<OnlinePlayerIDs>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>) {
     let (camera, camera_transform) = camera.single();
-
-    let wnd = windows.get_primary().unwrap();
-    let wnd_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
 
     players.for_each_mut(|(entity, mut health, rigid_body_handle, collider_handle, mut visibility, mut respawn_timer, perk, player_id)| {
         if respawn_timer.0.finished() && *game_mode == GameMode::Deathmatch && online_player_ids.0.contains_key(&player_id.0) {
             let spawn_points = &maps.0.get(&map_crc32.0).unwrap().spawn_points;
             let new_pos = unsafe { spawn_points.get_unchecked(fastrand::usize(..spawn_points.len())) };
-
-            let light_handle: LightHandle = lights_res.add_light(Vec2::ZERO);
-
-            lights_res.calc_shader_light_pos(new_pos.extend(101.0), camera, camera_transform, &windows, wnd_size, &light_handle);
-
-            commands.entity(entity).insert(light_handle);
 
             let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
             let collider = collider_set.get_mut(collider_handle.0).unwrap();
@@ -167,7 +151,7 @@ pub fn respawn_players(mut commands: Commands, mut players: Query<(Entity, &mut 
 }
 
 #[cfg(feature = "graphics")]
-pub fn score_system(mut commands: Commands, deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visible), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut app_state: ResMut<State<AppState>>) {
+pub fn score_system(mut commands: Commands, deathmatch_score: Res<DeathmatchScore>, mut champion_text: Query<(&mut Text, &mut Visibility), With<ChampionText>>, player_continue_timer: Query<&PlayerContinueTimer>, mut app_state: ResMut<State<AppState>>) {
     let deathmatch_score = &deathmatch_score.0;
 
     //TODO: Do some player_entity stuff to display the player's username
@@ -211,7 +195,7 @@ pub fn score_system(mut commands: Commands, deathmatch_score: Res<DeathmatchScor
 /// This system ticks all the `Timer` components on entities within the scene
 /// using bevy's `Time` resource to get the delta between each update.
 // Also adds ability charge to each player
-pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &mut AbilityInfo, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut PlayerSpeedInfo, &mut CanMelee, &PlayerID, &mut Visible)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, mut chat: ResMut<ChatLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut explode_timers: Query<&mut ExplodeTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>, mut local_players: ResMut<LocalPlayers>) {
+pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Query<(Entity, &mut AbilityInfo, &Health, &mut TimeSinceLastShot, &mut TimeSinceStartReload, &mut RespawnTimer, &mut PlayerSpeedInfo, &mut CanMelee, &PlayerID, &mut Visibility)>, mut projectile_timers: Query<&mut DestructionTimer>, mut logs: ResMut<GameLogs>, mut chat: ResMut<ChatLogs>, game_mode: Res<GameMode>, mut player_continue_timer: Query<&mut PlayerContinueTimer>, mut damage_text_timer: Query<&mut DamageTextTimer>, mut explode_timers: Query<&mut ExplodeTimer>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut available_player_ids: ResMut<Vec<PlayerID>>, mut local_players: ResMut<LocalPlayers>) {
     let delta = time.delta();
 
     player_timers.for_each_mut(|(entity, mut ability_info, health, mut time_since_last_shot, mut time_since_start_reload, mut respawn_timer, mut player_speed_info, mut can_melee, _player_id, _visible)| {
@@ -334,24 +318,6 @@ pub fn tick_timers(mut commands: Commands, time: Res<Time>, mut player_timers: Q
     });
 
     ready_to_send_packet.0.tick(delta);
-
-}
-
-pub fn destroy_light_timers(mut lights_res: ResMut<LightsResource>, mut commands: Commands, mut lights_that_despawn: Query<(Entity, &mut LightDestructionTimer, &LightHandle)>, time: Res<Time>) {
-    let delta = time.delta();
-
-    lights_that_despawn.for_each_mut(|(entity, mut timer, handle)| {
-        timer.0.tick(delta);
-
-        if timer.0.finished() {
-            lights_res.remove_light(handle);
-
-            commands.entity(entity).remove::<LightHandle>();
-            commands.entity(entity).remove::<LightDestructionTimer>();
-
-        } 
-
-    });
 
 }
 

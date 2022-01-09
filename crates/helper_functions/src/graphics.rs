@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-pub fn spawn_button<const BUTTON_WIDTH: Option<f32>, const BUTTON_HEIGHT: f32>(node_parent: &mut ChildBuilder, material: Handle<ColorMaterial>, text: String, font: Handle<Font>, margin: Rect<Val>) { 
+pub fn spawn_button<const BUTTON_WIDTH: Option<f32>, const BUTTON_HEIGHT: f32>(node_parent: &mut ChildBuilder, text: String, font: Handle<Font>, margin: Rect<Val>) { 
 
     let button_width = match BUTTON_WIDTH {
         Some(w) => w,
@@ -30,7 +30,7 @@ pub fn spawn_button<const BUTTON_WIDTH: Option<f32>, const BUTTON_HEIGHT: f32>(n
 
         ..Default::default()
     },
-    material,
+    color: UiColor(Color::YELLOW),
     ..Default::default()
     })
     .with_children(|button_parent| {

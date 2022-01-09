@@ -21,7 +21,7 @@ use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 use map::MapHealth;
 
 //TODO: Damage numbers
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeedInfo>, &mut Handle<ColorMaterial>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeedInfo>, &mut Handle<Image>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed_info, mut material)| {
         let mut should_remove_rigid_body = false;
 
@@ -167,17 +167,15 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                         cell_transform.translation += (Vec2::new(cell_angle.cos(), cell_angle.sin()) * const_vec2!([25.0; 2])).extend(0.0);
 
                                         commands.spawn_bundle(SpriteBundle {
-                                            material: proj_materials.shield_cell.clone(),
+                                            texture: proj_materials.shield_cell.clone(),
                                             sprite: Sprite {
-                                                size: const_vec2!([36.0, 12.0]),
+                                                custom_size: Some(const_vec2!([36.0, 12.0])),
                                                 flip_x: true, 
-                                                resize_mode: SpriteResizeMode::Manual,
-
                                                 ..Default::default()
                                             },
-                                            visible: Visible {
+                                            visibility: Visibility {
                                                 is_visible: true,
-                                                is_transparent: false,
+                                                
                                             },
                                             transform: cell_transform,
                                             ..Default::default()
@@ -270,7 +268,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
                             *material = proj_materials.molotov_fire.clone();
                             **projectile_type.as_mut().unwrap() = ProjectileType::MolotovFire;
-                            sprite.size = Vec2::splat(400.0);
+                            sprite.custom_size = Some(Vec2::splat(400.0));
                             collider.set_shape(SharedShape::ball(400.0 / 500.0));
 
                             commands.entity(entity).insert(DestructionTimer(Timer::from_seconds(5.0, false)));
@@ -285,7 +283,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             **projectile_type.as_mut().unwrap() = ProjectileType::MolotovLiquid;
                             *material = proj_materials.molotov_liquid.clone();
 
-                            sprite.size = Vec2::splat(200.0);
+                            sprite.custom_size = Some(Vec2::splat(200.0));
                             collider.set_shape(SharedShape::ball(200.0 / 500.0));
                             rigid_body.set_body_type(RigidBodyType::Static);
 
@@ -352,13 +350,13 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 }
 
 //TODO: Name visibility
-pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper, Option<&Health>, Option<&Children>, Option<&PlayerName>, Option<Changed<PlayerName>>, Option<&Alpha>)>, mut names: Query<(&mut Text, &mut Transform,  &mut Visible), Without<RigidBodyHandleWrapper>>, rigid_body_set: Res<RigidBodySet>) {
-    obj.for_each_mut(|(mut transform, rigid_body_handle, health, children, player_name, name_changed, alpha)| {
+pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper, Option<&Health>, Option<&Children>, Option<&PlayerName>, Option<Changed<PlayerName>>)>, mut names: Query<(&mut Text, &mut Transform,  &mut Visibility), Without<RigidBodyHandleWrapper>>, rigid_body_set: Res<RigidBodySet>) {
+    obj.for_each_mut(|(mut transform, rigid_body_handle, health, children, player_name, name_changed)| {
         if let Some(rigid_body) = rigid_body_set.get(rigid_body_handle.0) {
             if let Some(children) = children.as_ref() {
                 children.iter().for_each(|child| {
                     let (mut text, mut text_transform, mut visible) = names.get_mut(*child).unwrap();
-                    if health.as_ref().unwrap().0 > 0.0 && alpha.as_ref().unwrap().value > 0.0{
+                    if health.as_ref().unwrap().0 > 0.0 {
                         text_transform.rotation = transform.rotation.inverse();
                         text_transform.translation = text_transform.translation.normalize();
 
@@ -423,13 +421,13 @@ pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionT
 
 
 //TODO: have different player shaders and set them on ability change in this fn
-pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<ColorMaterial>, &mut Sprite), Changed<Model>>, player_materials: Res<Skin>) {
+pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<Image>, &mut Sprite), Changed<Model>>, player_materials: Res<Skin>) {
     players.for_each_mut(|(model, mut skin, mut sprite)| {
         let model_u8: u8 = (*model).into();
         let (handle, size) = player_materials.player[model_u8 as usize].clone();
 
         *skin = handle;
-        sprite.size = size;
+        sprite.custom_size = Some(size);
 
     });
 
@@ -697,7 +695,7 @@ pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBo
                 false => linvel,
             };
 
-            sprite.size = Vec2::splat(linvel);
+            sprite.custom_size = Some(Vec2::splat(linvel));
 
             let adj_linvel = linvel / 500.0;
 
@@ -708,8 +706,8 @@ pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBo
             let new_damage = linvel * 1.5;
             collider.user_data = f32_u8_to_u128(new_damage, proj_info);
 
-        } else if *proj_type == ProjectileType::Flame && sprite.size.x <= 60.0 {
-            sprite.size *= 1.4;
+        } else if *proj_type == ProjectileType::Flame && sprite.custom_size.unwrap().x <= 60.0 {
+            sprite.custom_size = Some(sprite.custom_size.unwrap() * 1.4);
 
         }
 
@@ -719,7 +717,7 @@ pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBo
 }
 
 
-pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut ProjectileType, &MaxDistance, &mut DistanceTraveled, &mut Sprite, &mut Handle<ColorMaterial>, &Speed, &RigidBodyHandleWrapper, &ColliderHandleWrapper), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut island_manager: ResMut<IslandManager>, mut joint_set: ResMut<JointSet>, proj_materials: Res<ProjectileMaterials>) {
+pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut ProjectileType, &MaxDistance, &mut DistanceTraveled, &mut Sprite, &mut Handle<Image>, &Speed, &RigidBodyHandleWrapper, &ColliderHandleWrapper), Without<ExplodeTimer>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut island_manager: ResMut<IslandManager>, mut joint_set: ResMut<JointSet>, proj_materials: Res<ProjectileMaterials>) {
     query.for_each_mut(|(entity, mut projectile_type, max_distance, mut distance_traveled, mut sprite, mut material, speed, rigid_body_handle, collider_handle)| {
         if let Some(rigid_body) = rigid_body_set.get_mut(rigid_body_handle.0) {
             let speed = speed.0;
@@ -740,7 +738,7 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
 
                         *material = proj_materials.molotov_liquid.clone();
                         *projectile_type = ProjectileType::MolotovLiquid;
-                        sprite.size = Vec2::splat(200.0);
+                        sprite.custom_size = Some(Vec2::splat(200.0));
                         collider.set_shape(SharedShape::ball(200.0 / 500.0));
                         
                         rigid_body.set_body_type(RigidBodyType::Static);
@@ -769,31 +767,6 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
 
 
         }
-
-    });
-}
-
-pub fn sync_shader_lights(mut entities_affected_by_light: Query<(&mut Lights, &mut NumLights, &mut AmbientLightLevel)>, entities_giving_off_light: Query<(&Transform, &LightHandle)>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, windows: Res<Windows>, mut lights_res: ResMut<LightsResource>, global_ambient: Res<AmbientLightLevel>) {
-    let wnd = windows.get_primary().unwrap();
-    let wnd_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
-
-    let (camera, camera_transform) = camera.single();
-
-    entities_giving_off_light.for_each(|(transform, light_handle)| {
-        lights_res.calc_shader_light_pos(transform.translation, camera, camera_transform, &windows, wnd_size, light_handle);
-
-    });
-
-    let num_of_lights_res: i32 = lights_res.len().try_into().unwrap();
-
-    entities_affected_by_light.for_each_mut(|(mut lights, mut num_of_lights, mut ambient_light)| {
-        // Update the settings of all entities affected by light
-        ambient_light.value = global_ambient.value;
-        num_of_lights.value = num_of_lights_res;
-
-        let lights_slice = &mut lights.value[..lights_res.len()];
-
-        lights_res.copy_pos_into_slice(lights_slice);
 
     });
 }

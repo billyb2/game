@@ -7,12 +7,6 @@ use std::convert::TryInto;
 use bevy::prelude::*;
 use bevy::math::const_vec2;
 
-use bevy::render::{
-    pipeline::{PipelineDescriptor, RenderPipeline},
-    render_graph::{RenderGraph, RenderResourcesNode},
-    shader::ShaderStages,
-};
-
 use game_types::*;
 
 use map::MapCRC32;
@@ -27,74 +21,9 @@ use rapier2d::na::Vector2;
 pub use setup_graphics::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (maps, map_crc32): (Res<Maps>, Res<MapCRC32>), mut _pipelines: Option<ResMut<Assets<PipelineDescriptor>>>, mut _render_graph: Option<ResMut<RenderGraph>>, _wnds: Option<Res<Windows>>, _shader_assets: Option<Res<AssetsLoading>>, mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, (mut _rigid_body_set, mut _collider_set): (Option<ResMut<RigidBodySet>>, Option<ResMut<ColliderSet>>), num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>, hosting: Res<Hosting>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (maps, map_crc32): (Res<Maps>, Res<MapCRC32>), mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, (mut _rigid_body_set, mut _collider_set): (Option<ResMut<RigidBodySet>>, Option<ResMut<ColliderSet>>), num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>, hosting: Res<Hosting>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
-
-    #[cfg(feature = "graphics")]
-    let lights_res = LightsResource::new();
-
-    #[cfg(feature = "graphics")]
-    let wnds = _wnds.unwrap();
-
-    #[cfg(feature = "graphics")]
-    let wnd = wnds.get_primary().unwrap();
-
-    #[cfg(feature = "graphics")]
-    let shader_assets = _shader_assets.unwrap();
-
-    #[cfg(feature = "graphics")]
-    let pipelines = _pipelines.as_mut().unwrap();
-
-    #[cfg(feature = "graphics")]
-    let player_pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        // Vertex shaders are run once for every vertex in the mesh.
-        // Each vertex can have attributes associated to it (e.g. position,
-        // color, texture mapping). The output of a shader is per-vertex.
-        vertex: shader_assets.vertex.clone(),
-        // Fragment shaders are run for each pixel
-        fragment: Some(shader_assets.player_frag.clone()),
-    }));
-
-    #[cfg(feature = "graphics")]
-    {
-        let render_graph = _render_graph.as_mut().unwrap();
-
-        render_graph.add_system_node(
-            "ambient_light_val",
-            RenderResourcesNode::<AmbientLightLevel>::new(true),
-        );
-
-        render_graph.add_system_node(
-            "light_pos",
-            RenderResourcesNode::<Lights>::new(true),
-        );
-
-        render_graph.add_system_node(
-            "num_of_lights",
-            RenderResourcesNode::<NumLights>::new(true),
-        );
-
-        render_graph.add_system_node(
-            "screen_dimensions",
-            RenderResourcesNode::<WindowSize>::new(true),
-        );
-
-        render_graph.add_system_node(
-            "helmet_color",
-            RenderResourcesNode::<HelmetColor>::new(true),
-        );
-
-        render_graph.add_system_node(
-            "inner_suit_color",
-            RenderResourcesNode::<InnerSuitColor>::new(true),
-        );
-
-        render_graph.add_system_node(
-            "alpha",
-            RenderResourcesNode::<Alpha>::new(true),
-        );
-    }
 
     let mut remaining_bots_to_add = num_of_bots.0;
 
@@ -134,10 +63,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
 
         };
 
-
-        #[cfg(feature = "graphics")]
-        let (helmet_color, inner_suit_color) = set_player_colors(&ability);
-
         let player = Player::new(i, ability, perk, false, player_name);
 
         let mut entity = commands.spawn_bundle(player);
@@ -163,37 +88,20 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
         #[cfg(feature = "graphics")]
         entity
             .insert_bundle(SpriteBundle {
-                material,
+                texture: material,
                 sprite: Sprite {
-                    size,
+                    custom_size: Some(size),
                     flip_x: true, 
-                    resize_mode: SpriteResizeMode::Manual,
-
                     ..Default::default()
                 },
-                visible: Visible {
+                visibility: Visibility {
                     is_visible: false,
-                    is_transparent: true,
                 },
                 transform: Transform::from_translation(coords.extend(101.0)),
-                render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                    player_pipeline_handle.clone(),
-                )]),
-
                 ..Default::default()
             })
-            .insert(ShaderMousePosition { value: Vec2::ZERO })
-            .insert(WindowSize {
-                value: Vec2::new(wnd.width(), wnd.height()),
-            })
-            .insert(GameRelated)
-            .insert(Alpha { value: 1.0 })
-            .insert(AmbientLightLevel { value: 0.8 })
-            .insert(Lights::new())
-            .insert(NumLights { value: 0 })
-            .insert(helmet_color)
-            .insert(inner_suit_color);
-
+            .insert(GameRelated);
+            
         player_entities.insert(i, entity.id());
 
         #[cfg(feature = "graphics")]
@@ -282,8 +190,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
     commands.insert_resource(LocalPlayers(local_players));
 
     commands.insert_resource(WidowMakerHeals(HashMap::with_capacity_and_hasher(10, BuildHasher::default())));
-
-    commands.insert_resource(lights_res);
 }
 
 #[cfg(not(feature = "graphics"))]

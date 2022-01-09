@@ -35,8 +35,8 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 
         let map = maps.0.get(&map_crc32.0).unwrap();
 
-        let mut x = sprite.size.x.mul_add(-0.5, player.translation.x);
-        let mut y = sprite.size.y.mul_add(0.5, player.translation.y);
+        let mut x = sprite.custom_size.unwrap().x.mul_add(-0.5, player.translation.x);
+        let mut y = sprite.custom_size.unwrap().y.mul_add(0.5, player.translation.y);
 
         let half_window_width = window.width / 2.0;
         let half_window_height = window.height / 2.0;
@@ -148,8 +148,8 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
 
                         ..Default::default()
                     },
-                    material: materials.add(Color::rgba_u8(255, 255, 255, 10).into()),
-                    visible: Visible {
+                    color: UiColor(Color::rgba_u8(255, 255, 255, 10)),
+                    visibility: Visibility {
                         is_visible: true,
                         ..Default::default()
                     },
@@ -184,7 +184,7 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                     })
                     .with_children(|button_parent| {
@@ -251,7 +251,7 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
     }
 }
 
-pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visible), With<ScoreUI>>, score: Res<DeathmatchScore>, keyboard_input: Res<Input<KeyCode>>, asset_server: Res<AssetServer>, keybindings: Res<KeyBindings>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visibility), With<ScoreUI>>, score: Res<DeathmatchScore>, keyboard_input: Res<Input<KeyCode>>, asset_server: Res<AssetServer>, keybindings: Res<KeyBindings>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>) {
     if keyboard_input.just_pressed(keybindings.show_score) {
         let (mut text, mut visible) = score_ui.single_mut();
 
@@ -464,7 +464,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, mut lights_res: ResMut<LightsResource>, windows: Res<Windows>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>) {
     if my_player_id.0.is_some() {
         shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
@@ -628,8 +628,11 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         commands
                             .spawn_bundle(Projectile::new(ev.projectile_type, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
-                                material,
-                                sprite: Sprite::new(ev.size),
+                                texture: material,
+                                sprite: Sprite {
+                                    custom_size: Some(ev.size),
+                                    ..Default::default()
+                                },
                                 transform: Transform {
                                     translation: translation.extend(ev.start_pos.z),
                                     rotation: Quat::from_rotation_z(angle),
@@ -673,8 +676,11 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             commands
                                 .spawn_bundle(Projectile::new(ProjectileType::UsedBullet, Size::new(ev.size.x, ev.size.y), player_id, Damage(0.0)))
                                 .insert_bundle(SpriteBundle {
-                                    material: materials.used_bullet.clone(),
-                                    sprite: Sprite::new(ev.size),
+                                    texture: materials.used_bullet.clone(),
+                                    sprite: Sprite {
+                                        custom_size: Some(ev.size),
+                                        ..Default::default()
+                                    },
                                     transform: Transform {
                                         translation: ev.start_pos,
                                         rotation: Quat::from_rotation_z(angle),
@@ -714,10 +720,10 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
     });
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &Health, &Model, &TimeSinceStartReload, &mut Alpha, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &Health, &Model, &TimeSinceStartReload, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
-            let (transform, mut ability_info, mut speed_info, health, model, reload_timer, mut shader_phasing, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
+            let (transform, mut ability_info, mut speed_info, health, model, reload_timer, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
             let speed = &mut speed_info.speed;
 
@@ -743,18 +749,6 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         }
 
                         const COLOR: Color = Color::rgb(1.0, 1.0, 0.0);
-
-                        // TODO: There has to be a better way to do this, like for sure
-                        let color_handle: Handle<ColorMaterial> = {
-                            let color_to_return = materials.iter().find(|(_h, mat)| COLOR == mat.color);
-
-                            match color_to_return {
-                                Some((handle, _color)) => materials.get_handle(handle),
-                                None => materials.add(COLOR.into())
-
-                            }
-
-                        };
 
                         const SIZE: Vec2 = const_vec2!([175.0, 50.0]);
 
@@ -783,8 +777,11 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
 
                         commands
                             .spawn_bundle(SpriteBundle {
-                                material: color_handle.clone(),
-                                sprite: Sprite::new(SIZE),
+                                sprite: Sprite {
+                                    color: COLOR,
+                                    custom_size: Some(SIZE),
+                                    ..Default::default()
+                                },
                                 transform: Transform {
                                     translation: coords,
                                     rotation: Quat::from_rotation_z(rotation),
@@ -868,10 +865,10 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                     },
                     Ability::Cloak => {
                         if !player_is_local || (!ability_info.using_ability && ability_info.ability_charge.finished()) {
-                            shader_phasing.value = match my_player_id.0 == ev_id.0 {
+                            /*shader_phasing.value = match my_player_id.0 == ev_id.0 {
                                 true => 0.25,
                                 false => 0.0,
-                            };
+                            };*/
 
                             if player_is_local {
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
@@ -912,7 +909,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                     },
                     Ability::Ghost =>  {
                         if !player_is_local || (!ability_info.using_ability && ability_info.ability_charge.finished()) {
-                            shader_phasing.value = 0.5;
+                            //shader_phasing.value = 0.5;
 
                                 if player_is_local {
                                     let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
@@ -1012,18 +1009,18 @@ TimeSinceStartReload, &mut Bursting, &mut AbilityInfo, &mut PlayerSpeedInfo, &Co
     });
 }
 
-pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo, &mut Alpha)>, local_players: Res<LocalPlayers>) {
-    query.for_each_mut(|(player_id, ability_info, mut shader_phasing)| {
+pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo)>, local_players: Res<LocalPlayers>) {
+    /*query.for_each_mut(|(player_id, ability_info, mut shader_phasing)| {
         let player_is_local = local_players.0.contains(&player_id.0);
 
         if !ability_info.using_ability && ability_info.ability != Ability::Stim && player_is_local {
             shader_phasing.value = 1.0;
 
         }
-    });
+    });*/
 }
 
-pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition>, mut shader_mouse_pos: Query<&mut ShaderMousePosition> ) {
+pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition>) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = camera.single();
 
@@ -1037,15 +1034,10 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
 
     let p = cursor_pos - size / 2.0;
 
-    shader_mouse_pos.for_each_mut(|mut shader_mouse_pos| {
-        shader_mouse_pos.value = cursor_pos / size;
-
-    });
-
     // apply the camera transform
     let pos_wld = camera_transform.compute_matrix() * p.extend(0.0).extend(1.0);
 
-    mouse_pos.0 = pos_wld.into();
+    mouse_pos.0 = pos_wld.truncate().truncate();
 
 }
 

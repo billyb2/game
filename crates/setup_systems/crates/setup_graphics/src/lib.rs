@@ -14,7 +14,7 @@ use single_byte_hashmap::*;
 
 use bevy::render::camera::ScalingMode;
 
-use helper_functions::graphics::spawn_button;
+use helper_functions::graphics::{spawn_button};
 
 //TODO: Reduce boilerplate by writing functions to generate stuff graphical stuff, instead of doing
 //a ton of copy pastes.
@@ -76,11 +76,11 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let flame3 = rng.u8(100..=250);    
 
     #[cfg(target_arch = "wasm32")]
-    let map_assets: HashMap<u8, Handle<ColorMaterial>> = HashMap::with_capacity_and_hasher(20, BuildHasher::default());
+    let map_assets: HashMap<u8, Handle<Image>> = HashMap::with_capacity_and_hasher(20, BuildHasher::default());
 
     // Web builds can't preload assets
     #[cfg(not(target_arch = "wasm32"))]
-    let map_assets: HashMap<u8, Handle<ColorMaterial>> = {
+    let map_assets: HashMap<u8, Handle<Image>> = {
         let assets = asset_server.load_folder("map_assets/").unwrap();
 
         assets.iter().map(|asset| {
@@ -91,7 +91,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
             let int = file_name_string.parse::<u8>().unwrap();
 
-            (int, materials.add(asset.into()))
+            (int, asset.into())
 
         }).collect()
 
@@ -100,52 +100,52 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     commands.insert_resource(Skin {
         player: [
             // All the sprite sizes are manually calculated, since I can't figure out a way using Bevy to calculate them automatically
-            (materials.add(p_pistol_sprite.into()), const_vec2!([82.808, 61.0755])),
-            (materials.add(p_shotgun_sprite.into()), const_vec2!([89.5625, 63.099])), 
-            (materials.add(p_speedball_sprite.into()), const_vec2!([119.97, 85.3565])), 
-            (materials.add(p_br_sprite.into()), const_vec2!([142.8885, 63.099])), 
-            (materials.add(p_ar_sprite.into()), const_vec2!([143.6135, 61.099])), 
-            (materials.add(p_smg_sprite.into()), const_vec2!([105.3375, 71.4285])), 
-            (materials.add(p_cluster_shotgun_sprite.into()), const_vec2!([94.6025, 69.964])), 
-            (materials.add(p_flamethrower_sprite.into()), const_vec2!([117.351, 79.0005])), 
-            (materials.add(p_sniper_sprite.into()), const_vec2!([143.6135, 63.099])),
-            (materials.add(p_sprite.into()), const_vec2!([82.808, 61.0755])),
-            (materials.add(p_widowmaker_sprite.into()), const_vec2!([143.6135, 63.099])),
-            (materials.add(p_bow.into()), const_vec2!([124.107, 96.8625])),
-            (materials.add(p_sticky_grenade.into()), const_vec2!([124.107, 96.8625])),
+            (p_pistol_sprite.into(), const_vec2!([82.808, 61.0755])),
+            (p_shotgun_sprite.into(), const_vec2!([89.5625, 63.099])), 
+            (p_speedball_sprite.into(), const_vec2!([119.97, 85.3565])), 
+            (p_br_sprite.into(), const_vec2!([142.8885, 63.099])), 
+            (p_ar_sprite.into(), const_vec2!([143.6135, 61.099])), 
+            (p_smg_sprite.into(), const_vec2!([105.3375, 71.4285])), 
+            (p_cluster_shotgun_sprite.into(), const_vec2!([94.6025, 69.964])), 
+            (p_flamethrower_sprite.into(), const_vec2!([117.351, 79.0005])), 
+            (p_sniper_sprite.into(), const_vec2!([143.6135, 63.099])),
+            (p_sprite.into(), const_vec2!([82.808, 61.0755])),
+            (p_widowmaker_sprite.into(), const_vec2!([143.6135, 63.099])),
+            (p_bow.into(), const_vec2!([124.107, 96.8625])),
+            (p_sticky_grenade.into(), const_vec2!([124.107, 96.8625])),
         ],
-        enemy: (materials.add(enemy_sprite.into()), const_vec2!([82.808, 61.0755])),
+        enemy: (enemy_sprite.into(), const_vec2!([82.808, 61.0755])),
 
     });
 
     commands.insert_resource(ProjectileMaterials {
-        regular: materials.add(Color::BLACK.into()),
-        speedball: materials.add(Color::rgb_u8(126, 192, 238).into()),
-        flamethrower1: materials.add(Color::rgb_u8(flame1, 43, 9).into()),
-        flamethrower2: materials.add(Color::rgb_u8(221, flame2, 9).into()),
-        flamethrower3: materials.add(Color::rgb_u8(flame3, 43, 12).into()),
-        engineer: materials.add(Color::rgb_u8(255, 0, 200).into()),
-        molotov: materials.add(Color::rgb_u8(232, 35, 0).into()),
-        molotov_fire: materials.add(molotov_fire_sprite.into()),
-        molotov_liquid: materials.add(molotov_liquid_sprite.into()),
-        pulsewave: materials.add(pulsewave_sprite.into()),
-        beam: materials.add(Color::rgba_u8(173, 216, 230, 50).into()),
-        arrow: materials.add(arrow_sprite.into()),
-        used_bullet: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-
-        shield_cell: materials.add(shield_cell_sprite.into())
+        // TODO: Image spirtes
+        regular: molotov_liquid_sprite.clone().into(),
+        speedball: molotov_liquid_sprite.clone().into(),
+        flamethrower1: molotov_liquid_sprite.clone().into(),
+        flamethrower2: molotov_liquid_sprite.clone().into(),
+        flamethrower3: molotov_liquid_sprite.clone().into(),
+        engineer: molotov_liquid_sprite.clone().into(),
+        molotov: molotov_liquid_sprite.clone().into(),
+        molotov_fire: molotov_fire_sprite.into(),
+        molotov_liquid: molotov_liquid_sprite.clone().into(),
+        pulsewave: pulsewave_sprite.into(),
+        beam: molotov_liquid_sprite.clone().into(),
+        arrow: arrow_sprite.into(),
+        used_bullet: molotov_liquid_sprite.clone().into(),
+        shield_cell: shield_cell_sprite.into()
     });
 
     commands.insert_resource(ButtonMaterials {
-        normal: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
-        hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
+        normal: UiColor(Color::rgb(4.0 / 255.0, 221.0 / 255.0, 185.0 / 255.0)),
+        hovered: UiColor(Color::rgb(4.0 / 255.0, 221.0 / 255.0, 185.0 / 255.0)),
     });
 
     const GAME_BUTTON_COLOR: Color = Color::rgb(4.0 / 255.0, 221.0 / 255.0, 185.0 / 255.0);
 
     commands.insert_resource(GameMenuButtonMaterials {
-        normal: materials.add(GAME_BUTTON_COLOR.into()),
-        hovered: materials.add((GAME_BUTTON_COLOR * (3.0 / 2.0)).into()),
+        normal: UiColor(GAME_BUTTON_COLOR),
+        hovered: UiColor(GAME_BUTTON_COLOR),
     });
 
     commands.insert_resource(MapAssets(map_assets));
@@ -372,7 +372,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -392,7 +392,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         }],
                         ..Default::default()
                     },
-                    visible: Visible {
+                    visibility: Visibility {
                         is_visible: false,
 
                         ..Default::default()
@@ -421,7 +421,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -441,7 +441,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         }],
                         ..Default::default()
                     },
-                    visible: Visible {
+                    visibility: Visibility {
                         is_visible: false,
 
                         ..Default::default()
@@ -473,7 +473,7 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -503,9 +503,9 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
             };
 
-            spawn_button::<{ Some(185.0) } , 85.0>(node_parent, button_materials.normal.clone(), String::from("Play"), asset_server.load("fonts/FiraSans-Bold.ttf"), MARGIN);
+            spawn_button::<{ Some(185.0) } , 85.0>(node_parent, String::from("Play"), asset_server.load("fonts/FiraSans-Bold.ttf"), MARGIN);
 
-            spawn_button::<{ Some(225.0) } , 85.0>(node_parent, button_materials.normal.clone(), String::from("Settings"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
+            spawn_button::<{ Some(225.0) } , 85.0>(node_parent, String::from("Settings"), asset_server.load("fonts/FiraSans-Bold.ttf"), Default::default());
 
         });
 }
@@ -529,7 +529,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -565,7 +565,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -595,7 +595,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -625,7 +625,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -655,7 +655,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -686,7 +686,7 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -743,8 +743,8 @@ pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetSer
         });
 }
 
-pub fn add_player_name_text(mut commands: Commands, names: Query<(Entity, &PlayerName, &Transform,  &Visible)>, asset_server: Res<AssetServer>) {
-    names.for_each(|(parent_entity, player_name, transform, visible)| {
+pub fn add_player_name_text(mut commands: Commands, names: Query<(Entity, &PlayerName, &Transform,  &Visibility)>, asset_server: Res<AssetServer>) {
+    names.for_each(|(parent_entity, player_name, transform, visibility)| {
         let transform = Transform {
             translation: transform.translation.normalize(),
             rotation: transform.rotation.inverse(),
@@ -765,10 +765,7 @@ pub fn add_player_name_text(mut commands: Commands, names: Query<(Entity, &Playe
                 ..Default::default()
             },
             transform,
-            visible: Visible {
-                is_visible: visible.is_visible,
-                is_transparent: true,
-            },
+            visibility: visibility.clone(),
             ..Default::default()
         }).id();
 
@@ -795,7 +792,7 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -831,7 +828,7 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -865,7 +862,7 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -895,7 +892,7 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -953,7 +950,7 @@ pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetSe
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -1004,7 +1001,7 @@ pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetSe
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1045,7 +1042,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -1084,7 +1081,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1119,7 +1116,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1149,7 +1146,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1181,7 +1178,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1213,7 +1210,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1256,7 +1253,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -1288,7 +1285,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1320,7 +1317,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1352,7 +1349,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1384,7 +1381,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1416,7 +1413,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1448,7 +1445,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1480,7 +1477,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1512,7 +1509,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
 
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                     ..Default::default()
                 })
                 .with_children(|button_parent| {
@@ -1554,7 +1551,7 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
 
                 ..Default::default()
             },
-            visible: Visible {
+            visibility: Visibility {
                 is_visible: false,
                 ..Default::default()
             },
@@ -1586,7 +1583,7 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
     
                     ..Default::default()
                 },
-                material: button_materials.normal.clone(),
+                color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
                 ..Default::default()
             })
             .with_children(|button_parent| {
@@ -1610,48 +1607,6 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
             });
             
         });
-}
-
-
-pub fn set_player_colors(ability: &Ability) -> (HelmetColor, InnerSuitColor) {
-    const INFERNO_HELMET_COLOR: HelmetColor = HelmetColor::new([231, 120, 1]);
-    const INFERNO_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([232, 35, 0]);
-
-    const ENGINEER_HELMET_COLOR: HelmetColor = HelmetColor::new([34, 218, 238]);
-    const ENGINEER_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([238, 166, 34]);
-
-    const WARP_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
-    const WARP_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([229, 2, 146]);
-
-    const WALL_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
-    const WALL_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([43, 36, 245]);
-
-    const STIM_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
-    const STIM_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([65, 238, 35]);
-
-    const CLOAK_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
-    const CLOAK_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([158; 3]);
-
-    const PULSEWAVE_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
-    const PULSEWAVE_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([230, 238, 35]);
-
-    const BRUTE_HELMET_COLOR: HelmetColor = HelmetColor::new([9, 145, 160]);
-    const BRUTE_SUIT_COLOR: InnerSuitColor = InnerSuitColor::new([230, 238, 35]);
-
-    let (helmet_color, inner_suit_color) = match ability {
-        Ability::Inferno => (INFERNO_HELMET_COLOR, INFERNO_SUIT_COLOR),
-        Ability::Engineer => (ENGINEER_HELMET_COLOR, ENGINEER_SUIT_COLOR),
-        Ability::Warp => (WARP_HELMET_COLOR, WARP_SUIT_COLOR),
-        Ability::Wall => (WALL_HELMET_COLOR, WALL_SUIT_COLOR),
-        Ability::Stim => (STIM_HELMET_COLOR, STIM_SUIT_COLOR),
-        Ability::Cloak => (CLOAK_HELMET_COLOR, CLOAK_SUIT_COLOR),
-        Ability::PulseWave => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
-        Ability::Ghost => (PULSEWAVE_HELMET_COLOR, PULSEWAVE_SUIT_COLOR),
-        Ability::Brute => (BRUTE_HELMET_COLOR, BRUTE_SUIT_COLOR),
-
-    };
-
-    (helmet_color, inner_suit_color)
 }
 
 pub fn setup_default_controls(mut commands: Commands) {

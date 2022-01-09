@@ -15,12 +15,9 @@ use serde::{Deserialize, Serialize};
 use rapier2d::dynamics::RigidBodyHandle;
 use rapier2d::geometry::ColliderHandle;
 
+pub use player_attr::*;
 #[cfg(feature = "graphics")]
 pub use ui_graphics::*;
-#[cfg(feature = "graphics")]
-pub use lights::*;
-
-pub use player_attr::*;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

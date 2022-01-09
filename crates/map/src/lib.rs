@@ -15,13 +15,6 @@ use bevy::math::const_vec2;
 
 use game_types::*;
 
-#[cfg(feature = "graphics")]
-use bevy::render::{
-    pipeline::{PipelineDescriptor, RenderPipeline},
-    render_graph::{RenderGraph, RenderResourcesNode},
-    shader::ShaderStages,
-};
-
 use game_types::{ColliderHandleWrapper, GameRelated, RigidBodyHandleWrapper, Size};
 
 use helper_functions::*;
@@ -66,7 +59,7 @@ pub struct Map {
     pub spawn_points: Vec<Vec2>,
 }
 
-pub struct MapAssets(pub HashMap<u8, Handle<ColorMaterial>>);
+pub struct MapAssets(pub HashMap<u8, Handle<Image>>);
 
 pub struct Maps(pub FxHashMap<u32, Map>);
 
@@ -303,41 +296,11 @@ impl Map {
 
 // This system just iterates through the map and draws each MapObject
 #[cfg(feature = "graphics")]
-pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, mut render_graph: ResMut<RenderGraph>, mut pipelines: ResMut<Assets<PipelineDescriptor>>, mut shader_assets: Res<AssetsLoading>, wnds: Res<Windows>) {
+pub fn draw_map(mut commands: Commands, maps: Res<Maps>, map_crc32: Res<MapCRC32>, mut map_assets: ResMut<MapAssets>, asset_server: Res<AssetServer>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>) {
     let map = maps.0.get(&map_crc32.0).unwrap();
-    let wnd = wnds.get_primary().unwrap();
 
     // Set the background color to the map's specified color
     commands.insert_resource(ClearColor(map.background_color));
-
-    let map_object_pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        // Vertex shaders are run once for every vertex in the mesh.
-        // Each vertex can have attributes associated to it (e.g. position,
-        // color, texture mapping). The output of a shader is per-vertex.
-        vertex: shader_assets.vertex.clone(),
-        // Fragment shaders are run for each pixel
-        fragment: Some(shader_assets.lighting_frag.clone()),
-    }));
-
-    render_graph.add_system_node(
-        "light_pos",
-        RenderResourcesNode::<Lights>::new(true),
-    );
-
-    render_graph.add_system_node(
-        "num_of_lights",
-        RenderResourcesNode::<NumLights>::new(true),
-    );
-
-    render_graph.add_system_node(
-        "ambient_light",
-        RenderResourcesNode::<AmbientLightLevel>::new(true),
-    );
-
-    render_graph.add_system_node(
-        "screen_dimensions",
-        RenderResourcesNode::<WindowSize>::new(true),
-    );
 
     map.objects.iter().for_each(|object| {
         let map_coords = &object.coords;
@@ -350,28 +313,30 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
             object.sprite.a,
         ]) as u8;
 
+        let mut color = None;
+
         let color_handle = match object.using_image.0 {
             true => match map_assets.0.get(&map_asset_int) {
-                Some(asset) => asset.clone(),
+                Some(asset) => Some(asset.clone()),
                 None => {
                     let path_string = &*format!("map_assets/{}.png", map_asset_int);
                     let asset = asset_server.load(path_string);
-                    let asset = materials.add(asset.into());
-
                     map_assets.0.insert(map_asset_int, asset.clone());
 
-                    asset
+                    Some(asset)
                 }
             },
-            false => materials.add(
-                Color::rgba_u8(
+            false => {
+                color = Some(Color::rgba_u8(
                     object.sprite.r,
                     object.sprite.g,
                     object.sprite.b,
                     object.sprite.a,
-                )
-                .into(),
-            ),
+                ));
+
+                None
+                
+            },
         };
 
 
@@ -403,8 +368,18 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
         // Spawn a new map sprite
         let mut entity = commands
             .spawn_bundle(SpriteBundle {
-                material: color_handle,
-                sprite: Sprite::new(map_object_size.0),
+                texture: match color.is_some() {
+                    false => color_handle.unwrap(),
+                    true => Default::default(),
+                },
+                sprite: Sprite {
+                    custom_size: Some(map_object_size.0),
+                    color: match color {
+                        Some(color) => color,
+                        None => Default::default(),
+                    },
+                    ..Default::default()
+                },
                 transform: Transform {
                     translation: map_coords.0.truncate(),
                     rotation: Quat::from_rotation_z(map_coords.0.w),
@@ -412,21 +387,12 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
                     ..Default::default()
 
                 },
-                render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                    map_object_pipeline_handle.clone(),
-                )]),
                 ..Default::default()
             });
 
         entity
             .insert(WallMarker)
-            .insert(GameRelated)
-            .insert(Lights::new())
-            .insert(NumLights { value: 0 })
-            .insert(WindowSize {
-                value: Vec2::new(wnd.width(), wnd.height()),
-            })
-            .insert(AmbientLightLevel { value: 0.8 });
+            .insert(GameRelated);
 
         if let Some((rigid_body_handle, collider_handle)) = physics_handles {
             entity
@@ -438,7 +404,7 @@ pub fn draw_map(mut commands: Commands, mut materials: ResMut<Assets<ColorMateri
 }
 
 //TODO: Change this whole fn to use a map (Iterator)?
-//TODO: Fix this function
+//TODO: Fix this function, it's currently broken
 #[allow(dead_code)]
 fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
     let map_bytes: Rc<RefCell<Vec<u8>>> = Rc::new(RefCell::new(Vec::with_capacity(900)));
