@@ -87,9 +87,6 @@ bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-fe
 # A more complex audio library than the one that Bevy uses
 #bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
 
-# Networking library
-bevy_networking_turbulence = { git = "https://github.com/billyb2/bevy_networking_turbulence", branch = "publicized", default-features = false, features = ["use-webrtc"] }
-
 # WASM logging
 wasm-bindgen = { version = "0.2.78", optional = true }
 
@@ -190,10 +187,8 @@ path = "src/server_cli.rs"
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 turbulence = { git = "https://github.com/billyb2/turbulence", branch = "v3_clone" }
 # The bevy_* patches are specifically for bevy_networking_turbulence
-bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
-bevy_app = { git = "https://github.com/bevyengine/bevy" }
-bevy_tasks = { git = "https://github.com/bevyengine/bevy" }
-bevy_core = { git = "https://github.com/bevyengine/bevy" }
-bevy_reflect = { git = "https://github.com/bevyengine/bevy" }
-# Using the git naia-socket-shared for now since it has the latest rand version
-naia-socket-shared = { git = "https://github.com/naia-rs/naia-socket" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_app = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_tasks = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_core = { git = "https://github.com/bevyengine/bevy", branch = "main" }
+bevy_reflect = { git = "https://github.com/bevyengine/bevy", branch = "main" }

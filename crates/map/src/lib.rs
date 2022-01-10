@@ -13,8 +13,6 @@ use std::ops::ControlFlow;
 use bevy::prelude::*;
 use bevy::math::const_vec2;
 
-use game_types::*;
-
 use game_types::{ColliderHandleWrapper, GameRelated, RigidBodyHandleWrapper, Size};
 
 use helper_functions::*;
@@ -405,6 +403,7 @@ pub fn draw_map(mut commands: Commands, maps: Res<Maps>, map_crc32: Res<MapCRC32
 
 //TODO: Change this whole fn to use a map (Iterator)?
 //TODO: Fix this function, it's currently broken
+//TODO: Make this an &self function
 #[allow(dead_code)]
 fn map_to_bin(map: &Map, should_compress: bool) -> Vec<u8> {
     let map_bytes: Rc<RefCell<Vec<u8>>> = Rc::new(RefCell::new(Vec::with_capacity(900)));

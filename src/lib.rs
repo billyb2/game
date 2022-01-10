@@ -17,8 +17,6 @@ pub mod system_labels;
 #[cfg(feature = "graphics")]
 pub mod player_input;
 
-use bevy_networking_turbulence::*;
-
 use rapier2d::na::Vector2;
 
 use bevy::prelude::*;

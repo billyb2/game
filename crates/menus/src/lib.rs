@@ -312,7 +312,7 @@ pub fn main_menu_system(button_materials: Res<ButtonMaterials>, mut interaction_
     });
 }
 
-pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut UiColor), (Changed<Interaction>, With<Button>)>, mut net: ResMut<SuperNetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, hosting: Res<Hosting>) {    
+pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Query<(Entity, &mut Text), With<IpText>>, mut char_input_events: EventReader<ReceivedCharacter>, keyboard_input: Res<Input<KeyCode>>, mut interaction_query: Query<(&Interaction, &mut UiColor), (Changed<Interaction>, With<Button>)>, mut net: ResMut<NetworkResource>, mut header_text: Query<&mut Text, Without<IpText>>, mut commands: Commands, addr: Option<Res<SocketAddr>>, mut app_state: ResMut<State<AppState>>, hosting: Res<Hosting>) {    
     if addr.is_none() && !hosting.0 {
         let (entity, mut text) = text_query.single_mut();
         let text = &mut text.sections[0].value;
@@ -331,7 +331,14 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                     header_text.str_write(format!("Connecting to {socket_addr}...").as_str());
     
                     commands.insert_resource(socket_addr);
-                    net.connect::<2048>(socket_addr, Some(SocketAddr::new(addr, 9365)));
+                    
+                    let connect_config = ConnectConfig {
+                        addr: socket_addr,
+                        udp_addr: Some(SocketAddr::new(addr, 9365)),
+
+                    };
+
+                    net.connect(connect_config, Some(2048));
                     
                 },
                 Err(err) => {
@@ -386,7 +393,7 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
     }
 }
 
-pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<SuperNetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
+pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<NetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         const DEFAULT_MAP_OBJECT: MapObject = MapObject::default();
 
@@ -709,7 +716,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<SuperNetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;

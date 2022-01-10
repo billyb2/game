@@ -4,14 +4,14 @@
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
-use super_net::*;
+use bootleg_networking::*;
+use bootleg_networking::{ConnectionHandle, NetworkResource};
 
 use bevy::core::Timer;
 use bevy::tasks::IoTaskPool;
 use bevy::ecs::schedule::State;
 use bevy::ecs::system::{Commands, Res, ResMut};
 use bevy::utils::Duration;
-use bevy_networking_turbulence::*;
 
 use single_byte_hashmap::HashMap;
 use game_types::*;
@@ -247,18 +247,18 @@ pub struct SetAbility(pub bool);
 pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<State<AppState>>>, server_addr: Option<Res<SocketAddr>>, hosting: Res<Hosting>, tokio_rt: Res<Runtime>, task_pool: Res<IoTaskPool>) {
     #[cfg(feature = "native")]
     let mut net = match hosting.0 {
-        true => SuperNetworkResource::new_server(Some(Arc::clone(&tokio_rt)), task_pool.0.clone()),
-        false => SuperNetworkResource::new_client(Some(Arc::clone(&tokio_rt)), task_pool.0.clone()),
+        true => NetworkResource::new_server(tokio_rt.clone(), task_pool.0.clone()),
+        false => NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone()),
     };
 
     #[cfg(feature = "web")]
-    let mut net = SuperNetworkResource::new_client(None, task_pool.0.clone());
+    let mut net = NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone());
 
     // Currently, only PC builds can host
     #[cfg(feature = "native")]
     if hosting.0 && !net.is_setup() {
         // The WebRTC listening address just picks a random port
-        let webrtc_listen_socket = {
+        let webrtc_listen_addr = {
             let webrtc_listen_ip = match bevy_networking_turbulence::find_my_ip_address() {
                 Some(ip) => ip,
                 None => {
@@ -278,12 +278,20 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
         const IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
         const GAME_PORT: u16 = 9363;
 
-        let socket_addr_webrtc = SocketAddr::new(IP_ADDR, GAME_PORT);
+        let naia_addr = SocketAddr::new(IP_ADDR, GAME_PORT);
 
-        let socket_addr_tcp = SocketAddr::new(IP_ADDR, GAME_PORT + 1);
-        let socket_addr_udp = SocketAddr::new(IP_ADDR, GAME_PORT + 2);
+        let tcp_addr = SocketAddr::new(IP_ADDR, GAME_PORT + 1);
+        let udp_addr = SocketAddr::new(IP_ADDR, GAME_PORT + 2);
 
-        net.listen::<2048>(socket_addr_tcp, socket_addr_udp, Some((socket_addr_webrtc, webrtc_listen_socket, webrtc_listen_socket)));
+        let listen_config = ListenConfig {
+            tcp_addr,
+            udp_addr,
+            naia_addr,
+            public_webrtc_listen_addr: webrtc_listen_addr.clone(),
+            webrtc_listen_addr,
+        };
+
+        net.listen(listen_config, Some(2048));
 
     }
 
@@ -353,7 +361,12 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
     // If we've previously connected to a server, just connect automatically without prompt
     if !hosting.0 {
         if let Some(server_addr) = server_addr {
-            net.connect::<2048>(*server_addr, Some(SocketAddr::new(server_addr.ip(), 9365)));
+            let connect_config = ConnectConfig {
+                addr: server_addr.clone(),
+                udp_addr: Some(SocketAddr::new(server_addr.ip(), 9365)),
+            };
+
+            net.connect(connect_config, Some(2048));
         }
     } else {
         _app_state.unwrap().set(AppState::InGame).unwrap();

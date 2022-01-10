@@ -149,7 +149,7 @@ fn main() {
     //.add_plugin(MaterialPlugin::<PlayerMaterial>::default());
 
     app
-    .add_plugin(SuperNetworkingPlugin)
+    .add_plugin(NetworkingPlugin)
     //.add_plugin(AudioPlugin)
     // Adds some possible events, like reloading and using your ability
     .add_event::<ReloadEvent>()

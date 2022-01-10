@@ -306,7 +306,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visibility), With<ScoreU
     }
 }
 
-pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>, my_name: Res<PlayerName>, mut app_state: ResMut<State<AppState>>) {
+pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: ResMut<Typing>, mut keyboard_input_events: EventReader<KeyboardInput>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mut log_event: EventWriter<ChatEvent>, my_name: Res<PlayerName>, mut app_state: ResMut<State<AppState>>) {
     if typing.0 {
         let text = &mut chat_text.single_mut().sections[0].value;
 
@@ -464,7 +464,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>) {
     if my_player_id.0.is_some() {
         shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
@@ -720,7 +720,7 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
     });
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &Health, &Model, &TimeSinceStartReload, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<SuperNetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &Health, &Model, &TimeSinceStartReload, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, ) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
             let (transform, mut ability_info, mut speed_info, health, model, reload_timer, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();

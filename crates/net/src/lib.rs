@@ -22,11 +22,11 @@ use bevy::utils::Duration;
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
-pub use super_net::*;
+pub use bootleg_networking::*;
 pub use setup::*;
 
 #[cfg(feature = "graphics")]
-pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &AbilityInfo, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>, mut app_state: ResMut<State<AppState>>) {
+pub fn send_stats(mut net: ResMut<NetworkResource>, players: Query<(&PlayerID, &Transform, &Health, &DamageSource, &AbilityInfo, &Model, &PlayerName)>, ready_to_send_packet: Res<ReadyToSendPacket>, local_players: Res<LocalPlayers>, my_player_id: Res<MyPlayerID>, mut app_state: ResMut<State<AppState>>) {
     // Only start sending packets when your ID is set
     if my_player_id.0.is_some() {
         // Rate limiting so that the game sends 66 updates every second
@@ -56,12 +56,12 @@ pub fn send_stats(mut net: ResMut<SuperNetworkResource>, players: Query<(&Player
     }
 }
 
-pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visibility, &mut Model, &mut AbilityInfo, &mut PlayerName)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn handle_stat_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut Transform, &RigidBodyHandleWrapper, &mut Health, &mut Visibility, &mut Model, &mut AbilityInfo, &mut PlayerName)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut death_event: EventWriter<DeathEvent>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ClientStateMessage> = Vec::new();
     let my_id = my_player_id.0.unwrap();
 
-    let mut stat_pack_logic = |(player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability), new_player_name): ClientStateMessage, handle: &SuperConnectionHandle| {
+    let mut stat_pack_logic = |(player_id, [x, y], [rot_x, rot_y, rot_z, rot_w], new_health, alpha, damage_source, (gun_model, new_ability), new_player_name): ClientStateMessage, handle: &ConnectionHandle| {
         // The host broadcasts the locations of all other players
         #[cfg(feature = "native")]
         if _hosting.0 {
@@ -124,7 +124,7 @@ pub fn handle_stat_packets(mut net: ResMut<SuperNetworkResource>, mut players: Q
     }
 }
 
-pub fn handle_score_packets(mut net: ResMut<SuperNetworkResource>, mut score: ResMut<DeathmatchScore>, hosting: Res<Hosting>) {
+pub fn handle_score_packets(mut net: ResMut<NetworkResource>, mut score: ResMut<DeathmatchScore>, hosting: Res<Hosting>) {
     if !hosting.0 {
         let messages = net.view_messages(&SCORE_MESSAGE_CHANNEL);
 
@@ -142,18 +142,18 @@ pub fn handle_score_packets(mut net: ResMut<SuperNetworkResource>, mut score: Re
 
 #[inline]
 #[cfg(feature = "native")]
-pub fn send_score(mut net: ResMut<SuperNetworkResource>, score: Res<DeathmatchScore>, ready_to_send_packet: Res<ReadyToSendPacket>, hosting: Res<Hosting>) {
+pub fn send_score(mut net: ResMut<NetworkResource>, score: Res<DeathmatchScore>, ready_to_send_packet: Res<ReadyToSendPacket>, hosting: Res<Hosting>) {
     if ready_to_send_packet.0.finished() && hosting.0 {
         net.broadcast_message(&score.0, &SCORE_MESSAGE_CHANNEL).unwrap();
     }
 }
 
-pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players: Query<(&mut AbilityInfo, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
+pub fn handle_ability_packets(mut net: ResMut<NetworkResource>, mut players: Query<(&mut AbilityInfo, &RigidBodyHandleWrapper)>, my_player_id: Res<MyPlayerID>, _hosting: Res<Hosting>,  mut ev_use_ability: EventWriter<AbilityEvent>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<AbilityMessage> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
-        let messages: Result<Vec<(SuperConnectionHandle, AbilityMessage)>, _> = net.view_messages(&ABILITY_MESSAGE_CHANNEL);
+        let messages: Result<Vec<(ConnectionHandle, AbilityMessage)>, _> = net.view_messages(&ABILITY_MESSAGE_CHANNEL);
 
         match messages {
             Ok(messages) => messages.into_iter().for_each(|(handle, ([player_id, ability], [player_x, player_y, angle]))| {
@@ -207,12 +207,12 @@ pub fn handle_ability_packets(mut net: ResMut<SuperNetworkResource>, mut players
     }
 }
 
-pub fn handle_projectile_packets(mut net: ResMut<SuperNetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn handle_projectile_packets(mut net: ResMut<NetworkResource>, mut shoot_event: EventWriter<ShootEvent>, mut players: Query<&mut Transform>, _hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, player_entity: Res<HashMap<u8, Entity>>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<ShootEvent> = Vec::new();
 
     if let Some(my_id) = &my_player_id.0 {
-        let messages: Result<Vec<(SuperConnectionHandle, ShootEvent)>, _> = net.view_messages(&PROJECTILE_MESSAGE_CHANNEL);
+        let messages: Result<Vec<(ConnectionHandle, ShootEvent)>, _> = net.view_messages(&PROJECTILE_MESSAGE_CHANNEL);
 
         match messages {
             Ok(messages) => messages.iter().for_each(|(handle, event)| {
@@ -247,7 +247,7 @@ pub fn handle_projectile_packets(mut net: ResMut<SuperNetworkResource>, mut shoo
 }
 
 
-pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<SuperNetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>, server_ip: Option<Res<SocketAddr>>) {
+pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>, my_ability: Res<Ability>, mut net: ResMut<NetworkResource>, mut ready_to_send_packet: ResMut<ReadyToSendPacket>, ability_set: Res<SetAbility>, mut app_state: ResMut<State<AppState>>, mut net_conn_state_text: Query<&mut Text, With<NetConnStateText>>, server_ip: Option<Res<SocketAddr>>) {
     if hosting.0 {
         return;
     }
@@ -295,15 +295,15 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
     if !hosting.0 {
         return;
     }
 
     // First item is the handle, the second is the ID
-    let mut messages_to_send: Vec<(SuperConnectionHandle, InfoMessage)> = Vec::new();
+    let mut messages_to_send: Vec<(ConnectionHandle, InfoMessage)> = Vec::new();
 
-    let mut handle_server_commands_logic = |command: &InfoMessage, handle: &SuperConnectionHandle| {
+    let mut handle_server_commands_logic = |command: &InfoMessage, handle: &ConnectionHandle| {
         // Send a player ID as well as an ability back
         if command[0] == 0 {
             if let Some(player_id) = available_ids.first() {
@@ -351,7 +351,7 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
         }
     };
 
-    let messages: Result<Vec<(SuperConnectionHandle, InfoMessage)>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
+    let messages: Result<Vec<(ConnectionHandle, InfoMessage)>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
 
     match messages {
         // Since the TCP server (currently) cannot send messages to specific clients, we just use the dummy value of 0
@@ -367,12 +367,12 @@ pub fn handle_server_commands(mut net: ResMut<SuperNetworkResource>, mut availab
     }
 }
 
-pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>) {    
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>) {    
     if hosting.0 {
         return;
     }
 
-    let mut info_message_logic = |command: InfoMessage, handle: &SuperConnectionHandle| {
+    let mut info_message_logic = |command: InfoMessage, handle: &ConnectionHandle| {
         // The set player ID command
         if command[0] == 0 {
             let id = command[1];
@@ -429,14 +429,14 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
     };
 
 
-    let info_messages: Result<Vec<(SuperConnectionHandle, InfoMessage)>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
+    let info_messages: Result<Vec<(ConnectionHandle, InfoMessage)>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
 
     match info_messages {
         Ok(messages) => messages.into_iter().for_each(|(handle, msg)| info_message_logic(msg, &handle)),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
-    let map_messages: Result<Vec<(SuperConnectionHandle, u32)>, _> = net.view_messages(&SET_MAP_CHANNEL);
+    let map_messages: Result<Vec<(ConnectionHandle, u32)>, _> = net.view_messages(&SET_MAP_CHANNEL);
 
     match map_messages {
         Ok(messages) => messages.into_iter().for_each(|(_handle, msg)| map_u32_logic(msg)),
@@ -445,7 +445,7 @@ pub fn handle_client_commands(mut net: ResMut<SuperNetworkResource>, hosting: Re
 
 }
 
-/*pub fn handle_map_object_request(mut net: ResMut<SuperNetworkResource>, maps: Res<Maps>) {
+/*pub fn handle_map_object_request(mut net: ResMut<NetworkResource>, maps: Res<Maps>) {
     let mut messages_to_send = Vec::new();
 
     let messages: Result<(u32, u64), _> = net.view_messages(&REQUEST_MAP_OBJECT_CHANNEL);
@@ -555,11 +555,11 @@ pub fn handle_map_metadata(mut net: ResMut<NetworkResource>, mut maps: ResMut<Ma
 
 }
 */
-pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event: EventWriter<ChatEvent>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>, hosting: Res<Hosting>) {
+pub fn handle_text_messages(mut net: ResMut<NetworkResource>, mut log_event: EventWriter<ChatEvent>, names: Query<&PlayerName>, player_entity: Res<HashMap<u8, Entity>>, hosting: Res<Hosting>) {
     #[cfg(feature = "native")]
     let mut messages_to_send: Vec<TextMessage> = Vec::new();
 
-    let messages: Result<Vec<(SuperConnectionHandle, TextMessage)>, _> = net.view_messages(&TEXT_MESSAGE_CHANNEL);
+    let messages: Result<Vec<(ConnectionHandle, TextMessage)>, _> = net.view_messages(&TEXT_MESSAGE_CHANNEL);
 
     match messages {
         Ok(messages) => {messages.into_iter().for_each(|(_handle, (player_id, message, time))| {
@@ -591,7 +591,7 @@ pub fn handle_text_messages(mut net: ResMut<SuperNetworkResource>, mut log_event
 // Basically, the function just checks if the player is in online_player_ids, and if not, it inserts them into that and deathmatch score
 // This function should be run on pretty much any net function that receives an ID
 #[inline]
-pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_ids: &mut HashMap<u8, Option<(SuperConnectionHandle, Timer)>>, player_id: u8, handle: &SuperConnectionHandle) {
+pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_ids: &mut HashMap<u8, Option<(ConnectionHandle, Timer)>>, player_id: u8, handle: &ConnectionHandle) {
     if !deathmatch_score.contains_key(&player_id) {
         deathmatch_score.insert(player_id, 0);
 
@@ -603,18 +603,18 @@ pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_
 
 // Literally just removes all connections from the connections HashMap.
 #[inline(always)]
-pub fn disconnect(mut net: ResMut<SuperNetworkResource>) {
+pub fn disconnect(mut net: ResMut<NetworkResource>) {
     net.disconnect_from_all();
 
 }
 
 pub trait ErrorToMainMenu {
-    fn err_on_server_disconnect(&self, net: &SuperNetworkResource, app_state: &mut State<AppState>);
+    fn err_on_server_disconnect(&self, net: &NetworkResource, app_state: &mut State<AppState>);
 }
 
 // If a command fails to send due to a disconnect error on the client, then we should return to game menu and show an error to the client
 impl ErrorToMainMenu for Result<(), SendMessageError> {
-    fn err_on_server_disconnect(&self, net: &SuperNetworkResource, app_state: &mut State<AppState>) {
+    fn err_on_server_disconnect(&self, net: &NetworkResource, app_state: &mut State<AppState>) {
         if let Some(err) = self.as_ref().err() {
             match err {
                 SendMessageError::NotConnected => {

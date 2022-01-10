@@ -18,6 +18,12 @@ ui_graphics = { path = "crates/ui_graphics", optional = true }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
 wasm-bindgen = "0.2.78"
+bootleg_networking = { git = " https://github.com/billyb2/bootleg_networking", default-features = false, features = ["web"] }
+#bootleg_networking = { path = "../../../bootleg_networking", default-features = false, features = ["web"] }
+
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
+bootleg_networking = { git = " https://github.com/billyb2/bootleg_networking", default-features = false, features = ["native"] }
+#bootleg_networking = { path = "../../../bootleg_networking", default-features = false, features = ["native"] }
 
 [features]
 graphics = [
