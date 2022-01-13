@@ -137,11 +137,18 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
             entity.insert(ColliderHandleWrapper(collider_handle));
 
             if remaining_bots_to_add > 0 {
-                let (bot, ability, model) = AggroBot::new(map, PlayerID(i));
+                let map_bytes = map.to_min_bin();
+                let wasm_bytes = include_bytes!("../../bots/example_bots/aggro_bot.wasm");
 
+                let bot = Bot::new(wasm_bytes, &map_bytes, &PlayerID(i));
+
+                let model = Model::Shotgun;
+                let ability = Ability::Inferno;
+                let perk = Perk::LightArmor;
                 entity.insert_bundle(Gun::new(model, ability, perk));
 
-                entity.insert(BotWrapper(Box::new(bot)));
+                entity.insert(PlayerName::from_str(bot.name()));
+                entity.insert(bot);
                 entity.insert(ability);
 
                 remaining_bots_to_add -= 1;
@@ -149,8 +156,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
                 online_player_ids.insert(i, None);
                 _deathmatch_score.0.insert(i, 0);
                 local_players.push(i);
-                // Bots get random names
-                entity.insert(PlayerName::get_random_name());
 
 
             } else {

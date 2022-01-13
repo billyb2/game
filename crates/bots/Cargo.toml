@@ -13,9 +13,18 @@ game_types = { path = "../game_types" }
 map = { path = "../map" }
 helper_functions = { path = "../helper_functions" }
 
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
+wasmer = { version = "2", default-features = false, features = ["sys", "default-universal"] }
+wasmer-compiler-singlepass = { version = "2", default-features = false, features = ["std"] }
+wasmer-engine-universal = { version = "2", features = ["compiler"] }
+
+[target.'cfg(target_arch="wasm32")'.dependencies]
+wasmer = { version = "2", default-features = false, features = ["js-default"] }
+
 [features]
 parallel = [
 	"rapier2d/parallel", 
 	"map/parallel", 
-	"helper_functions/parallel"
+	"helper_functions/parallel",
+	"wasmer-compiler-singlepass/rayon",
 ]

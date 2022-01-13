@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 #![allow(clippy::type_complexity)]
 
+use std::str::FromStr;
 use std::convert::From;
 use std::fmt;
 use std::mem::variant_count;
@@ -811,6 +812,11 @@ impl PlayerName {
         array_string.push_str(&player_name_as_string);
 
         PlayerName(array_string)
+
+    }
+
+    pub fn from_str(name: &str) -> Self {
+        Self(ArrayString::from_str(name).unwrap())
 
     }
 }

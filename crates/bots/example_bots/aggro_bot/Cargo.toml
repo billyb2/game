@@ -1,0 +1,16 @@
+[package]
+name = "aggro_bot"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+debug = 0
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+
+[dependencies]
+glam = "0.20"
+
+[lib]
+crate-type =["cdylib"]

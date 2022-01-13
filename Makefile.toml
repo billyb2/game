@@ -86,6 +86,11 @@ env = { "RUSTFLAGS" = "-Ctarget-cpu=x86-64-v3 -Zstrip=symbols -Ctarget-feature=+
 args = ["build", "--features", "native,use_wgpu,graphics,openssl/vendored", "--bin", "game", "--target", "x86_64-pc-windows-gnu", "--profile", "dev-windows"]
 command = "cargo"
 
+[tasks.build-windows-release]
+env = { "RUSTFLAGS" = "-Ctarget-cpu=x86-64-v3 -Zstrip=symbols -Ctarget-feature=+crt-static" }
+args = ["build", "--features", "native,use_wgpu,graphics,openssl/vendored", "--bin", "game", "--target", "x86_64-pc-windows-gnu", "--profile", "release-windows"]
+command = "cargo"
+
 [tasks.build-native-release]
 env = { "RUSTFLAGS" = "-Ctarget-cpu=x86-64-v3 -Zstrip=symbols -Clink-arg=-fuse-ld=lld" }
 args = ["run", "--features", "native,use_wgpu,graphics", "--release", "--bin", "game", "--features", "-Z", "unstable-options"]

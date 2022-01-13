@@ -285,11 +285,54 @@ impl Map {
 
         // Quick check to make sure the to_bin function is working
         // It isn't working at the moment, please fix :(
+        println!("{}", bytes.len());
         //debug_assert_eq!(bytes[..], map_to_bin(&map, false));
 
         map
     }
 
+    // Turns the map into a binary format compatible with the bots
+    pub fn to_min_bin(&self) -> Vec<u8> {
+        let mut min_map_bin = Vec::with_capacity(self.objects.len() * 20);
+
+        self.objects.iter().for_each(|object| {
+            object.coords.0.x.to_be_bytes().into_iter().for_each(|byte| {
+                min_map_bin.push(byte);
+
+            });
+
+            object.coords.0.y.to_be_bytes().into_iter().for_each(|byte| {
+                min_map_bin.push(byte);
+
+            });
+
+            object.size.0.x.to_be_bytes().into_iter().for_each(|byte| {
+                min_map_bin.push(byte);
+
+            });
+
+            object.size.0.y.to_be_bytes().into_iter().for_each(|byte| {
+                min_map_bin.push(byte);
+
+            });
+
+            match object.health.0 {
+                Some(health) => {
+                    health.to_be_bytes().into_iter().for_each(|byte| {
+                        min_map_bin.push(byte);
+
+                    });
+                },
+                None => {(0u8..4u8).for_each(|_| min_map_bin.push(0));},
+
+            }
+
+        });
+
+        min_map_bin.shrink_to_fit();
+        min_map_bin
+
+    }
 }
 
 // This system just iterates through the map and draws each MapObject

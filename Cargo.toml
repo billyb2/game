@@ -22,6 +22,9 @@ panic = "abort"
 debug = 0
 codegen-units = 1
 
+[profile.release-windows]
+inherits = "release"
+
 [profile.fast-web-simd]
 inherits = "dev"
 panic = "abort"
@@ -122,9 +125,6 @@ menus = { path = "crates/menus", optional = true }
 # Compiles OpenSSL from scratch when the vendored feature is enabled
 openssl = { version = "0.10", features = ["vendored"] }
 
-[build-dependencies]
-inline-spirv = { version = "0.1" }
-
 [features]
 default = [
   "native",
@@ -140,6 +140,7 @@ graphics = [
   "bevy/bevy_winit", 
   "bevy/png", 
   "bevy/render",
+  "bevy/bevy_gilrs",
   "game_types/graphics",
   "setup_systems/graphics",
   "net/graphics",
