@@ -243,136 +243,163 @@ pub struct ReadyToSendPacket(pub Timer);
 
 pub struct SetAbility(pub bool);
 
+pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<State<AppState>>>, server_addr: Option<Res<SocketAddr>>, hosting: Res<Hosting>, tokio_rt: Res<Runtime>, task_pool: Res<IoTaskPool>, mut net: Option<ResMut<NetworkResource>>) {
+    let new_net = if net.is_none() {
+        #[cfg(feature = "native")]
+        let mut net = match hosting.0 {
+            true => NetworkResource::new_server(tokio_rt.clone(), task_pool.0.clone()),
+            false => NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone()),
+        };
 
-pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<State<AppState>>>, server_addr: Option<Res<SocketAddr>>, hosting: Res<Hosting>, tokio_rt: Res<Runtime>, task_pool: Res<IoTaskPool>) {
-    #[cfg(feature = "native")]
-    let mut net = match hosting.0 {
-        true => NetworkResource::new_server(tokio_rt.clone(), task_pool.0.clone()),
-        false => NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone()),
+        #[cfg(feature = "web")]
+        let net = NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone());
+
+        // Currently, only PC builds can host
+        #[cfg(feature = "native")]
+        if hosting.0 && !net.is_setup() {
+            // The WebRTC listening address just picks a random port
+            let webrtc_listen_addr = {
+                let webrtc_listen_ip = match bevy_networking_turbulence::find_my_ip_address() {
+                    Some(ip) => ip,
+                    None => {
+                        println!("Couldn't find IP address, using 127.0.0.1");
+                        println!("Warning: Firefox doesn't allow WebRTC connections to 127.0.0.1, but Chromium does");
+
+                        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
+
+                    },
+
+                };
+                let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str()).expect("No available port");
+
+                SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
+            };
+
+            const IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+            const GAME_PORT: u16 = 9363;
+
+            let naia_addr = SocketAddr::new(IP_ADDR, GAME_PORT);
+
+            let tcp_addr = SocketAddr::new(IP_ADDR, GAME_PORT + 1);
+            let udp_addr = SocketAddr::new(IP_ADDR, GAME_PORT + 2);
+
+            let listen_config = ListenConfig {
+                tcp_addr,
+                udp_addr,
+                naia_addr,
+                public_webrtc_listen_addr: webrtc_listen_addr.clone(),
+                webrtc_listen_addr,
+            };
+
+            println!("Setup listening");
+            net.listen(listen_config, Some(2048));
+
+        }
+
+        // Registers message types
+        // Because of using many generics, this takes a long time to compile
+        net.register_message_channel_native(CLIENT_STATE_MESSAGE_SETTINGS, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
+        net.register_message_channel_native(PROJECTILE_MESSAGE_SETTINGS, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
+        net.register_message_channel_native(SCORE_MESSAGE_SETTINGS, &SCORE_MESSAGE_CHANNEL).unwrap();
+        net.register_message_channel_native(INFO_MESSAGE_SETTINGS, &INFO_MESSAGE_CHANNEL).unwrap();
+        net.register_message_channel_native(ABILITY_MESSAGE_SETTINGS, &ABILITY_MESSAGE_CHANNEL).unwrap();
+        net.register_message_channel_native(SET_MAP_SETTINGS, &SET_MAP_CHANNEL).unwrap();
+        net.register_message_channel_native(REQUEST_MAP_OBJECT_SETTINGS, &REQUEST_MAP_OBJECT_CHANNEL).unwrap();
+        net.register_message_channel_native(TEXT_MESSAGE_SETTINGS, &TEXT_MESSAGE_CHANNEL).unwrap();
+
+        net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
+            builder
+                .register::<ClientStateMessage>(CLIENT_STATE_MESSAGE_SETTINGS)
+                .unwrap();
+
+            builder
+                .register::<ShootEvent>(PROJECTILE_MESSAGE_SETTINGS)
+                .unwrap();
+
+            builder
+                .register::<HashMap<u8, u8>>(SCORE_MESSAGE_SETTINGS)
+                .unwrap();
+
+            builder
+                .register::<InfoMessage>(INFO_MESSAGE_SETTINGS)
+                .unwrap();
+
+            builder
+                .register::<AbilityMessage>(ABILITY_MESSAGE_SETTINGS)
+                .unwrap();
+
+            builder
+                .register::<u32>(SET_MAP_SETTINGS)
+                .unwrap();
+
+            builder
+                // Using a u64 instead of a usize since I'm pretty sure WASM is 32 bit
+                // First item of the tuple is the crc32 of the map object, the second item is the index of the map object in the vector
+                .register::<(u32, u64)>(REQUEST_MAP_OBJECT_SETTINGS)
+                .unwrap();
+
+            builder
+                // Index 0 is the crc32, index 1 is the index of the map object, and index 2 is the map object as binary
+                .register::<(u32, u64, [u8; 32])>(SEND_MAP_OBJECT_SETTINGS)
+                .unwrap();
+
+            builder
+                // Index 0 is the map name, index 1 is the length of the map objects vector, index 2 is the background color, 3 is the map size, 4 is the crc32
+                .register::<(String, u64, [f32; 3], [f32; 2], u32)>(MAP_METADATA_SETTINGS)
+                .unwrap();
+
+            builder
+                .register::<TextMessage>(TEXT_MESSAGE_SETTINGS)
+                .unwrap();
+
+        });
+        
+        commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), true)));
+        #[cfg(feature = "graphics")]
+        commands.insert_resource(SetAbility(false));
+
+        Some(net)
+
+    } else {
+        None
+
     };
-
-    #[cfg(feature = "web")]
-    let mut net = NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone());
-
-    // Currently, only PC builds can host
-    #[cfg(feature = "native")]
-    if hosting.0 && !net.is_setup() {
-        // The WebRTC listening address just picks a random port
-        let webrtc_listen_addr = {
-            let webrtc_listen_ip = match bevy_networking_turbulence::find_my_ip_address() {
-                Some(ip) => ip,
-                None => {
-                    println!("Couldn't find IP address, using 127.0.0.1");
-                    println!("Warning: Firefox doesn't allow WebRTC connections to 127.0.0.1, but Chromium does");
-
-                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
-
-                },
-
-            };
-            let webrtc_listen_port = get_available_port(webrtc_listen_ip.to_string().as_str()).expect("No available port");
-
-            SocketAddr::new(webrtc_listen_ip, webrtc_listen_port)
-        };
-
-        const IP_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
-        const GAME_PORT: u16 = 9363;
-
-        let naia_addr = SocketAddr::new(IP_ADDR, GAME_PORT);
-
-        let tcp_addr = SocketAddr::new(IP_ADDR, GAME_PORT + 1);
-        let udp_addr = SocketAddr::new(IP_ADDR, GAME_PORT + 2);
-
-        let listen_config = ListenConfig {
-            tcp_addr,
-            udp_addr,
-            naia_addr,
-            public_webrtc_listen_addr: webrtc_listen_addr.clone(),
-            webrtc_listen_addr,
-        };
-
-        net.listen(listen_config, Some(2048));
-
-    }
-
-    // Registers message types
-    // Because of using many generics, this takes a long time to compile
-    net.register_message_channel_native(CLIENT_STATE_MESSAGE_SETTINGS, &CLIENT_STATE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native(PROJECTILE_MESSAGE_SETTINGS, &PROJECTILE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native(SCORE_MESSAGE_SETTINGS, &SCORE_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native(INFO_MESSAGE_SETTINGS, &INFO_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native(ABILITY_MESSAGE_SETTINGS, &ABILITY_MESSAGE_CHANNEL).unwrap();
-    net.register_message_channel_native(SET_MAP_SETTINGS, &SET_MAP_CHANNEL).unwrap();
-    net.register_message_channel_native(REQUEST_MAP_OBJECT_SETTINGS, &REQUEST_MAP_OBJECT_CHANNEL).unwrap();
-    net.register_message_channel_native(TEXT_MESSAGE_SETTINGS, &TEXT_MESSAGE_CHANNEL).unwrap();
-
-    net.set_channels_builder(|builder: &mut ConnectionChannelsBuilder| {
-        builder
-            .register::<ClientStateMessage>(CLIENT_STATE_MESSAGE_SETTINGS)
-            .unwrap();
-
-        builder
-            .register::<ShootEvent>(PROJECTILE_MESSAGE_SETTINGS)
-            .unwrap();
-
-        builder
-            .register::<HashMap<u8, u8>>(SCORE_MESSAGE_SETTINGS)
-            .unwrap();
-
-        builder
-            .register::<InfoMessage>(INFO_MESSAGE_SETTINGS)
-            .unwrap();
-
-        builder
-            .register::<AbilityMessage>(ABILITY_MESSAGE_SETTINGS)
-            .unwrap();
-
-        builder
-            .register::<u32>(SET_MAP_SETTINGS)
-            .unwrap();
-
-        builder
-            // Using a u64 instead of a usize since I'm pretty sure WASM is 32 bit
-            // First item of the tuple is the crc32 of the map object, the second item is the index of the map object in the vector
-            .register::<(u32, u64)>(REQUEST_MAP_OBJECT_SETTINGS)
-            .unwrap();
-
-        builder
-            // Index 0 is the crc32, index 1 is the index of the map object, and index 2 is the map object as binary
-            .register::<(u32, u64, [u8; 32])>(SEND_MAP_OBJECT_SETTINGS)
-            .unwrap();
-
-        builder
-            // Index 0 is the map name, index 1 is the length of the map objects vector, index 2 is the background color, 3 is the map size, 4 is the crc32
-            .register::<(String, u64, [f32; 3], [f32; 2], u32)>(MAP_METADATA_SETTINGS)
-            .unwrap();
-
-        builder
-            .register::<TextMessage>(TEXT_MESSAGE_SETTINGS)
-            .unwrap();
-
-    });
-    
-    commands.insert_resource(ReadyToSendPacket(Timer::new(Duration::from_millis(15), true)));
-    #[cfg(feature = "graphics")]
-    commands.insert_resource(SetAbility(false));
     
 
-    // If we've previously connected to a server, just connect automatically without prompt
-    if !hosting.0 {
-        if let Some(server_addr) = server_addr {
-            let connect_config = ConnectConfig {
-                addr: server_addr.clone(),
-                udp_addr: Some(SocketAddr::new(server_addr.ip(), 9365)),
-            };
+    if let Some(net) = net.as_mut() {
+        // If we've previously connected to a server, just connect automatically without prompt
+        if !hosting.0 {
+            if let Some(server_addr) = server_addr {
+                let connect_config = ConnectConfig {
+                    addr: server_addr.clone(),
+                    udp_addr: Some(SocketAddr::new(server_addr.ip(), 9365)),
+                };
 
-            net.connect(connect_config, Some(2048));
+                net.connect(connect_config, Some(2048));
+            }
+        } else {
+            _app_state.unwrap().set(AppState::InGame).unwrap();
         }
     } else {
-        _app_state.unwrap().set(AppState::InGame).unwrap();
-    }
+        let mut net = new_net.unwrap();
 
-    commands.insert_resource(net);
+        // If we've previously connected to a server, just connect automatically without prompt
+        if !hosting.0 {
+            if let Some(server_addr) = server_addr {
+                let connect_config = ConnectConfig {
+                    addr: server_addr.clone(),
+                    udp_addr: Some(SocketAddr::new(server_addr.ip(), 9365)),
+                };
+
+                net.connect(connect_config, Some(2048));
+            }
+        } else {
+            _app_state.unwrap().set(AppState::InGame).unwrap();
+        }
+
+        commands.insert_resource(net);
+
+    }
 
 }
 

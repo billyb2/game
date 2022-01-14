@@ -601,10 +601,10 @@ pub fn make_player_online(deathmatch_score: &mut HashMap<u8, u8>, online_player_
 
 }
 
-// Literally just removes all connections from the connections HashMap.
-#[inline(always)]
-pub fn disconnect(mut net: ResMut<NetworkResource>) {
+pub fn disconnect(mut net: ResMut<NetworkResource>, mut my_player_id: ResMut<MyPlayerID>, mut ability_set: ResMut<SetAbility>) {
     net.disconnect_from_all();
+    my_player_id.0 = None;
+    ability_set.0 = false;
 
 }
 
