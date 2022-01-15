@@ -856,6 +856,7 @@ dependencies = [
 [[package]]
 name = "bootleg_networking"
 version = "0.1.0"
+source = "git+https://github.com/billyb2/bootleg_networking#fe5361aca1450ff8b851d7c933d0a1d1a5856d13"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -2462,6 +2463,7 @@ dependencies = [
 [[package]]
 name = "native_client"
 version = "0.1.0"
+source = "git+https://github.com/billyb2/bootleg_networking#fe5361aca1450ff8b851d7c933d0a1d1a5856d13"
 dependencies = [
  "arrayvec",
  "bincode",
@@ -2475,6 +2477,7 @@ dependencies = [
 [[package]]
 name = "native_server"
 version = "0.1.0"
+source = "git+https://github.com/billyb2/bootleg_networking#fe5361aca1450ff8b851d7c933d0a1d1a5856d13"
 dependencies = [
  "bincode",
  "crossbeam-channel",
@@ -2486,6 +2489,7 @@ dependencies = [
 [[package]]
 name = "native_shared"
 version = "0.1.0"
+source = "git+https://github.com/billyb2/bootleg_networking#fe5361aca1450ff8b851d7c933d0a1d1a5856d13"
 dependencies = [
  "bincode",
  "dashmap",
@@ -2558,6 +2562,7 @@ dependencies = [
 [[package]]
 name = "net_native"
 version = "0.1.0"
+source = "git+https://github.com/billyb2/bootleg_networking#fe5361aca1450ff8b851d7c933d0a1d1a5856d13"
 dependencies = [
  "bincode",
  "dashmap",

@@ -146,6 +146,21 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
 
                 }
 
+                if button_inputs.pressed(GamepadButton(gamepad, GamepadButtonType::RightTrigger)) {
+                    ev_use_ability.send(AbilityEvent(my_player_id.0.unwrap().0));
+
+                }
+
+                let (mut player_speed_info, _rigid_body_handle, _health) = query.get_mut(*player_entity.get(&my_player_id.0.unwrap().0).unwrap()).unwrap();
+
+                if button_inputs.pressed(GamepadButton(gamepad, GamepadButtonType::South)) && !player_speed_info.dash_info.dashing && player_speed_info.dash_info.time_till_can_dash.finished() {
+                    player_speed_info.speed *= 3.1;
+
+                    player_speed_info.dash_info.dashing = true;
+                    player_speed_info.dash_info.time_till_stop_dash.reset();
+
+                }
+
             }
 
             if keyboard_input.just_pressed(KeyCode::Escape) {
@@ -386,7 +401,7 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
 
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &AbilityInfo, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>, gamepads: Res<Gamepads>, button_inputs: Res<Input<GamepadButton>>, axes: Res<Axis<GamepadAxis>>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &AbilityInfo, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>, gamepads: Res<Gamepads>, button_inputs: Res<Input<GamepadButton>>, axes: Res<Axis<GamepadAxis>>, wnds: Res<Windows>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
             let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, ability_info, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
@@ -439,28 +454,8 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
                 }).take(num_of_recoil).collect();
 
                 let start_pos = transform.translation;
-                let pos_direction = if gamepads.iter().next().is_some() {
-                    let mut value = Vec2::ZERO;
 
-                    for gamepad in gamepads.iter().cloned() {
-                        let right_stick_x = axes.get(GamepadAxis(gamepad, GamepadAxisType::RightStickX)).unwrap();
-                        let right_stick_y = axes.get(GamepadAxis(gamepad, GamepadAxisType::RightStickY)).unwrap();
-                        
-                        if right_stick_x.abs() > 0.1 || right_stick_y.abs() > 0.1 {
-                            let angle = get_angle(right_stick_x, right_stick_y, 0.0, 0.0);
-                            Vec2::splat(((right_stick_x.abs() + right_stick_x.abs()) / 2.0 * 150.0)) * Vec2::new(angle.cos(), angle.sin());
-
-                        }
-
-                    }
-
-                    value
-                
-                // TODO: UsingMouse Resource
-                } else {
-                    mouse_pos.0
-
-                };
+                let pos_direction = mouse_pos.0;
 
                 let event = ShootEvent {
                     start_pos,
@@ -1058,7 +1053,7 @@ TimeSinceStartReload, &mut Bursting, &mut AbilityInfo, &mut PlayerSpeedInfo, &Co
 
     });
 }
-
+//TODO!!!!!!
 pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo)>, local_players: Res<LocalPlayers>) {
     /*query.for_each_mut(|(player_id, ability_info, mut shader_phasing)| {
         let player_is_local = local_players.0.contains(&player_id.0);
@@ -1070,7 +1065,7 @@ pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo)>, local_p
     });*/
 }
 
-pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition>) {
+pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition>, gamepads: Res<Gamepads>, axes: Res<Axis<GamepadAxis>>) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = camera.single();
 
@@ -1080,7 +1075,19 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
 
     // the default orthographic projection is in pixels from the center;
     // just undo the translation
-    let cursor_pos = wnd.cursor_position().unwrap_or(Vec2::ZERO);
+    // If there's a gamepad, calculate where the "mouse" would be using the right stick
+    let cursor_pos = match gamepads.iter().next() {
+        Some(gamepad) => {
+            let gamepad = gamepad.clone();
+
+            let right_stick_x = axes.get(GamepadAxis(gamepad, GamepadAxisType::RightStickX)).unwrap();
+            let right_stick_y = axes.get(GamepadAxis(gamepad, GamepadAxisType::RightStickY)).unwrap();
+                    
+            let angle = get_angle(right_stick_x, right_stick_y, 0.0, 0.0);
+            Vec2::new(angle.cos(), angle.sin()) * size
+        },
+        None => wnd.cursor_position().unwrap_or(Vec2::ZERO),
+    };
 
     let p = cursor_pos - size / 2.0;
 
