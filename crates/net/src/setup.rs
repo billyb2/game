@@ -252,7 +252,7 @@ pub fn setup_networking(mut commands: Commands, mut _app_state: Option<ResMut<St
         };
 
         #[cfg(feature = "web")]
-        let net = NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone());
+        let mut net = NetworkResource::new_client(tokio_rt.clone(), task_pool.0.clone());
 
         // Currently, only PC builds can host
         #[cfg(feature = "native")]

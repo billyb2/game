@@ -148,6 +148,7 @@ pub enum AppState {
     GameMenu,
     ContinuePlaying,
     CustomizePlayerMenu,
+    BotBattleMenu,
     InGame,
     Settings,
     CustomizeGame,

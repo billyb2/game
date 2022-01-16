@@ -9,6 +9,7 @@
 use std::sync::Arc;
 use std::ops::ControlFlow;
 use std::f32::consts::PI;
+use std::marker::{Send, Sync};
 use std::iter::repeat_with;
 
 use bevy::prelude::*;
@@ -16,7 +17,9 @@ use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use wasmer::{imports, Instance, Module, NativeFunc, Store};
+#[cfg(target_arch = "x86_64")]
 use wasmer_compiler_singlepass::Singlepass;
+#[cfg(target_arch = "x86_64")]
 use wasmer_engine_universal::Universal;
 
 use map::*;
@@ -26,10 +29,16 @@ use game_types::*;
 #[derive(Component)]
 pub struct Bot {
     name: String,
-    instance: Instance,
+    instance: InstanceWrapper,
     id: u8,
 
 }
+
+pub struct InstanceWrapper(pub Instance);
+
+
+unsafe impl Send for InstanceWrapper {}
+unsafe impl Sync for InstanceWrapper {}
 
 pub struct BotActions {
     // Some for an angle to move in, None if shouldn't move
@@ -45,7 +54,11 @@ pub struct BotActions {
 
 impl Bot {
     pub fn new(wasm_bytes: &[u8], map_bytes: &[u8], id: &PlayerID) -> Self {
+        #[cfg(target_arch = "x86_64")]
         let store = Store::new(&Universal::new(Singlepass::default()).engine());
+
+        #[cfg(target_arch = "wasm32")]
+        let store = Store::new();
 
         println!("Compiling wasm module...");
         // Let's compile the Wasm module.
@@ -104,19 +117,19 @@ impl Bot {
 
         Bot {
             name,
-            instance,
+            instance: InstanceWrapper(instance),
             id: id.0,
         }
 
     }
 
     pub fn update_info(&self, map_bytes: &[u8], enemy_bytes: &[u8], player_bytes: &[u8], health: f32) -> BotActions {
-        let memory = self.instance.exports.get_memory("memory").unwrap();
+        let memory = self.instance.0.exports.get_memory("memory").unwrap();
         let mem_buffer = unsafe { memory.data_unchecked_mut() };
 
         {
-            let map_ptr: NativeFunc<(), u32> = self.instance.exports.get_native_function("map_mem_buffer_ptr").unwrap();
-            let map_buffer_size: NativeFunc<(), u32> = self.instance.exports.get_native_function("map_mem_buffer_size").unwrap();
+            let map_ptr: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("map_mem_buffer_ptr").unwrap();
+            let map_buffer_size: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("map_mem_buffer_size").unwrap();
 
             let map_ptr: usize = map_ptr.call().unwrap().try_into().unwrap();
             let map_buffer_size: usize = map_buffer_size.call().unwrap().try_into().unwrap();
@@ -128,7 +141,7 @@ impl Bot {
         };
 
         {
-            let player_health_ptr: NativeFunc<(), u32> = self.instance.exports.get_native_function("player_health_buffer_ptr").unwrap();
+            let player_health_ptr: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("player_health_buffer_ptr").unwrap();
             let player_health_ptr: usize = player_health_ptr.call().unwrap().try_into().unwrap();
             // Update the player's health
             mem_buffer[player_health_ptr..player_health_ptr + 4].copy_from_slice(&health.to_be_bytes())
@@ -136,7 +149,7 @@ impl Bot {
         };
 
         {
-            let player_buffer_ptr: NativeFunc<(), u32> = self.instance.exports.get_native_function("player_mem_buffer_ptr").unwrap();
+            let player_buffer_ptr: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("player_mem_buffer_ptr").unwrap();
             let player_buffer_ptr: usize = player_buffer_ptr.call().unwrap().try_into().unwrap();
 
             // Update the player's position
@@ -144,8 +157,8 @@ impl Bot {
         };
 
         {
-            let enemy_buffer_ptr: NativeFunc<(), u32> = self.instance.exports.get_native_function("enemy_player_mem_buffer_ptr").unwrap();
-            let enemy_buffer_size: NativeFunc<(), u32> = self.instance.exports.get_native_function("enemy_player_mem_buffer_size").unwrap();
+            let enemy_buffer_ptr: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("enemy_player_mem_buffer_ptr").unwrap();
+            let enemy_buffer_size: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("enemy_player_mem_buffer_size").unwrap();
 
             let enemy_buffer_ptr: usize = enemy_buffer_ptr.call().unwrap().try_into().unwrap();
             let enemy_buffer_size: usize = enemy_buffer_size.call().unwrap().try_into().unwrap();
@@ -157,7 +170,7 @@ impl Bot {
         };
 
         {
-            let player_health_ptr: NativeFunc<(), u32> = self.instance.exports.get_native_function("player_health_buffer_ptr").unwrap();
+            let player_health_ptr: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("player_health_buffer_ptr").unwrap();
             let player_health_ptr: usize = player_health_ptr.call().unwrap().try_into().unwrap();
 
             // Update the player's health
@@ -166,7 +179,7 @@ impl Bot {
         };
 
         let (ability, perk, gun) = {
-            let bot_ability_info: NativeFunc<(), u32> = self.instance.exports.get_native_function("new").unwrap();
+            let bot_ability_info: NativeFunc<(), u32> = self.instance.0.exports.get_native_function("new").unwrap();
             let info = bot_ability_info.call().unwrap().to_be_bytes();
 
             (info[0].into(), info[1].into(), info[2].into())
@@ -174,8 +187,8 @@ impl Bot {
         };
 
         let get_bot_actions = || {
-            let action_info: NativeFunc<(), u64> = self.instance.exports.get_native_function("action_info").unwrap();
-            let angle_info: NativeFunc<(), f32> = self.instance.exports.get_native_function("direction_info").unwrap();
+            let action_info: NativeFunc<(), u64> = self.instance.0.exports.get_native_function("action_info").unwrap();
+            let angle_info: NativeFunc<(), f32> = self.instance.0.exports.get_native_function("direction_info").unwrap();
             let info_bytes = action_info.call().unwrap().to_be_bytes();
 
             let int_to_bool = |int: u8| -> bool {

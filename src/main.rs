@@ -335,20 +335,19 @@ fn main() {
             .with_system(exit_menu)
             .with_system(remove_selected)
 
-    )
+    );
 
-    .add_system_set(
+    #[cfg(feature = "native")]
+    app.add_system_set(
         SystemSet::on_enter(AppState::CustomizeGame)
             .with_system(setup_customize_game)
 
     )
-
     .add_system_set(
         SystemSet::on_update(AppState::CustomizeGame)
             .with_system(customize_game_system)
 
     )
-
     .add_system_set(
         SystemSet::on_exit(AppState::CustomizeGame)
             .with_system(exit_menu)

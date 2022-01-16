@@ -24,7 +24,7 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
 
     let mut orthographic_camera = OrthographicCameraBundle::new_2d();
     orthographic_camera.orthographic_projection.scaling_mode = ScalingMode::WindowSize;
-    // orthographic_camera.transform.local_z() = Vec3::new(x, y, 1.0);
+
     commands
         .spawn_bundle(orthographic_camera)
         .insert(GameCamera);
@@ -773,6 +773,7 @@ pub fn add_player_name_text(mut commands: Commands, names: Query<(Entity, &Playe
     });
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, num_of_bots: Res<NumOfBots>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
@@ -1168,6 +1169,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                         .insert(KeyBindingButtons::Down);
                 });
 
+            #[cfg(not(target_arch = "wasm32"))]
             node_parent
                 .spawn_bundle(ButtonBundle {
                     style: Style {
@@ -1196,8 +1198,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                                 ..Default::default()
                             },
                             ..Default::default()
-                        })
-                        .insert(KeyBindingButtons::Down);
+                        });
                 });
 
             node_parent

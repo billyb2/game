@@ -460,7 +460,9 @@ pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut inte
                     app_state.set(
                         match text.as_str() {
                             "Customize Player" => AppState::CustomizePlayerMenu,
+                            #[cfg(feature = "native")]
                             "Customize Game" => AppState::CustomizeGame,
+
                             "Back" => AppState::MainMenu,
                             _ => unimplemented!(),
                         }
@@ -656,6 +658,7 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
 
 }
 
+#[cfg(feature = "native")]
 pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>, mut num_of_bots: ResMut<NumOfBots>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
