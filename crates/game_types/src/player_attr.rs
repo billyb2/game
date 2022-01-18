@@ -725,6 +725,8 @@ fn finish_timer(timer: &mut Timer){
 pub struct Skin {
     // The skins are a vector with each index being the material handle and the size
     pub player: [(DynamicMaterial, Vec2); NUM_OF_GUN_MODELS as usize],
+    pub invisible: DynamicMaterial,
+    pub half_invisible: DynamicMaterial,
     pub enemy: (DynamicMaterial, Vec2),
 
 }

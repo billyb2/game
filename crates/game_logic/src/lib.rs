@@ -357,8 +357,8 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 }
 
 //TODO: Name visibility
-pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper, Option<&Health>, Option<&Children>, Option<&PlayerName>, Option<Changed<PlayerName>>)>, mut names: Query<(&mut Text, &mut Transform,  &mut Visibility), Without<RigidBodyHandleWrapper>>, rigid_body_set: Res<RigidBodySet>) {
-    obj.for_each_mut(|(mut transform, rigid_body_handle, health, children, player_name, name_changed)| {
+pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper, Option<&Health>, Option<&Children>, Option<&PlayerName>, Option<Changed<PlayerName>>, Option<&Sprite>)>, mut names: Query<(&mut Text, &mut Transform,  &mut Visibility), Without<RigidBodyHandleWrapper>>, rigid_body_set: Res<RigidBodySet>) {
+    obj.for_each_mut(|(mut transform, rigid_body_handle, health, children, player_name, name_changed, sprite)| {
         if let Some(rigid_body) = rigid_body_set.get(rigid_body_handle.0) {
             if let Some(children) = children.as_ref() {
                 children.iter().for_each(|child| {
@@ -367,7 +367,8 @@ pub fn sync_physics_pos(mut obj: Query<(&mut Transform, &RigidBodyHandleWrapper,
                         text_transform.rotation = transform.rotation.inverse();
                         text_transform.translation = text_transform.translation.normalize();
 
-                        visible.is_visible = true;
+                        // If the player is invisible, so should the name
+                        visible.is_visible = sprite.unwrap().color.a() != 0.0;
 
                         if name_changed.unwrap() {
                             text.sections[0].value = player_name.as_ref().unwrap().to_string();

@@ -114,6 +114,8 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
             (p_bow.into(), const_vec2!([124.107, 96.8625])),
             (p_sticky_grenade.into(), const_vec2!([124.107, 96.8625])),
         ],
+        invisible: Color::rgba_u8(0, 0, 0, 0).into(),
+        half_invisible: Color::rgba_u8(255, 255, 255, 128).into(),
         enemy: (enemy_sprite.into(), const_vec2!([82.808, 61.0755])),
 
     });

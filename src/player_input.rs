@@ -767,10 +767,10 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
     });
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &Health, &Model, &TimeSinceStartReload, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, gamepads: Res<Gamepads>, axes: Res<Axis<GamepadAxis>>) {
+pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &mut Sprite, &Health, &Model, &TimeSinceStartReload, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, gamepads: Res<Gamepads>, axes: Res<Axis<GamepadAxis>>, skins: Res<Skin>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
-            let (transform, mut ability_info, mut speed_info, health, model, reload_timer, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
+            let (transform, mut ability_info, mut speed_info, mut sprite, health, model, reload_timer, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
 
             let speed = &mut speed_info.speed;
 
@@ -912,10 +912,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                     },
                     Ability::Cloak => {
                         if !player_is_local || (!ability_info.using_ability && ability_info.ability_charge.finished()) {
-                            /*shader_phasing.value = match my_player_id.0 == ev_id.0 {
-                                true => 0.25,
-                                false => 0.0,
-                            };*/
+                            sprite.color = skins.invisible.as_color().unwrap();
 
                             if player_is_local {
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
@@ -1055,16 +1052,37 @@ TimeSinceStartReload, &mut Bursting, &mut AbilityInfo, &mut PlayerSpeedInfo, &Co
 
     });
 }
-//TODO!!!!!!
-pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo)>, local_players: Res<LocalPlayers>) {
-    /*query.for_each_mut(|(player_id, ability_info, mut shader_phasing)| {
-        let player_is_local = local_players.0.contains(&player_id.0);
 
-        if !ability_info.using_ability && ability_info.ability != Ability::Stim && player_is_local {
-            shader_phasing.value = 1.0;
+pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo, &Model, &mut Sprite)>, skins: Res<Skin>, my_player_id: Res<MyPlayerID>) {
+    query.for_each_mut(|(player_id, ability_info, gun_model, mut sprite)| {
+        if ability_info.ability == Ability::Cloak {
+            sprite.color = match ability_info.using_ability {
+                true => match player_id.0 == my_player_id.0.unwrap().0 {
+                    true => skins.half_invisible.as_color().unwrap(),
+                    false => skins.invisible.as_color().unwrap(),
+
+                },
+                false => Default::default()
+
+            };
+            if player_id.0 == my_player_id.0.unwrap().0 {
+                sprite.color = match ability_info.using_ability {
+                    true => skins.half_invisible.as_color().unwrap(),
+                    false => Default::default(),
+
+                };
+
+            } else {
+                sprite.color = match ability_info.using_ability {
+                    true => skins.invisible.as_color().unwrap(),
+                    false => Default::default(),
+
+                };
+
+            }
 
         }
-    });*/
+    });
 }
 
 pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameCamera>>, mut mouse_pos: ResMut<MousePosition>, gamepads: Res<Gamepads>, axes: Res<Axis<GamepadAxis>>) {

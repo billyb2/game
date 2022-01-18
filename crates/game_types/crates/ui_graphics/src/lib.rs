@@ -110,9 +110,9 @@ impl DynamicMaterial {
         DynamicMaterial::Color(color)
     }
 
-    pub fn as_color(&self) -> Option<Color> {
+    pub const fn as_color(&self) -> Option<Color> {
         match self {
-            DynamicMaterial::Color(color) => Some(color.clone()),
+            DynamicMaterial::Color(color) => Some(*color),
             DynamicMaterial::Image(_image) => None,
         }
     }
