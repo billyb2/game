@@ -167,10 +167,11 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                                         cell_transform.translation += (Vec2::new(cell_angle.cos(), cell_angle.sin()) * const_vec2!([25.0; 2])).extend(0.0);
 
                                         commands.spawn_bundle(SpriteBundle {
-                                            texture: proj_materials.shield_cell.clone(),
+                                            texture: proj_materials.shield_cell.as_image(&asset_server),
                                             sprite: Sprite {
                                                 custom_size: Some(const_vec2!([36.0, 12.0])),
                                                 flip_x: true, 
+                                                color: proj_materials.shield_cell.as_color().unwrap_or(Default::default()),
                                                 ..Default::default()
                                             },
                                             visibility: Visibility {
@@ -266,7 +267,10 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             rigid_body.user_data = f32_u8_to_u128(MOLOTOV_FIRE_DAMAGE, (shot_from, ProjectileType::MolotovFire.into()));
                             collider.user_data = f32_u8_to_u128(MOLOTOV_FIRE_DAMAGE, (shot_from, ProjectileType::MolotovFire.into()));
 
-                            *material = proj_materials.molotov_fire.clone();
+                            match &proj_materials.molotov_fire {
+                                DynamicMaterial::Color(color) => sprite.color = color.clone(),
+                                DynamicMaterial::Image(image) => *material = image.clone(),
+                            };
                             **projectile_type.as_mut().unwrap() = ProjectileType::MolotovFire;
                             sprite.custom_size = Some(Vec2::splat(400.0));
                             collider.set_shape(SharedShape::ball(400.0 / 500.0));
@@ -281,7 +285,10 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
                             let collider = collider_set.get_mut(*collider_handle).unwrap();
 
                             **projectile_type.as_mut().unwrap() = ProjectileType::MolotovLiquid;
-                            *material = proj_materials.molotov_liquid.clone();
+                             match &proj_materials.molotov_liquid {
+                                DynamicMaterial::Color(color) => sprite.color = color.clone(),
+                                DynamicMaterial::Image(image) => *material = image.clone(),
+                            };
 
                             sprite.custom_size = Some(Vec2::splat(200.0));
                             collider.set_shape(SharedShape::ball(200.0 / 500.0));
@@ -423,10 +430,15 @@ pub fn destruction_timer(mut commands: Commands, q: Query<(Entity, &DestructionT
 //TODO: have different player shaders and set them on ability change in this fn
 pub fn set_player_materials(mut players: Query<(&Model, &mut Handle<Image>, &mut Sprite), Changed<Model>>, player_materials: Res<Skin>) {
     players.for_each_mut(|(model, mut skin, mut sprite)| {
-        let model_u8: u8 = (*model).into();
-        let (handle, size) = player_materials.player[model_u8 as usize].clone();
+        let model_u8 =  u8::from(*model);
+        let (material, size) = player_materials.player[model_u8 as usize].clone();
 
-        *skin = handle;
+        match material {
+            DynamicMaterial::Color(color) => sprite.color = color,
+            DynamicMaterial::Image(image) => *skin = image,
+
+        };
+
         sprite.custom_size = Some(size);
 
     });
@@ -736,7 +748,10 @@ pub fn proj_distance(mut commands: Commands, mut query: Query<(Entity, &mut Proj
                     if *projectile_type == ProjectileType::Molotov {
                         let collider = collider_set.get_mut(collider_handle.0).unwrap();
 
-                        *material = proj_materials.molotov_liquid.clone();
+                         match &proj_materials.molotov_fire {
+                            DynamicMaterial::Color(color) => sprite.color = color.clone(),
+                            DynamicMaterial::Image(image) => *material = image.clone(),
+                        };
                         *projectile_type = ProjectileType::MolotovLiquid;
                         sprite.custom_size = Some(Vec2::splat(200.0));
                         collider.set_shape(SharedShape::ball(200.0 / 500.0));

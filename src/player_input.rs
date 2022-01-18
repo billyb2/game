@@ -509,7 +509,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>, asset_server: Res<AssetServer>) {
     if my_player_id.0.is_some() {
         shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
@@ -673,8 +673,9 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                         commands
                             .spawn_bundle(Projectile::new(ev.projectile_type, Size::new(ev.size.x, ev.size.y), player_id, ev.damage))
                             .insert_bundle(SpriteBundle {
-                                texture: material,
+                                texture: material.as_image(&asset_server),
                                 sprite: Sprite {
+                                    color: material.as_color().unwrap_or(Default::default()),
                                     custom_size: Some(ev.size),
                                     ..Default::default()
                                 },
@@ -721,8 +722,9 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             commands
                                 .spawn_bundle(Projectile::new(ProjectileType::UsedBullet, Size::new(ev.size.x, ev.size.y), player_id, Damage(0.0)))
                                 .insert_bundle(SpriteBundle {
-                                    texture: materials.used_bullet.clone(),
+                                    texture: materials.used_bullet.as_image(&asset_server),
                                     sprite: Sprite {
+                                        color: materials.used_bullet.as_color().unwrap_or(Default::default()),
                                         custom_size: Some(ev.size),
                                         ..Default::default()
                                     },

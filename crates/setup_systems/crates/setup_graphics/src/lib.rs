@@ -120,19 +120,19 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
     commands.insert_resource(ProjectileMaterials {
         // TODO: Image spirtes
-        regular: molotov_liquid_sprite.clone().into(),
-        speedball: molotov_liquid_sprite.clone().into(),
-        flamethrower1: molotov_liquid_sprite.clone().into(),
-        flamethrower2: molotov_liquid_sprite.clone().into(),
-        flamethrower3: molotov_liquid_sprite.clone().into(),
-        engineer: molotov_liquid_sprite.clone().into(),
-        molotov: molotov_liquid_sprite.clone().into(),
+        regular: Color::BLACK.into(),
+        speedball: Color::rgb_u8(126, 192, 238).into(),
+        flamethrower1: Color::rgb_u8(flame1, 43, 9).clone().into(),
+        flamethrower2: Color::rgb_u8(221, flame2, 9).into(),
+        flamethrower3: Color::rgb_u8(flame3, 43, 12).into(),
+        engineer: Color::rgb_u8(255, 0, 200).into(),
+        molotov: Color::rgb_u8(232, 35, 0).into(),
         molotov_fire: molotov_fire_sprite.into(),
         molotov_liquid: molotov_liquid_sprite.clone().into(),
         pulsewave: pulsewave_sprite.into(),
-        beam: molotov_liquid_sprite.clone().into(),
+        beam: Color::rgba_u8(173, 216, 230, 75).into(),
         arrow: arrow_sprite.into(),
-        used_bullet: molotov_liquid_sprite.clone().into(),
+        used_bullet: Color::rgb(0.5, 0.5, 0.5).into(),
         shield_cell: shield_cell_sprite.into()
     });
 
@@ -1135,6 +1135,37 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
                         },
                         ..Default::default()
                     });
+                });
+
+            node_parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: Size::new(Val::Px(350.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
+                    ..Default::default()
+                })
+                .with_children(|button_parent| {
+                    button_parent
+                        .spawn_bundle(TextBundle {
+                            text: Text {
+                                sections: vec![TextSection {
+                                    value: String::from("Bot Battle"),
+                                    style: TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        font_size: 55.0,
+                                        color: Color::WHITE,
+                                    },
+                                }],
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        });
                 });
 
             node_parent

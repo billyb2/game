@@ -21,7 +21,7 @@ use rapier2d::na::Vector2;
 pub use setup_graphics::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (maps, map_crc32): (Res<Maps>, Res<MapCRC32>), mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, (mut _rigid_body_set, mut _collider_set): (Option<ResMut<RigidBodySet>>, Option<ResMut<ColliderSet>>), num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>, hosting: Res<Hosting>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (maps, map_crc32): (Res<Maps>, Res<MapCRC32>), mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, (mut _rigid_body_set, mut _collider_set): (Option<ResMut<RigidBodySet>>, Option<ResMut<ColliderSet>>), num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>, hosting: Res<Hosting>, asset_server: Res<AssetServer>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -32,7 +32,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
 
     #[allow(unused_mut)]
     let mut local_players = Vec::with_capacity(5);
-
 
     let map = maps.0.get(&map_crc32.0).unwrap();
     
@@ -88,10 +87,14 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
         #[cfg(feature = "graphics")]
         entity
             .insert_bundle(SpriteBundle {
-                texture: material,
+                texture: material.as_image(&asset_server),
                 sprite: Sprite {
                     custom_size: Some(size),
-                    flip_x: true, 
+                    flip_x: true,
+                    color: match material.as_color() {
+                        Some(color) => color,
+                        None => Default::default(),
+                    },
                     ..Default::default()
                 },
                 visibility: Visibility {

@@ -28,4 +28,5 @@ bootleg_networking = { git = " https://github.com/billyb2/bootleg_networking", d
 [features]
 graphics = [
 	"ui_graphics",
+	"bevy/render",
 ]

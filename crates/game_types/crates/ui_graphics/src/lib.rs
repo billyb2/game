@@ -95,22 +95,64 @@ pub struct ChampionText;
 #[derive(Component)]
 pub struct NetConnStateText;
 
-pub struct ProjectileMaterials {
-    pub regular: Handle<Image>,
-    pub speedball: Handle<Image>,
-    pub engineer: Handle<Image>,
-    pub molotov: Handle<Image>,
-    pub molotov_fire: Handle<Image>,
-    pub molotov_liquid: Handle<Image>,
-    pub flamethrower1: Handle<Image>,
-    pub flamethrower2: Handle<Image>,
-    pub flamethrower3: Handle<Image>,
-    pub pulsewave: Handle<Image>,
-    pub beam: Handle<Image>,
-    pub arrow: Handle<Image>,
-    pub used_bullet: Handle<Image>,
+#[derive(Clone)]
+pub enum DynamicMaterial {
+    Color(Color),
+    Image(Handle<Image>),
+}
 
-    pub shield_cell: Handle<Image>,
+impl DynamicMaterial {
+    pub fn new_image(handle: Handle<Image>) -> Self {
+        DynamicMaterial::Image(handle)
+    }
+
+    pub fn new_color(color: Color) -> Self {
+        DynamicMaterial::Color(color)
+    }
+
+    pub fn as_color(&self) -> Option<Color> {
+        match self {
+            DynamicMaterial::Color(color) => Some(color.clone()),
+            DynamicMaterial::Image(_image) => None,
+        }
+    }
+
+    pub fn as_image(&self, asset_server: &AssetServer) -> Handle<Image> {
+        match self {
+            DynamicMaterial::Image(image) => image.clone(),
+            // When loading a color, we still need something to tint, so a singular white pixel is best for that
+            DynamicMaterial::Color(_color) => asset_server.load("white_pixel.png"),
+        }
+    }
+}
+
+impl Into<DynamicMaterial> for Handle<Image> {
+    fn into(self) -> DynamicMaterial {
+        DynamicMaterial::new_image(self.clone())
+    }
+}
+
+impl Into<DynamicMaterial> for Color {
+    fn into(self) -> DynamicMaterial {
+        DynamicMaterial::new_color(self.clone())
+    }
+}
+
+pub struct ProjectileMaterials {
+    pub regular: DynamicMaterial,
+    pub speedball: DynamicMaterial,
+    pub engineer: DynamicMaterial,
+    pub molotov: DynamicMaterial,
+    pub molotov_fire: DynamicMaterial,
+    pub molotov_liquid: DynamicMaterial,
+    pub flamethrower1: DynamicMaterial,
+    pub flamethrower2: DynamicMaterial,
+    pub flamethrower3: DynamicMaterial,
+    pub pulsewave: DynamicMaterial,
+    pub beam: DynamicMaterial,
+    pub arrow: DynamicMaterial,
+    pub used_bullet: DynamicMaterial,
+    pub shield_cell: DynamicMaterial,
 }
 
 // The mouse's position in world coordinates
