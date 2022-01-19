@@ -362,3 +362,8 @@ pub fn reset_game(commands: Commands, mut deathmatch_score: ResMut<DeathmatchSco
     {my_player_id.0 = None;}
 
 }
+
+pub fn calc_tick_rate(mut tick_rate: ResMut<TickRate>) {
+    use std::time::Instant;
+    tick_rate.last_tick = Instant::now();
+}

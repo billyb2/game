@@ -6,6 +6,8 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(incomplete_features)]
 
+use std::time::Instant;
+
 use bevy::prelude::*;
 
 use rand::Rng;
@@ -141,6 +143,9 @@ fn main() {
     .insert_resource(perk)
     .insert_resource(name)
     .insert_resource(NumOfBots(0))
+    .insert_resource(TickRate {
+        last_tick: Instant::now(),
+    })
     .insert_resource(DeathmatchScore(HashMap::with_capacity_and_hasher(10, BuildHasher::default())))
     .add_plugins(DefaultPlugins);
 
@@ -243,6 +248,7 @@ fn main() {
             .with_system(sync_physics_pos.before("move_objects").label("sync_physics_pos"))
             .with_system(move_camera.after("sync_physics_pos"))
             .with_system(move_objects.after(InputFromPlayer).label("move_objects"))
+            .with_system(calc_tick_rate.after("move_objects"))
             .with_system(proj_distance.after("move_objects"))
             .with_system(increase_speed_and_size.after("move_objects"))
             .with_system(heal_widowmaker_shots.after("move_objects"))

@@ -21,7 +21,7 @@ use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 use map::MapHealth;
 
 //TODO: Damage numbers
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeedInfo>, &mut Handle<Image>), Without<ExplodeTimer>>, mut deathmatch_score: ResMut<DeathmatchScore>, mut death_event: EventWriter<DeathEvent>, proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeedInfo>, &mut Handle<Image>), Without<ExplodeTimer>>, (mut deathmatch_score, mut death_event): (ResMut<DeathmatchScore>, EventWriter<DeathEvent>), proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>, mut tick_rate: ResMut<TickRate>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed_info, mut material)| {
         let mut should_remove_rigid_body = false;
 
@@ -320,9 +320,12 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
     });
 
     const GRAVITY: Vector2<f32> = Vector2::new(0.0, 0.0);
-    const INTEGRATION_PARAMETERS: IntegrationParameters = IntegrationParameters {
-        dt: 1.0 / 60.0,
-        min_ccd_dt: 1.0 / 60.0 / 100.0,
+
+    let timestep_length = tick_rate.last_tick.elapsed().as_secs_f32();
+
+    let integration_parameters = IntegrationParameters {
+        dt: timestep_length,
+        min_ccd_dt: timestep_length / 100.0,
         erp: 0.2,
         joint_erp: 0.2,
         velocity_solve_fraction: 1.0,
@@ -342,7 +345,7 @@ pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<Physics
 
     physics_pipeline.step(
         &GRAVITY,
-        &INTEGRATION_PARAMETERS,
+        &integration_parameters,
         &mut island_manager,
         &mut broad_phase,
         &mut narrow_phase,

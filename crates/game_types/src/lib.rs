@@ -6,6 +6,7 @@
 pub mod player_attr;
 
 use std::net::SocketAddr;
+use std::time::Instant;
 
 use bevy::core::Timer;
 use bevy::ecs::component::Component;
@@ -211,3 +212,10 @@ extern "C" {
 pub fn log(s: &str) {
     println!("{s}");
 } 
+
+
+/// The calculated tick rate
+pub struct TickRate {
+    pub last_tick: Instant,
+
+}
