@@ -91,7 +91,7 @@ bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-fe
 #bevy_kira_audio = { git = "https://github.com/billyb2/bevy_kira_audio", branch = "bevy_main", features = ["flac"] }
 
 # WASM logging
-wasm-bindgen = { version = "0.2.78", optional = true }
+wasm-bindgen = { version = "0.2.79", optional = true }
 
 # RNGs
 # Enabling nightly allows using some more optimizations
@@ -108,7 +108,7 @@ single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
 rustc-hash = { version = "1" }
 
 # Physics
-rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
+rapier2d = { version = "0.11", features = ["simd-stable", "serde-serialize"] }
 
 # Local libraries
 helper_functions = { path = "crates/helper_functions" }

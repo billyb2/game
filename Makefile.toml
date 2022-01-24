@@ -18,7 +18,7 @@ install_crate = {crate_name = "basic-http-server", binary = "basic-http-server",
 
 [tasks.wasm-bindgen-cli]
 env = { RUSTFLAGS = "-Ctarget-cpu=native" }
-install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.78"}
+install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help", min_version = "0.2.79"}
 
 [tasks.install-compress_wasm]
 env = { RUSTFLAGS="-Ctarget-cpu=native -Zstrip=symbols" }
@@ -37,19 +37,19 @@ dependencies = ["install-compress_wasm"]
 
 [tasks.cargo-build-web-release-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "release-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "release-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std,core,alloc"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-opt-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "opt-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "opt-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std,core,alloc"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 
 [tasks.cargo-build-web-fast-simd]
 env = { "RUSTFLAGS" = "-Ctarget-feature=+simd128,+bulk-memory,+nontrapping-fptoint" }
-args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "fast-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std"]
+args = ["build", "--target", "wasm32-unknown-unknown", "--bin", "game", "--features", "web,graphics", "--no-default-features", "--profile", "fast-web-simd", "--features", "-Zunstable-options", "-Zbuild-std=panic_abort,std,core,alloc"]
 command = "cargo"
 dependencies = ["install-target-wasm32-unknown-unknown"]
 

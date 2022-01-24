@@ -14,7 +14,7 @@ Windows used to have to install OpenSSL, but thanks to conditional features, it 
 - [Install Perl](https://strawberryperl.com/)
 - [Install NASM](https://www.nasm.us/pub/nasm/releasebuilds/?C=M;O=D) and make sure nasm.exe is in PATH
 - `cargo install -f cargo-binutils`
-- `cargo install -f wasm-bindgen-cli --version 0.2.78`
+- `cargo install -f wasm-bindgen-cli --version 0.2.79`
 - `cargo install -f basic-http-server`
 - `rustup component add llvm-tools-preview rust-src`
 - `rustup target add wasm32-unknown-unknown`
@@ -26,14 +26,14 @@ Linux builds used the [mold](https://github.com/rui314/mold) linker for debug bu
 ### Ubuntu/Debian Linux
 - `sudo apt-get install cmake clang lld libx11 pkgconf alsa-lib openssl`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.78`
+- `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.79`
 - `rustup component add rust-src`
 - `rustup target add wasm32-unknown-unknown`
 - Follow the instructions [here](https://github.com/rui314/mold) to install the mold linker
 ### Arch/Manjaro Linux
 - `sudo pacman -Syu cmake clang lld libx11 pkgconf alsa-lib openssl mold --needed`
 - `rustup toolchain install nightly`
-- `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.78`
+- `cargo install -f cargo-make basic-http-server && cargo install -f wasm-bindgen-cli --version 0.2.79`
 - `rustup component add rust-src`
 ### MacOS
 MacOS, of course, does not work with the LLD linker (thanks Apple), though the ZLD linker is still faster than the default
@@ -41,7 +41,7 @@ MacOS, of course, does not work with the LLD linker (thanks Apple), though the Z
 - `brew install michaeleisel/zld/zld`
 - `rustup toolchain install nightly`
 - `rustup target add wasm32-unknown-unknown`
-- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.78 && cargo install -f basic-http-server`
+- `cargo install -f cargo-make && cargo install -f wasm-bindgen-cli --version 0.2.79 && cargo install -f basic-http-server`
 
 Occasionally, please run `rustup update` to update to the latest version of the nightly compiler.
 The nightly compiler allows us to use unstable Rust optimizations for both faster build times and faster binaries.

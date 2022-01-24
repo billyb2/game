@@ -11,7 +11,7 @@ map = { path = "../map" }
 
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
-rapier2d = { version = "0.11", features = ["simd-nightly", "serde-serialize"] }
+rapier2d = { version = "0.11", features = ["simd-stable", "serde-serialize"] }
 
 setup_graphics = { path = "crates/setup_graphics", optional = true }
 

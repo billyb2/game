@@ -10,7 +10,7 @@ crate-type = ["rlib", "dylib"]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 
 crc32fast = { version = "1", features = ["nightly"] }
-#LZ4 is a very fast compression algorithm
+#LZ4 is a very fast compression algorithms
 lz4_flex = { version = "0.9", default-features = false, features = ["checked-decode", "frame"] }
 
 # Just a regular HashMap
@@ -19,7 +19,7 @@ single_byte_hashmap = { version = "0.1", features = ["nightly"] }
 
 rayon = { version = "1", optional = true }
 
-rapier2d = { version = "0.11", features = ["simd-nightly"]}
+rapier2d = { version = "0.11", features = ["simd-stable"]}
 
 game_types = { path = "../game_types" }
 helper_functions = { path = "../helper_functions" }

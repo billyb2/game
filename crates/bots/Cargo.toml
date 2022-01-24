@@ -6,7 +6,7 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
-rapier2d = { version = "0.11", features = ["simd-nightly"] }
+rapier2d = { version = "0.11", features = ["simd-stable"] }
 fastrand = { version = "1" }
 
 game_types = { path = "../game_types" }
