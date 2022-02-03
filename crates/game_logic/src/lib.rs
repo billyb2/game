@@ -696,13 +696,21 @@ pub fn explode_grenades(mut commands: Commands, grenades: Query<(Entity, &Explod
 
 }
 
-pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite)>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>) {
+pub fn increase_speed_and_size(mut projectiles: Query<(&ProjectileType, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite), With<ProjectileIdent>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>) {
     projectiles.for_each_mut(|(proj_type, rigid_body_handle, collider_handle, mut sprite)| {
         // Increase the size of speedballs and flames
         // Only speedballs have a negative linear damping, meaning they increase in speed over time
         if *proj_type == ProjectileType::Speedball {
-            let rigid_body = rigid_body_set.get_mut(rigid_body_handle.0).unwrap();
-            let collider = collider_set.get_mut(collider_handle.0).unwrap();
+            let rigid_body = match rigid_body_set.get_mut(rigid_body_handle.0) {
+                Some(handle) => handle,
+                None => return,
+
+            };
+            let collider = match collider_set.get_mut(collider_handle.0) {
+                Some(handle) => handle,
+                None => return,
+
+            };
 
             let mut linvel = rigid_body.linvel().abs().amax() * 25.0;
             // The maximum speed of Speedball projectiles is 65, so that they aren't horribly difficult to doge

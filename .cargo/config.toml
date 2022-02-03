@@ -9,14 +9,14 @@ linker = "/usr/bin/clang"
 # 	Once compilation on Windows works, we should do the same for it
 
 # Stripping symbols is done to significantly reduce the binary size
-rustflags = ["-Clink-arg=-fuse-ld=/usr/bin/mold", "-Zshare-generics=y", "-Ctarget-cpu=native", "-Zstrip=symbols", "-Cprefer-dynamic"]
+rustflags = ["-Clink-arg=-fuse-ld=/usr/bin/mold", "-Zshare-generics=y", "-Ctarget-cpu=native"]
 
 [target.x86_64-apple-darwin]
-rustflags = ["-Clink-arg=-fuse-ld=/usr/local/bin/zld", "-Zshare-generics=y", "-Zstrip=symbols", "-Csplit-debuginfo=unpacked"]
+rustflags = ["-Clink-arg=-fuse-ld=/usr/local/bin/zld", "-Zshare-generics=y", "-Csplit-debuginfo=unpacked"]
 
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
-rustflags = ["-Zshare-generics=n", "-Zstrip=symbols"]
+rustflags = ["-Zshare-generics=n"]
 
 [target.aarch64-unknown-linux-gnu]
 linker = "/usr/bin/clang"

@@ -5,8 +5,8 @@ authors = ["William Batista <bootlegbilly@protonmail.ch>", "Luke Gaston <lsgasto
 edition = "2021"
 
 [profile.dev]
-debug = 0
 opt-level = 0
+debug = 0
 overflow-checks = false
 incremental = true
 
@@ -14,6 +14,7 @@ incremental = true
 inherits = "dev"
 
 [profile.release]
+strip = true
 opt-level = 3
 # You don't need overflow checks if your ints never overflow *taps head*
 overflow-checks = false
@@ -31,6 +32,7 @@ panic = "abort"
 overflow-checks = false
 # Since web builds run like garbage, using a higher optimization level is nice
 opt-level = 2
+debug = 0
 
 [profile.server_cli]
 inherits = "dev"
@@ -94,8 +96,7 @@ bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-fe
 wasm-bindgen = { version = "0.2.79", optional = true }
 
 # RNGs
-# Enabling nightly allows using some more optimizations
-rand = { version = "0.8", features = ["nightly"] }
+rand = { version = "0.8"}
 fastrand = { version = "1" }
 
 # Easier multi-threading

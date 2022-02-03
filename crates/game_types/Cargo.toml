@@ -8,7 +8,7 @@ crate-type = ["rlib", "dylib"]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 rapier2d = { version = "0.11", features = ["simd-stable", "serde-serialize"] }
 serde = { version = "1", features = ["derive"] }
-rand = { version = "0.8", features = ["nightly"] }
+rand = { version = "0.8" }
 fastrand = { version = "1" }
 arrayvec = { version = "0.7" }
 single_byte_hashmap = { version = "0.1", features = ["nightly", "serde"] }
