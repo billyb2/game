@@ -15,7 +15,7 @@ use map::{
     view_map,
 };
 
-// DO NOT ACESS ANY MEMORY BUFFERS DIRECTLY!!!!! PLEASE USE THE view_*_info FUNCTIONS!!!!!!!!
+// DO NOT ACESS ANY MEMORY BUFFERS DIRECTLY!!!!! PLEASE USE THE view_*_info FUNCTIONS FOR SAFE INTERFACES!!!!!!!!
 // DO NOT USE ANY OF THE BELOW FUNCTIONS!!!!!
 pub use player::mem::{
     enemy_player_mem_buffer_ptr,
@@ -86,6 +86,7 @@ pub extern fn action_info() -> u64 {
 
         }
 
+    // If there are no living players, spin in a circle to flex
     } else {
         unsafe { INTERNAL_ANGLE += 0.2 };
 

@@ -19,6 +19,8 @@ use bevy::prelude::*;
 use bevy::ecs::event::Events;
 use bevy::utils::Duration;
 
+use rayon::prelude::*;
+
 use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
@@ -295,7 +297,7 @@ pub fn request_player_info(hosting: Res<Hosting>, my_player_id: Res<MyPlayerID>,
 }
 
 #[cfg(feature = "native")]
-pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
+pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_ids: ResMut<Vec<PlayerID>>, hosting: Res<Hosting>, mut players: Query<(&PlayerID, &mut AbilityInfo, Option<&mut Visibility>)>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut log_event: EventWriter<LogEvent>, mut deathmatch_score: ResMut<DeathmatchScore>, map_crc32: Res<MapCRC32>) {
     if !hosting.0 {
         return;
     }
@@ -338,7 +340,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                 println!("Player {requested_player_id} has joined!");
                 log_event.send(LogEvent(format!("Player {requested_player_id} has joined!")));
 
-                let (_id, mut ability_info) = players.iter_mut().find(|(id, _ability)| id.0 == requested_player_id).expect(&format!("ID {} not found!", requested_player_id));
+                let (_id, mut ability_info, _visible) = players.iter_mut().find(|(id, _ability, _visible)| id.0 == requested_player_id).expect(&format!("ID {} not found!", requested_player_id));
                 ability_info.ability = player_ability;
                 // Send the player's ability back
                 messages_to_send.push((handle.clone(), [1, ability_info.ability.into(), requested_player_id]));
@@ -347,6 +349,26 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
                 println!("Illegal id request for ID: {requested_player_id}");
 
             }
+
+        // The player is notifying the server that they're quitting
+        } else if command[0] == 2 {
+            let quitting_player_id = command[1];
+            println!("Player {quitting_player_id} has quit!");
+
+            let (_id, _ability_info, mut visible) = players.iter_mut().find(|(id, _ability, _visible)| id.0 == quitting_player_id).expect(&format!("ID {quitting_player_id} not found!"));
+
+
+            visible.unwrap().is_visible = false;
+            deathmatch_score.0.remove(&quitting_player_id);
+            available_ids.push(PlayerID(quitting_player_id));
+
+            // TODO: Use CountingSort?
+
+            #[cfg(not(feature = "parallel"))]
+            available_ids.sort_unstable();
+
+            #[cfg(feature = "parallel")]
+            available_ids.par_sort_unstable();
 
         }
     };

@@ -237,7 +237,40 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
                                 },
                                 ..Default::default()
 
-                        });
+                            });
+                    });
+
+                    node_parent.spawn_bundle(ButtonBundle {
+                    style: Style {
+                        align_content: AlignContent::Center,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        size: UI_Size::new(Val::Px(250.0), Val::Px(85.0)),
+
+                        ..Default::default()
+                    },
+                    color: UiColor(Color::rgb(0.15, 0.15, 0.15)),
+                    ..Default::default()
+                    })
+                    .with_children(|button_parent| {
+                        button_parent
+                            .spawn_bundle(TextBundle {
+                                text: Text {
+                                    sections: vec![
+                                        TextSection {
+                                            value: String::from("Quit"),
+                                            style: TextStyle {
+                                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                                font_size: 55.0,
+                                                color: Color::WHITE,
+                                            },
+                                        },
+                                    ],
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+
+                            });
                     });
 
                 })
