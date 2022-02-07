@@ -33,6 +33,7 @@ overflow-checks = false
 # Since web builds run like garbage, using a higher optimization level is nice
 opt-level = 2
 debug = 0
+strip = false
 
 [profile.server_cli]
 inherits = "dev"
@@ -83,6 +84,7 @@ lto = false
 codegen-units = 16
 
 [profile.release-web-simd]
+strip = false
 inherits = "release"
 
 [dependencies]

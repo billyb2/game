@@ -19,6 +19,7 @@ use bevy::prelude::*;
 use bevy::ecs::event::Events;
 use bevy::utils::Duration;
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use rapier2d::prelude::*;
@@ -394,7 +395,7 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
         return;
     }
 
-    let mut info_message_logic = |command: InfoMessage, handle: &ConnectionHandle| {
+    let mut info_message_logic = |command: InfoMessage, handle: &ConnectionHandle, app_state: &mut State<AppState>| {
         // The set player ID command
         if command[0] == 0 {
             let id = command[1];
@@ -420,10 +421,14 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
 
             });
 
+        } else if command[0] == 2 {
+            // The server has shutdown (or the hosting player has quit)
+            app_state.set(AppState::GameMenu).unwrap();
+
         }
     };
 
-    let mut map_u32_logic = |new_crc32: u32| {
+    let mut map_u32_logic = |new_crc32: u32, app_state: &mut State<AppState>| {
         if new_crc32 != map_crc32.0 {
             // If the map doensn't currently exist yet, start downloading a new one
             // This feature is still broken lol
@@ -454,14 +459,14 @@ pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hos
     let info_messages: Result<Vec<(ConnectionHandle, InfoMessage)>, _> = net.view_messages(&INFO_MESSAGE_CHANNEL);
 
     match info_messages {
-        Ok(messages) => messages.into_iter().for_each(|(handle, msg)| info_message_logic(msg, &handle)),
+        Ok(messages) => messages.into_iter().for_each(|(handle, msg)| info_message_logic(msg, &handle, &mut app_state)),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
     let map_messages: Result<Vec<(ConnectionHandle, u32)>, _> = net.view_messages(&SET_MAP_CHANNEL);
 
     match map_messages {
-        Ok(messages) => messages.into_iter().for_each(|(_handle, msg)| map_u32_logic(msg)),
+        Ok(messages) => messages.into_iter().for_each(|(_handle, msg)| map_u32_logic(msg, &mut app_state)),
         Err(e) => panic!("Unhandled error: {:?}", e),
     };
 
