@@ -3,7 +3,7 @@ use std::fs::copy;
 use std::process::Command;
 
 fn main() {
-	println!("cargo:rerun-if-changed=bots/example/aggro_bot");
+	println!("cargo:rerun-if-changed=example_bots/aggro_bot/src");
 
 	let original_dir = current_dir().unwrap();
 	let mut aggro_bot_dir = original_dir.clone();

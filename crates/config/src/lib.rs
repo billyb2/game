@@ -17,14 +17,14 @@ use directories_next::ProjectDirs;
 #[cfg(any(feature = "web", target_arch = "wasm32"))]
 #[wasm_bindgen(inline_js = "export function js_get_data(a){return localStorage.getItem(a)}export function js_write_data(a,b){localStorage.setItem(a,b)}export function js_delete_data(a){localStorage.removeItem(a)}export function js_key_exists(a){if(localStorage[a]){true}else{false}}")]
 extern "C" {
-    fn js_get_data(key: String) -> Option<String>;
-    fn js_write_data(key: String, value: String);
-    fn js_delete_data(key: String);
-    fn js_key_exists(key: String) -> bool;
+    fn js_get_data(key: &str) -> Option<String>;
+    fn js_write_data(key: &str, value: String);
+    fn js_delete_data(key: &str);
+    fn js_key_exists(key: &str) -> bool;
 
 }
 
-pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
+pub fn get_data<'a, T>(key: &str) -> Option<T> where T: Deserialize<'a> {
     #[cfg(any(feature = "web", target_arch = "wasm32"))]
     let value = {
         let string = js_get_data(key);
@@ -55,7 +55,6 @@ pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
             },
             Err(error) => match error.kind() {
                 ErrorKind::NotFound => {
-                    File::create(key_path).unwrap();
                     None
                 },
                 ErrorKind::PermissionDenied => panic!("Permission denied to access {:?}", key_path),
@@ -70,7 +69,7 @@ pub fn get_data<'a, T>(key: String) -> Option<T> where T: Deserialize<'a> {
 
 }
 
-pub fn write_data<T>(key: String, value: T) where T: Serialize {
+pub fn write_data<T>(key: &str, value: T) where T: Serialize {
     #[cfg(any(feature = "web", target_arch = "wasm32"))]
     {
         let ron_config = PrettyConfig::new();
@@ -93,7 +92,7 @@ pub fn write_data<T>(key: String, value: T) where T: Serialize {
     };
 }
 
-pub fn delete_data(key: String) -> Result<(), Option<std::io::Error>> {
+pub fn delete_data(key: &str) -> Result<(), Option<std::io::Error>> {
     if check_key(key.clone()) {
         // Only try to delete an item if it exists
         #[cfg(any(feature = "native", not(target_arch = "wasm32")))]
@@ -124,7 +123,7 @@ pub fn delete_data(key: String) -> Result<(), Option<std::io::Error>> {
 
 }
 
-pub fn check_key(key: String) -> bool {
+pub fn check_key(key: &str) -> bool {
     #[cfg(any(feature = "web", target_arch = "wasm32"))]
     let value = js_key_exists(key);
 

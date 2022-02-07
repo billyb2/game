@@ -127,7 +127,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
         match *interaction {
             Interaction::Clicked => {
                 if text == "Back" {
-                    write_data(String::from("key_bindings"), &*keybindings);
+                    write_data("key_bindings", &*keybindings);
                     app_state.set(AppState::MainMenu).unwrap();
 
                 } else if text.starts_with("Up") {
@@ -182,7 +182,7 @@ pub fn settings_system(button_materials: Res<ButtonMaterials>, mut interaction_q
 
 
         if keyboard_input.just_pressed(KeyCode::Escape) {
-            write_data(String::from("key_bindings"), &*keybindings);
+            write_data("key_bindings", &*keybindings);
             app_state.set(AppState::MainMenu).unwrap();
             keyboard_input.clear();
 
@@ -321,8 +321,8 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
         let mut connect_or_clear = 
         |text: &mut String, header_text: &mut String| {
             match text.parse::<IpAddr>() {
-                Ok(addr) => {
-                    let socket_addr = SocketAddr::new(addr, match cfg!(target_arch = "wasm32") {
+                Ok(ip_addr) => {
+                    let socket_addr = SocketAddr::new(ip_addr, match cfg!(target_arch = "wasm32") {
                         true => 9363,
                         false => 9364,
                     });
@@ -334,9 +334,11 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
                     
                     let connect_config = ConnectConfig {
                         addr: socket_addr,
-                        udp_addr: Some(SocketAddr::new(addr, 9365)),
+                        udp_addr: Some(SocketAddr::new(ip_addr, 9365)),
 
                     };
+
+                    write_data("server_ip", text.clone());
 
                     net.connect(connect_config, Some(2048));
                     
@@ -577,15 +579,15 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
 
                         typing.0 = false;
 
-                        write_data(String::from("model"), *my_gun_model);
-                        write_data(String::from("ability"), *my_ability);
-                        write_data(String::from("perk"), *my_perk);
+                        write_data("model", *my_gun_model);
+                        write_data("ability", *my_ability);
+                        write_data("perk", *my_perk);
 
                         if my_name.0.len() > 0 {
-                            write_data(String::from("name"), *my_name);
+                            write_data("name", *my_name);
 
                         } else {
-                            my_name.0 = get_data(String::from("name")).unwrap();
+                            my_name.0 = get_data("name").unwrap();
 
                         }
 
@@ -719,7 +721,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMut<State<AppState>>, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMut<State<AppState>>, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk, &mut Visibility)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -789,8 +791,17 @@ pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMu
                                 .insert(InGameSettings::Customize);
 
                         } else if text == "Quit" {
+                            // In game quit
                             net.broadcast_message(&[2, my_player_id.0.unwrap().0, 0], &INFO_MESSAGE_CHANNEL);
                             app_state.set(AppState::GameMenu);
+                            
+                            if net.is_server() {
+                                // Remove all players
+                                players.for_each_mut(|(_entity, _ability, _model, _perk, mut visibility)| visibility.is_visible = false);
+
+                            }
+
+                            net.disconnect_from_all();
 
                         }
 
@@ -814,7 +825,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMu
 
                             let my_player_id = my_player_id.0.as_ref();
 
-                            let (entity, mut ability_info, mut model, mut perk) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
+                            let (entity, mut ability_info, mut model, mut perk, _visibility) = players.get_mut(*player_entity.get(&my_player_id.unwrap().0).unwrap()).unwrap();
 
                             if *my_ability == Ability::Brute {
                                 *my_gun_model = Model::Melee;
@@ -822,9 +833,9 @@ pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMu
                             }
 
 
-                            write_data(String::from("model"), *my_gun_model);
-                            write_data(String::from("ability"), *my_ability);
-                            write_data(String::from("perk"), *my_perk);
+                            write_data("model", *my_gun_model);
+                            write_data("ability", *my_ability);
+                            write_data("perk", *my_perk);
 
                             ability_info.ability = *my_ability;
                             *model = *my_gun_model;

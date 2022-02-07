@@ -1625,7 +1625,7 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
                     .spawn_bundle(TextBundle {
                         text: Text {
                             sections: vec![TextSection {
-                                value: String::with_capacity(15),
+                                value: get_data("server_ip").unwrap_or(String::with_capacity(15)),
                                 style: TextStyle {
                                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                                     font_size: 55.0,
@@ -1644,7 +1644,7 @@ pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServ
 }
 
 pub fn setup_default_controls(mut commands: Commands) {
-    let key_bindings: KeyBindings = match get_data(String::from("key_bindings")) {
+    let key_bindings: KeyBindings = match get_data("key_bindings") {
         Some(key_bindings) => key_bindings,
         None => {
             let key_bindings = KeyBindings {
@@ -1662,7 +1662,7 @@ pub fn setup_default_controls(mut commands: Commands) {
                 talk: KeyCode::T,
             };
 
-            write_data(String::from("key_bindings"), key_bindings);
+            write_data("key_bindings", key_bindings);
 
             key_bindings
 

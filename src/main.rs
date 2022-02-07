@@ -71,11 +71,11 @@ fn main() {
     });
 
     //TOOD replace these with unwrap_or_else or somethign similar
-    let model = match get_data(String::from("model")) {
+    let model = match get_data("model") {
         Some(object) => object,
         None => {
             let model = rng.gen::<Model>();
-            write_data(String::from("model"), model);
+            write_data("model", model);
 
             model
 
@@ -83,34 +83,34 @@ fn main() {
     };
 
     // If the player has played the game before, this gets their previous ability/perk/gun. If they haven't, it just randomly generates a new one
-    let ability = match get_data(String::from("ability")) {
+    let ability = match get_data("ability") {
         Some(object) => object,
         None => {
             let ability = rng.gen::<Ability>();
-            write_data(String::from("ability"), ability);
+            write_data("ability", ability);
 
             ability
 
         }
     };
 
-    let perk = match get_data(String::from("perk")) {
+    let perk = match get_data("perk") {
         Some(object) => object,
         None => {
             let perk = rng.gen::<Perk>();
-            write_data(String::from("perk"), perk);
+            write_data("perk", perk);
 
             perk
 
         }
     };
 
-    let name: PlayerName = match get_data(String::from("name")) {
+    let name: PlayerName = match get_data("name") {
         Some(object) => object,
         None => {
             let name = PlayerName::get_random_name();
 
-            write_data(String::from("name"), name);
+            write_data("name", name);
 
             name
 
