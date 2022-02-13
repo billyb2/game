@@ -51,7 +51,6 @@ fn main() {
 
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
-        vsync: true,
         ..Default::default()
 
     });
@@ -63,7 +62,6 @@ fn main() {
     #[cfg(feature = "web")]
     app.insert_resource( WindowDescriptor {
         title: String::from("Necrophaser"),
-        vsync: true,
         width: 1366.0 * res_scale,
         height: 768.0 * res_scale,
         ..Default::default()
