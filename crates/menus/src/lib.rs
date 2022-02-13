@@ -633,6 +633,7 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
                             Model::Widowmaker => String::from("Utilizes your health as ammo. Health is returned for the amount of damage you do, and it does not reload"),
                             Model::Bow => String::from("Long range, short range, slow reload rate"),
                             Model::StickyGrenade => String::from("Fires grenades that stick to walls and opponents"),
+                            Model::LaChancla => String::from("¡MIGUEL, CORRE POR TU PUTA VIDA!"),
                         }
 
                     } else if button_text.starts_with("Perk") {

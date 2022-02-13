@@ -638,6 +638,8 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                     ProjectileType::Melee => materials.regular.clone(),
                                     ProjectileType::Arrow => materials.arrow.clone(),
                                     ProjectileType::StickyGrenade => materials.arrow.clone(),
+                                    ProjectileType::Chancla => materials.chancla.clone(),
+
                                     // This branch should almost never happen
                                     ProjectileType::UsedBullet => materials.used_bullet.clone(),
 

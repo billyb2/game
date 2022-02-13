@@ -58,6 +58,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
     let p_bow = asset_server.load("player_sprites/player_bow.png");
     //TODO: StickyGrenade sprite
     let p_sticky_grenade = asset_server.load("player_sprites/player_bow.png");
+    let p_lachancla_sprite = asset_server.load("player_sprites/player_lachancla.png");
 
     let enemy_sprite = asset_server.load("player_sprites/enemy.png");
 
@@ -66,6 +67,7 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
 
     let pulsewave_sprite = asset_server.load("projectile_sprites/pulsewave.png");
     let arrow_sprite = asset_server.load("projectile_sprites/arrow.png");
+    let lachancla_sprite = asset_server.load("projectile_sprites/lachancla.png");
 
     let shield_cell_sprite = asset_server.load("misc/shield_cell.png");
 
@@ -113,6 +115,8 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
             (p_widowmaker_sprite.into(), const_vec2!([143.6135, 63.099])),
             (p_bow.into(), const_vec2!([124.107, 96.8625])),
             (p_sticky_grenade.into(), const_vec2!([124.107, 96.8625])),
+            (p_lachancla_sprite.into(), const_vec2!([82.808, 61.0755])),
+
         ],
         invisible: Color::rgba_u8(0, 0, 0, 0).into(),
         half_invisible: Color::rgba_u8(255, 255, 255, 128).into(),
@@ -135,7 +139,8 @@ pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<Colo
         beam: Color::rgba_u8(173, 216, 230, 75).into(),
         arrow: arrow_sprite.into(),
         used_bullet: Color::rgb(0.5, 0.5, 0.5).into(),
-        shield_cell: shield_cell_sprite.into()
+        shield_cell: shield_cell_sprite.into(),
+        chancla: lachancla_sprite.into(),
     });
 
     commands.insert_resource(ButtonMaterials {

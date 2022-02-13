@@ -153,6 +153,7 @@ pub struct ProjectileMaterials {
     pub arrow: DynamicMaterial,
     pub used_bullet: DynamicMaterial,
     pub shield_cell: DynamicMaterial,
+    pub chancla: DynamicMaterial,
 }
 
 // The mouse's position in world coordinates

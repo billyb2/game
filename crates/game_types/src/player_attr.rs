@@ -356,6 +356,7 @@ pub enum ProjectileType {
     Arrow,
     StickyGrenade,
     UsedBullet,
+    Chancla,
 
 }
 
@@ -377,6 +378,7 @@ impl From<u8> for ProjectileType {
             10 => ProjectileType::Arrow,
             11 => ProjectileType::StickyGrenade,
             12 => ProjectileType::UsedBullet,
+            13 => ProjectileType::Chancla,
             _ => panic!("Projectile conversion out of bounds: {} was requested, max is {}", projectile_type, NUM_OF_PROJECTILE_TYPES),
 
         }
@@ -401,6 +403,7 @@ impl From<ProjectileType> for u8 {
             ProjectileType::Arrow => 10,
             ProjectileType::StickyGrenade => 11,
             ProjectileType::UsedBullet => 12,
+            ProjectileType::Chancla => 13,
 
         }
 
@@ -423,6 +426,7 @@ pub enum Model {
     Widowmaker,
     Bow,
     StickyGrenade,
+    LaChancla,
 }
 
 impl fmt::Display for Model {
@@ -440,7 +444,8 @@ impl fmt::Display for Model {
             Model::Melee => "Melee",
             Model::Widowmaker => "Widowmaker",
             Model::Bow => "Bow",
-            Model::StickyGrenade => "Sticky Grenadier",    
+            Model::StickyGrenade => "Sticky Grenadier",
+            Model::LaChancla => "La Chancla",
         };
 
         write!(f, "{}", text)
@@ -466,6 +471,7 @@ impl From<u8> for Model {
             10 => Model::Widowmaker,
             11 => Model::Bow,
             12 => Model::StickyGrenade,
+            13 => Model::LaChancla,
             _ => panic!("Gun model conversion out of bounds: {} was requested, max is {}", model, NUM_OF_GUN_MODELS),
 
         }
@@ -490,6 +496,7 @@ impl From<Model> for u8 {
             Model::Widowmaker => 10,
             Model::Bow => 11,
             Model::StickyGrenade => 12,
+            Model::LaChancla => 13,
         }
 
     }
@@ -543,6 +550,7 @@ impl Gun {
                 Model::Widowmaker => TimeSinceLastShot(Timer::from_seconds(1.0, false)),
                 Model::Bow => TimeSinceLastShot(Timer::from_seconds(0.6, false)),
                 Model::StickyGrenade => TimeSinceLastShot(Timer::from_seconds(0.7, false)),
+                Model::LaChancla => TimeSinceLastShot(Timer::from_seconds(0.5, false)),
             },
             time_since_start_reload: TimeSinceStartReload {
                 timer: match model {
@@ -559,6 +567,7 @@ impl Gun {
                     Model::Widowmaker => Timer::from_seconds(4.0, false),
                     Model::Bow => Timer::from_seconds(2.0, false),
                     Model::StickyGrenade => Timer::from_seconds(6.0, false),
+                    Model::LaChancla => Timer::from_seconds(15.0, false),
                 },
                 reloading: false,
                 fast_reload: false,
@@ -579,6 +588,7 @@ impl Gun {
                 Model::Widowmaker => AmmoInMag(6),
                 Model::Bow => AmmoInMag(8),
                 Model::StickyGrenade => AmmoInMag(6),
+                Model::LaChancla => AmmoInMag(1),
             },
             max_ammo: match model {
                 Model::Pistol=> MaxAmmo(16),
@@ -593,7 +603,8 @@ impl Gun {
                 Model::Melee => MaxAmmo(1),
                 Model::Widowmaker => MaxAmmo(6),
                 Model::Bow => MaxAmmo(8),
-                Model::StickyGrenade => MaxAmmo(6)
+                Model::StickyGrenade => MaxAmmo(6),
+                Model::LaChancla => MaxAmmo(1),
             },
             max_distance: match model {
                 Model::Pistol => MaxDistance(1750.0),
@@ -609,6 +620,7 @@ impl Gun {
                 Model::Widowmaker => MaxDistance(1000.0),
                 Model::Bow => MaxDistance(3500.0),
                 Model::StickyGrenade => MaxDistance(99999.0),
+                Model::LaChancla => MaxDistance(10000.0),
 
             },
             // The recoil range is in radians
@@ -624,6 +636,7 @@ impl Gun {
                 Model::Widowmaker => RecoilRange(0.05),
                 Model::Bow => RecoilRange(0.008),
                 Model::StickyGrenade => RecoilRange(0.09),
+                Model::LaChancla => RecoilRange(0.0),
                 _ => RecoilRange(0.075),
 
             },
@@ -634,6 +647,7 @@ impl Gun {
                 Model::Widowmaker => ProjectileType::WidowMaker,
                 Model::Bow => ProjectileType::Arrow,
                 Model::StickyGrenade => ProjectileType::StickyGrenade,
+                Model::LaChancla => ProjectileType::Chancla,
                 _ => ProjectileType::Regular,
             },
             projectile_speed: match model {
@@ -650,6 +664,7 @@ impl Gun {
                 Model::Melee => Speed(60.0),
                 Model::Bow => Speed(87.0),
                 Model::StickyGrenade => Speed(47.0),
+                Model::LaChancla => Speed(75.0),
 
             },
             projectile_size: match model {
@@ -657,6 +672,7 @@ impl Gun {
                 Model::Melee => Size::new(50.0, 50.0),
                 Model::Bow => Size::new(62.0, 10.0),
                 Model::StickyGrenade => Size::new(50.0, 50.0),
+                Model::LaChancla => Size::new(25.0, 50.0),
                 _ => Size::new(7.0, 7.0),
 
             },
@@ -676,6 +692,7 @@ impl Gun {
                 Model::Widowmaker => Damage(35.0),
                 Model::Bow => Damage(45.0),
                 Model::StickyGrenade => Damage(0.0),
+                Model::LaChancla => Damage(9001.0),
 
             },
             // The bursting component only matters for burst rifles
