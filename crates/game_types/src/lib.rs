@@ -116,6 +116,11 @@ pub struct ResScale(pub f32);
 
 pub struct NumOfBots(pub u8);
 
+pub struct BotAlgs {
+    pub current_index: usize,
+    pub algs: Vec<(String, Vec<u8>)>,
+}
+
 #[derive(Component)]
 pub struct LogEvent(pub String);
 

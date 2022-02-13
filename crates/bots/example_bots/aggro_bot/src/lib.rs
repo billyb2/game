@@ -60,6 +60,7 @@ pub extern fn action_info() -> u64 {
     let enemy_players = view_enemy_info();
 
     if enemy_players.len() > 0 {
+        // Find the closest enemy player
         let enemy_player = enemy_players.iter().fold(Vec2::ZERO, |target, potential_target| {
             let potential_target_distance = potential_target.pos.distance(bot.pos);
             let target_distance = target.distance(bot.pos);

@@ -662,7 +662,7 @@ pub fn customize_player_system(button_materials: Res<GameMenuButtonMaterials>, m
 }
 
 #[cfg(feature = "native")]
-pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>, mut num_of_bots: ResMut<NumOfBots>) {
+pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut map_crc32: ResMut<MapCRC32>, maps: Res<Maps>, mut num_of_bots: ResMut<NumOfBots>, mut bot_algs: ResMut<BotAlgs>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
 
@@ -707,6 +707,19 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
                     };
 
                     *text = format!("Number of bots: {}", num_of_bots.0);
+
+                } else if text.starts_with("Bot algorithm") {
+                    let incremented_index = bot_algs.current_index + 1;
+                    
+                    bot_algs.current_index = match incremented_index < bot_algs.algs.len() {
+                        true => incremented_index,
+                        false => 0,
+                    };
+
+                    let bot_alg_name = &bot_algs.algs[bot_algs.current_index].0;
+
+                    *text = format!("Bot algorithm: {}", bot_alg_name);
+
                 }
 
             }

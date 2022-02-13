@@ -141,6 +141,46 @@ fn main() {
     .insert_resource(perk)
     .insert_resource(name)
     .insert_resource(NumOfBots(0))
+    .insert_resource(
+    {
+        #[cfg(feature = "native")]
+        {
+            use std::fs::{read, read_dir};
+
+            let bots = match read_dir("bot_algs") {
+                Ok(bots_iter) => bots_iter,
+                Err(e) => panic!("Unable to read bot_algs/ directory due to error: {e}"),
+
+            };
+
+            let bot_algs: Vec<(String, Vec<u8>)> = bots.map(|bot_filename| {
+                let bot_filename = bot_filename.unwrap();
+
+                let bot_name = bot_filename.file_name().into_string().unwrap_or_else(|_e| panic!("Invalid bot filename (not UTF-8)"));
+                let bot_wasm_code = read(bot_filename.path()).unwrap_or_else(|e| panic!("Error reading file name: {e}"));
+
+                (bot_name, bot_wasm_code)
+            }).collect();
+
+            assert!(bot_algs.len() > 0);
+
+            BotAlgs {
+                current_index: 0,
+                algs: bot_algs,
+            }
+        }
+
+        #[cfg(not(feature = "native"))]
+        {
+            let mut bot_algs = Vec::with_capacity(1);
+            bot_algs.push((String::from("aggro_bot.wasm"), include_bytes!("../bot_algs/aggro_bot.wasm").to_vec()));
+
+            BotAlgs {
+                current_index: 0,
+                algs: bot_algs,
+            }
+        }
+    })
     .insert_resource(TickRate {
         last_tick: Instant::now(),
     })

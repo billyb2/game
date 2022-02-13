@@ -11,6 +11,8 @@ crates/bots/example_bots/*.wasm
 
 /src/map.xml
 
+bot_algs/*
+
 **/*/*.spv
 **/*/target
 tools/**/*/Cargo.lock

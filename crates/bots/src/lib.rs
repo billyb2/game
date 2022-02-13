@@ -4,7 +4,6 @@
 
 #![feature(trivial_bounds)]
 #![feature(control_flow_enum)]
-#![feature(format_args_capture)]
 
 use std::sync::Arc;
 use std::ops::ControlFlow;

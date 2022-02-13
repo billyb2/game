@@ -3,6 +3,7 @@
 
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::convert::TryInto;
+use std::fs::read;
 
 use bevy::prelude::*;
 use bevy::math::const_vec2;
@@ -21,7 +22,7 @@ use rapier2d::na::Vector2;
 pub use setup_graphics::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (maps, map_crc32): (Res<Maps>, Res<MapCRC32>), mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, (mut _rigid_body_set, mut _collider_set): (Option<ResMut<RigidBodySet>>, Option<ResMut<ColliderSet>>), num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>, hosting: Res<Hosting>, asset_server: Res<AssetServer>) {
+pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (maps, map_crc32): (Res<Maps>, Res<MapCRC32>), mut _deathmatch_score: ResMut<DeathmatchScore>, my_gun_model: Option<Res<Model>>, my_ability: Option<Res<Ability>>, my_perk: Option<Res<Perk>>, (mut _rigid_body_set, mut _collider_set): (Option<ResMut<RigidBodySet>>, Option<ResMut<ColliderSet>>), num_of_bots: Res<NumOfBots>, my_player_name: Option<Res<PlayerName>>, hosting: Res<Hosting>, asset_server: Res<AssetServer>, bot_algs: Res<BotAlgs>) {
     let mut available_player_ids: Vec<PlayerID> = Vec::with_capacity(10);
     let mut player_entities: HashMap<u8, Entity> = HashMap::with_capacity_and_hasher(10, BuildHasher::default());
 
@@ -34,6 +35,7 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
     let mut local_players = Vec::with_capacity(5);
 
     let map = maps.0.get(&map_crc32.0).unwrap();
+    let wasm_bytes = &bot_algs.algs[bot_algs.current_index].1;
     
     map.spawn_points.iter().enumerate().for_each(|(i, coords)| {
         let i: u8 = i.try_into().unwrap();
@@ -141,7 +143,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
 
             if remaining_bots_to_add > 0 {
                 let map_bytes = map.to_min_bin();
-                let wasm_bytes = include_bytes!("../../bots/example_bots/aggro_bot.wasm");
 
                 let bot = Bot::new(wasm_bytes, &map_bytes, &PlayerID(i));
 
