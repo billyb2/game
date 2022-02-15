@@ -146,12 +146,11 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
 
                 let bot = Bot::new(wasm_bytes, &map_bytes, &PlayerID(i));
 
-                let model = Model::Shotgun;
-                let ability = Ability::Inferno;
-                let perk = Perk::LightArmor;
+                let (ability, perk, model) = bot.get_info();
+
+                entity.insert_bundle(Player::new(i, ability, perk, false, Some(PlayerName::from_str(bot.name()))));
                 entity.insert_bundle(Gun::new(model, ability, perk));
 
-                entity.insert(PlayerName::from_str(bot.name()));
                 entity.insert(bot);
                 entity.insert(ability);
 
@@ -164,7 +163,6 @@ pub fn setup_players(mut commands: Commands, _materials: Option<Res<Skin>>, (map
 
             } else {
                 available_player_ids.push(PlayerID(i));
-
 
             }
 

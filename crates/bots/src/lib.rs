@@ -30,7 +30,9 @@ pub struct Bot {
     name: String,
     instance: InstanceWrapper,
     id: u8,
-
+    ability: Ability,
+    perk: Perk,
+    gun: Model,
 }
 
 pub struct InstanceWrapper(pub Instance);
@@ -59,7 +61,6 @@ impl Bot {
         #[cfg(target_arch = "wasm32")]
         let store = Store::new();
 
-        println!("Compiling wasm module...");
         // Let's compile the Wasm module.
         let module = Module::new(&store, wasm_bytes).unwrap();
 
@@ -114,14 +115,31 @@ impl Bot {
 
         };
 
+        let (ability, perk, gun) = {
+            let bot_ability_info: NativeFunc<(), u32> = instance.exports.get_native_function("new").unwrap();
+            let info = bot_ability_info.call().unwrap().to_be_bytes();
+
+            (info[0].into(), info[1].into(), info[2].into())
+
+        };
+
         Bot {
             name,
             instance: InstanceWrapper(instance),
             id: id.0,
+            ability,
+            perk,
+            gun,
         }
 
     }
 
+    pub fn get_info(&self) -> (Ability, Perk, Model) {
+        (self.ability, self.perk, self.gun)
+
+    }
+
+    // Prepare for long and boring code in this function
     pub fn update_info(&self, map_bytes: &[u8], enemy_bytes: &[u8], player_bytes: &[u8], health: f32) -> BotActions {
         let memory = self.instance.0.exports.get_memory("memory").unwrap();
         let mem_buffer = unsafe { memory.data_unchecked_mut() };

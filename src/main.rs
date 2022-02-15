@@ -170,6 +170,7 @@ fn main() {
             }
         }
 
+        // Web builds don't have file systems :(
         #[cfg(not(feature = "native"))]
         {
             let mut bot_algs = Vec::with_capacity(1);

@@ -28,6 +28,7 @@ pub use map::mem::{
     map_mem_buffer_size,
 };
 
+static mut LAST_HEALTH: f32 = 100.0;
 static mut INTERNAL_ANGLE: f32 = 0.0;
 
 #[no_mangle]
@@ -96,7 +97,19 @@ pub extern fn action_info() -> u64 {
 
     }
 
+    let current_health = view_current_health();
+
+    if current_health < unsafe { LAST_HEALTH } {
+        // Cloak when taking damage
+        set_should_use_ability(true, &mut movement_info_bytes);
+    }
+
+    unsafe { LAST_HEALTH = current_health };
+
+    // Always be shooting
     set_should_shoot(true, &mut movement_info_bytes);
+    
+
     u64::from_be_bytes(movement_info_bytes)
 
 }
