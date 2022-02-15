@@ -1,11 +1,10 @@
 // Setup stuff that takes a long time to compile due to large use of const_generics
 // By putting it in a seperate module, I'm hoping the compiler will realize it is a candidate for incremental compilation
 
-use std::sync::Arc;
 use std::net::SocketAddr;
-use std::net::{IpAddr, Ipv4Addr, UdpSocket};
+use std::net::{IpAddr, Ipv4Addr};
 use bootleg_networking::*;
-use bootleg_networking::{ConnectionHandle, NetworkResource};
+use bootleg_networking::NetworkResource;
 
 use bevy::core::Timer;
 use bevy::tasks::IoTaskPool;

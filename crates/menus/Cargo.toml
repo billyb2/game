@@ -12,7 +12,6 @@ helper_functions = { path = "../helper_functions", features = ["graphics"] }
 game_types = { path = "../game_types", features = ["graphics"] }
 map = { path = "../map", features = ["graphics"] }
 net = { path = "../net" }
-setup_systems = { path = "../setup_systems", features = ["graphics"] }
 single_byte_hashmap = "0.1"
 
 [features]

@@ -9,7 +9,6 @@ use rapier2d::prelude::*;
 use rapier2d::na::Vector2;
 
 use bevy::prelude::*;
-use bevy::render::camera::Camera;
 use bevy::ecs::component::Component;
 use bevy::math::const_vec2;
  
@@ -21,7 +20,7 @@ use helper_functions::{u128_to_f32_u8, f32_u8_to_u128, get_angle};
 use map::MapHealth;
 
 //TODO: Damage numbers
-pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeedInfo>, &mut Handle<Image>), Without<ExplodeTimer>>, (mut deathmatch_score, mut death_event): (ResMut<DeathmatchScore>, EventWriter<DeathEvent>), proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>, mut tick_rate: ResMut<TickRate>) {
+pub fn move_objects(mut commands: Commands, mut physics_pipeline: ResMut<PhysicsPipeline>, mut island_manager: ResMut<IslandManager>, mut broad_phase: ResMut<BroadPhase>, mut narrow_phase: ResMut<NarrowPhase>, mut joint_set: ResMut<JointSet>, mut ccd_solver: ResMut<CCDSolver>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, mut movable_objects: Query<(Entity, &RigidBodyHandleWrapper, &ColliderHandleWrapper, &mut Sprite, Option<&mut Health>, Option<&mut MapHealth>, Option<&ProjectileIdent>, Option<&PlayerID>, Option<&mut DamageSource>, Option<&mut ProjectileType>, Option<&mut PlayerSpeedInfo>, &mut Handle<Image>), Without<ExplodeTimer>>, (mut deathmatch_score, mut death_event): (ResMut<DeathmatchScore>, EventWriter<DeathEvent>), proj_materials: Res<ProjectileMaterials>, local_players: Res<LocalPlayers>, mut widow_maker_heals: ResMut<WidowMakerHeals>, asset_server: Res<AssetServer>, tick_rate: Res<TickRate>) {
     movable_objects.iter_mut().for_each(|(entity, rigid_body_handle, collider_handle, mut sprite, mut health, mut map_health, shot_from, player_id, mut damage_source, mut projectile_type, mut p_speed_info, mut material)| {
         let mut should_remove_rigid_body = false;
 

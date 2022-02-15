@@ -2,9 +2,6 @@
 use arrayvec::ArrayVec;
 
 use bevy::prelude::*;
-use bevy::math::const_vec3;
-use bevy::reflect::TypeUuid;
-
 use serde::{Deserialize, Serialize};
 
 pub const fn u8_to_color(value: [u8; 3]) -> [f32; 3] {

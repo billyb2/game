@@ -74,7 +74,7 @@ pub fn move_camera(mut camera: Query<&mut Transform, With<GameCamera>>, players:
 }
 
 
-pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSpeedInfo, &RigidBodyHandleWrapper, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, player_entity: Res<HashMap<u8, Entity>>, button_materials: Res<ButtonMaterials>, mut materials: ResMut<Assets<ColorMaterial>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut typing: ResMut<Typing>, keyboard_input: Res<Input<KeyCode>>, (gamepads, axes, button_inputs): (Res<Gamepads>, Res<Axis<GamepadAxis>>, Res<Input<GamepadButton>>)) {
+pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSpeedInfo, &RigidBodyHandleWrapper, &Health)>, mut ev_reload: EventWriter<ReloadEvent>, mut ev_use_ability: EventWriter<AbilityEvent>, keybindings: Res<KeyBindings>, my_player_id: Res<MyPlayerID>, asset_server: Res<AssetServer>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<(Entity, &InGameSettings)>, mut rigid_body_set: ResMut<RigidBodySet>, mut typing: ResMut<Typing>, keyboard_input: Res<Input<KeyCode>>, (gamepads, axes, button_inputs): (Res<Gamepads>, Res<Axis<GamepadAxis>>, Res<Input<GamepadButton>>)) {
     if !typing.0 {
         if in_game_settings.is_empty() {
             let mut angle = None;
@@ -183,7 +183,6 @@ pub fn my_keyboard_input(mut commands: Commands, mut query: Query<(&mut PlayerSp
                     color: UiColor(Color::rgba_u8(255, 255, 255, 10)),
                     visibility: Visibility {
                         is_visible: true,
-                        ..Default::default()
                     },
                     ..Default::default()
 
@@ -323,7 +322,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visibility), With<ScoreU
         visible.is_visible = true;
 
         // Sorts the HashMap by number of kills first, before displaying
-        let mut v: Vec<(&u8, &u8)> = (&score.0).into_iter().collect();
+        let mut v: Vec<(&u8, &u8)> = score.0.iter().collect();
         
         let compare = |x: &(&u8, &u8), y: &(&u8, &u8)| {
             y.1.cmp(x.1)
@@ -340,7 +339,7 @@ pub fn score_input(mut score_ui: Query<(&mut Text, &mut Visibility), With<ScoreU
             let player_name = names.get(*player_entity.get(player_id).unwrap()).unwrap();
 
             let singular_or_plural_kills =
-                match **kills {
+                match *kills {
                     1 => "kill",
                     _ => "kills"
                 };
@@ -386,7 +385,7 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
                             if text_in_chat {
                                 let my_player_id = my_player_id.0.as_ref().unwrap().0;
                                 let message: TextMessage = (my_player_id, text[6..].to_owned(), 0);
-                                net.broadcast_message(&message, &TEXT_MESSAGE_CHANNEL).err_on_server_disconnect(&mut net, &mut app_state);
+                                net.broadcast_message(&message, &TEXT_MESSAGE_CHANNEL).err_on_server_disconnect(&net, &mut app_state);
                                 log_event.send(ChatEvent(format!("{}: {}", my_name.as_ref(), text[6..].to_owned())));
 
                                 text.truncate(6);
@@ -434,7 +433,7 @@ pub fn chat_input(mut chat_text: Query<&mut Text, With<ChatText>>, mut typing: R
 
 }
 
-pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &AbilityInfo, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>, gamepads: Res<Gamepads>, button_inputs: Res<Input<GamepadButton>>, axes: Res<Axis<GamepadAxis>>, wnds: Res<Windows>) {
+pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<Input<KeyCode>>, mouse_pos: Res<MousePosition>,  mut shoot_event: EventWriter<ShootEvent>, mut query: Query<(&Bursting, &Transform, &mut Health, &Model, &MaxDistance, &RecoilRange, &Speed, &ProjectileType, &Damage, &AbilityInfo, &Size, &TimeSinceStartReload, &TimeSinceLastShot, &Perk)>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, in_game_settings: Query<&InGameSettings>, keybindings: Res<KeyBindings>, gamepads: Res<Gamepads>, button_inputs: Res<Input<GamepadButton>>) {
     if in_game_settings.is_empty() {
         if let Some(my_player_id)= &my_player_id.0 {
             let (bursting, transform, mut health, model, max_distance, recoil_range, speed, projectile_type, damage, ability_info, size, reload_timer, time_since_last_shot, perk) = query.get_mut(*player_entity.get(&my_player_id.0).unwrap()).unwrap();
@@ -542,7 +541,7 @@ pub fn shooting_player_input(btn: Res<Input<MouseButton>>, keyboard_input: Res<I
 
 }
 
-pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>, mut app_state: ResMut<State<AppState>>, asset_server: Res<AssetServer>) {
+pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: Commands, materials: Res<ProjectileMaterials>,  mut query: Query<(&mut Bursting, &mut TimeSinceLastShot, &mut AmmoInMag, &mut CanMelee)>, mut ev_reload: EventWriter<ReloadEvent>,  mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, player_entity: Res<HashMap<u8, Entity>>, mut rigid_body_set: ResMut<RigidBodySet>, mut collider_set: ResMut<ColliderSet>, local_players: Res<LocalPlayers>, mut app_state: ResMut<State<AppState>>, asset_server: Res<AssetServer>) {
     if my_player_id.0.is_some() {
         shoot_event.iter().for_each(|ev| {
             let player_is_local = local_players.0.contains(&ev.player_id);
@@ -604,7 +603,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                 if shooting || !player_is_local {
                     // Only broadcast shots that the player shoots
                     if player_is_local {
-                        net.broadcast_message(ev, &PROJECTILE_MESSAGE_CHANNEL).err_on_server_disconnect(&mut net, &mut app_state);
+                        net.broadcast_message(ev, &PROJECTILE_MESSAGE_CHANNEL).err_on_server_disconnect(&net, &mut app_state);
 
                     }
 
@@ -710,7 +709,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                             .insert_bundle(SpriteBundle {
                                 texture: material.as_image(&asset_server),
                                 sprite: Sprite {
-                                    color: material.as_color().unwrap_or(Default::default()),
+                                    color: material.as_color().unwrap_or_default(),
                                     custom_size: Some(ev.size),
                                     ..Default::default()
                                 },
@@ -759,7 +758,7 @@ pub fn spawn_projectile(mut shoot_event: EventReader<ShootEvent>, mut commands: 
                                 .insert_bundle(SpriteBundle {
                                     texture: materials.used_bullet.as_image(&asset_server),
                                     sprite: Sprite {
-                                        color: materials.used_bullet.as_color().unwrap_or(Default::default()),
+                                        color: materials.used_bullet.as_color().unwrap_or_default(),
                                         custom_size: Some(ev.size),
                                         ..Default::default()
                                     },
@@ -802,12 +801,10 @@ pub fn start_reload(mut query: Query<(&AmmoInMag, &MaxAmmo, &mut TimeSinceStartR
     });
 }
 
-pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &mut Sprite, &Health, &Model, &TimeSinceStartReload, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, gamepads: Res<Gamepads>, axes: Res<Axis<GamepadAxis>>, skins: Res<Skin>) {
+pub fn use_ability(mut commands: Commands, mut query: Query<(&Transform, &mut AbilityInfo, &mut PlayerSpeedInfo, &mut Sprite, &Health, &Model, &TimeSinceStartReload, &ColliderHandleWrapper, &RigidBodyHandleWrapper)>, mut ev_use_ability: EventReader<AbilityEvent>, mut net: ResMut<NetworkResource>, my_player_id: Res<MyPlayerID>, mouse_pos: Res<MousePosition>, mut shoot_event: EventWriter<ShootEvent>, player_entity: Res<HashMap<u8, Entity>>, mut collider_set: ResMut<ColliderSet>, mut rigid_body_set: ResMut<RigidBodySet>, local_players: Res<LocalPlayers>, skins: Res<Skin>) {
     if let Some(my_player_id)= &my_player_id.0 {
         for ev_id in ev_use_ability.iter() {
             let (transform, mut ability_info, mut speed_info, mut sprite, health, model, reload_timer, collider_handle, rigid_body_handle) = query.get_mut(*player_entity.get(&ev_id.0).unwrap()).unwrap();
-
-            let speed = &mut speed_info.speed;
 
             let player_is_local = local_players.0.contains(&ev_id.0);
 
@@ -826,7 +823,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                         let message: AbilityMessage = ([ev_id.0, Ability::Wall.into()], message_array);
 
                         if player_is_local {
-                            net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
+                            net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL).unwrap();
 
                         }
 
@@ -953,7 +950,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                 let message_array: [f32; 3] = [transform.translation.x, transform.translation.y, 0.0];
                                 let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Cloak.into()], message_array);
 
-                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
+                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL).unwrap();
                             }
 
                             ability_info.ability_completed.reset();
@@ -995,7 +992,7 @@ pub fn use_ability(mut commands: Commands, mut materials: ResMut<Assets<ColorMat
                                     let message: ([u8; 2], [f32; 3]) = ([my_player_id.0, Ability::Ghost.into()], message_array);
 
 
-                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL);
+                                net.broadcast_message(&message, &ABILITY_MESSAGE_CHANNEL).unwrap();
 
                             }
 
@@ -1088,8 +1085,8 @@ TimeSinceStartReload, &mut Bursting, &mut AbilityInfo, &mut PlayerSpeedInfo, &Co
     });
 }
 
-pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo, &Model, &mut Sprite)>, skins: Res<Skin>, my_player_id: Res<MyPlayerID>) {
-    query.for_each_mut(|(player_id, ability_info, gun_model, mut sprite)| {
+pub fn reset_player_phasing(mut query: Query<(&PlayerID, &AbilityInfo, &mut Sprite)>, skins: Res<Skin>, my_player_id: Res<MyPlayerID>) {
+    query.for_each_mut(|(player_id, ability_info, mut sprite)| {
         if ability_info.ability == Ability::Cloak {
             sprite.color = match ability_info.using_ability {
                 true => match player_id.0 == my_player_id.0.unwrap().0 {
@@ -1133,7 +1130,7 @@ pub fn set_mouse_coords(wnds: Res<Windows>, camera: Query<&Transform, With<GameC
     // If there's a gamepad, calculate where the "mouse" would be using the right stick
     let cursor_pos = match gamepads.iter().next() {
         Some(gamepad) => {
-            let gamepad = gamepad.clone();
+            let gamepad = *gamepad;
 
             let right_stick_x = axes.get(GamepadAxis(gamepad, GamepadAxisType::RightStickX)).unwrap();
             let right_stick_y = axes.get(GamepadAxis(gamepad, GamepadAxisType::RightStickY)).unwrap();

@@ -874,7 +874,6 @@ dependencies = [
  "bevy",
  "fastrand",
  "game_types",
- "helper_functions",
  "map",
  "rapier2d",
  "wasmer",
@@ -2263,7 +2262,6 @@ dependencies = [
  "helper_functions",
  "map",
  "net",
- "setup_systems",
  "single_byte_hashmap",
 ]
 

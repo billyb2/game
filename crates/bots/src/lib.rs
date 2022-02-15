@@ -5,9 +5,7 @@
 #![feature(trivial_bounds)]
 #![feature(control_flow_enum)]
 
-use std::sync::Arc;
 use std::ops::ControlFlow;
-use std::f32::consts::PI;
 use std::marker::{Send, Sync};
 use std::iter::repeat_with;
 
@@ -22,7 +20,6 @@ use wasmer_compiler_singlepass::Singlepass;
 use wasmer_engine_universal::Universal;
 
 use map::*;
-use helper_functions::*;
 use game_types::*;
 
 #[derive(Component)]

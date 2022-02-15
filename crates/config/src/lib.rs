@@ -42,7 +42,7 @@ pub fn get_data<'a, T>(key: &str) -> Option<T> where T: Deserialize<'a> {
 
     #[cfg(any(feature = "native", not(target_arch = "wasm32")))]
     let value = {
-        use std::fs::{File, read_to_string};
+        use std::fs::read_to_string;
 
         let key_path = get_path_from_key(&key);
 

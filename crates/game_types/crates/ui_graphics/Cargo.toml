@@ -5,6 +5,6 @@ edition = "2021"
 crate-type = ["rlib", "dylib"]
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["render"] }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
 serde = { version = "1", features = ["derive"] }
 arrayvec = { version = "0.7" }

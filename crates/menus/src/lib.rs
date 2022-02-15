@@ -18,7 +18,6 @@ use bevy::input::keyboard::KeyboardInput;
 use single_byte_hashmap::HashMap;
 
 use config::{get_data, write_data};
-use setup_systems::*;
 use map::*;
 use net::*;
 use game_types::*;
@@ -395,59 +394,6 @@ pub fn connection_menu(button_materials: Res<ButtonMaterials>, mut text_query: Q
     }
 }
 
-pub fn download_map_system(button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut net: ResMut<NetworkResource>, map_crc32: Res<MapCRC32>, mut maps: ResMut<Maps>) {
-    interaction_query.for_each_mut(|(interaction, mut material, children)| {
-        const DEFAULT_MAP_OBJECT: MapObject = MapObject::default();
-
-        let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
-
-        match *interaction {
-            Interaction::Clicked => {
-                if text == "Cancel" {
-                    app_state.set(AppState::GameMenu).unwrap();
-
-                }
-            }
-            Interaction::Hovered => {
-                *material = button_materials.hovered.clone();
-
-            }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-
-            }
-        }
-
-        //Checks to see if ther map's metadata is downloaded first
-        // I check the map object capacity since if it's zero,, that's an effectively worthless map
-        // Of course, this means maps with 0 map objects will download forever, so sad :(
-        let map = maps.0.get_mut(&map_crc32.0).unwrap(); 
-
-        if map.objects.capacity() == 0 {
-            //net.broadcast_message(&(String::new(), 0_u64, [0.0_f32; 3], [0.0_f32; 2], map.crc32));
-
-        } else {
-/*            map.objects.iter_mut().enumerate().filter_map(|(i, object)| 
-                match *object == DEFAULT_MAP_OBJECT {
-                    true => {
-                        let index: u64 = i.try_into().unwrap();
-                        Some(index)
-
-                    },
-                    false => None,
-
-            }).for_each(|i| net.broadcast_message((map_crc32.0, i)));
-*/
-            // Request a map object for each default map object
-            
-        }
-
-
-
-
-    });
-}
-
 pub fn game_menu_system(button_materials: Res<GameMenuButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, mut app_state: ResMut<State<AppState>>, mut hosting: ResMut<Hosting>) {
     interaction_query.for_each_mut(|(interaction, mut material, children)| {
         let text = &text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -735,7 +681,7 @@ pub fn customize_game_system(button_materials: Res<GameMenuButtonMaterials>, mut
     });
 }
 
-pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMut<State<AppState>>, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, mut materials: ResMut<Assets<ColorMaterial>>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk, &mut Visibility)>, player_entity: Res<HashMap<u8, Entity>>) {
+pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMut<State<AppState>>, settings_button_materials: Res<ButtonMaterials>, mut interaction_query: Query<(&Interaction, &mut UiColor, &Children), (Changed<Interaction>, With<Button>)>, mut text_query: Query<&mut Text>, in_game_settings: Query<(Entity, &InGameSettings)>, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, mut my_ability: ResMut<Ability>, mut my_gun_model: ResMut<Model>, mut my_perk: ResMut<Perk>, my_player_id: Res<MyPlayerID>, mut net: ResMut<NetworkResource>, mut players: Query<(Entity, &mut AbilityInfo, &mut Model, &mut Perk, &mut Visibility)>, player_entity: Res<HashMap<u8, Entity>>) {
     if !in_game_settings.is_empty() {
         interaction_query.for_each_mut(|(interaction, mut material, children)| {
             let text = &mut text_query.get_mut(children[0]).unwrap().sections[0].value;
@@ -806,8 +752,8 @@ pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMu
 
                         } else if text == "Quit" {
                             // In game quit
-                            net.broadcast_message(&[2, my_player_id.0.unwrap().0, 0], &INFO_MESSAGE_CHANNEL);
-                            app_state.set(AppState::GameMenu);
+                            net.broadcast_message(&[2, my_player_id.0.unwrap().0, 0], &INFO_MESSAGE_CHANNEL).unwrap();
+                            app_state.set(AppState::GameMenu).unwrap();
                             
                             if net.is_server() {
                                 // Remove all players
@@ -835,7 +781,7 @@ pub fn in_game_settings_menu_system(mut commands: Commands, mut app_state: ResMu
 
 
                             let set_ability_message: [u8; 3] = [1, (*my_ability).into(), my_player_id.0.as_ref().unwrap().0];
-                            net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL);
+                            net.broadcast_message(&set_ability_message, &INFO_MESSAGE_CHANNEL).unwrap();
 
                             let my_player_id = my_player_id.0.as_ref();
 

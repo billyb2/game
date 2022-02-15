@@ -15,9 +15,6 @@ use rand::Rng;
 use rustc_hash::FxHashMap;
 use single_byte_hashmap::*;
 
-#[cfg(feature = "native")]
-use helper_functions::aabb_check;
-
 use game_lib::*;
 use game_lib::player_input::*;
 use game_lib::system_labels::*;
@@ -162,7 +159,7 @@ fn main() {
                 (bot_name, bot_wasm_code)
             }).collect();
 
-            assert!(bot_algs.len() > 0);
+            assert!(!bot_algs.is_empty());
 
             BotAlgs {
                 current_index: 0,

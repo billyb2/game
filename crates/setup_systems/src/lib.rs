@@ -3,7 +3,6 @@
 
 // This file is for storing all systems that are used as setups, such as setting up cameras, drawing the map, etc
 use std::convert::TryInto;
-use std::fs::read;
 
 use bevy::prelude::*;
 use bevy::math::const_vec2;

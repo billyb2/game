@@ -9,14 +9,12 @@ mod setup;
 
 use std::result::Result;
 use std::net::SocketAddr;
-use std::convert::TryInto;
 
 use game_types::*;
 use map::*;
 use single_byte_hashmap::HashMap;
 
 use bevy::prelude::*;
-use bevy::ecs::event::Events;
 use bevy::utils::Duration;
 
 #[cfg(feature = "parallel")]
@@ -356,7 +354,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
             let quitting_player_id = command[1];
             println!("Player {quitting_player_id} has quit!");
 
-            let (_id, _ability_info, mut visible) = players.iter_mut().find(|(id, _ability, _visible)| id.0 == quitting_player_id).expect(&format!("ID {quitting_player_id} not found!"));
+            let (_id, _ability_info, visible) = players.iter_mut().find(|(id, _ability, _visible)| id.0 == quitting_player_id).expect(&format!("ID {quitting_player_id} not found!"));
 
 
             visible.unwrap().is_visible = false;
@@ -390,7 +388,7 @@ pub fn handle_server_commands(mut net: ResMut<NetworkResource>, mut available_id
     }
 }
 
-pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, player_entity: Res<HashMap<u8, Entity>>, materials: Res<Skin>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>) {    
+pub fn handle_client_commands(mut net: ResMut<NetworkResource>, hosting: Res<Hosting>, mut my_player_id: ResMut<MyPlayerID>, mut players: Query<(&PlayerID, &mut AbilityInfo)>, mut ability_set: ResMut<SetAbility>, mut online_player_ids: ResMut<OnlinePlayerIDs>, mut deathmatch_score: ResMut<DeathmatchScore>, mut map_crc32: ResMut<MapCRC32>, mut maps: ResMut<Maps>, mut app_state: ResMut<State<AppState>>, mut local_players: ResMut<LocalPlayers>) {    
     if hosting.0 {
         return;
     }

@@ -37,7 +37,7 @@ pub fn setup_cameras(mut commands: Commands, window: Res<WindowDescriptor>,) {
     };
 }
 
-pub fn setup_materials(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>) {
+pub fn setup_materials(mut commands: Commands, asset_server: Res<AssetServer>) {
     #[cfg(debug_assertions)]
     asset_server.watch_for_changes().unwrap();
 
@@ -460,7 +460,7 @@ pub fn setup_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
 }
 
-pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {
+pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(ClearColor(Color::BLACK));
 
     commands
@@ -517,7 +517,7 @@ pub fn setup_main_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
         });
 }
 
-pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, my_player_name: Res<PlayerName>) {
+pub fn setup_customize_player(mut commands: Commands, asset_server: Res<AssetServer>, my_ability: Res<Ability>, my_gun_model: Res<Model>, my_perk: Res<Perk>, my_player_name: Res<PlayerName>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -781,7 +781,7 @@ pub fn add_player_name_text(mut commands: Commands, names: Query<(Entity, &Playe
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, num_of_bots: Res<NumOfBots>, bot_algs: Res<BotAlgs>) {
+pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServer>, map_crc32: Res<MapCRC32>, maps: Res<Maps>, num_of_bots: Res<NumOfBots>, bot_algs: Res<BotAlgs>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -972,7 +972,7 @@ pub fn setup_customize_game(mut commands: Commands, asset_server: Res<AssetServe
         });
 }
 
-pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
+pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -1064,7 +1064,7 @@ pub fn setup_download_map_menu(mut commands: Commands, asset_server: Res<AssetSe
         });
 }
 
-pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<GameMenuButtonMaterials>) {
+pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(ClearColor(Color::ORANGE));
 
     commands
@@ -1304,7 +1304,7 @@ pub fn setup_game_menu(mut commands: Commands, asset_server: Res<AssetServer>, b
         });
 }
 
-pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>, keybindings: Res<KeyBindings>, ) {
+pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, keybindings: Res<KeyBindings>, ) {
     commands.insert_resource(ClearColor(Color::BLACK));
     commands.spawn().insert(SelectedKeyButton(None));
 
@@ -1603,7 +1603,7 @@ pub fn setup_settings( mut commands: Commands, asset_server: Res<AssetServer>, b
         });
 }
 
-pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServer>, button_materials: Res<ButtonMaterials>) {
+pub fn setup_connection_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(ClearColor(Color::BLACK));
 
     commands
