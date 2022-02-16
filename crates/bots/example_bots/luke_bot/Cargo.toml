@@ -1,0 +1,17 @@
+[package]
+name = "luke_bot"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+debug = 0
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+
+[dependencies]
+glam = "0.20"
+once_cell = { version = "1", features = ["parking_lot"] }
+
+[lib]
+crate-type =["cdylib"]
