@@ -39,11 +39,15 @@ fn main() {
 			);
 
 			let mut dst_dir = bot_dir.clone();
-			create_dir_all("../../../../bot_algs/").unwrap();
+            let mut bot_alg_dir = dst_dir.clone();
+            bot_alg_dir.push("../../../../bot_algs/");
+			
+            create_dir_all(bot_alg_dir);
             dst_dir.push(&format!("../../../../bot_algs/{wasm_file_name}.wasm"));
 
 			let mut wasm_file = bot_dir.clone();
 			wasm_file.push(&format!("./target/wasm32-unknown-unknown/release/{wasm_file_name}.wasm"));
+
 
 			copy(wasm_file, dst_dir).unwrap();
 
