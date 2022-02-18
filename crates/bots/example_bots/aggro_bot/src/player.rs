@@ -1,4 +1,4 @@
-use crate::player::mem::*;
+use bot_lib::*;
 use glam::Vec2;
 
 pub(crate) struct PlayerInfo {
@@ -57,3 +57,4 @@ pub(crate) fn view_enemy_info() -> Vec<PlayerInfo> {
 
 
 }
+

@@ -15,19 +15,6 @@ use map::{
     view_map,
 };
 
-// DO NOT ACESS ANY MEMORY BUFFERS DIRECTLY!!!!! PLEASE USE THE view_*_info FUNCTIONS FOR SAFE INTERFACES!!!!!!!!
-// DO NOT USE ANY OF THE BELOW FUNCTIONS!!!!!
-pub use player::mem::{
-    enemy_player_mem_buffer_ptr,
-    enemy_player_mem_buffer_size,
-    player_health_buffer_ptr,
-    player_mem_buffer_ptr,
-};
-pub use map::mem::{
-    map_mem_buffer_ptr,
-    map_mem_buffer_size,
-};
-
 static mut LAST_HEALTH: f32 = 100.0;
 static mut INTERNAL_ANGLE: f32 = 0.0;
 

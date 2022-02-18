@@ -1,6 +1,8 @@
 // Up to 10kb for map stuff, which would be a very complex map
 // For reference, map2 takes up around 3kb when converted to a binary
-pub(crate) static mut MAP_MEM_BUFFER: [u8; 10_000] = [0; 10_000];
+#[no_mangle]
+#[used]
+pub static mut MAP_MEM_BUFFER: [u8; 10_000] = [0; 10_000];
 
 // Unsafe extern functions
 #[no_mangle]

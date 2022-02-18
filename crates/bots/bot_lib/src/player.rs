@@ -1,9 +1,16 @@
-const SIZE_OF_31_PLAYERS: usize = 8 * 31;
+pub const SIZE_OF_31_PLAYERS: u32 = 8 * 31;
 
-pub(crate) static mut PLAYER_MEM_BUFFER: [u8; 9] = [0; 9];
-pub(crate) static mut CURRENT_PLAYER_HEALTH: f32 = 0.0;
+#[no_mangle]
+#[used]
+pub static mut PLAYER_MEM_BUFFER: [u8; 9] = [0; 9];
 
-pub(crate) static mut ENEMY_PLAYER_MEM_BUFFER: [u8; SIZE_OF_31_PLAYERS] = [0; SIZE_OF_31_PLAYERS];
+#[no_mangle]
+#[used]
+pub static mut CURRENT_PLAYER_HEALTH: f32 = 0.0;
+
+#[no_mangle]
+#[used]
+pub static mut ENEMY_PLAYER_MEM_BUFFER: [u8; SIZE_OF_31_PLAYERS as usize] = [0; SIZE_OF_31_PLAYERS as usize];
 
 // Unsafe extern functions
 #[no_mangle]

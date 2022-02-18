@@ -1,4 +1,4 @@
-use crate::map::mem::*;
+use bot_lib::*;
 use glam::Vec2;
 
 // A sort of copy of MapObject from the map crate, minimized
@@ -35,3 +35,4 @@ pub(crate) fn view_map() -> Vec<MinMapObject> {
     map_objects
 
 }
+

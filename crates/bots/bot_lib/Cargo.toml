@@ -1,5 +1,5 @@
 [package]
-name = "aggro_bot"
+name = "bot_lib"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,9 +10,7 @@ panic = "abort"
 codegen-units = 1
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bot_lib = { path = "../../bot_lib" }
-glam = "0.20"
 
