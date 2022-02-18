@@ -167,7 +167,7 @@ impl Bot {
             let player_buffer_ptr: usize = player_buffer_ptr.call().unwrap().try_into().unwrap();
 
             // Update the player's position
-            mem_buffer[player_buffer_ptr..player_buffer_ptr + 8].copy_from_slice(player_bytes)
+            mem_buffer[player_buffer_ptr..player_buffer_ptr + 8].copy_from_slice(&player_bytes[0..8])
         };
 
         {
@@ -251,7 +251,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut Bot>,
     // Generate the list of TruncatedPlayer by looping over the bots list initially
     let mut players: [u8; 9 * 32] = [0; 9 * 32];
 
-    let mut bot_player_bytes: [u8; 8] = [0; 8];
+    let mut bot_player_bytes: [u8; 9] = [0; 9];
     let mut enemy_player_bytes: [u8; 8 * 31] = [0; 8 * 31];
 
     let map_bin = {
@@ -281,7 +281,13 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut Bot>,
             players.chunks(9).for_each(|player_bytes| {
                 if *player_bytes != [0; 9] {
                     if player_bytes[8] == player_id.0 {
-                        bot_player_bytes.copy_from_slice(&player_bytes[0..8]);
+                        let bot_player_bytes_that_arent_ability = &mut bot_player_bytes[0..8];
+                        bot_player_bytes_that_arent_ability.copy_from_slice(&player_bytes[0..8]);
+                        bot_player_bytes[8] = match ability_info.ability_charge.finished() {
+                            false => 0,
+                            true => 255,
+                        };
+
                         added_player = true;
 
                     } else {

@@ -1,6 +1,13 @@
+#![feature(path_try_exists)]
+
 use std::env::current_dir;
-use std::fs::{copy, create_dir_all, read_dir};
+use std::fs::{copy, create_dir_all, read_dir, try_exists};
 use std::process::Command;
+
+enum BuildSystem {
+    Cargo,
+    Makefile,
+}
 
 fn main() {
 	println!("cargo:rerun-if-changed=example_bots/");
@@ -18,13 +25,45 @@ fn main() {
 
 		}
 
-		let bot_dir = bot_entry.path();
+        let bot_dir = bot_entry.path();
+       
+        println!("{:#?}", bot_dir);
+
+        let build_system = {
+            let cargo_path = {
+                let mut dir = bot_dir.clone();
+                dir.push("Cargo.toml");
+                dir
+
+            };
+
+            let makefile_path = {
+                let mut dir = bot_dir.clone();
+                dir.push("Makefile");
+                dir
+
+            };
+
+            if Some(true) == try_exists(&cargo_path).ok() {
+                BuildSystem::Cargo
+
+            } else if Some(true) == try_exists(&makefile_path).ok() {
+                BuildSystem::Makefile
+
+            } else {
+                panic!("Unknown build system");
+
+            }
+
+        };
+
 
 		let wasm_file_name = bot_dir.file_name().unwrap().to_str().unwrap();
 
-		assert!(
-			Command::new("cargo")
-		        .env_remove("CARGO_CFG_TARGET_ARCH")
+        match build_system {
+		    BuildSystem::Cargo => assert!(
+                Command::new("cargo")
+                .env_remove("CARGO_CFG_TARGET_ARCH")
 		        .env_remove("CARGO_CFG_TARGET_ENDIAN")
 		        .env_remove("CARGO_CFG_TARGET_FAMILY")
 		        .env_remove("CARGO_CFG_TARGET_ENV")
@@ -35,8 +74,16 @@ fn main() {
 		        .args(["build", "--target", "wasm32-unknown-unknown", "--release"])
 				.status()
 				.unwrap()
-				.success()
-			);
+                .success()
+            ),
+            BuildSystem::Makefile => assert!(
+             Command::new("make")
+                .current_dir(bot_dir.clone())
+                .status()
+                .unwrap()
+                .success()
+            ),
+        };
 
 			let mut dst_dir = bot_dir.clone();
             let mut bot_alg_dir = dst_dir.clone();
@@ -46,11 +93,16 @@ fn main() {
             dst_dir.push(&format!("../../../../bot_algs/{wasm_file_name}.wasm"));
 
 			let mut wasm_file = bot_dir.clone();
-			wasm_file.push(&format!("./target/wasm32-unknown-unknown/release/{wasm_file_name}.wasm"));
+			
+            match build_system {
+                BuildSystem::Cargo => wasm_file.push(&format!("./target/wasm32-unknown-unknown/release/{wasm_file_name}.wasm")),
+                BuildSystem::Makefile => wasm_file.push(&format!("./{wasm_file_name}.wasm")),
+            };
 
+			if copy(&wasm_file, &dst_dir).is_err() {
+                panic!("WASM dir: {wasm_file:#?}\ndst: {dst_dir:#?}");
 
-			copy(wasm_file, dst_dir).unwrap();
-
+            }
 
 	}
 

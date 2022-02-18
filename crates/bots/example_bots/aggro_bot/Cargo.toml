@@ -9,8 +9,9 @@ lto = "fat"
 panic = "abort"
 codegen-units = 1
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 glam = "0.20"
 
-[lib]
-crate-type =["cdylib"]
