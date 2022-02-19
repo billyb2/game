@@ -4,6 +4,7 @@ use glam::Vec2;
 pub(crate) struct PlayerInfo {
     pub(crate) pos: Vec2,
     pub(crate) ability_charged: bool,
+    pub(crate) using_ability: bool,
 
 }
 
@@ -24,6 +25,10 @@ pub(crate) fn view_player_info() -> PlayerInfo {
                 0 => false,
                 _ => true,
             },
+            using_ability: match PLAYER_MEM_BUFFER[9] {
+                0 => false,
+                _ => true,
+            }
 
         }
     }
@@ -49,6 +54,7 @@ pub(crate) fn view_enemy_info() -> Vec<PlayerInfo> {
             ),
             // When viewing enemy info, assume their ability is never charged to not give advantages
             ability_charged: false,
+            using_ability: false,
         });
 
     }

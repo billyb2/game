@@ -2,7 +2,7 @@ pub const SIZE_OF_31_PLAYERS: u32 = 8 * 31;
 
 #[no_mangle]
 #[used]
-pub static mut PLAYER_MEM_BUFFER: [u8; 9] = [0; 9];
+pub static mut PLAYER_MEM_BUFFER: [u8; 10] = [0; 10];
 
 #[no_mangle]
 #[used]
