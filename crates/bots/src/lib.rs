@@ -313,7 +313,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut Bot>,
 
             let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
 
-            let actions = bot.update_info(&map_bin, &enemy_player_bytes, &bot_player_bytes, health.0, ability_info.ability_charge.finished(), !ability_info.ability_completed.finished());
+            let actions = bot.update_info(&map_bin, &enemy_player_bytes, &bot_player_bytes, health.0, ability_info.ability_charge.finished(), ability_info.using_ability);
 
             let gun = Gun::new(*model, ability_info.ability, Perk::ExtendedMag);
 
