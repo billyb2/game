@@ -137,7 +137,7 @@ impl Bot {
     }
 
     // Prepare for long and boring code in this function
-    pub fn update_info(&self, map_bytes: &[u8], enemy_bytes: &[u8], player_bytes: &[u8], health: f32) -> BotActions {
+    pub fn update_info(&self, map_bytes: &[u8], enemy_bytes: &[u8], player_bytes: &[u8], health: f32, ability_charged: bool) -> BotActions {
         let memory = self.instance.0.exports.get_memory("memory").unwrap();
         let mem_buffer = unsafe { memory.data_unchecked_mut() };
 
@@ -167,7 +167,13 @@ impl Bot {
             let player_buffer_ptr: usize = player_buffer_ptr.call().unwrap().try_into().unwrap();
 
             // Update the player's position
-            mem_buffer[player_buffer_ptr..player_buffer_ptr + 8].copy_from_slice(&player_bytes[0..8])
+            mem_buffer[player_buffer_ptr..player_buffer_ptr + 8].copy_from_slice(&player_bytes[0..8]);
+            // Update the status of the player's ability
+            mem_buffer[player_buffer_ptr + 8] = match ability_charged {
+                false => 0,
+                true => 255,
+
+            };
         };
 
         {
@@ -301,7 +307,7 @@ pub fn handle_bots(mut bots: Query<(&mut Transform, &PlayerID, Option<&mut Bot>,
 
             let rigid_body = rigid_body_set.get_mut(*rigid_body_handle).unwrap();
 
-            let actions = bot.update_info(&map_bin, &enemy_player_bytes, &bot_player_bytes, health.0);
+            let actions = bot.update_info(&map_bin, &enemy_player_bytes, &bot_player_bytes, health.0, ability_info.ability_charge.finished());
 
             let gun = Gun::new(*model, ability_info.ability, Perk::ExtendedMag);
 
